@@ -33,7 +33,8 @@ Im Dashboard lassen sich folgende Inhalte anlegen, bearbeiten und löschen:
 - versionierte Punktesysteme für F1-Hauptrennen, F1-Sprints, LMU und WDL mit Schnellste-Runde-Bonus und Gültigkeitszeitraum
 - aktive und historische Saisons direkt im jeweiligen F1-, LMU- oder WDL-Saisonverlauf
 - Startseitenstatistiken, interne KRL-Teams mit Fahrer-Rollen und KRL Icons
-- getrennte Teampflege für Freitag und Sonntag mit Fahrer A und Fahrer B
+- zentrale Rennteams mit einmal gepflegtem Namen, Fahrzeug und Upload-Logo; dasselbe Team kann in Freitag, Sonntag, LMU und WDL eingesetzt werden
+- eigene F1-Aufstellungen je Liga mit mindestens zwei und beliebig vielen Fahrern sowie LMU-Cockpits mit mindestens drei und beliebig vielen Fahrern
 - F1-Fahrerrollen `Stamm Freitag`, `Stamm Sonntag` und `F1 Ersatz` sowie `LMU Stammfahrer` und `LMU Ersatzfahrer`
 - stabile Fahrer-IDs mit Plattform und beliebig vielen Aliasen direkt im Fahrerformular; Team und Gamertag werden dort nicht gepflegt
 - Google-Sheets-ähnliche, rennzentrierte Gesamteingabe für F1, LMU und WDL
@@ -51,7 +52,7 @@ Für die schnelle Eingabe stehen `/admin/race-editor`, `/admin/season-progress/l
 
 Pro Rennen kann zwischen `Plätze → Punkte aus Datenbank` und `Punkte direkt eingeben` gewechselt werden. Der direkte Modus ist für historische Wertungen mit abweichenden Punktesystemen gedacht und wird bei Änderungen an der zentralen Punktetabelle nicht überschrieben. Im automatischen Modus werden Punkte über `Punktesysteme` und `Punkte je Platz` berechnet. Jedes System gehört zu F1, LMU oder WDL, kann zeitlich begrenzt werden und optional Punkte für die schnellste Runde vergeben. Formel 1 besitzt getrennte Platzierungswerte für Haupt- und Sprintrennen.
 
-F1-Teams werden je Liga separat gepflegt. In der Teampflege werden einem Team wie Mercedes direkt `Fahrer A` und `Fahrer B` aus den passenden Stammfahrern zugeordnet. Die Fahrerpflege enthält deshalb keine Teamzuordnung; sie verwaltet nur Stammdaten, Aliase und die F1-Rolle.
+Ein Rennteam wie Mercedes wird nur einmal zentral gepflegt. Anschließend wird es in den F1-Fahrerfeldern der Freitag- und Sonntagsliga oder als LMU-Cockpit eingesetzt und dort mit beliebig vielen passenden Fahrern besetzt. Die öffentliche F1-Kachel erscheint ab zwei, die LMU-Kachel ab drei zugeordneten Fahrern; fehlt das Upload-Logo, wird der Teamname als Ersatz gezeigt. WDL-Ligen verknüpfen ebenfalls eines dieser zentralen Teams und zeigen Liga- und Teamlogo gemeinsam. Die Fahrerpflege enthält deshalb keine feste Teamzuordnung; sie verwaltet Stammdaten, Aliase und kombinierbare Rollen.
 
 Besucher wählen auf den F1-, LMU- und WDL-Seiten über `Saison auswählen` zwischen der aktiven und historischen Saisons. Kalender, Results, Wertungen und WDL-Ausgaben wechseln gemeinsam. Der zeitlich nächste veröffentlichte F1- oder LMU-Termin erscheint automatisch auf der Startseite. Angemeldete Admins sehen direkte Stift-Links zur jeweiligen Pflege.
 

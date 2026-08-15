@@ -1,0 +1,27 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container">
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker"><%= discipline.toUpperCase() %> · Teams</span><h1><%= config.title.toUpperCase() %></h1><p class="admin-intro"><%= config.description %> Weitere Fahrer können jederzeit ergänzt werden.</p></div><a class="button button-ghost" href="/admin/teams">Zentrale Teams pflegen</a></div>
+
+  <form class="roster-create-form" method="post" action="/admin/team-rosters/<%= discipline %>">
+    <label>Liga<select name="LeagueId" required><option value="">Liga wählen …</option><% leagues.forEach((league) => { %><option value="<%= league.id %>"><%= league.name %></option><% }) %></select></label>
+    <label>Zentrales Team<select name="TeamId" required><option value="">Team wählen …</option><% teams.forEach((team) => { %><option value="<%= team.id %>"><%= team.name %><%= team.car ? ` · ${team.car}` : '' %></option><% }) %></select></label>
+    <% if (discipline === 'lmu') { %><label>Klasse<input name="vehicleClass" placeholder="Hypercar"></label><label>Startnummer<input name="carNumber" placeholder="00"></label><% } %>
+    <label>Reihenfolge<input type="number" min="0" name="sortOrder" value="0"></label>
+    <button class="button" type="submit">Team zur Liga hinzufügen</button>
+  </form>
+
+  <% if (!rosters.length) { %><div class="empty-state">Noch keine Aufstellung vorhanden. Wähle oben ein zentrales Team und eine Liga aus.</div><% } %>
+  <div class="roster-card-grid">
+    <% rosters.forEach((roster) => { const requiredDrivers = config.minimum; const eligibleDrivers = drivers.filter((driver) => discipline === 'lmu' ? (driver.roleLmuRegular || driver.roleLmuReserve) : ((roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday) || driver.roleF1Reserve)); %>
+      <article class="roster-card <%= roster.assignments.length < requiredDrivers ? 'roster-incomplete' : '' %>">
+        <header><div><span><%= roster.league.name %></span><h2><%= roster.team.name %></h2><small><%= roster.team.car || (discipline === 'lmu' ? roster.vehicleClass || 'LMU' : 'Formel 1') %></small></div><% if (roster.team.logoPath) { %><img src="<%= roster.team.logoPath %>" alt="Logo <%= roster.team.name %>"><% } else { %><div class="roster-logo-fallback"><%= roster.team.name.slice(0, 2).toUpperCase() %></div><% } %></header>
+        <% if (discipline === 'lmu' && (roster.carNumber || roster.vehicleClass)) { %><p class="roster-meta"><%= roster.vehicleClass || 'LMU' %><%= roster.carNumber ? ` · #${roster.carNumber}` : '' %></p><% } %>
+        <div class="roster-count"><strong><%= roster.assignments.length %></strong> Fahrer · mindestens <%= requiredDrivers %> <%= roster.assignments.length >= requiredDrivers ? '✓' : 'erforderlich' %></div>
+        <ol class="roster-driver-list"><% roster.assignments.forEach((assignment) => { %><li><div><strong><%= assignment.driver.name %></strong><small><%= assignment.roleName %> · <%= assignment.driver.platform %></small></div><form method="post" action="/admin/team-rosters/<%= discipline %>/assignments/<%= assignment.id %>?_method=DELETE" data-confirm="Fahrer aus dieser Aufstellung entfernen?"><button type="submit" aria-label="<%= assignment.driver.name %> entfernen">×</button></form></li><% }) %></ol>
+        <form class="roster-add-driver" method="post" action="/admin/team-rosters/<%= discipline %>/<%= roster.id %>/drivers"><label for="driver-<%= roster.id %>">Fahrer suchen und hinzufügen</label><input id="driver-<%= roster.id %>" type="search" list="driver-options-<%= roster.id %>" name="DriverId" required placeholder="Name oder ID eingeben"><datalist id="driver-options-<%= roster.id %>"><% eligibleDrivers.forEach((driver) => { %><option value="<%= driver.id %>" label="#<%= driver.id %> · <%= driver.name %><%= driver.aliases.length ? ` · ${driver.aliases.map((alias) => alias.alias).join(', ')}` : '' %>"></option><% }) %></datalist><button class="button button-small" type="submit">+ Hinzufügen</button></form>
+        <form class="roster-delete" method="post" action="/admin/team-rosters/<%= discipline %>/<%= roster.id %>?_method=DELETE" data-confirm="Diese Liga-Aufstellung entfernen? Das zentrale Team bleibt bestehen."><button type="submit">Aufstellung entfernen</button></form>
+      </article>
+    <% }) %>
+  </div>
+</div></section>
+<%- include('../partials/footer') %>

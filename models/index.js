@@ -51,6 +51,18 @@ const Team = sequelize.define('Team', {
   ...commonSort
 });
 
+const TeamRoster = sequelize.define('TeamRoster', {
+  discipline: { type: DataTypes.STRING, allowNull: false },
+  vehicleClass: DataTypes.STRING,
+  carNumber: DataTypes.STRING,
+  ...commonSort
+}, { indexes: [{ unique: true, fields: ['league_id', 'team_id', 'discipline'] }] });
+
+const TeamRosterDriver = sequelize.define('TeamRosterDriver', {
+  roleName: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Stammfahrer' },
+  ...commonSort
+}, { indexes: [{ unique: true, fields: ['team_roster_id', 'driver_id'] }] });
+
 const Driver = sequelize.define('Driver', {
   name: { type: DataTypes.STRING, allowNull: false },
   number: DataTypes.INTEGER,
@@ -252,8 +264,16 @@ const LeagueCompetitionStanding = sequelize.define('LeagueCompetitionStanding', 
 
 TeamCategory.hasMany(TeamMember, { as: 'members', foreignKey: { name: 'TeamCategoryId', allowNull: false }, onDelete: 'CASCADE' });
 TeamMember.belongsTo(TeamCategory, { as: 'category', foreignKey: { name: 'TeamCategoryId', allowNull: false } });
-League.hasMany(Team, { as: 'teams', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
-Team.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
+League.hasMany(Team, { as: 'legacyTeams', foreignKey: { name: 'LeagueId', allowNull: true }, onDelete: 'SET NULL' });
+Team.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: true } });
+League.hasMany(TeamRoster, { as: 'teamRosters', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
+TeamRoster.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
+Team.hasMany(TeamRoster, { as: 'rosters', foreignKey: { name: 'TeamId', allowNull: false }, onDelete: 'CASCADE' });
+TeamRoster.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: false } });
+TeamRoster.hasMany(TeamRosterDriver, { as: 'assignments', foreignKey: { name: 'TeamRosterId', allowNull: false }, onDelete: 'CASCADE' });
+TeamRosterDriver.belongsTo(TeamRoster, { as: 'roster', foreignKey: { name: 'TeamRosterId', allowNull: false } });
+Driver.hasMany(TeamRosterDriver, { as: 'teamRosterAssignments', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
+TeamRosterDriver.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
 League.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'LeagueId', allowNull: true }, onDelete: 'CASCADE' });
 Driver.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: true } });
 Team.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'TeamId', allowNull: true }, onDelete: 'SET NULL' });
@@ -326,6 +346,8 @@ module.exports = {
   TeamMember,
   League,
   Team,
+  TeamRoster,
+  TeamRosterDriver,
   Driver,
   DriverAlias,
   PointsRule,

@@ -3,12 +3,18 @@ const asyncHandler = require('../services/asyncHandler');
 const adminController = require('../controllers/adminController');
 const raceEditorController = require('../controllers/raceEditorController');
 const seriesEditorController = require('../controllers/seriesEditorController');
+const teamRosterController = require('../controllers/teamRosterController');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
 const router = express.Router();
 router.use(requireAdmin);
 router.get('/', asyncHandler(adminController.dashboard));
+router.get('/team-rosters/:discipline(f1|lmu)', asyncHandler(teamRosterController.show));
+router.post('/team-rosters/:discipline(f1|lmu)', asyncHandler(teamRosterController.create));
+router.post('/team-rosters/:discipline(f1|lmu)/:rosterId/drivers', asyncHandler(teamRosterController.addDriver));
+router.delete('/team-rosters/:discipline(f1|lmu)/assignments/:assignmentId', asyncHandler(teamRosterController.removeDriver));
+router.delete('/team-rosters/:discipline(f1|lmu)/:rosterId', asyncHandler(teamRosterController.removeRoster));
 router.get('/race-editor', asyncHandler(raceEditorController.show));
 router.post('/race-editor/seasons', asyncHandler(raceEditorController.createSeason));
 router.post('/race-editor/races', asyncHandler(raceEditorController.createRace));
