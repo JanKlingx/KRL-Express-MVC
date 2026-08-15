@@ -4,6 +4,7 @@ const {
   ParticipatingLeague, WdlResultEntry, LmuCockpit
 } = require('../models');
 const { pointsForPosition, recalculateDriverRaceCounts } = require('../services/championship');
+const seasonProgress = require('../services/seasonProgress');
 
 const disciplines = {
   lmu: { scopeSlug: 'lmu', leagueType: 'lmu', title: 'LMU-Saisonverlauf' },
@@ -103,12 +104,14 @@ exports.save = async (req, res, next) => {
   try {
     if (discipline === 'lmu') data.rows.forEach(({ driver }) => {
       const row = submittedRows[String(driver.id)] || {};
-      if (row.included === 'on') claimPosition(row.position, driver.name);
+      if (race.pointsMode === 'database' && row.included === 'on') claimPosition(row.position, driver.name);
     });
     else data.rows.forEach(({ participant }) => {
       const row = submittedRows[String(participant.id)] || {};
-      claimPosition(row.positionOne, `${participant.name} Fahrer 1`);
-      claimPosition(row.positionTwo, `${participant.name} Fahrer 2`);
+      if (race.pointsMode === 'database') {
+        claimPosition(row.positionOne, `${participant.name} Fahrer 1`);
+        claimPosition(row.positionTwo, `${participant.name} Fahrer 2`);
+      }
     });
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
@@ -123,10 +126,15 @@ exports.save = async (req, res, next) => {
         if (row.included !== 'on') { if (entry) await entry.destroy({ transaction }); continue; }
         const values = {
           GrandPrixResultId: race.id, DriverId: driver.id, driverName: driver.name,
-          teamName: row.teamName?.trim() || teamName, position: row.position ? Number(row.position) : null,
-          status: row.status || null, fastestLap: row.fastestLap === 'on', sortOrder: row.position || driver.sortOrder || 999
+          teamName: row.teamName?.trim() || teamName,
+          position: race.pointsMode === 'manual' ? null : (row.position ? Number(row.position) : null),
+          status: row.status || null,
+          fastestLap: race.pointsMode === 'database' && row.fastestLap === 'on',
+          sortOrder: row.position || driver.sortOrder || 999
         };
-        values.points = await pointsForPosition(values.position, { ...race.toJSON(), fastestLap: values.fastestLap });
+        values.points = race.pointsMode === 'manual'
+          ? Number(row.points || 0)
+          : await pointsForPosition(values.position, { ...race.toJSON(), fastestLap: values.fastestLap });
         if (entry) await entry.update(values, { transaction });
         else await GrandPrixResultEntry.create(values, { transaction });
       }
@@ -142,12 +150,17 @@ exports.save = async (req, res, next) => {
         const values = {
           GrandPrixResultId: race.id, ParticipatingLeagueId: participant.id,
           Driver1Id: driverOneId, Driver2Id: driverTwoId,
-          positionOne: row.positionOne ? Number(row.positionOne) : null,
-          positionTwo: row.positionTwo ? Number(row.positionTwo) : null,
-          fastestLapOne: row.fastestLapOne === 'on', fastestLapTwo: row.fastestLapTwo === 'on', sortOrder: participant.sortOrder
+          positionOne: race.pointsMode === 'manual' ? null : (row.positionOne ? Number(row.positionOne) : null),
+          positionTwo: race.pointsMode === 'manual' ? null : (row.positionTwo ? Number(row.positionTwo) : null),
+          fastestLapOne: race.pointsMode === 'database' && row.fastestLapOne === 'on',
+          fastestLapTwo: race.pointsMode === 'database' && row.fastestLapTwo === 'on', sortOrder: participant.sortOrder
         };
-        values.pointsOne = await pointsForPosition(values.positionOne, { ...race.toJSON(), fastestLap: values.fastestLapOne });
-        values.pointsTwo = await pointsForPosition(values.positionTwo, { ...race.toJSON(), fastestLap: values.fastestLapTwo });
+        values.pointsOne = race.pointsMode === 'manual'
+          ? Number(row.pointsOne || 0)
+          : await pointsForPosition(values.positionOne, { ...race.toJSON(), fastestLap: values.fastestLapOne });
+        values.pointsTwo = race.pointsMode === 'manual'
+          ? Number(row.pointsTwo || 0)
+          : await pointsForPosition(values.positionTwo, { ...race.toJSON(), fastestLap: values.fastestLapTwo });
         values.totalPoints = values.pointsOne + values.pointsTwo;
         if (entry) await entry.update(values, { transaction });
         else await WdlResultEntry.create(values, { transaction });
@@ -161,4 +174,75 @@ exports.save = async (req, res, next) => {
   if (discipline === 'lmu') await recalculateDriverRaceCounts();
   req.session.flash = { type: 'success', message: `${race.title}: Das vollständige Rennergebnis wurde gespeichert und neu berechnet.` };
   res.redirect(redirectFor(discipline, race));
+};
+
+function progressRedirect(discipline, values = {}) {
+  const query = new URLSearchParams(Object.entries(values).filter(([, value]) => value));
+  return `/admin/season-progress/${discipline}${query.size ? `?${query}` : ''}`;
+}
+
+exports.createSeason = async (req, res, next) => {
+  const discipline = req.params.discipline;
+  if (!disciplines[discipline]) return next();
+  try {
+    const { season } = await seasonProgress.createSeason(discipline, req.body);
+    req.session.flash = { type: 'success', message: `${season.name} wurde direkt in der ${discipline.toUpperCase()}-Pflege angelegt.` };
+    res.redirect(progressRedirect(discipline, { season: season.id }));
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+    res.redirect(progressRedirect(discipline));
+  }
+};
+
+exports.createRace = async (req, res, next) => {
+  const discipline = req.params.discipline;
+  if (!disciplines[discipline]) return next();
+  try {
+    const { main } = await seasonProgress.createManualRace(discipline, req.body);
+    req.session.flash = { type: 'success', message: `${main.title} wurde angelegt. Die Renntabelle ist sofort bereit.` };
+    res.redirect(progressRedirect(discipline, { season: main.SeasonId, race: main.id }));
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+    res.redirect(progressRedirect(discipline, { season: req.body.SeasonId }));
+  }
+};
+
+exports.importCalendar = async (req, res, next) => {
+  const discipline = req.params.discipline;
+  if (!disciplines[discipline]) return next();
+  try {
+    const result = await seasonProgress.importCalendar(discipline, req.body);
+    req.session.flash = { type: 'success', message: `${result.imported} Rennen wurden aus dem ${discipline.toUpperCase()}-Rennkalender übernommen.` };
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+  }
+  res.redirect(progressRedirect(discipline, { season: req.body.SeasonId }));
+};
+
+exports.updateRace = async (req, res, next) => {
+  const discipline = req.params.discipline;
+  if (!disciplines[discipline]) return next();
+  try {
+    const { main } = await seasonProgress.updateRaceSettings(discipline, req.params.raceId, req.body);
+    req.session.flash = { type: 'success', message: 'Eingabemodus wurde aktualisiert.' };
+    res.redirect(progressRedirect(discipline, { season: main.SeasonId, race: main.id }));
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+    res.redirect(progressRedirect(discipline));
+  }
+};
+
+exports.removeRace = async (req, res, next) => {
+  const discipline = req.params.discipline;
+  if (!disciplines[discipline]) return next();
+  try {
+    const race = await GrandPrixResult.findByPk(req.params.raceId);
+    const redirect = progressRedirect(discipline, { season: race?.SeasonId });
+    await seasonProgress.removeRaceEvent(discipline, req.params.raceId);
+    req.session.flash = { type: 'success', message: 'Rennen wurde entfernt.' };
+    res.redirect(redirect);
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+    res.redirect(progressRedirect(discipline));
+  }
 };

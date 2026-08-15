@@ -455,7 +455,7 @@ module.exports = {
   seasonCategories: {
     title: 'Saison-Kategorien', group: 'Saisonverwaltung',
     description: 'Saisons übersichtlich unter Kategorien wie „Aktuelle Saison“ oder „Ältere Saisons“ gruppieren.', model: models.SeasonCategory,
-    prepareValues: prepareSeasonCategory,
+    prepareValues: prepareSeasonCategory, hidden: true,
     fields: [
       text('name', 'Kategoriename', true),
       select('leagueType', 'Ligatyp', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
@@ -466,7 +466,7 @@ module.exports = {
   seasons: {
     title: 'Saisons', group: 'Saisonverwaltung',
     description: 'Aktuelle und historische Saisons für Frontend, Kalender, Results und Wertungen verwalten.', model: models.Season,
-    prepareValues: prepareSeason, afterSave: syncSeason,
+    prepareValues: prepareSeason, afterSave: syncSeason, hidden: true,
     fields: [
       text('name', 'Saisonname', true, { placeholder: '2024, Season 8 oder WDL 2023' }),
       select('leagueType', 'Ligatyp', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
@@ -582,7 +582,7 @@ module.exports = {
   seasonRaces: {
     title: 'Historische / manuelle Rennen', group: 'Saisonverwaltung',
     description: 'Rennen für historische Saisons oder manuelle Kalender anlegen.', model: models.GrandPrixResult,
-    prepareValues: prepareSeasonRace, afterSave: syncSeasonRace, afterRemove: recalculateDriverRaceCounts,
+    prepareValues: prepareSeasonRace, afterSave: syncSeasonRace, afterRemove: recalculateDriverRaceCounts, hidden: true,
     fields: [
       relation('SeasonId', 'Saison', models.Season, (row) => `${row.name} · ${row.scopeSlug}`, true),
       relation('LeagueId', 'Ligenseite', models.League, (row) => row.name, true),

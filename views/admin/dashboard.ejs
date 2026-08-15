@@ -10,8 +10,6 @@
       <form method="post" action="<%= adminBasePath %>/logout"><button class="button button-ghost" type="submit">Abmelden</button></form>
     </div>
 
-    <section class="admin-group"><div class="admin-group-heading"><h2>Schnelle Renneingabe</h2><span>Pro Rennen statt pro Fahrer</span></div><div class="admin-grid"><a class="admin-card admin-card-featured" href="/admin/race-editor"><span>F1 · Haupt- und Sprintrennen</span><h3>Formel 1 Saisonverlauf</h3><p>Liga, Saison und Kalenderrennen auswählen und das vollständige Ergebnis pflegen.</p><small>Tabelle öffnen →</small></a><a class="admin-card" href="/admin/season-progress/lmu"><span>LMU</span><h3>LMU Saisonverlauf</h3><p>Ein Rennen öffnen und alle Fahrerplatzierungen gemeinsam eintragen.</p><small>Tabelle öffnen →</small></a><a class="admin-card" href="/admin/season-progress/wdl"><span>WDL · Zwei Fahrer je Liga</span><h3>WDL Saisonverlauf</h3><p>Alle teilnehmenden Ligen und beide Fahrerplätze in einer Tabelle pflegen.</p><small>Tabelle öffnen →</small></a></div></section>
-
     <% groups.forEach((group) => { %>
       <section class="admin-group" aria-labelledby="group-<%= group.name.replace(/\W+/g, '-').toLowerCase() %>">
         <div class="admin-group-heading">
@@ -20,8 +18,8 @@
         </div>
         <div class="admin-grid">
           <% group.modules.forEach(([key, config]) => { %>
-            <a class="admin-card" href="<%= adminBasePath %>/<%= key %>">
-              <span><%= counts[key] %> Einträge</span>
+            <a class="admin-card <%= config.href ? 'admin-card-featured' : '' %>" href="<%= config.href || `${adminBasePath}/${key}` %>">
+              <span><%= config.href ? 'Direkte Tabellenpflege' : `${counts[key]} Einträge` %></span>
               <h3><%= config.title %></h3>
               <p><%= config.description %></p>
               <small>Öffnen und bearbeiten →</small>
