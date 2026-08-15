@@ -12,7 +12,6 @@ const SequelizeStoreFactory =
 const publicRoutes = require('./routes/publicRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const wdlAdminRoutes = require('./routes/wdlAdminRoutes');
 
 const {
   notFound,
@@ -40,7 +39,7 @@ const contentSecurityDirectives = {
   scriptSrc: ["'self'"],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-  imgSrc: ["'self'", 'data:', 'https:'],
+  imgSrc: ["'self'", 'data:'],
   connectSrc: ["'self'"],
   objectSrc: ["'none'"],
   baseUri: ["'self'"],
@@ -107,7 +106,7 @@ app.use((req, res, next) => {
   res.locals.currentPath = req.path;
   res.locals.isAdmin = Boolean(req.session.userId);
   res.locals.adminRole = req.session.role || null;
-  res.locals.adminHome = req.session.role === 'wdl' ? '/wdl-admin' : '/admin';
+  res.locals.adminHome = '/admin';
   res.locals.flash = req.session.flash || null;
 
   delete req.session.flash;
@@ -117,7 +116,7 @@ app.use((req, res, next) => {
 app.use('/', publicRoutes);
 app.use('/admin', authRoutes);
 app.use('/admin', adminRoutes);
-app.use('/wdl-admin', wdlAdminRoutes);
+app.use('/wdl-admin', (req, res) => res.redirect(req.session.userId ? '/admin' : '/admin/login'));
 
 app.use(notFound);
 app.use(errorHandler);

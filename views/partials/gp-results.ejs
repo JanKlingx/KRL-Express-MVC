@@ -10,6 +10,7 @@
         const podium = classified.filter((entry) => Number(entry.position) >= 1 && Number(entry.position) <= 3);
       %>
         <article class="carousel-slide gp-result-card <%= index === 0 ? 'active' : '' %>" aria-hidden="<%= index !== 0 %>">
+          <% if (item.imagePath) { %><img class="gp-poster" src="<%= item.imagePath %>" alt="Rennposter: <%= item.title %>"><% } %>
           <header class="gp-result-header">
             <div>
               <span class="gp-round">RUNDE <%= item.sortOrder || index + 1 %></span>

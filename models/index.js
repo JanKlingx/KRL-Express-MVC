@@ -101,24 +101,6 @@ const GrandPrixResultEntry = sequelize.define('GrandPrixResultEntry', {
   ...commonSort
 });
 
-const LeagueHistorySource = sequelize.define('LeagueHistorySource', {
-  label: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Google Sheets' },
-  sheetUrl: {
-    type: DataTypes.TEXT,
-    allowNull: false,
-    validate: {
-      isGoogleSheetsUrl(value) {
-        let url;
-        try { url = new URL(value); } catch (error) { throw new Error('Bitte einen vollständigen Google-Sheets-Link eintragen.'); }
-        if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com' || !url.pathname.startsWith('/spreadsheets/')) {
-          throw new Error('Es sind nur öffentliche HTTPS-Links von docs.google.com erlaubt.');
-        }
-      }
-    }
-  },
-  ...commonSort
-});
-
 const LmuCockpit = sequelize.define('LmuCockpit', {
   teamName: { type: DataTypes.STRING, allowNull: false },
   logoPath: DataTypes.STRING,
@@ -181,8 +163,6 @@ League.hasMany(GrandPrixResult, { as: 'gpResults', foreignKey: { name: 'LeagueId
 GrandPrixResult.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 GrandPrixResult.hasMany(GrandPrixResultEntry, { as: 'entries', foreignKey: { name: 'GrandPrixResultId', allowNull: false }, onDelete: 'CASCADE' });
 GrandPrixResultEntry.belongsTo(GrandPrixResult, { as: 'grandPrixResult', foreignKey: { name: 'GrandPrixResultId', allowNull: false } });
-League.hasOne(LeagueHistorySource, { as: 'historySource', foreignKey: { name: 'LeagueId', allowNull: false, unique: true }, onDelete: 'CASCADE' });
-LeagueHistorySource.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false, unique: true } });
 League.hasMany(LmuCockpit, { as: 'cockpits', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 LmuCockpit.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 League.hasMany(LmuStandingImage, { as: 'lmuStandingImages', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -203,7 +183,6 @@ module.exports = {
   TeamStanding,
   GrandPrixResult,
   GrandPrixResultEntry,
-  LeagueHistorySource,
   LmuCockpit,
   LmuStandingImage,
   ParticipatingLeague,

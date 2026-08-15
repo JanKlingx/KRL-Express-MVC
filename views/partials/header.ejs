@@ -25,7 +25,7 @@
         <a href="/lmu">LMU Liga</a>
         <a href="/wettkampf-der-ligen">Wettkampf</a>
         <a href="/#team">Unser Team</a>
-        <a class="login-link" href="<%= isAdmin ? adminHome : '/admin/login' %>"><%= isAdmin ? (adminRole === 'wdl' ? 'WDL-Verwaltung' : 'Admin') : 'Login' %></a>
+        <a class="login-link" href="<%= isAdmin ? '/admin' : '/admin/login' %>"><%= isAdmin ? 'Admin & WDL' : 'Login' %></a>
         <a class="button button-small" href="https://discord.com" target="_blank" rel="noopener">Jetzt beitreten</a>
       </nav>
     </div>

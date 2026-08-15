@@ -60,22 +60,6 @@ async function run() {
   const [admin, created] = await User.findOrCreate({ where: { email: adminEmail }, defaults: { email: adminEmail, passwordHash, role: 'admin' } });
   if (!created) await admin.update({ passwordHash, role: 'admin' });
 
-  const hasWdlEmail = Boolean(process.env.WDL_ADMIN_EMAIL);
-  const hasWdlPassword = Boolean(process.env.WDL_ADMIN_PASSWORD);
-  if (hasWdlEmail !== hasWdlPassword) {
-    throw new Error('WDL_ADMIN_EMAIL und WDL_ADMIN_PASSWORD müssen entweder beide oder gar nicht gesetzt sein.');
-  }
-  if (hasWdlEmail && hasWdlPassword) {
-    const wdlEmail = process.env.WDL_ADMIN_EMAIL.toLowerCase();
-    if (wdlEmail === adminEmail) throw new Error('ADMIN_EMAIL und WDL_ADMIN_EMAIL müssen verschieden sein.');
-    const wdlPasswordHash = await bcrypt.hash(process.env.WDL_ADMIN_PASSWORD, 12);
-    const [wdlUser, wdlCreated] = await User.findOrCreate({
-      where: { email: wdlEmail },
-      defaults: { email: wdlEmail, passwordHash: wdlPasswordHash, role: 'wdl' }
-    });
-    if (!wdlCreated) await wdlUser.update({ passwordHash: wdlPasswordHash, role: 'wdl' });
-  }
-
   const statistics = [
     ['seasons', 'gefahrene Saisons', '12', '🏁'], ['drivers', 'aktive Fahrer', '96', '◉'],
     ['leagues', 'KRL-Ligen', '5', '◆'], ['followers', 'Twitch-Follower', '1.8K', '⚡']

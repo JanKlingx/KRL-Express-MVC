@@ -7,6 +7,9 @@ const competitionController = require('../controllers/competitionController');
 
 const router = express.Router();
 router.get('/', asyncHandler(homeController.index));
+router.get('/f1/:slug(freitag|sonntag)/download/fahrer-wm.csv', asyncHandler(f1Controller.downloadDriverStandings));
+router.get('/f1/:slug(freitag|sonntag)/download/team-wm.csv', asyncHandler(f1Controller.downloadTeamStandings));
+router.get('/f1/:slug(freitag|sonntag)/download/gp-results.csv', asyncHandler(f1Controller.downloadGpResults));
 router.get('/f1/:slug(freitag|sonntag)', asyncHandler(f1Controller.show));
 router.get('/lmu', asyncHandler(lmuController.show));
 router.get('/wettkampf-der-ligen', asyncHandler(competitionController.show));

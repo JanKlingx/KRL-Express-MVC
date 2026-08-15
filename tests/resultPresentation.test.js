@@ -27,3 +27,21 @@ test('GP-Ergebnis markiert Podium und DNF getrennt', async () => {
   assert.match(html, /status-dnf/);
   assert.match(html, />DNF</);
 });
+
+test('Saisonverlauf markiert die Top 3 in jeder Rennspalte', async () => {
+  const template = path.join(__dirname, '..', 'views', 'partials', 'season-history.ejs');
+  const results = [1, 2, 3].map((position) => ({ value: `P${position}`, position, points: 0, cumulative: 0, status: null, fastestLap: false }));
+  const html = await ejs.renderFile(template, {
+    league: { slug: 'freitag' },
+    isAdmin: false,
+    history: { seasons: [{}], sourceLabel: 'Admin-Saisonverlauf', warning: null },
+    selectedHistory: {
+      name: 'Saison 12',
+      races: [{ round: 1, code: 'BHR' }],
+      drivers: results.map((result, index) => ({ position: index + 1, name: `Fahrer ${index + 1}`, team: 'KRL', total: 0, gap: 0, average: 0, results: [result] }))
+    }
+  });
+  assert.match(html, /season-race-position-1/);
+  assert.match(html, /season-race-position-2/);
+  assert.match(html, /season-race-position-3/);
+});

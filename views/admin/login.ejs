@@ -6,6 +6,6 @@
     <label>Passwort<input type="password" name="password" autocomplete="current-password" required></label>
     <button class="button" type="submit">Anmelden</button>
   </form>
-  <div class="login-switch"><% if (loginMode === 'wdl') { %><a href="/admin/login">Zum vollständigen Admin-Login</a><% } else { %><a href="/wdl-admin/login">Eigener Login für Wettkampf der Ligen</a><% } %></div>
+  <div class="login-switch">Dieser Zugang öffnet sowohl die KRL- als auch die WDL-Verwaltung.</div>
 </div></section>
 <%- include('../partials/footer') %>
