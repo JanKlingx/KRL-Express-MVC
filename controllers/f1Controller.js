@@ -6,14 +6,24 @@ const {
   GrandPrixResultEntry,
   RaceEvent
 } = require('../models');
+const { Op } = require('sequelize');
 const { buildSeasonData } = require('../services/standings');
 const { sendCsv } = require('../services/csv');
 
 async function loadLeagueData(slug) {
   const league = await League.findOne({ where: { slug, type: 'f1' } });
   if (!league) return null;
-  const [drivers, gpResults, calendar] = await Promise.all([
-    Driver.findAll({ where: { LeagueId: league.id }, include: [{ model: Team, as: 'team' }, { association: 'aliases' }], order: [['sortOrder', 'ASC'], ['number', 'ASC']] }),
+  const role = league.slug === 'freitag' ? 'friday' : 'sunday';
+  const [teams, drivers, gpResults, calendar] = await Promise.all([
+    Team.findAll({
+      where: { LeagueId: league.id },
+      include: [
+        { association: 'driverOne', include: [{ association: 'aliases' }] },
+        { association: 'driverTwo', include: [{ association: 'aliases' }] }
+      ],
+      order: [['sortOrder', 'ASC'], ['name', 'ASC']]
+    }),
+    Driver.findAll({ where: { f1Role: role, TeamId: { [Op.ne]: null } }, include: [{ model: Team, as: 'team' }, { association: 'aliases' }], order: [['sortOrder', 'ASC'], ['number', 'ASC']] }),
     GrandPrixResult.findAll({
       where: { LeagueId: league.id, season: league.currentSeason },
       include: [{ model: GrandPrixResultEntry, as: 'entries' }],
@@ -21,7 +31,7 @@ async function loadLeagueData(slug) {
     }),
     RaceEvent.findAll({ where: { LeagueId: league.id, isPublished: true }, order: [['startsAt', 'ASC']] })
   ]);
-  return { league, drivers, gpResults, calendar, ...buildSeasonData(league, gpResults, drivers) };
+  return { league, teams, drivers, gpResults, calendar, ...buildSeasonData(league, gpResults, drivers) };
 }
 
 exports.show = async (req, res) => {

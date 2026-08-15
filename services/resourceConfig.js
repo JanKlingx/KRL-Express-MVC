@@ -18,7 +18,17 @@ const relation = (name, label, model, formatOption, required = false, options = 
   where: undefined
 });
 
-async function prepareDriver(values) {
+async function prepareDriver(values, body) {
+  if (body.f1Role) {
+    values.TeamId = null;
+    if (body.f1Role === 'reserve') values.LeagueId = null;
+    else {
+      const slug = body.f1Role === 'friday' ? 'freitag' : 'sonntag';
+      const league = await models.League.findOne({ where: { slug, type: 'f1' } });
+      if (!league) throw new Error(`Die F1-Liga „${slug}“ wurde noch nicht angelegt.`);
+      values.LeagueId = league.id;
+    }
+  }
   if (values.TeamId) {
     const team = await models.Team.findByPk(values.TeamId);
     if (!team || team.LeagueId !== Number(values.LeagueId)) throw new Error('Das ausgewählte Team gehört nicht zur ausgewählten Liga.');
@@ -33,6 +43,7 @@ const listWhereForLeagueType = (type) => async () => {
   const leagues = await models.League.findAll({ where: { type }, attributes: ['id'] });
   return { LeagueId: { [Op.in]: leagues.map((league) => league.id) } };
 };
+const f1DriverWhere = () => ({ f1Role: { [Op.in]: ['friday', 'sunday', 'reserve'] } });
 
 const platformField = () => select('platform', 'Plattform', [['PC', 'PC'], ['PlayStation', 'PlayStation'], ['Xbox', 'Xbox']], true);
 const aliasesField = () => textarea('aliasesText', 'Aliase / frühere Namen', false, { persist: false, help: 'Mehrere Namen mit Komma oder jeweils in einer neuen Zeile trennen.' });
@@ -50,6 +61,73 @@ async function syncDriverAliases(driver, body) {
     await models.DriverAlias.destroy({ where: { DriverId: driver.id }, transaction });
     if (aliases.length) await models.DriverAlias.bulkCreate(aliases.map((alias, index) => ({ DriverId: driver.id, alias, sortOrder: index })), { transaction });
   });
+}
+
+async function syncF1Driver(driver, body) {
+  await syncDriverAliases(driver, body);
+  const assignments = await models.Team.findAll({
+    where: { [Op.or]: [{ Driver1Id: driver.id }, { Driver2Id: driver.id }] },
+    include: [{ model: models.League, as: 'league' }]
+  });
+  for (const team of assignments) {
+    const expectedRole = team.league?.slug === 'freitag' ? 'friday' : 'sunday';
+    if (driver.f1Role !== expectedRole) {
+      const changes = {};
+      if (team.Driver1Id === driver.id) changes.Driver1Id = null;
+      if (team.Driver2Id === driver.id) changes.Driver2Id = null;
+      await team.update(changes);
+    }
+  }
+  const matchingTeam = assignments.find((team) => {
+    const expectedRole = team.league?.slug === 'freitag' ? 'friday' : 'sunday';
+    return driver.f1Role === expectedRole;
+  });
+  await driver.update({ TeamId: matchingTeam?.id || null });
+}
+
+async function prepareF1Team(values, body, existingTeam) {
+  if (values.Driver1Id && values.Driver2Id && Number(values.Driver1Id) === Number(values.Driver2Id)) {
+    throw new Error('Fahrer A und Fahrer B müssen unterschiedliche Fahrer sein.');
+  }
+  const league = await models.League.findByPk(values.LeagueId);
+  if (!league || league.type !== 'f1') throw new Error('Bitte eine F1-Liga auswählen.');
+  const expectedRole = league.slug === 'freitag' ? 'friday' : 'sunday';
+  for (const fieldName of ['Driver1Id', 'Driver2Id']) {
+    if (!values[fieldName]) continue;
+    const driver = await models.Driver.findByPk(values[fieldName]);
+    if (!driver || driver.f1Role !== expectedRole) {
+      throw new Error(`Für ${league.name} können nur Fahrer mit der passenden Stammfahrer-Rolle ausgewählt werden.`);
+    }
+    const otherTeam = await models.Team.findOne({
+      where: {
+        id: { [Op.ne]: existingTeam?.id || 0 },
+        [Op.or]: [{ Driver1Id: driver.id }, { Driver2Id: driver.id }]
+      }
+    });
+    if (otherTeam) throw new Error(`${driver.name} ist bereits einem anderen F1-Team zugeordnet.`);
+  }
+}
+
+async function syncF1Team(team) {
+  const assignedIds = [team.Driver1Id, team.Driver2Id].filter(Boolean);
+  await models.Driver.update({ TeamId: null }, {
+    where: { TeamId: team.id, ...(assignedIds.length ? { id: { [Op.notIn]: assignedIds } } : {}) }
+  });
+  if (assignedIds.length) await models.Driver.update({ TeamId: team.id }, { where: { id: { [Op.in]: assignedIds } } });
+}
+
+async function removeF1Team(team) {
+  await models.Driver.update({ TeamId: null }, { where: { TeamId: team.id } });
+}
+
+async function removeF1Driver(driver) {
+  const teams = await models.Team.findAll({ where: { [Op.or]: [{ Driver1Id: driver.id }, { Driver2Id: driver.id }] } });
+  for (const team of teams) {
+    const changes = {};
+    if (team.Driver1Id === driver.id) changes.Driver1Id = null;
+    if (team.Driver2Id === driver.id) changes.Driver2Id = null;
+    await team.update(changes);
+  }
 }
 
 async function syncCalendarGrandPrix(event) {
@@ -154,22 +232,25 @@ module.exports = {
   },
   teams: {
     title: 'F1-Teams', group: 'F1 – Fahrer & Teams',
-    description: 'Teams einer F1-Liga verwalten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('f1'),
+    description: 'Teams getrennt für Freitag und Sonntag pflegen und jeweils Fahrer A und Fahrer B zuordnen.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('f1'), filterByLeague: true, filterLabel: 'Teampflege nach Liga', prepareValues: prepareF1Team, afterSave: syncF1Team, beforeRemove: removeF1Team,
     fields: [
       relation('LeagueId', 'Liga', models.League, (row) => `${row.name} · ${row.currentSeason}`, true, { where: { type: 'f1' } }),
-      text('name', 'Teamname', true), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      text('name', 'Teamname', true), text('car', 'Fahrzeug'),
+      relation('Driver1Id', 'Fahrer A', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.f1Role === 'friday' ? 'Stamm Freitag' : 'Stamm Sonntag'}`, false, { where: { f1Role: { [Op.in]: ['friday', 'sunday'] } } }),
+      relation('Driver2Id', 'Fahrer B', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.f1Role === 'friday' ? 'Stamm Freitag' : 'Stamm Sonntag'}`, false, { where: { f1Role: { [Op.in]: ['friday', 'sunday'] } } }),
+      number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   drivers: {
     title: 'F1-Fahrer', group: 'F1 – Fahrer & Teams',
-    description: 'F1-Stammfahrer je Liga verwalten und einem Team zuordnen.', model: models.Driver, filterByLeague: true, getListWhere: listWhereForLeagueType('f1'),
+    description: 'Fahrer-Stammdaten pflegen und als Stamm Freitag, Stamm Sonntag oder F1-Ersatzfahrer einordnen. Die Teamzuordnung erfolgt anschließend beim Team.', model: models.Driver, getListWhere: f1DriverWhere,
     upload: { field: 'avatarPath', label: 'Fahrerbild' },
-    prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncDriverAliases,
+    prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncF1Driver, beforeRemove: removeF1Driver,
     fields: [
-      relation('LeagueId', 'Stammfahrer-Rolle', models.League, (row) => row.slug === 'freitag' ? 'Stamm Freitag' : row.slug === 'sonntag' ? 'Stamm Sonntag' : `Stamm ${row.name}`, true, { where: { type: 'f1' } }),
-      relation('TeamId', 'Team', models.Team, (row) => row.name), text('name', 'Fahrername', true), aliasesField(),
+      select('f1Role', 'F1-Rolle', [['friday', 'Stamm Freitag'], ['sunday', 'Stamm Sonntag'], ['reserve', 'Ersatzfahrer Formel 1']], true),
+      text('name', 'Fahrername', true), aliasesField(),
       number('number', 'Startnummer', false, { min: 0, step: 1 }), platformField(), text('nationality', 'Nationalität'),
-      text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   lmuTeams: {

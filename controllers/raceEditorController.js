@@ -31,9 +31,10 @@ exports.show = async (req, res) => {
   const selectedRace = races.find((race) => race.id === selectedId) || null;
   let rows = [];
   if (selectedRace) {
+    const selectedRole = selectedRace.league.slug === 'freitag' ? 'friday' : 'sunday';
     const [drivers, entries] = await Promise.all([
       Driver.findAll({
-        where: { LeagueId: selectedRace.LeagueId },
+        where: { f1Role: selectedRole, TeamId: { [Op.ne]: null } },
         include: [{ model: Team, as: 'team' }, { association: 'aliases' }],
         order: [['sortOrder', 'ASC'], ['name', 'ASC']]
       }),
@@ -47,8 +48,10 @@ exports.show = async (req, res) => {
 exports.save = async (req, res) => {
   const race = await GrandPrixResult.findByPk(req.params.raceId);
   if (!race) return res.status(404).render('errors/404', { title: 'Grand Prix nicht gefunden' });
+  const league = await League.findByPk(race.LeagueId);
+  const selectedRole = league?.slug === 'freitag' ? 'friday' : 'sunday';
   const drivers = await Driver.findAll({
-    where: { LeagueId: race.LeagueId }, include: [{ model: Team, as: 'team' }, { association: 'aliases' }]
+    where: { f1Role: selectedRole, TeamId: { [Op.ne]: null } }, include: [{ model: Team, as: 'team' }, { association: 'aliases' }]
   });
   const driverIds = drivers.map((driver) => driver.id);
   const existingEntries = await GrandPrixResultEntry.findAll({

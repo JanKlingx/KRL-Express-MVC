@@ -11,7 +11,8 @@ async function seedF1(league, prefix) {
   const teamData = [
     { name: `${prefix} Apex Motorsport`, car: 'Ferrari' },
     { name: `${prefix} Velocity Racing`, car: 'McLaren' },
-    { name: `${prefix} Nightshift GP`, car: 'Mercedes' }
+    { name: `${prefix} Nightshift GP`, car: 'Mercedes' },
+    { name: `${prefix} Horizon Racing`, car: 'Red Bull' }
   ];
   const teams = [];
   for (let i = 0; i < teamData.length; i += 1) {
@@ -22,10 +23,17 @@ async function seedF1(league, prefix) {
   for (let i = 0; i < 8; i += 1) {
     const [driver] = await Driver.findOrCreate({
       where: { LeagueId: league.id, name: `KRL Fahrer ${i + 1}` },
-      defaults: { LeagueId: league.id, TeamId: teams[i % teams.length].id, name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, nationality: i % 2 ? 'DE' : 'AT', car: teams[i % teams.length].car, sortOrder: i }
+      defaults: { LeagueId: league.id, TeamId: teams[Math.floor(i / 2)].id, f1Role: league.slug === 'freitag' ? 'friday' : 'sunday', name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, nationality: i % 2 ? 'DE' : 'AT', sortOrder: i }
     });
     drivers.push(driver);
+    if (!driver.f1Role) await driver.update({ f1Role: league.slug === 'freitag' ? 'friday' : 'sunday' });
     await DriverStanding.findOrCreate({ where: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason }, defaults: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason, position: i + 1, points: 164 - i * 15, wins: Math.max(0, 4 - i), gap: i === 0 ? 'Leader' : `+${i * 15}`, sortOrder: i } });
+  }
+  for (let i = 0; i < teams.length; i += 1) {
+    const assignedIds = [drivers[i * 2]?.id, drivers[i * 2 + 1]?.id].filter(Boolean);
+    await teams[i].update({ Driver1Id: assignedIds[0] || null, Driver2Id: assignedIds[1] || null });
+    await Driver.update({ TeamId: null }, { where: { TeamId: teams[i].id } });
+    if (assignedIds.length) await Driver.update({ TeamId: teams[i].id }, { where: { id: assignedIds } });
   }
   for (let i = 0; i < teams.length; i += 1) {
     await TeamStanding.findOrCreate({ where: { LeagueId: league.id, TeamId: teams[i].id, season: league.currentSeason }, defaults: { LeagueId: league.id, TeamId: teams[i].id, season: league.currentSeason, position: i + 1, points: 290 - i * 58, wins: 5 - i * 2, gap: i === 0 ? 'Leader' : `+${i * 58}`, sortOrder: i } });
@@ -43,7 +51,7 @@ async function seedF1(league, prefix) {
         DriverId: drivers[i].id,
         position: i + 1,
         driverName: drivers[i].name,
-        teamName: teams[i % teams.length].name,
+        teamName: teams[Math.floor(i / 2)].name,
         points: pointsByPosition[i],
         fastestLap: i === 0,
         sortOrder: i
