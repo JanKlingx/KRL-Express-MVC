@@ -37,13 +37,44 @@
 </section>
 
 <section class="section container" id="team">
-  <div class="section-heading"><span>DIE MENSCHEN HINTER KRL</span><h2>UNSER TEAM</h2></div>
+  <div class="section-heading">
+    <span>DIE MENSCHEN HINTER KRL</span>
+    <h2>UNSER TEAM</h2>
+  </div>
+
   <% categories.forEach(category => { %>
-    <div class="team-group"><h3><%= category.name %></h3><div class="people-grid">
-      <% category.members.forEach(member => { %><article class="person-card"><div class="avatar"><%= member.name.charAt(0) %></div><strong><%= member.name %></strong><span><%= member.role %></span><small><%= member.joinedYear ? `Dabei seit ${member.joinedYear}` : '' %></small></article><% }) %>
-    </div></div>
+    <div class="team-group">
+      <h3><%= category.name %></h3>
+
+      <div class="people-grid">
+        <% category.members.forEach(member => { %>
+          <article class="person-card">
+
+            <% if (member.imagePath) { %>
+              <img
+                src="<%= member.imagePath %>"
+                alt="<%= member.name %>"
+                class="avatar avatar-image"
+              >
+            <% } else { %>
+              <div class="avatar">
+                <%= member.name.charAt(0) %>
+              </div>
+            <% } %>
+
+            <strong><%= member.name %></strong>
+            <span><%= member.role %></span>
+
+            <small>
+              <%= member.joinedYear
+                ? `Dabei seit ${member.joinedYear}`
+                : '' %>
+            </small>
+          </article>
+        <% }) %>
+      </div>
+    </div>
   <% }) %>
 </section>
-
 <section class="section cta"><div class="container"><span>BEREIT FÜR DIE STARTAUFSTELLUNG?</span><h2>WERDE TEIL DER KRL</h2><p>Besuche unseren Discord und finde die passende Liga für dich.</p><a class="button" href="https://discord.com" target="_blank" rel="noopener">Discord öffnen</a></div></section>
 <%- include('partials/footer') %>
