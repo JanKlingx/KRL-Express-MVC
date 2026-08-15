@@ -55,6 +55,7 @@ const Driver = sequelize.define('Driver', {
   name: { type: DataTypes.STRING, allowNull: false },
   number: DataTypes.INTEGER,
   gamerTag: DataTypes.STRING,
+  f1Role: DataTypes.STRING,
   platform: { type: DataTypes.STRING, allowNull: false, defaultValue: 'PC' },
   nationality: DataTypes.STRING,
   avatarPath: DataTypes.STRING,
@@ -162,10 +163,12 @@ TeamCategory.hasMany(TeamMember, { as: 'members', foreignKey: { name: 'TeamCateg
 TeamMember.belongsTo(TeamCategory, { as: 'category', foreignKey: { name: 'TeamCategoryId', allowNull: false } });
 League.hasMany(Team, { as: 'teams', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 Team.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
-League.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
-Driver.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
+League.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'LeagueId', allowNull: true }, onDelete: 'CASCADE' });
+Driver.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: true } });
 Team.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'TeamId', allowNull: true }, onDelete: 'SET NULL' });
 Driver.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: true } });
+Team.belongsTo(Driver, { as: 'driverOne', foreignKey: { name: 'Driver1Id', allowNull: true }, constraints: false });
+Team.belongsTo(Driver, { as: 'driverTwo', foreignKey: { name: 'Driver2Id', allowNull: true }, constraints: false });
 Driver.hasMany(DriverAlias, { as: 'aliases', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
 DriverAlias.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
 League.hasMany(DriverStanding, { as: 'driverStandings', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
