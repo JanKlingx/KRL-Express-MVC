@@ -1,0 +1,111 @@
+require('dotenv').config();
+const bcrypt = require('bcrypt');
+const {
+  sequelize, User, SiteStatistic, TeamCategory, TeamMember, League, Team, Driver,
+  DriverStanding, TeamStanding, GrandPrixResult, LmuCockpit, LmuStandingImage,
+  ParticipatingLeague, LeagueCompetitionStanding
+} = require('../models');
+
+async function seedF1(league, prefix) {
+  const teamData = [
+    { name: `${prefix} Apex Motorsport`, car: 'Ferrari' },
+    { name: `${prefix} Velocity Racing`, car: 'McLaren' },
+    { name: `${prefix} Nightshift GP`, car: 'Mercedes' }
+  ];
+  const teams = [];
+  for (let i = 0; i < teamData.length; i += 1) {
+    const [team] = await Team.findOrCreate({ where: { LeagueId: league.id, name: teamData[i].name }, defaults: { ...teamData[i], LeagueId: league.id, sortOrder: i } });
+    teams.push(team);
+  }
+  const drivers = [];
+  for (let i = 0; i < 8; i += 1) {
+    const [driver] = await Driver.findOrCreate({
+      where: { LeagueId: league.id, gamerTag: `${prefix.toLowerCase()}_driver_${i + 1}` },
+      defaults: { LeagueId: league.id, TeamId: teams[i % teams.length].id, name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, gamerTag: `${prefix.toLowerCase()}_driver_${i + 1}`, nationality: i % 2 ? 'DE' : 'AT', car: teams[i % teams.length].car, sortOrder: i }
+    });
+    drivers.push(driver);
+    await DriverStanding.findOrCreate({ where: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason }, defaults: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason, position: i + 1, points: 164 - i * 15, wins: Math.max(0, 4 - i), gap: i === 0 ? 'Leader' : `+${i * 15}`, sortOrder: i } });
+  }
+  for (let i = 0; i < teams.length; i += 1) {
+    await TeamStanding.findOrCreate({ where: { LeagueId: league.id, TeamId: teams[i].id, season: league.currentSeason }, defaults: { LeagueId: league.id, TeamId: teams[i].id, season: league.currentSeason, position: i + 1, points: 290 - i * 58, wins: 5 - i * 2, gap: i === 0 ? 'Leader' : `+${i * 58}`, sortOrder: i } });
+  }
+  await GrandPrixResult.findOrCreate({ where: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa' }, defaults: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa', circuit: 'Circuit de Spa-Francorchamps', raceDate: '2026-08-01', imagePath: '/images/krl-placeholder.svg', altText: 'Platzhalter für das Ergebnis des Großen Preises von Spa', sortOrder: 1 } });
+}
+
+async function run() {
+  if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
+    throw new Error('ADMIN_EMAIL und ADMIN_PASSWORD müssen in der .env-Datei gesetzt sein.');
+  }
+  await sequelize.sync();
+  const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
+  const [admin, created] = await User.findOrCreate({ where: { email: process.env.ADMIN_EMAIL.toLowerCase() }, defaults: { email: process.env.ADMIN_EMAIL.toLowerCase(), passwordHash } });
+  if (!created) await admin.update({ passwordHash });
+
+  const statistics = [
+    ['seasons', 'gefahrene Saisons', '12', '🏁'], ['drivers', 'aktive Fahrer', '96', '◉'],
+    ['leagues', 'KRL-Ligen', '5', '◆'], ['followers', 'Twitch-Follower', '1.8K', '⚡']
+  ];
+  for (let i = 0; i < statistics.length; i += 1) {
+    const [key, label, value, icon] = statistics[i];
+    await SiteStatistic.findOrCreate({ where: { key }, defaults: { key, label, value, icon, sortOrder: i } });
+  }
+
+  const categoryData = [
+    ['Planungsgruppe', 'planung', ['Ligaleitung', 'Eventplanung', 'Community']],
+    ['Administration', 'administration', ['Technik', 'Discord', 'Webseite']],
+    ['Rennleitung', 'rennleitung', ['Rennleitung Freitag', 'Rennleitung Sonntag']],
+    ['Kommentatoren', 'kommentatoren', ['Freitagsliga', 'Sonntagsliga', 'LMU']]
+  ];
+  for (let i = 0; i < categoryData.length; i += 1) {
+    const [name, slug, roles] = categoryData[i];
+    const [category] = await TeamCategory.findOrCreate({ where: { slug }, defaults: { name, slug, sortOrder: i } });
+    for (let j = 0; j < roles.length; j += 1) {
+      await TeamMember.findOrCreate({ where: { TeamCategoryId: category.id, role: roles[j] }, defaults: { TeamCategoryId: category.id, name: `KRL Team ${i + 1}.${j + 1}`, role: roles[j], joinedYear: 2024 + (j % 2), sortOrder: j } });
+    }
+  }
+
+  const leagueData = [
+    { name: 'KRL Freitagsliga', slug: 'freitag', type: 'f1', currentSeason: 'Saison 12', raceDay: 'Freitag', raceTime: '20:00 Uhr', description: 'Der schnelle Start ins Rennwochenende mit fairen F1-Rennen.', accentColor: '#6ef2f2', sortOrder: 1 },
+    { name: 'KRL Sonntagsliga', slug: 'sonntag', type: 'f1', currentSeason: 'Saison 10', raceDay: 'Sonntag', raceTime: '19:30 Uhr', description: 'Das Sonntags-Highlight mit Strategie, Spannung und Live-Kommentar.', accentColor: '#6ef2f2', sortOrder: 2 },
+    { name: 'KRL LMU Liga', slug: 'lmu', type: 'lmu', currentSeason: 'Saison 3', raceDay: 'Samstag', raceTime: '19:00 Uhr', description: 'Multiclass-Langstrecke mit festen Cockpits und echtem Teamwork.', accentColor: '#ff343f', sortOrder: 3 },
+    { name: 'Wettkampf der Ligen', slug: 'wettkampf', type: 'competition', currentSeason: '2026', raceDay: 'Sonntag', raceTime: '19:30 Uhr', description: 'Communities treten für ihre Liga gegeneinander an.', accentColor: '#ff343f', sortOrder: 4 },
+    { name: 'KRL Endurance', slug: 'endurance', type: 'endurance', currentSeason: '2026', raceDay: 'Eventkalender', raceTime: '', description: 'Besondere Langstrecken-Events für eingespielte Teams.', accentColor: '#f0b74a', sortOrder: 5 }
+  ];
+  const leagues = {};
+  for (const data of leagueData) {
+    const [league] = await League.findOrCreate({ where: { slug: data.slug }, defaults: data });
+    leagues[data.slug] = league;
+  }
+  await seedF1(leagues.freitag, 'FR');
+  await seedF1(leagues.sonntag, 'SO');
+
+  const cockpitData = [
+    ['KRL Hyperion', 'BMW M Hybrid V8', 'Hypercar', '21'],
+    ['KRL Nordlicht', 'Porsche 963', 'Hypercar', '37'],
+    ['KRL Vortex', 'Ferrari 499P', 'Hypercar', '88']
+  ];
+  for (let i = 0; i < cockpitData.length; i += 1) {
+    const [teamName, car, vehicleClass, carNumber] = cockpitData[i];
+    await LmuCockpit.findOrCreate({ where: { LeagueId: leagues.lmu.id, teamName }, defaults: { LeagueId: leagues.lmu.id, teamName, car, vehicleClass, carNumber, driver1: `LMU Fahrer ${i * 3 + 1}`, driver2: `LMU Fahrer ${i * 3 + 2}`, driver3: `LMU Fahrer ${i * 3 + 3}`, sortOrder: i } });
+  }
+  await LmuStandingImage.findOrCreate({ where: { LeagueId: leagues.lmu.id, season: leagues.lmu.currentSeason, title: 'Gesamtwertung nach Spa' }, defaults: { LeagueId: leagues.lmu.id, season: leagues.lmu.currentSeason, event: '6 Stunden von Spa', title: 'Gesamtwertung nach Spa', description: 'Beispielgrafik – im Adminbereich durch eine PNG ersetzen.', imagePath: '/images/krl-placeholder.svg', altText: 'Platzhalter für die LMU-Gesamtwertung', sortOrder: 1 } });
+
+  const participants = [
+    ['Katzes Racing League', 'KRL', 'Ferrari'], ['Virtual Apex League', 'VAL', 'McLaren'],
+    ['German Sim Grid', 'GSG', 'Mercedes'], ['Racing Community One', 'RCO', 'Red Bull']
+  ];
+  for (let i = 0; i < participants.length; i += 1) {
+    const [name, abbreviation, constructorName] = participants[i];
+    const [league] = await ParticipatingLeague.findOrCreate({ where: { abbreviation }, defaults: { name, abbreviation, constructorName, sortOrder: i } });
+    await LeagueCompetitionStanding.findOrCreate({ where: { ParticipatingLeagueId: league.id }, defaults: { ParticipatingLeagueId: league.id, position: i + 1, drivers: `Fahrer ${i * 2 + 1} / Fahrer ${i * 2 + 2}`, constructorName, points: 120 - i * 17, wins: Math.max(0, 3 - i), gap: i === 0 ? 'Leader' : `+${i * 17}`, sortOrder: i } });
+  }
+
+  console.log('Setup abgeschlossen. Datenbank, Beispieldaten und Admin wurden erstellt.');
+  await sequelize.close();
+}
+
+run().catch(async (error) => {
+  console.error(error.message);
+  await sequelize.close().catch(() => {});
+  process.exit(1);
+});

@@ -1,0 +1,10 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell login-shell"><div class="login-card"><span class="eyebrow">GESCHÜTZTER BEREICH</span><h1>ADMIN-LOGIN</h1><p>Verwalte Fahrerfelder, Tabellen, Cockpits und PNG-Ergebnisse.</p>
+  <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
+  <form method="post" action="/admin/login" class="stack-form">
+    <label>E-Mail<input type="email" name="email" autocomplete="username" required></label>
+    <label>Passwort<input type="password" name="password" autocomplete="current-password" required></label>
+    <button class="button" type="submit">Anmelden</button>
+  </form>
+</div></section>
+<%- include('../partials/footer') %>

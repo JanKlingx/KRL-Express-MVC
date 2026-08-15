@@ -1,0 +1,15 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container narrow"><a class="back-link" href="/admin/<%= resource %>">← Zur Übersicht</a><h1><%= entry && entry.id ? 'EINTRAG BEARBEITEN' : 'NEUER EINTRAG' %></h1><p class="form-hint">Bei Verknüpfungen wird die ID des zugehörigen Datensatzes eingetragen. Die IDs findest du in den jeweiligen Übersichten.</p>
+  <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
+  <form class="resource-form" method="post" enctype="multipart/form-data" action="/admin/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
+    <% config.fields.forEach(field => { const value = entry ? (entry[field.name] ?? '') : ''; %>
+      <label><%= field.label %><% if (field.required) { %><span aria-hidden="true"> *</span><% } %>
+        <% if (field.type === 'textarea') { %><textarea name="<%= field.name %>" rows="4" <%= field.required ? 'required' : '' %>><%= value %></textarea>
+        <% } else { %><input type="<%= field.type %>" name="<%= field.name %>" value="<%= value %>" <%= field.required ? 'required' : '' %> <%= field.type === 'number' ? 'step="any"' : '' %>><% } %>
+      </label>
+    <% }) %>
+    <% if (config.upload) { %><label>PNG-Datei <%= entry && entry.id ? '(optional ersetzen)' : '*' %><input type="file" name="image" accept="image/png,.png" <%= entry && entry.id ? '' : 'required' %>></label><% if (entry && entry[config.upload]) { %><img class="upload-preview" src="<%= entry[config.upload] %>" alt="Aktuell gespeicherte PNG-Datei"><% } %><% } %>
+    <div class="form-actions"><button class="button" type="submit">Speichern</button><a class="button button-ghost" href="/admin/<%= resource %>">Abbrechen</a></div>
+  </form>
+</div></section>
+<%- include('../partials/footer') %>

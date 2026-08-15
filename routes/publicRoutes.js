@@ -1,0 +1,16 @@
+const express = require('express');
+const asyncHandler = require('../services/asyncHandler');
+const homeController = require('../controllers/homeController');
+const f1Controller = require('../controllers/f1Controller');
+const lmuController = require('../controllers/lmuController');
+const competitionController = require('../controllers/competitionController');
+
+const router = express.Router();
+router.get('/', asyncHandler(homeController.index));
+router.get('/f1/:slug(freitag|sonntag)', asyncHandler(f1Controller.show));
+router.get('/lmu', asyncHandler(lmuController.show));
+router.get('/wettkampf-der-ligen', asyncHandler(competitionController.show));
+router.get('/endurance', homeController.endurance);
+router.get(['/impressum', '/datenschutz', '/kontakt'], homeController.legal);
+
+module.exports = router;

@@ -1,0 +1,19 @@
+<% if (items.length) { %>
+  <div class="carousel" data-carousel tabindex="0" aria-label="<%= label %>">
+    <div class="carousel-track">
+      <% items.forEach((item, index) => { %>
+        <figure class="carousel-slide <%= index === 0 ? 'active' : '' %>" aria-hidden="<%= index !== 0 %>">
+          <button class="image-button" type="button" data-lightbox="<%= item.imagePath %>" aria-label="<%= item.altText %> vergrößern">
+            <img src="<%= item.imagePath %>" alt="<%= item.altText %>">
+          </button>
+          <figcaption><strong><%= item.title %></strong><span><%= item.circuit || item.event || '' %><%= item.raceDate ? ` · ${item.raceDate}` : '' %></span></figcaption>
+        </figure>
+      <% }) %>
+    </div>
+    <button class="carousel-control prev" type="button" aria-label="Vorheriges Ergebnis">‹</button>
+    <button class="carousel-control next" type="button" aria-label="Nächstes Ergebnis">›</button>
+    <div class="carousel-dots" aria-label="Ergebnis auswählen"></div>
+  </div>
+<% } else { %>
+  <div class="empty-state">Noch keine PNG-Ergebnisse hochgeladen.</div>
+<% } %>

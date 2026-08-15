@@ -1,0 +1,49 @@
+<%- include('partials/header', { title }) %>
+<section class="hero">
+  <div class="hero-grid-overlay"></div>
+  <div class="container hero-content">
+    <div class="eyebrow">SIMRACING COMMUNITY · SEIT 2021</div>
+    <h1>WILLKOMMEN BEI DER<br><span>KATZES RACING LEAGUE</span></h1>
+    <p>Faire Rennen, starke Fahrerfelder und echte Motorsport-Leidenschaft – in mehreren Ligen und auf mehreren Plattformen.</p>
+    <div class="hero-actions"><a class="button" href="https://discord.com" target="_blank" rel="noopener">Jetzt beitreten</a><a class="button button-ghost" href="#ligen">Ligen ansehen</a></div>
+    <aside class="next-race"><span>NÄCHSTES RENNEN</span><strong>Großer Preis von Spa</strong><small>Freitag · 20:00 Uhr</small><div class="countdown" data-countdown="2026-09-04T20:00:00+02:00">00T : 00H : 00M</div></aside>
+  </div>
+</section>
+
+<section class="section container">
+  <div class="section-heading"><span>MEHR ALS NUR RENNEN</span><h2>DEINE RACING-COMMUNITY</h2></div>
+  <div class="feature-grid">
+    <article class="feature-card"><div class="feature-icon">🏁</div><h3>Liga-Betrieb</h3><p>Organisierte Meisterschaften mit Rennleitung und transparenten Wertungen.</p></article>
+    <article class="feature-card"><div class="feature-icon">◉</div><h3>Live-Events</h3><p>Spannende Übertragungen, Kommentare und besondere Community-Events.</p></article>
+    <article class="feature-card"><div class="feature-icon">⚡</div><h3>Community</h3><p>Ein Ort für faire Fahrer, Teams, Strategen und Motorsport-Fans.</p></article>
+  </div>
+</section>
+
+<section class="section section-dark" id="ligen">
+  <div class="container">
+    <div class="section-heading"><span>FÜR JEDEN RENNSTIL</span><h2>UNSERE LIGEN</h2></div>
+    <div class="league-grid">
+      <% leagues.forEach(league => { const href = league.slug === 'lmu' ? '/lmu' : league.type === 'f1' ? `/f1/${league.slug}` : league.slug === 'wettkampf' ? '/wettkampf-der-ligen' : '/endurance'; %>
+        <article class="league-card" style="--accent:<%= league.accentColor %>"><div class="league-badge"><%= league.type.toUpperCase() %></div><h3><%= league.name %></h3><p><%= league.description %></p><span><%= league.raceDay || 'Infos folgen' %> <%= league.raceTime || '' %></span><a href="<%= href %>">Liga entdecken →</a></article>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section stats-section">
+  <div class="container stats-grid">
+    <% statistics.forEach(stat => { %><article><span><%= stat.icon %></span><strong><%= stat.value %></strong><small><%= stat.label %></small></article><% }) %>
+  </div>
+</section>
+
+<section class="section container" id="team">
+  <div class="section-heading"><span>DIE MENSCHEN HINTER KRL</span><h2>UNSER TEAM</h2></div>
+  <% categories.forEach(category => { %>
+    <div class="team-group"><h3><%= category.name %></h3><div class="people-grid">
+      <% category.members.forEach(member => { %><article class="person-card"><div class="avatar"><%= member.name.charAt(0) %></div><strong><%= member.name %></strong><span><%= member.role %></span><small><%= member.joinedYear ? `Dabei seit ${member.joinedYear}` : '' %></small></article><% }) %>
+    </div></div>
+  <% }) %>
+</section>
+
+<section class="section cta"><div class="container"><span>BEREIT FÜR DIE STARTAUFSTELLUNG?</span><h2>WERDE TEIL DER KRL</h2><p>Besuche unseren Discord und finde die passende Liga für dich.</p><a class="button" href="https://discord.com" target="_blank" rel="noopener">Discord öffnen</a></div></section>
+<%- include('partials/footer') %>

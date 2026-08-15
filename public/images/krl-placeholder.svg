@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" role="img" aria-labelledby="title desc">
+  <title id="title">KRL Platzhaltergrafik</title><desc id="desc">Abstrakte Rennstrecke in Schwarz und Türkis</desc>
+  <rect width="900" height="500" fill="#090d10"/><path d="M0 360 C170 140 280 430 460 240 S720 50 900 170" fill="none" stroke="#6ef2f2" stroke-width="16" opacity=".85"/>
+  <path d="M0 390 C170 170 280 460 460 270 S720 80 900 200" fill="none" stroke="#fff" stroke-width="2" opacity=".35" stroke-dasharray="12 12"/>
+  <text x="60" y="110" font-family="Arial" font-size="72" font-weight="800" fill="#fff">KRL</text><text x="62" y="148" font-family="Arial" font-size="22" fill="#6ef2f2">RACING LEAGUE</text>
+</svg>
