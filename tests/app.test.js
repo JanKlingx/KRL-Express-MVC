@@ -9,7 +9,7 @@ const publicPages = [
   ['/f1/freitag', 'FAHRERFELD'],
   ['/f1/sonntag', 'TEAM-WM'],
   ['/lmu', 'COCKPITS'],
-  ['/wettkampf-der-ligen', 'TEAMSTANDINGS']
+  ['/wettkampf-der-ligen', 'LIGA-STANDINGS']
 ];
 
 for (const [url, expected] of publicPages) {

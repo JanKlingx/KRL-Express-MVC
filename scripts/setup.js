@@ -2,12 +2,12 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const {
   sequelize, User, SiteStatistic, TeamCategory, TeamMember, League, Team, Driver,
-  DriverStanding, TeamStanding, GrandPrixResult, GrandPrixResultEntry, RaceEvent, LmuCockpit, LmuStandingImage,
+  DriverStanding, TeamStanding, GrandPrixResult, GrandPrixResultEntry, RaceEvent, Season, LmuCockpit, LmuStandingImage,
   ParticipatingLeague, LeagueCompetitionStanding
 } = require('../models');
 const { ensureSchema } = require('../services/schema');
 
-async function seedF1(league, prefix) {
+async function seedF1(league, season, prefix) {
   const teamData = [
     { name: `${prefix} Apex Motorsport`, car: 'Ferrari' },
     { name: `${prefix} Velocity Racing`, car: 'McLaren' },
@@ -23,10 +23,10 @@ async function seedF1(league, prefix) {
   for (let i = 0; i < 8; i += 1) {
     const [driver] = await Driver.findOrCreate({
       where: { LeagueId: league.id, name: `KRL Fahrer ${i + 1}` },
-      defaults: { LeagueId: league.id, TeamId: teams[Math.floor(i / 2)].id, f1Role: league.slug === 'freitag' ? 'friday' : 'sunday', name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, nationality: i % 2 ? 'DE' : 'AT', sortOrder: i }
+      defaults: { LeagueId: league.id, TeamId: teams[Math.floor(i / 2)].id, f1Role: league.slug === 'freitag' ? 'friday' : 'sunday', roleF1Friday: league.slug === 'freitag', roleF1Sunday: league.slug === 'sonntag', name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, nationality: i % 2 ? 'DE' : 'AT', sortOrder: i }
     });
     drivers.push(driver);
-    if (!driver.f1Role) await driver.update({ f1Role: league.slug === 'freitag' ? 'friday' : 'sunday' });
+    await driver.update({ f1Role: league.slug === 'freitag' ? 'friday' : 'sunday', roleF1Friday: league.slug === 'freitag', roleF1Sunday: league.slug === 'sonntag' });
     await DriverStanding.findOrCreate({ where: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason }, defaults: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason, position: i + 1, points: 164 - i * 15, wins: Math.max(0, 4 - i), gap: i === 0 ? 'Leader' : `+${i * 15}`, sortOrder: i } });
   }
   for (let i = 0; i < teams.length; i += 1) {
@@ -40,8 +40,9 @@ async function seedF1(league, prefix) {
   }
   const [grandPrix] = await GrandPrixResult.findOrCreate({
     where: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa' },
-    defaults: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa', circuit: 'Circuit de Spa-Francorchamps', raceDate: '2026-08-01', sortOrder: 1 }
+    defaults: { LeagueId: league.id, SeasonId: season.id, season: league.currentSeason, title: 'Großer Preis von Spa', circuit: 'Circuit de Spa-Francorchamps', raceDate: '2026-08-01', discipline: 'f1', sortOrder: 1 }
   });
+  await grandPrix.update({ SeasonId: season.id, discipline: 'f1', isHistorical: false });
   const pointsByPosition = [25, 18, 15, 12, 10, 8, 6, 4];
   for (let i = 0; i < drivers.length; i += 1) {
     const [entry] = await GrandPrixResultEntry.findOrCreate({
@@ -107,8 +108,15 @@ async function run() {
     const [league] = await League.findOrCreate({ where: { slug: data.slug }, defaults: data });
     leagues[data.slug] = league;
   }
-  await seedF1(leagues.freitag, 'FR');
-  await seedF1(leagues.sonntag, 'SO');
+  const seasons = {};
+  for (const league of Object.values(leagues)) {
+    if (!['f1', 'lmu', 'competition'].includes(league.type)) continue;
+    const leagueType = league.type === 'competition' ? 'wdl' : league.type;
+    const [season] = await Season.findOrCreate({ where: { name: league.currentSeason, leagueType, scopeSlug: league.slug }, defaults: { name: league.currentSeason, leagueType, scopeSlug: league.slug, status: 'active', calendarMode: 'automatic', sortOrder: 1 } });
+    seasons[league.slug] = season;
+  }
+  await seedF1(leagues.freitag, seasons.freitag, 'FR');
+  await seedF1(leagues.sonntag, seasons.sonntag, 'SO');
 
   const calendarData = [
     [leagues.freitag, 'Großer Preis von Spa', 'Circuit de Spa-Francorchamps', '2026-09-04T18:00:00.000Z'],
@@ -119,13 +127,15 @@ async function run() {
     const [league, title, circuit, startsAt] = calendarData[index];
     const [event] = await RaceEvent.findOrCreate({
       where: { LeagueId: league.id, title },
-      defaults: { LeagueId: league.id, title, circuit, startsAt, durationMinutes: league.type === 'lmu' ? 360 : 120, isPublished: true, sortOrder: index + 1 }
+      defaults: { LeagueId: league.id, SeasonId: seasons[league.slug]?.id || null, title, circuit, startsAt, durationMinutes: league.type === 'lmu' ? 360 : 120, isPublished: true, sortOrder: index + 1 }
     });
+    if (seasons[league.slug] && event.SeasonId !== seasons[league.slug].id) await event.update({ SeasonId: seasons[league.slug].id });
     if (league.type === 'f1') {
       const [grandPrix] = await GrandPrixResult.findOrCreate({
         where: { LeagueId: league.id, season: league.currentSeason, title },
-        defaults: { LeagueId: league.id, season: league.currentSeason, title, circuit, raceDate: startsAt, sortOrder: index + 1 }
+        defaults: { LeagueId: league.id, SeasonId: seasons[league.slug]?.id || null, season: league.currentSeason, title, circuit, raceDate: startsAt, discipline: 'f1', sortOrder: index + 1 }
       });
+      await grandPrix.update({ SeasonId: seasons[league.slug]?.id || null, discipline: 'f1', isHistorical: false });
       if (event.GrandPrixResultId !== grandPrix.id) await event.update({ GrandPrixResultId: grandPrix.id });
     }
   }

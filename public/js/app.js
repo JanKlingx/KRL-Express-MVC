@@ -73,9 +73,23 @@
     });
   });
 
-  document.querySelectorAll('.season-picker select').forEach((select) => {
+  document.querySelectorAll('.season-picker select, .season-switcher select, .admin-filter select').forEach((select) => {
     select.addEventListener('change', () => select.form?.requestSubmit());
   });
+
+  const raceSelector = document.querySelector('.race-selector');
+  if (raceSelector) {
+    raceSelector.querySelector('[name="league"]')?.addEventListener('change', () => {
+      raceSelector.elements.season.value = '';
+      raceSelector.elements.race.value = '';
+      raceSelector.requestSubmit();
+    });
+    raceSelector.querySelector('[name="season"]')?.addEventListener('change', () => {
+      raceSelector.elements.race.value = '';
+      raceSelector.requestSubmit();
+    });
+    raceSelector.querySelector('[name="race"]')?.addEventListener('change', () => raceSelector.requestSubmit());
+  }
 
   const svgNamespace = 'http://www.w3.org/2000/svg';
   const createSvgElement = (name, attributes = {}) => {
@@ -158,6 +172,56 @@
     });
 
     chart.appendChild(svg);
+  });
+
+  document.querySelector('[data-wdl-export]')?.addEventListener('click', async () => {
+    const source = document.querySelector('#wdl-export-data');
+    if (!source) return;
+    const payload = JSON.parse(source.textContent);
+    const rows = payload.standings || [];
+    const canvas = document.createElement('canvas');
+    canvas.width = 1400;
+    canvas.height = 270 + rows.length * 72;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#070a0c';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#6ef2f2';
+    context.fillRect(0, 0, 14, canvas.height);
+    const logo = new Image();
+    logo.src = payload.logo;
+    await new Promise((resolve) => { logo.onload = resolve; logo.onerror = resolve; });
+    if (logo.complete && logo.naturalWidth) context.drawImage(logo, 55, 45, 120, 90);
+    context.fillStyle = '#f5f8fa';
+    context.font = 'bold 48px Arial';
+    context.fillText('WDL LIGA-STANDINGS', 220, 85);
+    context.fillStyle = '#9aa8b1';
+    context.font = '28px Arial';
+    context.fillText(payload.season || 'Saison', 220, 128);
+    const maximum = Math.max(1, ...rows.map((row) => Number(row.points) || 0));
+    rows.forEach((row, index) => {
+      const y = 205 + index * 72;
+      context.fillStyle = '#12191e';
+      context.fillRect(55, y - 38, 1290, 56);
+      context.fillStyle = '#f5f8fa';
+      context.font = 'bold 26px Arial';
+      context.fillText(`${row.position}. ${row.name}`, 78, y);
+      context.fillStyle = '#203038';
+      context.fillRect(610, y - 24, 590, 28);
+      context.fillStyle = '#6ef2f2';
+      context.fillRect(610, y - 24, 590 * ((Number(row.points) || 0) / maximum), 28);
+      context.fillStyle = '#f5f8fa';
+      context.textAlign = 'right';
+      context.fillText(String(row.points), 1315, y);
+      context.textAlign = 'left';
+    });
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `wdl-${String(payload.season || 'saison').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-standings.png`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }, 'image/png');
   });
 
   const countdown = document.querySelector('[data-countdown]');
