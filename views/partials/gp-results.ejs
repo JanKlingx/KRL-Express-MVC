@@ -1,7 +1,14 @@
 <% if (items.length) { %>
   <div class="carousel gp-carousel" data-carousel tabindex="0" aria-label="<%= label %>">
     <div class="carousel-track">
-      <% items.forEach((item, index) => { const classified = item.entries || []; %>
+      <% items.forEach((item, index) => {
+        const classified = [...(item.entries || [])].sort((left, right) => {
+          const leftPosition = Number(left.position) || 999;
+          const rightPosition = Number(right.position) || 999;
+          return leftPosition - rightPosition || Number(left.sortOrder) - Number(right.sortOrder);
+        });
+        const podium = classified.filter((entry) => Number(entry.position) >= 1 && Number(entry.position) <= 3);
+      %>
         <article class="carousel-slide gp-result-card <%= index === 0 ? 'active' : '' %>" aria-hidden="<%= index !== 0 %>">
           <header class="gp-result-header">
             <div>
@@ -13,23 +20,24 @@
           </header>
 
           <% if (classified.length) { %>
-            <div class="gp-podium" aria-label="Podium">
-              <% classified.slice(0, 3).forEach((entry) => { %>
+            <% if (podium.length) { %><div class="gp-podium" aria-label="Podium">
+              <% podium.forEach((entry) => { const podiumStatus = String(entry.status || '').trim().toUpperCase(); %>
                 <article class="podium-place podium-place-<%= entry.position || entry.sortOrder %>">
-                  <span><%= entry.position ? `P${entry.position}` : (entry.status || '–') %></span>
+                  <span class="podium-position">P<%= entry.position %></span>
                   <strong><%= entry.driverName %></strong>
                   <small><%= entry.teamName || 'Privatteam' %></small>
+                  <% if (podiumStatus) { %><em class="status-badge status-<%= podiumStatus.toLowerCase() %>"><%= podiumStatus %></em><% } %>
                 </article>
               <% }) %>
-            </div>
+            </div><% } %>
 
             <div class="table-wrap gp-classification">
               <table>
                 <thead><tr><th>Pos.</th><th>Fahrer</th><th>Team</th><th>Punkte</th></tr></thead>
                 <tbody>
-                  <% classified.forEach((entry) => { %>
-                    <tr>
-                      <td><strong><%= entry.status || entry.position || '–' %></strong></td>
+                  <% classified.forEach((entry) => { const status = String(entry.status || '').trim().toUpperCase(); const position = Number(entry.position) || null; %>
+                    <tr class="<%= position >= 1 && position <= 3 ? `result-position-${position}` : '' %> <%= status ? 'result-has-status' : '' %>">
+                      <td><span class="result-place"><% if (position) { %><strong class="position-badge position-<%= position %>">P<%= position %></strong><% } %><% if (status) { %><span class="status-badge status-<%= status.toLowerCase() %>"><%= status %></span><% } %><% if (!position && !status) { %>–<% } %></span></td>
                       <td><%= entry.driverName %><% if (entry.fastestLap) { %><span class="fastest-lap" title="Schnellste Runde"> SR</span><% } %></td>
                       <td><%= entry.teamName || '–' %></td>
                       <td><strong><%= Number(entry.points) %></strong></td>

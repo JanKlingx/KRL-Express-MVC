@@ -1,5 +1,33 @@
 <%- include('../partials/header', { title }) %>
-<section class="admin-shell"><div class="container"><div class="admin-heading"><div><span class="eyebrow">KRL VERWALTUNG</span><h1>ADMIN-DASHBOARD</h1></div><form method="post" action="/admin/logout"><button class="button button-ghost" type="submit">Abmelden</button></form></div>
-  <div class="admin-grid"><% modules.forEach(([key, config]) => { %><a class="admin-card" href="/admin/<%= key %>"><span><%= counts[key] %> Einträge</span><h2><%= config.title %></h2><small>Öffnen und bearbeiten →</small></a><% }) %></div>
-</div></section>
+<section class="admin-shell">
+  <div class="container">
+    <div class="admin-heading">
+      <div>
+        <span class="eyebrow"><%= dashboardEyebrow %></span>
+        <h1><%= dashboardTitle %></h1>
+        <p class="admin-intro"><%= dashboardDescription %></p>
+      </div>
+      <form method="post" action="<%= adminBasePath %>/logout"><button class="button button-ghost" type="submit">Abmelden</button></form>
+    </div>
+
+    <% groups.forEach((group) => { %>
+      <section class="admin-group" aria-labelledby="group-<%= group.name.replace(/\W+/g, '-').toLowerCase() %>">
+        <div class="admin-group-heading">
+          <h2 id="group-<%= group.name.replace(/\W+/g, '-').toLowerCase() %>"><%= group.name %></h2>
+          <span><%= group.modules.length %> Bereiche</span>
+        </div>
+        <div class="admin-grid">
+          <% group.modules.forEach(([key, config]) => { %>
+            <a class="admin-card" href="<%= adminBasePath %>/<%= key %>">
+              <span><%= counts[key] %> Einträge</span>
+              <h3><%= config.title %></h3>
+              <p><%= config.description %></p>
+              <small>Öffnen und bearbeiten →</small>
+            </a>
+          <% }) %>
+        </div>
+      </section>
+    <% }) %>
+  </div>
+</section>
 <%- include('../partials/footer') %>

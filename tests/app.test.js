@@ -1,8 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
+const bcrypt = require('bcrypt');
 const app = require('../app');
-const { sequelize, GrandPrixResult, GrandPrixResultEntry } = require('../models');
+const { sequelize, User, GrandPrixResult, GrandPrixResultEntry } = require('../models');
 
 const publicPages = [
   ['/', 'KATZES RACING LEAGUE'],
@@ -34,6 +35,35 @@ test('Admin kann sich anmelden und Dashboard öffnen', async () => {
   const dashboard = await agent.get('/admin');
   assert.equal(dashboard.status, 200);
   assert.match(dashboard.text, /ADMIN-DASHBOARD/);
+});
+
+test('WDL-Zugang sieht nur die Wettkampf-Verwaltung', async () => {
+  const email = `wdl-test-${Date.now()}@krl.test`;
+  const password = 'WdlTestPasswort123';
+  const passwordHash = await bcrypt.hash(password, 4);
+  const user = await User.create({ email, passwordHash, role: 'wdl' });
+  const agent = request.agent(app);
+
+  try {
+    const login = await agent.post('/wdl-admin/login').type('form').send({ email, password });
+    assert.equal(login.status, 302);
+    assert.equal(login.headers.location, '/wdl-admin');
+
+    const dashboard = await agent.get('/wdl-admin');
+    assert.equal(dashboard.status, 200);
+    assert.match(dashboard.text, /WDL-VERWALTUNG/);
+    assert.match(dashboard.text, /WDL-Teamstandings/);
+    assert.doesNotMatch(dashboard.text, /Fahrerfelder/);
+
+    const forbiddenResource = await agent.get('/wdl-admin/drivers');
+    assert.equal(forbiddenResource.status, 404);
+
+    const fullAdmin = await agent.get('/admin');
+    assert.equal(fullAdmin.status, 302);
+    assert.equal(fullAdmin.headers.location, '/admin/login');
+  } finally {
+    await user.destroy();
+  }
 });
 
 test('Grand Prix und Klassifikation werden ohne PNG verwaltet', async () => {

@@ -1,8 +1,54 @@
 const resourceConfig = require('../services/resourceConfig');
 const { savePng, deleteUpload } = require('../services/pngStorage');
 
-function getConfig(resource) {
-  return resourceConfig[resource] || null;
+function getBasePath(req) {
+  return req.adminBasePath || '/admin';
+}
+
+function getRole(req) {
+  return req.adminRole || req.session.role || 'admin';
+}
+
+function canAccess(config, role) {
+  return !config.roles || config.roles.includes(role);
+}
+
+function getConfig(req, resource) {
+  const config = resourceConfig[resource] || null;
+  return config && canAccess(config, getRole(req)) ? config : null;
+}
+
+async function getFieldOptions(config) {
+  const pairs = await Promise.all(config.fields.map(async (field) => {
+    if (field.choices) {
+      return [field.name, field.choices.map(([value, label]) => ({ value: String(value), label }))];
+    }
+    if (!field.relation) return [field.name, []];
+
+    const order = [];
+    if (field.relation.model.rawAttributes.sortOrder) order.push(['sortOrder', 'ASC']);
+    order.push(['id', 'ASC']);
+    const rows = await field.relation.model.findAll({ where: field.relation.where, order });
+    return [field.name, rows.map((row) => ({
+      value: String(row.id),
+      label: field.relation.formatOption(row)
+    }))];
+  }));
+  return Object.fromEntries(pairs);
+}
+
+async function renderForm(req, res, config, entry, error, status = 200) {
+  const resource = req.params.resource;
+  const fieldOptions = await getFieldOptions(config);
+  return res.status(status).render('admin/resource-form', {
+    title: `${config.title}: ${entry && entry.id ? 'Bearbeiten' : 'Neu'}`,
+    resource,
+    config,
+    entry,
+    error,
+    fieldOptions,
+    adminBasePath: getBasePath(req)
+  });
 }
 
 function readValues(fields, body) {
@@ -18,26 +64,53 @@ function readValues(fields, body) {
 }
 
 exports.dashboard = async (req, res) => {
-  const modules = Object.entries(resourceConfig);
+  const role = getRole(req);
+  const modules = Object.entries(resourceConfig).filter(([, config]) => canAccess(config, role));
   const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count()])));
-  res.render('admin/dashboard', { title: 'Admin-Dashboard', modules, counts });
+  const groups = modules.reduce((result, [key, config]) => {
+    const group = config.group || 'Weitere Inhalte';
+    const existing = result.find((entry) => entry.name === group);
+    if (existing) existing.modules.push([key, config]);
+    else result.push({ name: group, modules: [[key, config]] });
+    return result;
+  }, []);
+  const isWdl = role === 'wdl';
+  res.render('admin/dashboard', {
+    title: isWdl ? 'WDL-Verwaltung' : 'Admin-Dashboard',
+    groups,
+    counts,
+    adminBasePath: getBasePath(req),
+    dashboardTitle: isWdl ? 'WDL-VERWALTUNG' : 'ADMIN-DASHBOARD',
+    dashboardEyebrow: isWdl ? 'WETTKAMPF DER LIGEN' : 'KRL VERWALTUNG',
+    dashboardDescription: isWdl
+      ? 'Teilnehmende Ligen und Teamstandings an einer Stelle pflegen.'
+      : 'Wähle einen Bereich. Verknüpfte Datensätze werden in Formularen automatisch als Namen angezeigt.'
+  });
 };
 
 exports.list = async (req, res, next) => {
-  const config = getConfig(req.params.resource);
+  const config = getConfig(req, req.params.resource);
   if (!config) return next();
   const entries = await config.model.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']].filter(([field]) => config.model.rawAttributes[field]) });
-  res.render('admin/resource-list', { title: config.title, resource: req.params.resource, config, entries });
+  const fieldOptions = await getFieldOptions(config);
+  res.render('admin/resource-list', {
+    title: config.title,
+    resource: req.params.resource,
+    config,
+    entries,
+    fieldOptions,
+    adminBasePath: getBasePath(req)
+  });
 };
 
-exports.createForm = (req, res, next) => {
-  const config = getConfig(req.params.resource);
+exports.createForm = async (req, res, next) => {
+  const config = getConfig(req, req.params.resource);
   if (!config) return next();
-  res.render('admin/resource-form', { title: `${config.title}: Neu`, resource: req.params.resource, config, entry: null, error: null });
+  return renderForm(req, res, config, null, null);
 };
 
 exports.create = async (req, res, next) => {
-  const config = getConfig(req.params.resource);
+  const config = getConfig(req, req.params.resource);
   if (!config) return next();
   let uploadedPath;
   try {
@@ -48,23 +121,23 @@ exports.create = async (req, res, next) => {
     }
     await config.model.create(values);
     req.session.flash = { type: 'success', message: 'Eintrag wurde gespeichert.' };
-    res.redirect(`/admin/${req.params.resource}`);
+    res.redirect(`${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
     if (uploadedPath) await deleteUpload(uploadedPath);
-    res.status(400).render('admin/resource-form', { title: `${config.title}: Neu`, resource: req.params.resource, config, entry: req.body, error: error.message });
+    return renderForm(req, res, config, req.body, error.message, 400);
   }
 };
 
 exports.editForm = async (req, res, next) => {
-  const config = getConfig(req.params.resource);
+  const config = getConfig(req, req.params.resource);
   if (!config) return next();
   const entry = await config.model.findByPk(req.params.id);
   if (!entry) return next();
-  res.render('admin/resource-form', { title: `${config.title}: Bearbeiten`, resource: req.params.resource, config, entry, error: null });
+  return renderForm(req, res, config, entry, null);
 };
 
 exports.update = async (req, res, next) => {
-  const config = getConfig(req.params.resource);
+  const config = getConfig(req, req.params.resource);
   if (!config) return next();
   const entry = await config.model.findByPk(req.params.id);
   if (!entry) return next();
@@ -79,15 +152,15 @@ exports.update = async (req, res, next) => {
     await entry.update(values);
     if (newPath && oldPath) await deleteUpload(oldPath);
     req.session.flash = { type: 'success', message: 'Änderungen wurden gespeichert.' };
-    res.redirect(`/admin/${req.params.resource}`);
+    res.redirect(`${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
     if (newPath) await deleteUpload(newPath);
-    res.status(400).render('admin/resource-form', { title: `${config.title}: Bearbeiten`, resource: req.params.resource, config, entry: { ...entry.toJSON(), ...req.body }, error: error.message });
+    return renderForm(req, res, config, { ...entry.toJSON(), ...req.body }, error.message, 400);
   }
 };
 
 exports.remove = async (req, res, next) => {
-  const config = getConfig(req.params.resource);
+  const config = getConfig(req, req.params.resource);
   if (!config) return next();
   const entry = await config.model.findByPk(req.params.id);
   if (!entry) return next();
@@ -95,5 +168,5 @@ exports.remove = async (req, res, next) => {
   await entry.destroy();
   if (imagePath) await deleteUpload(imagePath);
   req.session.flash = { type: 'success', message: 'Eintrag wurde gelöscht.' };
-  res.redirect(`/admin/${req.params.resource}`);
+  res.redirect(`${getBasePath(req)}/${req.params.resource}`);
 };

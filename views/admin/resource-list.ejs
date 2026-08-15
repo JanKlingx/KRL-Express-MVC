@@ -1,8 +1,27 @@
 <%- include('../partials/header', { title }) %>
-<section class="admin-shell"><div class="container"><div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><h1><%= config.title %></h1></div><a class="button" href="/admin/<%= resource %>/new">Neuer Eintrag</a></div>
-  <% if (!entries.length) { %><div class="empty-state">Noch keine Einträge vorhanden.</div><% } else { %>
-  <div class="table-wrap admin-table"><table><thead><tr><th>ID</th><% config.fields.slice(0, 5).forEach(field => { %><th><%= field.label %></th><% }) %><th>Aktionen</th></tr></thead><tbody>
-    <% entries.forEach(entry => { %><tr><td><%= entry.id %></td><% config.fields.slice(0, 5).forEach(field => { %><td><%= entry[field.name] ?? '–' %></td><% }) %><td class="actions"><a href="/admin/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="/admin/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Eintrag wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %>
-  </tbody></table></div><% } %>
-</div></section>
+<section class="admin-shell">
+  <div class="container">
+    <div class="admin-heading">
+      <div>
+        <a class="back-link" href="<%= adminBasePath %>">← Dashboard</a>
+        <span class="form-kicker"><%= config.group %></span>
+        <h1><%= config.title %></h1>
+        <p class="admin-intro"><%= config.description %></p>
+      </div>
+      <a class="button" href="<%= adminBasePath %>/<%= resource %>/new">Neuer Eintrag</a>
+    </div>
+
+    <% if (config.nextResource) { %>
+      <div class="workflow-hint"><strong>Nächster Schritt:</strong> <a href="<%= adminBasePath %>/<%= config.nextResource %>"><%= config.nextLabel %> →</a></div>
+    <% } %>
+
+    <% if (!entries.length) { %>
+      <div class="empty-state">Noch keine Einträge vorhanden. Starte mit „Neuer Eintrag“.</div>
+    <% } else { %>
+      <div class="table-wrap admin-table"><table><thead><tr><th>ID</th><% config.fields.slice(0, 5).forEach((field) => { %><th><%= field.label %></th><% }) %><th>Aktionen</th></tr></thead><tbody>
+        <% entries.forEach((entry) => { %><tr><td><span class="id-badge">#<%= entry.id %></span></td><% config.fields.slice(0, 5).forEach((field) => { const rawValue = entry[field.name]; const option = (fieldOptions[field.name] || []).find((candidate) => candidate.value === String(rawValue)); %><td><%= option ? option.label : (field.type === 'checkbox' ? (rawValue ? 'Ja' : 'Nein') : (rawValue ?? '–')) %></td><% }) %><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Eintrag wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %>
+      </tbody></table></div>
+    <% } %>
+  </div>
+</section>
 <%- include('../partials/footer') %>
