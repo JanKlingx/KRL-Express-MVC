@@ -10,7 +10,7 @@
       <form method="post" action="<%= adminBasePath %>/logout"><button class="button button-ghost" type="submit">Abmelden</button></form>
     </div>
 
-    <section class="admin-group"><div class="admin-group-heading"><h2>Schnelle Renneingabe</h2><span>Google-Sheets-ähnlich</span></div><div class="admin-grid"><a class="admin-card admin-card-featured" href="/admin/race-editor"><span>Alle Fahrer in einer Tabelle</span><h3>Tabellarischer Saisonverlauf</h3><p>Grand Prix auswählen und das komplette Ergebnis ohne einzelne Formulare erfassen.</p><small>Tabelle öffnen →</small></a></div></section>
+    <section class="admin-group"><div class="admin-group-heading"><h2>Schnelle Renneingabe</h2><span>Google-Sheets-ähnlich</span></div><div class="admin-grid"><a class="admin-card admin-card-featured" href="/admin/race-editor"><span>Teamaufstellung automatisch übernehmen</span><h3>Tabellarischer Saisonverlauf</h3><p>Liga und Kalenderrennen auswählen und das komplette Ergebnis in einer Tabelle erfassen.</p><small>Tabelle öffnen →</small></a></div></section>
 
     <% groups.forEach((group) => { %>
       <section class="admin-group" aria-labelledby="group-<%= group.name.replace(/\W+/g, '-').toLowerCase() %>">

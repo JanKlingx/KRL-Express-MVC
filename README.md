@@ -29,9 +29,10 @@ Der gemeinsame Login für KRL- und WDL-Verwaltung befindet sich unter `http://lo
 Im Dashboard lassen sich folgende Inhalte anlegen, bearbeiten und löschen:
 
 - Startseitenstatistiken und Teamstruktur
-- Ligen, F1-Teams und ligaweise gefilterte Stammfahrer
+- getrennte Teampflege für Freitag und Sonntag mit Fahrer A und Fahrer B
 - getrennte F1-, LMU- und WDL-Fahrer-/Team-Stammdaten
-- stabile Fahrer-IDs mit Plattform und beliebig vielen Aliasen direkt im Fahrerformular; ein separater Gamertag ist nicht nötig
+- F1-Fahrerrollen `Stamm Freitag`, `Stamm Sonntag` und `Ersatzfahrer Formel 1`
+- stabile Fahrer-IDs mit Plattform und beliebig vielen Aliasen direkt im Fahrerformular; Team und Gamertag werden dort nicht gepflegt
 - Grand Prix und Saisonverlaufszeilen mit deutlich sichtbaren Podiums- und Statusmarkierungen (DNF, DNS, DNQ, DSQ, DNA)
 - automatisch erzeugte Fahrer-WM, Team-WM und GP-Results
 - LMU-Cockpits und LMU-WM-Grafiken
@@ -43,7 +44,9 @@ Alle Bilder werden ausschließlich als PNG, JPG oder WebP vom eigenen Gerät hoc
 
 Ein Rennen wird zuerst im `F1-Rennkalender` angelegt. Dadurch steht es automatisch für den Saisonverlauf bereit. Danach werden unter `Saisonverlauf eintragen` Stammfahrer, Platz, Status und Punkte erfasst. Diese Einträge sind die einzige Ergebnisquelle: Die öffentliche Seite erzeugt daraus automatisch GP-Results, Fahrer-WM, Team-WM, Punkteverlauf und Saisonmatrix. In jeder Rennspalte werden P1, P2 und P3 in Gold, Silber und Bronze hervorgehoben.
 
-Für die schnelle Eingabe steht unter `/admin/race-editor` eine tabellarische, Google-Sheets-ähnliche Ansicht bereit. Dort wird zuerst `Stamm Freitag` oder `Stamm Sonntag` und anschließend ein Rennen aus dem zugehörigen Kalender ausgewählt. Die Tabelle zeigt ausschließlich Fahrer mit dieser Stammfahrer-Rolle. Rennergebnisse referenzieren die stabile Fahrer-ID; Namenswechsel werden deshalb über Aliase hinweg korrekt zusammengezählt.
+Für die schnelle Eingabe steht unter `/admin/race-editor` eine tabellarische, Google-Sheets-ähnliche Ansicht bereit. Dort wird zuerst `Stamm Freitag` oder `Stamm Sonntag` und anschließend ein Rennen aus dem zugehörigen Kalender ausgewählt. Die Tabelle zeigt ausschließlich die Stammfahrer, die in den Teams dieser Liga als Fahrer A oder Fahrer B aufgestellt sind. Rennergebnisse referenzieren die stabile Fahrer-ID; Namenswechsel werden deshalb über Aliase hinweg korrekt zusammengezählt.
+
+F1-Teams werden je Liga separat gepflegt. In der Teampflege werden einem Team wie Mercedes direkt `Fahrer A` und `Fahrer B` aus den passenden Stammfahrern zugeordnet. Die Fahrerpflege enthält deshalb keine Teamzuordnung; sie verwaltet nur Stammdaten, Aliase und die F1-Rolle.
 
 F1- und LMU-Rennkalender werden im Adminbereich gepflegt. Der zeitlich nächste veröffentlichte Termin beider Disziplinen erscheint automatisch auf der Startseite. Angemeldete Admins sehen auf den öffentlichen F1-, LMU- und WDL-Seiten direkte Stift-Links zur jeweiligen Stammdatenpflege.
 
