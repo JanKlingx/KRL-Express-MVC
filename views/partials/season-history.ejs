@@ -1,15 +1,7 @@
 <% if (history.seasons.length && selectedHistory) { %>
   <div class="season-history-toolbar">
-    <form method="get" action="/f1/<%= league.slug %>#season-history" class="season-picker">
-      <label for="season">Saison auswählen</label>
-      <select id="season" name="season">
-        <% history.seasons.forEach((season) => { %>
-          <option value="<%= season.name %>" <%= season.name === selectedHistory.name ? 'selected' : '' %>><%= season.name %></option>
-        <% }) %>
-      </select>
-      <button class="button button-small" type="submit">Anzeigen</button>
-    </form>
-    <% if (history.sourceLabel) { %><span class="history-source">Quelle: <%= history.sourceLabel %></span><% } %>
+    <strong><%= selectedHistory.name %></strong>
+    <span class="history-source">Aus den eingetragenen Rennergebnissen automatisch erzeugt</span>
   </div>
 
   <% if (history.warning && isAdmin) { %><div class="history-notice" role="status"><%= history.warning %></div><% } %>
@@ -38,7 +30,7 @@
       <tbody>
         <% selectedHistory.drivers.forEach((driver) => { %>
           <tr class="season-position-<%= driver.position %>"><td><strong class="position-badge position-<%= driver.position %>">P<%= driver.position %></strong></td><td><%= driver.name %></td><td><%= driver.team || '–' %></td>
-            <% driver.results.forEach((result) => { %><td class="<%= result.fastestLap ? 'has-fastest-lap' : '' %> <%= result.status ? 'has-race-status' : '' %>"><% if (result.status) { %><span class="status-badge status-<%= result.status.toLowerCase() %>"><%= result.status %></span><% } else { %><%= result.value || '–' %><% } %></td><% }) %>
+            <% driver.results.forEach((result) => { %><td class="<%= result.fastestLap ? 'has-fastest-lap' : '' %> <%= result.status ? 'has-race-status' : '' %> <%= result.position >= 1 && result.position <= 3 ? `season-race-position-${result.position}` : '' %>"><% if (result.status) { %><span class="status-badge status-<%= result.status.toLowerCase() %>"><%= result.status %></span><% } else if (result.position) { %><span class="position-badge position-<%= result.position %>">P<%= result.position %></span><% } else { %>–<% } %></td><% }) %>
             <td class="season-total"><strong><%= driver.total %></strong></td><td><%= driver.gap > 0 ? `+${driver.gap}` : driver.gap %></td><td><%= Number(driver.average).toFixed(1).replace('.', ',') %></td>
           </tr>
         <% }) %>
@@ -46,5 +38,5 @@
     </table>
   </div>
 <% } else { %>
-  <div class="empty-state">Für diese Liga ist noch kein Saisonverlauf hinterlegt.</div>
+  <div class="empty-state">Noch keine Ergebnisse eingetragen. Im Adminbereich zuerst einen Grand Prix und anschließend dessen Saisonverlauf erfassen.</div>
 <% } %>

@@ -1,9 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
-const bcrypt = require('bcrypt');
 const app = require('../app');
-const { sequelize, User, GrandPrixResult, GrandPrixResultEntry } = require('../models');
+const { sequelize, Driver, GrandPrixResult, GrandPrixResultEntry } = require('../models');
 
 const publicPages = [
   ['/', 'KATZES RACING LEAGUE'],
@@ -37,36 +36,13 @@ test('Admin kann sich anmelden und Dashboard öffnen', async () => {
   assert.match(dashboard.text, /ADMIN-DASHBOARD/);
 });
 
-test('WDL-Zugang sieht nur die Wettkampf-Verwaltung', async () => {
-  const email = `wdl-test-${Date.now()}@krl.test`;
-  const password = 'WdlTestPasswort123';
-  const passwordHash = await bcrypt.hash(password, 4);
-  const user = await User.create({ email, passwordHash, role: 'wdl' });
-  const agent = request.agent(app);
-
-  try {
-    const login = await agent.post('/wdl-admin/login').type('form').send({ email, password });
-    assert.equal(login.status, 302);
-    assert.equal(login.headers.location, '/wdl-admin');
-
-    const dashboard = await agent.get('/wdl-admin');
-    assert.equal(dashboard.status, 200);
-    assert.match(dashboard.text, /WDL-VERWALTUNG/);
-    assert.match(dashboard.text, /WDL-Teamstandings/);
-    assert.doesNotMatch(dashboard.text, /Fahrerfelder/);
-
-    const forbiddenResource = await agent.get('/wdl-admin/drivers');
-    assert.equal(forbiddenResource.status, 404);
-
-    const fullAdmin = await agent.get('/admin');
-    assert.equal(fullAdmin.status, 302);
-    assert.equal(fullAdmin.headers.location, '/admin/login');
-  } finally {
-    await user.destroy();
-  }
+test('Alter WDL-Link führt zum gemeinsamen Admin-Login', async () => {
+  const response = await request(app).get('/wdl-admin/login');
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.location, '/admin/login');
 });
 
-test('Grand Prix und Klassifikation werden ohne PNG verwaltet', async () => {
+test('Grand Prix und Saisonverlauf verwenden einen Stammfahrer', async () => {
   const agent = request.agent(app);
   await agent.post('/admin/login').type('form').send({ email: 'admin@krl.test', password: 'TestPasswort123' });
   const title = `Render-Funktionstest-${Date.now()}`;
@@ -81,19 +57,20 @@ test('Grand Prix und Klassifikation werden ohne PNG verwaltet', async () => {
   assert.equal(create.status, 302);
   const grandPrix = await GrandPrixResult.findOne({ where: { title } });
   assert.ok(grandPrix);
+  const driver = await Driver.findOne({ where: { LeagueId: grandPrix.LeagueId } });
+  assert.ok(driver);
 
   const classificationResponse = await agent.post('/admin/gpResultEntries').type('form').send({
     GrandPrixResultId: grandPrix.id,
     position: 1,
-    driverName: 'Testfahrer',
-    teamName: 'KRL Testteam',
+    DriverId: driver.id,
     points: 26,
     fastestLap: 'on',
     sortOrder: 1
   });
   assert.equal(classificationResponse.status, 302);
   const classification = await GrandPrixResultEntry.findOne({ where: { GrandPrixResultId: grandPrix.id } });
-  assert.equal(classification.driverName, 'Testfahrer');
+  assert.equal(classification.driverName, driver.name);
   assert.equal(classification.fastestLap, true);
 
   const remove = await agent.delete(`/admin/gpResults/${grandPrix.id}`);

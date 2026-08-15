@@ -1,21 +1,12 @@
 const resourceConfig = require('../services/resourceConfig');
-const { savePng, deleteUpload } = require('../services/pngStorage');
+const { saveImage, deleteUpload } = require('../services/imageStorage');
 
 function getBasePath(req) {
   return req.adminBasePath || '/admin';
 }
 
-function getRole(req) {
-  return req.adminRole || req.session.role || 'admin';
-}
-
-function canAccess(config, role) {
-  return !config.roles || config.roles.includes(role);
-}
-
 function getConfig(req, resource) {
-  const config = resourceConfig[resource] || null;
-  return config && canAccess(config, getRole(req)) ? config : null;
+  return resourceConfig[resource] || null;
 }
 
 async function getFieldOptions(config) {
@@ -40,11 +31,12 @@ async function getFieldOptions(config) {
 async function renderForm(req, res, config, entry, error, status = 200) {
   const resource = req.params.resource;
   const fieldOptions = await getFieldOptions(config);
+  const preparedEntry = config.prepareEntry ? await config.prepareEntry(entry) : entry;
   return res.status(status).render('admin/resource-form', {
     title: `${config.title}: ${entry && entry.id ? 'Bearbeiten' : 'Neu'}`,
     resource,
     config,
-    entry,
+    entry: preparedEntry,
     error,
     fieldOptions,
     adminBasePath: getBasePath(req)
@@ -53,6 +45,7 @@ async function renderForm(req, res, config, entry, error, status = 200) {
 
 function readValues(fields, body) {
   return fields.reduce((values, field) => {
+    if (field.persist === false) return values;
     if (field.type === 'checkbox') {
       values[field.name] = body[field.name] === 'on' || body[field.name] === 'true' || body[field.name] === '1';
       return values;
@@ -64,8 +57,7 @@ function readValues(fields, body) {
 }
 
 exports.dashboard = async (req, res) => {
-  const role = getRole(req);
-  const modules = Object.entries(resourceConfig).filter(([, config]) => canAccess(config, role));
+  const modules = Object.entries(resourceConfig);
   const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count()])));
   const groups = modules.reduce((result, [key, config]) => {
     const group = config.group || 'Weitere Inhalte';
@@ -74,24 +66,24 @@ exports.dashboard = async (req, res) => {
     else result.push({ name: group, modules: [[key, config]] });
     return result;
   }, []);
-  const isWdl = role === 'wdl';
   res.render('admin/dashboard', {
-    title: isWdl ? 'WDL-Verwaltung' : 'Admin-Dashboard',
+    title: 'Admin-Dashboard',
     groups,
     counts,
     adminBasePath: getBasePath(req),
-    dashboardTitle: isWdl ? 'WDL-VERWALTUNG' : 'ADMIN-DASHBOARD',
-    dashboardEyebrow: isWdl ? 'WETTKAMPF DER LIGEN' : 'KRL VERWALTUNG',
-    dashboardDescription: isWdl
-      ? 'Teilnehmende Ligen und Teamstandings an einer Stelle pflegen.'
-      : 'Wähle einen Bereich. Verknüpfte Datensätze werden in Formularen automatisch als Namen angezeigt.'
+    dashboardTitle: 'ADMIN-DASHBOARD',
+    dashboardEyebrow: 'KRL & WDL VERWALTUNG',
+    dashboardDescription: 'Ein Login für alle Bereiche. Saisonverlauf, GP-Results und WM-Wertungen greifen auf dieselben Renndaten zu.'
   });
 };
 
 exports.list = async (req, res, next) => {
   const config = getConfig(req, req.params.resource);
   if (!config) return next();
-  const entries = await config.model.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']].filter(([field]) => config.model.rawAttributes[field]) });
+  const where = {};
+  if (config.filterByLeague && req.query.league) where.LeagueId = Number(req.query.league);
+  let entries = await config.model.findAll({ where, order: [['sortOrder', 'ASC'], ['id', 'ASC']].filter(([field]) => config.model.rawAttributes[field]) });
+  if (config.prepareEntry) entries = await Promise.all(entries.map((entry) => config.prepareEntry(entry)));
   const fieldOptions = await getFieldOptions(config);
   res.render('admin/resource-list', {
     title: config.title,
@@ -99,7 +91,9 @@ exports.list = async (req, res, next) => {
     config,
     entries,
     fieldOptions,
-    adminBasePath: getBasePath(req)
+    adminBasePath: getBasePath(req),
+    selectedLeague: req.query.league || '',
+    leagueOptions: config.filterByLeague ? await getFieldOptions({ fields: [config.fields.find((field) => field.name === 'LeagueId')] }).then((options) => options.LeagueId) : []
   });
 };
 
@@ -115,9 +109,14 @@ exports.create = async (req, res, next) => {
   let uploadedPath;
   try {
     const values = readValues(config.fields, req.body);
+    if (config.prepareValues) await config.prepareValues(values, req.body);
     if (config.upload) {
-      uploadedPath = await savePng(req.file);
-      values[config.upload] = uploadedPath;
+      if (req.file) {
+        uploadedPath = await saveImage(req.file);
+        values[config.upload.field] = uploadedPath;
+      } else if (config.upload.required) {
+        throw new Error(`${config.upload.label || 'Bild'} muss hochgeladen werden.`);
+      }
     }
     await config.model.create(values);
     req.session.flash = { type: 'success', message: 'Eintrag wurde gespeichert.' };
@@ -144,11 +143,12 @@ exports.update = async (req, res, next) => {
   let newPath;
   try {
     const values = readValues(config.fields, req.body);
+    if (config.prepareValues) await config.prepareValues(values, req.body, entry);
     if (config.upload && req.file) {
-      newPath = await savePng(req.file);
-      values[config.upload] = newPath;
+      newPath = await saveImage(req.file);
+      values[config.upload.field] = newPath;
     }
-    const oldPath = config.upload ? entry[config.upload] : null;
+    const oldPath = config.upload ? entry[config.upload.field] : null;
     await entry.update(values);
     if (newPath && oldPath) await deleteUpload(oldPath);
     req.session.flash = { type: 'success', message: 'Änderungen wurden gespeichert.' };
@@ -164,7 +164,7 @@ exports.remove = async (req, res, next) => {
   if (!config) return next();
   const entry = await config.model.findByPk(req.params.id);
   if (!entry) return next();
-  const imagePath = config.upload ? entry[config.upload] : null;
+  const imagePath = config.upload ? entry[config.upload.field] : null;
   await entry.destroy();
   if (imagePath) await deleteUpload(imagePath);
   req.session.flash = { type: 'success', message: 'Eintrag wurde gelöscht.' };

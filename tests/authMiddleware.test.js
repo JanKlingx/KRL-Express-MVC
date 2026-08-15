@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { requireAdmin, requireWdl } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth');
 
 function responseStub() {
   return {
@@ -22,13 +22,13 @@ test('WDL-Rolle wird vom vollständigen Adminbereich getrennt', () => {
   assert.equal(res.redirectTarget, '/admin/login');
 });
 
-test('WDL-Bereich erzwingt den eingeschränkten Ressourcenkontext', () => {
+test('Admin-Account öffnet den gemeinsamen KRL- und WDL-Bereich', () => {
   const req = { session: { userId: 1, role: 'admin' } };
   const res = responseStub();
   let continued = false;
-  requireWdl(req, res, () => { continued = true; });
+  requireAdmin(req, res, () => { continued = true; });
 
   assert.equal(continued, true);
-  assert.equal(req.adminRole, 'wdl');
-  assert.equal(req.adminBasePath, '/wdl-admin');
+  assert.equal(req.adminRole, 'admin');
+  assert.equal(req.adminBasePath, '/admin');
 });

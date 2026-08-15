@@ -30,11 +30,11 @@
       <% }) %>
 
       <% if (config.upload) { %>
-        <label>PNG-Datei <%= entry && entry.id ? '(optional ersetzen)' : '*' %>
-          <input type="file" name="image" accept="image/png,.png" <%= entry && entry.id ? '' : 'required' %>>
-          <small>Nur PNG, maximal 10 MB.</small>
+        <label><%= config.upload.label || 'Bild' %> <%= entry && entry.id ? '(optional ersetzen)' : (config.upload.required ? '*' : '(optional)') %>
+          <input type="file" name="image" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" <%= !entry?.id && config.upload.required ? 'required' : '' %>>
+          <small>Upload vom Gerät: PNG, JPG oder WebP, maximal 10 MB. Externe Bild-URLs sind nicht möglich.</small>
         </label>
-        <% if (entry && entry[config.upload]) { %><img class="upload-preview" src="<%= entry[config.upload] %>" alt="Aktuell gespeicherte PNG-Datei"><% } %>
+        <% if (entry && entry[config.upload.field]) { %><img class="upload-preview" src="<%= entry[config.upload.field] %>" alt="Aktuell gespeichertes Bild"><% } %>
       <% } %>
 
       <div class="form-actions">

@@ -15,6 +15,14 @@
       <div class="workflow-hint"><strong>Nächster Schritt:</strong> <a href="<%= adminBasePath %>/<%= config.nextResource %>"><%= config.nextLabel %> →</a></div>
     <% } %>
 
+    <% if (config.filterByLeague) { %>
+      <form class="admin-filter" method="get">
+        <label>Stammfahrer nach Liga anzeigen
+          <select name="league" onchange="this.form.submit()"><option value="">Alle F1-Ligen</option><% leagueOptions.forEach((option) => { %><option value="<%= option.value %>" <%= String(selectedLeague) === option.value ? 'selected' : '' %>><%= option.label %></option><% }) %></select>
+        </label>
+      </form>
+    <% } %>
+
     <% if (!entries.length) { %>
       <div class="empty-state">Noch keine Einträge vorhanden. Starte mit „Neuer Eintrag“.</div>
     <% } else { %>
