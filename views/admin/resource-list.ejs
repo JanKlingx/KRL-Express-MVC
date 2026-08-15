@@ -21,7 +21,7 @@
     <% if (config.filterByLeague) { %>
       <form class="admin-filter" method="get">
         <label><%= config.filterLabel || 'Stammfahrer nach Liga anzeigen' %>
-          <select name="league" onchange="this.form.submit()"><option value="">Alle F1-Ligen</option><% leagueOptions.forEach((option) => { %><option value="<%= option.value %>" <%= String(selectedLeague) === option.value ? 'selected' : '' %>><%= option.label %></option><% }) %></select>
+          <select name="league"><option value="">Alle F1-Ligen</option><% leagueOptions.forEach((option) => { %><option value="<%= option.value %>" <%= String(selectedLeague) === option.value ? 'selected' : '' %>><%= option.label %></option><% }) %></select>
         </label>
       </form>
     <% } %>

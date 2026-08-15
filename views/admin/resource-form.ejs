@@ -23,7 +23,7 @@
               <% }) %>
             </select>
           <% } else { %>
-            <input id="<%= inputId %>" type="<%= field.type %>" name="<%= field.name %>" value="<%= value %>" placeholder="<%= field.placeholder || '' %>" <%= field.required ? 'required' : '' %> <%= field.step ? `step="${field.step}"` : '' %> <%= field.min !== undefined ? `min="${field.min}"` : '' %>>
+            <input id="<%= inputId %>" type="<%= field.type %>" name="<%= field.name %>" value="<%= value %>" placeholder="<%= field.placeholder || '' %>" <%= field.required ? 'required' : '' %> <%= field.readonly ? 'readonly aria-readonly="true"' : '' %> <%= field.step ? `step="${field.step}"` : '' %> <%= field.min !== undefined ? `min="${field.min}"` : '' %>>
           <% } %>
           <% if (field.help) { %><small><%= field.help %></small><% } %>
         </label>

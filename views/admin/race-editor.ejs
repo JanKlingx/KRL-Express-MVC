@@ -3,33 +3,37 @@
   <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">F1 – Saisonverlauf</span><h1>TABELLARISCHE RENNEINGABE</h1><p class="admin-intro">Liga und Kalenderrennen auswählen. Danach erscheinen automatisch die Fahrer aus den passenden Teamaufstellungen.</p></div></div>
 
   <form class="race-selector" method="get" action="/admin/race-editor">
-    <label for="league">Stammfahrer-Rolle auswählen</label>
-    <select id="league" name="league" onchange="this.form.race.value=''; this.form.submit()">
+    <label for="league">F1-Liga auswählen</label>
+    <select id="league" name="league">
       <% leagues.forEach((league) => { const role = league.slug === 'freitag' ? 'Stamm Freitag' : league.slug === 'sonntag' ? 'Stamm Sonntag' : `Stamm ${league.name}`; %><option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= role %></option><% }) %>
     </select>
+    <label for="season">Saison auswählen</label>
+    <select id="season" name="season">
+      <% seasons.forEach((season) => { %><option value="<%= season.id %>" <%= selectedSeason?.id === season.id ? 'selected' : '' %>><%= season.name %> · <%= season.status === 'active' ? 'Aktiv' : 'Historisch' %></option><% }) %>
+    </select>
     <label for="race">Grand Prix auswählen</label>
-    <select id="race" name="race" onchange="this.form.submit()">
+    <select id="race" name="race">
       <% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>><%= race.season %> · R<%= race.sortOrder %> · <%= race.title %></option><% }) %>
     </select>
     <noscript><button class="button button-small" type="submit">Öffnen</button></noscript>
   </form>
 
-  <% if (!selectedRace) { %><div class="empty-state">Lege zuerst im F1-Rennkalender ein Rennen für diese Liga an.</div><% } else { %>
+  <% if (!selectedRace) { %><div class="empty-state">Lege zuerst im aktuellen F1-Rennkalender oder unter „Historische / manuelle Rennen“ ein Rennen für diese Saison an.</div><% } else { %>
     <form method="post" action="/admin/race-editor/<%= selectedRace.id %>" class="race-sheet-form">
       <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedRace.season %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
       <div class="table-wrap race-sheet"><table><thead><tr><th>Dabei</th><th>ID</th><th>Fahrer / Aliase</th><th>Plattform</th><th>Team</th><th>Platz</th><th>Status</th><th>Punkte</th><th>SR</th></tr></thead><tbody>
-        <% rows.forEach(({ driver, entry }) => { %><tr class="<%= entry ? 'sheet-row-active' : '' %>">
+        <% rows.forEach(({ driver, entry, assignedTeam, isReserve }) => { %><tr class="<%= entry ? 'sheet-row-active' : '' %>">
           <td><input type="checkbox" name="rows[<%= driver.id %>][included]" <%= entry ? 'checked' : '' %> aria-label="<%= driver.name %> berücksichtigen"></td>
           <td><strong>#<%= driver.id %></strong></td>
           <td><strong><%= driver.name %></strong><% if (driver.aliases.length) { %><small><%= driver.aliases.map((alias) => alias.alias).join(' · ') %></small><% } %></td>
-          <td><%= driver.platform %></td><td><%= driver.team?.name || 'Privatteam' %></td>
+          <td><%= driver.platform %></td><td><% if (selectedSeason.status === 'active' && assignedTeam && !isReserve) { %><input type="hidden" name="rows[<%= driver.id %>][TeamId]" value="<%= assignedTeam.id %>"><%= assignedTeam.name %><% } else { %><select name="rows[<%= driver.id %>][TeamId]" aria-label="Team <%= driver.name %>"><option value="">Team wählen …</option><% teams.forEach((team) => { %><option value="<%= team.id %>" <%= entry?.teamName === team.name ? 'selected' : '' %>><%= team.name %></option><% }) %></select><% } %></td>
           <td><input type="number" min="1" name="rows[<%= driver.id %>][position]" value="<%= entry?.position || '' %>" aria-label="Platz <%= driver.name %>"></td>
           <td><select name="rows[<%= driver.id %>][status]" aria-label="Status <%= driver.name %>"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= String(entry?.status || '') === status ? 'selected' : '' %>><%= status || 'Gewertet' %></option><% }) %></select></td>
-          <td><input type="number" min="0" step="0.5" name="rows[<%= driver.id %>][points]" value="<%= entry ? Number(entry.points) : '' %>" aria-label="Punkte <%= driver.name %>"></td>
+          <td><strong><%= entry ? Number(entry.points) : 'auto' %></strong></td>
           <td><input type="checkbox" name="rows[<%= driver.id %>][fastestLap]" <%= entry?.fastestLap ? 'checked' : '' %> aria-label="Schnellste Runde <%= driver.name %>"></td>
         </tr><% }) %>
       </tbody></table></div>
-      <div class="sheet-help">Leere Punkte werden anhand der Standardplätze P1–P10 automatisch mit 25–18–15–12–10–8–6–4–2–1 vorbelegt. Nicht aktivierte Fahrer werden für dieses Rennen entfernt.</div>
+      <div class="sheet-help">Die Punkte werden immer aus der zentralen Punktetabelle berechnet. Aktuelle Saisons übernehmen Stammfahrer und Teams automatisch; F1-Ersatzfahrer können manuell einem Team zugeordnet werden. Historische Saisons erlauben alle Fahrer und eine freie Teamwahl.</div>
       <button class="button" type="submit">Gesamte Tabelle speichern</button>
     </form>
   <% } %>

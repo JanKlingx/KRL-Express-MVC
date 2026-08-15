@@ -76,6 +76,8 @@ exports.dashboard = async (req, res) => {
     else result.push({ name: group, modules: [[key, config]] });
     return result;
   }, []);
+  const groupOrder = ['Stammdaten', 'Formel 1 Liga', 'WDL', 'LMU', 'Saisonverwaltung', 'Startseite', 'Teams', 'KRL Icons'];
+  groups.sort((left, right) => groupOrder.indexOf(left.name) - groupOrder.indexOf(right.name));
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',
     groups,
@@ -179,6 +181,7 @@ exports.remove = async (req, res, next) => {
   const imagePath = config.upload ? entry[config.upload.field] : null;
   if (config.beforeRemove) await config.beforeRemove(entry);
   await entry.destroy();
+  if (config.afterRemove) await config.afterRemove(entry);
   if (imagePath) await deleteUpload(imagePath);
   req.session.flash = { type: 'success', message: 'Eintrag wurde gelöscht.' };
   res.redirect(`${getBasePath(req)}/${req.params.resource}`);
