@@ -6,7 +6,7 @@ const { sendCsv } = require('../services/csv');
 async function loadData(requestedSeasonId) {
   const league = await League.findOne({ where: { slug: 'lmu', type: 'lmu' } });
   if (!league) return null;
-  const seasons = await Season.findAll({ where: { leagueType: 'lmu', scopeSlug: 'lmu' }, order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
+  const seasons = await Season.findAll({ where: { leagueType: 'lmu', scopeSlug: 'lmu' }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const driverWhere = selectedSeason?.status === 'historical' ? {} : { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }] };
   const [cockpits, teams, drivers, gpResults, activeCalendar] = await Promise.all([

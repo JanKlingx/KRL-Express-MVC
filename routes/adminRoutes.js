@@ -2,6 +2,7 @@ const express = require('express');
 const asyncHandler = require('../services/asyncHandler');
 const adminController = require('../controllers/adminController');
 const raceEditorController = require('../controllers/raceEditorController');
+const seriesEditorController = require('../controllers/seriesEditorController');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -10,6 +11,8 @@ router.use(requireAdmin);
 router.get('/', asyncHandler(adminController.dashboard));
 router.get('/race-editor', asyncHandler(raceEditorController.show));
 router.post('/race-editor/:raceId', asyncHandler(raceEditorController.save));
+router.get('/season-progress/:discipline(lmu|wdl)', asyncHandler(seriesEditorController.show));
+router.post('/season-progress/:discipline(lmu|wdl)/:raceId', asyncHandler(seriesEditorController.save));
 router.get('/:resource', asyncHandler(adminController.list));
 router.get('/:resource/new', asyncHandler(adminController.createForm));
 router.post('/:resource', upload.single('image'), asyncHandler(adminController.create));

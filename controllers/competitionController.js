@@ -5,7 +5,7 @@ const { sendCsv } = require('../services/csv');
 async function loadData(requestedSeasonId) {
   const pageLeague = await League.findOne({ where: { slug: 'wettkampf', type: 'competition' } });
   if (!pageLeague) return null;
-  const seasons = await Season.findAll({ where: { leagueType: 'wdl', scopeSlug: 'wettkampf' }, order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
+  const seasons = await Season.findAll({ where: { leagueType: 'wdl', scopeSlug: 'wettkampf' }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const leagueWhere = selectedSeason?.status === 'historical' ? {} : { isActive: true };
   const leagues = await ParticipatingLeague.findAll({

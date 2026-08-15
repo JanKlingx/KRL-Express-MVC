@@ -59,8 +59,10 @@ const Driver = sequelize.define('Driver', {
   roleF1Friday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleF1Sunday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleF1Reserve: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  roleFormerF1: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleLmuRegular: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleLmuReserve: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  roleFormerLmu: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   racesF1: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   racesLmu: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
   platform: { type: DataTypes.STRING, allowNull: false, defaultValue: 'PC' },
@@ -76,6 +78,30 @@ const PointsRule = sequelize.define('PointsRule', {
   ...commonSort
 });
 
+const PointsScheme = sequelize.define('PointsScheme', {
+  name: { type: DataTypes.STRING, allowNull: false },
+  discipline: { type: DataTypes.STRING, allowNull: false },
+  validFrom: DataTypes.DATEONLY,
+  validUntil: DataTypes.DATEONLY,
+  fastestLapEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  fastestLapPoints: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 1 },
+  ...commonSort
+});
+
+const PointAllocation = sequelize.define('PointAllocation', {
+  raceType: { type: DataTypes.STRING, allowNull: false, defaultValue: 'main' },
+  position: { type: DataTypes.INTEGER, allowNull: false },
+  points: { type: DataTypes.DECIMAL(10, 1), allowNull: false },
+  ...commonSort
+});
+
+const SeasonCategory = sequelize.define('SeasonCategory', {
+  name: { type: DataTypes.STRING, allowNull: false },
+  leagueType: { type: DataTypes.STRING, allowNull: false },
+  scopeSlug: { type: DataTypes.STRING, allowNull: false },
+  ...commonSort
+});
+
 const Season = sequelize.define('Season', {
   name: { type: DataTypes.STRING, allowNull: false },
   leagueType: { type: DataTypes.STRING, allowNull: false },
@@ -87,6 +113,7 @@ const Season = sequelize.define('Season', {
 
 const F1CalendarRound = sequelize.define('F1CalendarRound', {
   circuit: { type: DataTypes.STRING, allowNull: false },
+  hasSprint: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   fridayDate: DataTypes.DATEONLY,
   sundayDate: DataTypes.DATEONLY,
   fridayTime: DataTypes.STRING,
@@ -123,6 +150,7 @@ const GrandPrixResult = sequelize.define('GrandPrixResult', {
   circuit: DataTypes.STRING,
   raceDate: DataTypes.DATEONLY,
   discipline: { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' },
+  raceType: { type: DataTypes.STRING, allowNull: false, defaultValue: 'main' },
   isHistorical: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   // Legacy columns remain populated so existing MariaDB installations can be
   // upgraded without dropping the former PNG fields.
@@ -186,6 +214,8 @@ const ParticipatingLeague = sequelize.define('ParticipatingLeague', {
 const WdlResultEntry = sequelize.define('WdlResultEntry', {
   positionOne: DataTypes.INTEGER,
   positionTwo: DataTypes.INTEGER,
+  fastestLapOne: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  fastestLapTwo: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   pointsOne: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 },
   pointsTwo: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 },
   totalPoints: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 },
@@ -231,6 +261,10 @@ Team.belongsTo(Driver, { as: 'driverOne', foreignKey: { name: 'Driver1Id', allow
 Team.belongsTo(Driver, { as: 'driverTwo', foreignKey: { name: 'Driver2Id', allowNull: true }, constraints: false });
 Season.hasMany(F1CalendarRound, { as: 'f1Rounds', foreignKey: { name: 'SeasonId', allowNull: true }, onDelete: 'SET NULL' });
 F1CalendarRound.belongsTo(Season, { as: 'season', foreignKey: { name: 'SeasonId', allowNull: true } });
+PointsScheme.hasMany(PointAllocation, { as: 'allocations', foreignKey: { name: 'PointsSchemeId', allowNull: false }, onDelete: 'CASCADE' });
+PointAllocation.belongsTo(PointsScheme, { as: 'scheme', foreignKey: { name: 'PointsSchemeId', allowNull: false } });
+SeasonCategory.hasMany(Season, { as: 'seasons', foreignKey: { name: 'SeasonCategoryId', allowNull: true }, onDelete: 'SET NULL' });
+Season.belongsTo(SeasonCategory, { as: 'category', foreignKey: { name: 'SeasonCategoryId', allowNull: true } });
 Driver.hasMany(DriverAlias, { as: 'aliases', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
 DriverAlias.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
 League.hasMany(DriverStanding, { as: 'driverStandings', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -294,6 +328,9 @@ module.exports = {
   Driver,
   DriverAlias,
   PointsRule,
+  PointsScheme,
+  PointAllocation,
+  SeasonCategory,
   Season,
   F1CalendarRound,
   DriverStanding,

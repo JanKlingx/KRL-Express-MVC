@@ -50,17 +50,7 @@
         <% team.assignments.forEach(assignment => { const member = assignment.driver; %>
           <article class="person-card">
 
-            <% if (member.avatarPath) { %>
-              <img
-                src="<%= member.avatarPath %>"
-                alt="<%= member.name %>"
-                class="avatar avatar-image"
-              >
-            <% } else { %>
-              <div class="avatar">
-                <%= member.name.charAt(0) %>
-              </div>
-            <% } %>
+            <div class="avatar"><%= member.name.charAt(0) %></div>
 
             <strong><%= member.name %></strong>
             <span><%= assignment.roleName %></span>
@@ -70,6 +60,6 @@
     </div>
   <% }) %>
 </section>
-<% if (krlIcons.length) { %><section class="section section-dark"><div class="container"><div class="section-heading"><span>AUSGEZEICHNET</span><h2>KRL ICONS</h2></div><div class="people-grid"><% krlIcons.forEach((icon) => { %><article class="person-card"><% if (icon.driver.avatarPath) { %><img src="<%= icon.driver.avatarPath %>" alt="<%= icon.driver.name %>" class="avatar avatar-image"><% } else { %><div class="avatar"><%= icon.driver.name.charAt(0) %></div><% } %><strong><%= icon.driver.name %></strong><span><%= icon.text %></span><small><%= icon.appointedAt ? `Ernennung: ${icon.appointedAt}` : '' %></small></article><% }) %></div></div></section><% } %>
+<% if (krlIcons.length) { %><section class="section section-dark"><div class="container"><div class="section-heading"><span>AUSGEZEICHNET</span><h2>KRL ICONS</h2></div><div class="people-grid"><% krlIcons.forEach((icon) => { %><article class="person-card"><div class="avatar"><%= icon.driver.name.charAt(0) %></div><strong><%= icon.driver.name %></strong><span><%= icon.text %></span><small><%= icon.appointedAt ? `Ernennung: ${icon.appointedAt}` : '' %></small></article><% }) %></div></div></section><% } %>
 <section class="section cta"><div class="container"><span>BEREIT FÜR DIE STARTAUFSTELLUNG?</span><h2>WERDE TEIL DER KRL</h2><p>Besuche unseren Discord und finde die passende Liga für dich.</p><a class="button" href="https://discord.com" target="_blank" rel="noopener">Discord öffnen</a></div></section>
 <%- include('partials/footer') %>

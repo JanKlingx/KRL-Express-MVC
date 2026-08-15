@@ -7,24 +7,63 @@ const {
   GrandPrixResultEntry,
   League,
   ParticipatingLeague,
+  PointAllocation,
+  PointsScheme,
   PointsRule,
   RaceEvent,
   Season,
+  SeasonCategory,
   WdlResultEntry
 } = require('../models');
 
-async function pointsForPosition(position) {
+function dateOnly(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date().toISOString().slice(0, 10) : date.toISOString().slice(0, 10);
+}
+
+async function pointsForPosition(position, context = {}) {
   const numericPosition = Number(position);
   if (!Number.isInteger(numericPosition) || numericPosition < 1) return 0;
+  const discipline = context.discipline || 'f1';
+  const effectiveDate = dateOnly(context.raceDate);
+  const scheme = await PointsScheme.findOne({
+    where: {
+      discipline,
+      [Op.and]: [
+        { [Op.or]: [{ validFrom: null }, { validFrom: { [Op.lte]: effectiveDate } }] },
+        { [Op.or]: [{ validUntil: null }, { validUntil: { [Op.gte]: effectiveDate } }] }
+      ]
+    },
+    order: [['validFrom', 'DESC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
+  });
+  if (scheme) {
+    const allocation = await PointAllocation.findOne({
+      where: { PointsSchemeId: scheme.id, raceType: context.raceType || 'main', position: numericPosition }
+    });
+    const fastestLapBonus = context.fastestLap && scheme.fastestLapEnabled ? Number(scheme.fastestLapPoints || 0) : 0;
+    return Number(allocation?.points || 0) + fastestLapBonus;
+  }
   const rule = await PointsRule.findOne({ where: { position: numericPosition } });
   return rule ? Number(rule.points) : 0;
 }
 
 async function activateSeason(season) {
   if (season.status === 'active') {
+    const [currentCategory, historicalCategory] = await Promise.all([
+      SeasonCategory.findOne({ where: { name: 'Aktuelle Saison', leagueType: season.leagueType, scopeSlug: season.scopeSlug } }),
+      SeasonCategory.findOne({ where: { name: 'Ältere Saisons', leagueType: season.leagueType, scopeSlug: season.scopeSlug } })
+    ]);
+    const previouslyActive = await Season.findAll({
+      where: { id: { [Op.ne]: season.id }, leagueType: season.leagueType, scopeSlug: season.scopeSlug, status: 'active' },
+      attributes: ['id']
+    });
     await Season.update({ status: 'historical' }, {
       where: { id: { [Op.ne]: season.id }, leagueType: season.leagueType, scopeSlug: season.scopeSlug, status: 'active' }
     });
+    if (historicalCategory && previouslyActive.length) await Season.update({ SeasonCategoryId: historicalCategory.id }, {
+      where: { id: { [Op.in]: previouslyActive.map((entry) => entry.id) } }
+    });
+    if (currentCategory && season.SeasonCategoryId !== currentCategory.id) await season.update({ SeasonCategoryId: currentCategory.id });
     const leagueType = season.leagueType === 'wdl' ? 'competition' : season.leagueType;
     const league = await League.findOne({ where: { slug: season.scopeSlug, type: leagueType } });
     if (league) await league.update({ currentSeason: season.name });
@@ -42,15 +81,18 @@ async function activateSeason(season) {
 }
 
 async function assignPointsToRace(raceId, transaction) {
+  const race = await GrandPrixResult.findByPk(raceId, { transaction });
   const entries = await GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: raceId }, transaction });
   for (const entry of entries) {
-    await entry.update({ points: await pointsForPosition(entry.position) }, { transaction });
+    await entry.update({ points: await pointsForPosition(entry.position, { ...race?.toJSON(), fastestLap: entry.fastestLap }) }, { transaction });
   }
 }
 
-async function assignWdlPoints(entry, transaction) {
-  const pointsOne = await pointsForPosition(entry.positionOne);
-  const pointsTwo = await pointsForPosition(entry.positionTwo);
+async function assignWdlPoints(entry, transaction, raceValue) {
+  const race = raceValue || await GrandPrixResult.findByPk(entry.GrandPrixResultId, { transaction });
+  const context = race?.toJSON() || { discipline: 'wdl', raceType: 'main' };
+  const pointsOne = await pointsForPosition(entry.positionOne, { ...context, fastestLap: entry.fastestLapOne });
+  const pointsTwo = await pointsForPosition(entry.positionTwo, { ...context, fastestLap: entry.fastestLapTwo });
   await entry.update({ pointsOne, pointsTwo, totalPoints: pointsOne + pointsTwo }, { transaction });
 }
 
@@ -71,7 +113,7 @@ async function recalculateDriverRaceCounts() {
     const status = String(entry.status || '').toUpperCase();
     if (!entry.position && !['DNF', 'DSQ'].includes(status)) continue;
     const discipline = race.discipline === 'lmu' ? 'lmu' : race.discipline === 'f1' ? 'f1' : null;
-    if (discipline && counts.has(entry.DriverId)) counts.get(entry.DriverId)[discipline].add(race.id);
+    if (discipline && counts.has(entry.DriverId) && race.raceType !== 'sprint') counts.get(entry.DriverId)[discipline].add(race.id);
   }
   await sequelize.transaction(async (transaction) => {
     for (const [driverId, values] of counts) {
@@ -81,10 +123,16 @@ async function recalculateDriverRaceCounts() {
 }
 
 async function recalculateAllPoints() {
-  const [entries, wdlEntries] = await Promise.all([GrandPrixResultEntry.findAll(), WdlResultEntry.findAll()]);
+  const [entries, wdlEntries] = await Promise.all([
+    GrandPrixResultEntry.findAll({ include: [{ model: GrandPrixResult, as: 'grandPrixResult' }] }),
+    WdlResultEntry.findAll({ include: [{ association: 'race' }] })
+  ]);
   await sequelize.transaction(async (transaction) => {
-    for (const entry of entries) await entry.update({ points: await pointsForPosition(entry.position) }, { transaction });
-    for (const entry of wdlEntries) await assignWdlPoints(entry, transaction);
+    for (const entry of entries) {
+      const race = entry.grandPrixResult?.toJSON() || {};
+      await entry.update({ points: await pointsForPosition(entry.position, { ...race, fastestLap: entry.fastestLap }) }, { transaction });
+    }
+    for (const entry of wdlEntries) await assignWdlPoints(entry, transaction, entry.race);
   });
 }
 
@@ -109,7 +157,7 @@ async function syncF1CalendarRound(round) {
     const time = isFriday ? round.fridayTime : round.sundayTime;
     const startsAt = combineDateAndTime(date, time, league.raceTime?.match(/\d{2}:\d{2}/)?.[0]);
     const [race] = await GrandPrixResult.findOrCreate({
-      where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit },
+      where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit, raceType: 'main' },
       defaults: {
         SeasonId: season.id,
         LeagueId: league.id,
@@ -118,11 +166,12 @@ async function syncF1CalendarRound(round) {
         circuit: round.circuit,
         raceDate: date,
         discipline: 'f1',
+        raceType: 'main',
         isHistorical: season.status === 'historical',
         sortOrder: round.sortOrder
       }
     });
-    await race.update({ season: season.name, raceDate: date, sortOrder: round.sortOrder, isHistorical: season.status === 'historical' });
+    await race.update({ season: season.name, raceDate: date, raceType: 'main', sortOrder: round.sortOrder, isHistorical: season.status === 'historical' });
     const [event] = await RaceEvent.findOrCreate({
       where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit },
       defaults: {
@@ -138,14 +187,28 @@ async function syncF1CalendarRound(round) {
       }
     });
     await event.update({ GrandPrixResultId: race.id, title: race.title, startsAt, isPublished: season.status === 'active', sortOrder: round.sortOrder });
+    if (round.hasSprint) {
+      const [sprint] = await GrandPrixResult.findOrCreate({
+        where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit, raceType: 'sprint' },
+        defaults: {
+          SeasonId: season.id, LeagueId: league.id, season: season.name,
+          title: `Sprint · ${round.circuit}`, circuit: round.circuit, raceDate: date,
+          discipline: 'f1', raceType: 'sprint', isHistorical: false, sortOrder: round.sortOrder
+        }
+      });
+      await sprint.update({ season: season.name, title: `Sprint · ${round.circuit}`, raceDate: date, raceType: 'sprint', isHistorical: false, sortOrder: round.sortOrder });
+    } else {
+      await GrandPrixResult.destroy({ where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit, raceType: 'sprint' } });
+    }
   }
 }
 
 async function removeF1CalendarRound(round) {
-  const events = await RaceEvent.findAll({ where: { circuit: round.circuit }, include: [{ model: Season, as: 'seasonRecord', where: { leagueType: 'f1', status: 'active' } }] });
-  const raceIds = events.map((event) => event.GrandPrixResultId).filter(Boolean);
+  const seasons = await Season.findAll({ where: { leagueType: 'f1', status: 'active' }, attributes: ['id'] });
+  const seasonIds = seasons.map((season) => season.id);
+  const events = await RaceEvent.findAll({ where: { circuit: round.circuit, SeasonId: { [Op.in]: seasonIds } } });
   await RaceEvent.destroy({ where: { id: { [Op.in]: events.map((event) => event.id) } } });
-  if (raceIds.length) await GrandPrixResult.destroy({ where: { id: { [Op.in]: raceIds } } });
+  await GrandPrixResult.destroy({ where: { circuit: round.circuit, SeasonId: { [Op.in]: seasonIds }, discipline: 'f1' } });
   await recalculateDriverRaceCounts();
 }
 

@@ -1,4 +1,5 @@
 <%- include('../partials/header', { title }) %>
+<% const displayedFields = config.listFields ? config.listFields.map((name) => config.fields.find((field) => field.name === name)).filter(Boolean) : config.fields.slice(0, 5); %>
 <section class="admin-shell">
   <div class="container">
     <div class="admin-heading">
@@ -29,8 +30,8 @@
     <% if (!entries.length) { %>
       <div class="empty-state">Noch keine Einträge vorhanden. Starte mit „Neuer Eintrag“.</div>
     <% } else { %>
-      <div class="table-wrap admin-table"><table><thead><tr><th>ID</th><% config.fields.slice(0, 5).forEach((field) => { %><th><%= field.label %></th><% }) %><th>Aktionen</th></tr></thead><tbody>
-        <% entries.forEach((entry) => { %><tr><td><span class="id-badge">#<%= entry.id %></span></td><% config.fields.slice(0, 5).forEach((field) => { const rawValue = entry[field.name]; const option = (fieldOptions[field.name] || []).find((candidate) => candidate.value === String(rawValue)); %><td><%= option ? option.label : (field.type === 'checkbox' ? (rawValue ? 'Ja' : 'Nein') : (rawValue ?? '–')) %></td><% }) %><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Eintrag wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %>
+      <div class="table-wrap admin-table"><table><thead><tr><th>ID</th><% displayedFields.forEach((field) => { %><th><%= field.label %></th><% }) %><th>Aktionen</th></tr></thead><tbody>
+        <% entries.forEach((entry) => { %><tr><td><span class="id-badge">#<%= entry.id %></span></td><% displayedFields.forEach((field) => { const rawValue = entry[field.name]; const option = (fieldOptions[field.name] || []).find((candidate) => candidate.value === String(rawValue)); %><td><%= option ? option.label : (field.type === 'checkbox' ? (rawValue ? 'Ja' : 'Nein') : (rawValue ?? '–')) %></td><% }) %><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Eintrag wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %>
       </tbody></table></div>
     <% } %>
   </div>

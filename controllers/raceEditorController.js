@@ -10,7 +10,7 @@ async function getRaces(leagueId, seasonId) {
   return GrandPrixResult.findAll({
     where: { LeagueId: leagueId, SeasonId: seasonId, discipline: 'f1' },
     include: [{ model: League, as: 'league', where: { type: 'f1' } }],
-    order: [['sortOrder', 'ASC'], ['raceDate', 'ASC']]
+    order: [['sortOrder', 'ASC'], ['raceType', 'DESC'], ['raceDate', 'ASC']]
   });
 }
 
@@ -37,6 +37,7 @@ exports.show = async (req, res) => {
   const selectedLeague = leagues.find((league) => league.id === Number(req.query.league)) || leagues[0] || null;
   const seasons = selectedLeague ? await Season.findAll({
     where: { leagueType: 'f1', scopeSlug: selectedLeague.slug },
+    include: [{ association: 'category' }],
     order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
   }) : [];
   const selectedSeason = seasons.find((season) => season.id === Number(req.query.season)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
@@ -105,7 +106,8 @@ exports.save = async (req, res) => {
       const status = statuses.includes(submitted.status) ? submitted.status : '';
       const values = {
         GrandPrixResultId: race.id, DriverId: driver.id, driverName: driver.name, teamName: team.name,
-        position, status: status || null, points: await pointsForPosition(position),
+        position, status: status || null,
+        points: await pointsForPosition(position, { ...race.toJSON(), fastestLap: submitted.fastestLap === 'on' }),
         fastestLap: submitted.fastestLap === 'on', sortOrder: position || driver.sortOrder || 999
       };
       if (existing) await existing.update(values, { transaction });
