@@ -34,5 +34,9 @@ test('Markdown-Export wird in Rennen und kumulierte Fahrerwerte umgewandelt', ()
   assert.equal(season.drivers[0].results[1].cumulative, 44);
   assert.equal(season.drivers[0].results[0].fastestLap, true);
   assert.equal(season.drivers[1].results[1].value, 'DNF');
+  assert.equal(season.drivers[1].results[1].status, 'DNF');
   assert.equal(season.drivers[1].results[1].cumulative, 18);
+  assert.equal(season.drivers[0].gap, 0);
+  assert.equal(season.drivers[1].gap, -26);
+  assert.equal(season.drivers[0].average, 22);
 });

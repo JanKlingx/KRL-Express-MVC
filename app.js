@@ -12,6 +12,7 @@ const SequelizeStoreFactory =
 const publicRoutes = require('./routes/publicRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const wdlAdminRoutes = require('./routes/wdlAdminRoutes');
 
 const {
   notFound,
@@ -29,6 +30,24 @@ const sessionStore = new SequelizeStore({
 });
 
 const app = express();
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  throw new Error('SESSION_SECRET muss in der .env-Datei gesetzt sein.');
+}
+
+const contentSecurityDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+  fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+  imgSrc: ["'self'", 'data:', 'https:'],
+  connectSrc: ["'self'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  frameAncestors: ["'none'"],
+  formAction: ["'self'"]
+};
+if (process.env.NODE_ENV !== 'production') contentSecurityDirectives.upgradeInsecureRequests = null;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -36,7 +55,7 @@ app.set('sessionStore', sessionStore);
 
 app.use(
   helmet({
-    contentSecurityPolicy: false
+    contentSecurityPolicy: { directives: contentSecurityDirectives }
   })
 );
 
@@ -70,9 +89,7 @@ app.use(
 app.use(
   session({
     store: sessionStore,
-       secret:
-      process.env.SESSION_SECRET ||
-      'nur-fuer-lokale-entwicklung-aendern',
+    secret: sessionSecret,
 
     resave: false,
     saveUninitialized: false,
@@ -89,6 +106,8 @@ app.use(
 app.use((req, res, next) => {
   res.locals.currentPath = req.path;
   res.locals.isAdmin = Boolean(req.session.userId);
+  res.locals.adminRole = req.session.role || null;
+  res.locals.adminHome = req.session.role === 'wdl' ? '/wdl-admin' : '/admin';
   res.locals.flash = req.session.flash || null;
 
   delete req.session.flash;
@@ -98,6 +117,7 @@ app.use((req, res, next) => {
 app.use('/', publicRoutes);
 app.use('/admin', authRoutes);
 app.use('/admin', adminRoutes);
+app.use('/wdl-admin', wdlAdminRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

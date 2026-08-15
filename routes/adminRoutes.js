@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(requireAdmin);
 router.get('/', asyncHandler(adminController.dashboard));
 router.get('/:resource', asyncHandler(adminController.list));
-router.get('/:resource/new', adminController.createForm);
+router.get('/:resource/new', asyncHandler(adminController.createForm));
 router.post('/:resource', upload.single('image'), asyncHandler(adminController.create));
 router.get('/:resource/:id/edit', asyncHandler(adminController.editForm));
 router.put('/:resource/:id', upload.single('image'), asyncHandler(adminController.update));

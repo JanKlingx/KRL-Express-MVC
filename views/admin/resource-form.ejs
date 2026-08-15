@@ -1,16 +1,47 @@
 <%- include('../partials/header', { title }) %>
-<section class="admin-shell"><div class="container narrow"><a class="back-link" href="/admin/<%= resource %>">← Zur Übersicht</a><h1><%= entry && entry.id ? 'EINTRAG BEARBEITEN' : 'NEUER EINTRAG' %></h1><p class="form-hint">Bei Verknüpfungen wird die ID des zugehörigen Datensatzes eingetragen. Die IDs findest du in den jeweiligen Übersichten.</p>
-  <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
-  <form class="resource-form" method="post" enctype="multipart/form-data" action="/admin/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
-    <% config.fields.forEach(field => { const value = entry ? (entry[field.name] ?? '') : ''; %>
-      <label><%= field.label %><% if (field.required) { %><span aria-hidden="true"> *</span><% } %>
-        <% if (field.type === 'textarea') { %><textarea name="<%= field.name %>" rows="4" <%= field.required ? 'required' : '' %>><%= value %></textarea>
-        <% } else if (field.type === 'checkbox') { %><input type="checkbox" name="<%= field.name %>" <%= value ? 'checked' : '' %>>
-        <% } else { %><input type="<%= field.type %>" name="<%= field.name %>" value="<%= value %>" <%= field.required ? 'required' : '' %> <%= field.type === 'number' ? 'step="any"' : '' %>><% } %>
-      </label>
-    <% }) %>
-    <% if (config.upload) { %><label>PNG-Datei <%= entry && entry.id ? '(optional ersetzen)' : '*' %><input type="file" name="image" accept="image/png,.png" <%= entry && entry.id ? '' : 'required' %>></label><% if (entry && entry[config.upload]) { %><img class="upload-preview" src="<%= entry[config.upload] %>" alt="Aktuell gespeicherte PNG-Datei"><% } %><% } %>
-    <div class="form-actions"><button class="button" type="submit">Speichern</button><a class="button button-ghost" href="/admin/<%= resource %>">Abbrechen</a></div>
-  </form>
-</div></section>
+<section class="admin-shell">
+  <div class="container narrow">
+    <a class="back-link" href="<%= adminBasePath %>/<%= resource %>">← Zur Übersicht</a>
+    <span class="form-kicker"><%= config.group %></span>
+    <h1><%= entry && entry.id ? 'EINTRAG BEARBEITEN' : 'NEUER EINTRAG' %></h1>
+    <p class="form-hint"><%= config.description %> Pflichtfelder sind mit * markiert.</p>
+    <% if (error) { %><div class="form-error" role="alert"><strong>Speichern nicht möglich:</strong> <%= error %></div><% } %>
+
+    <form class="resource-form" method="post" enctype="multipart/form-data" action="<%= adminBasePath %>/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
+      <% config.fields.forEach((field) => { const value = entry ? (entry[field.name] ?? '') : ''; const inputId = `${resource}-${field.name}`; %>
+        <label for="<%= inputId %>" class="field-<%= field.type %>">
+          <span><%= field.label %><% if (field.required) { %><b aria-hidden="true"> *</b><% } %></span>
+          <% if (field.type === 'textarea') { %>
+            <textarea id="<%= inputId %>" name="<%= field.name %>" rows="4" placeholder="<%= field.placeholder || '' %>" <%= field.required ? 'required' : '' %>><%= value %></textarea>
+          <% } else if (field.type === 'checkbox') { %>
+            <span class="checkbox-control"><input id="<%= inputId %>" type="checkbox" name="<%= field.name %>" <%= value ? 'checked' : '' %>><span>Aktivieren</span></span>
+          <% } else if (field.type === 'select') { %>
+            <select id="<%= inputId %>" name="<%= field.name %>" <%= field.required ? 'required' : '' %>>
+              <option value=""><%= field.required ? 'Bitte auswählen …' : 'Keine Auswahl / nicht gesetzt' %></option>
+              <% (fieldOptions[field.name] || []).forEach((option) => { %>
+                <option value="<%= option.value %>" <%= String(value) === option.value ? 'selected' : '' %>><%= option.label %></option>
+              <% }) %>
+            </select>
+          <% } else { %>
+            <input id="<%= inputId %>" type="<%= field.type %>" name="<%= field.name %>" value="<%= value %>" placeholder="<%= field.placeholder || '' %>" <%= field.required ? 'required' : '' %> <%= field.step ? `step="${field.step}"` : '' %> <%= field.min !== undefined ? `min="${field.min}"` : '' %>>
+          <% } %>
+          <% if (field.help) { %><small><%= field.help %></small><% } %>
+        </label>
+      <% }) %>
+
+      <% if (config.upload) { %>
+        <label>PNG-Datei <%= entry && entry.id ? '(optional ersetzen)' : '*' %>
+          <input type="file" name="image" accept="image/png,.png" <%= entry && entry.id ? '' : 'required' %>>
+          <small>Nur PNG, maximal 10 MB.</small>
+        </label>
+        <% if (entry && entry[config.upload]) { %><img class="upload-preview" src="<%= entry[config.upload] %>" alt="Aktuell gespeicherte PNG-Datei"><% } %>
+      <% } %>
+
+      <div class="form-actions">
+        <button class="button" type="submit">Speichern</button>
+        <a class="button button-ghost" href="<%= adminBasePath %>/<%= resource %>">Abbrechen</a>
+      </div>
+    </form>
+  </div>
+</section>
 <%- include('../partials/footer') %>

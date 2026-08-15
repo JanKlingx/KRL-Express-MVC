@@ -1,10 +1,11 @@
 <%- include('../partials/header', { title }) %>
-<section class="admin-shell login-shell"><div class="login-card"><span class="eyebrow">GESCHÜTZTER BEREICH</span><h1>ADMIN-LOGIN</h1><p>Verwalte Fahrerfelder, Tabellen, Rennklassifikationen und Saisonverläufe.</p>
+<section class="admin-shell login-shell"><div class="login-card"><span class="eyebrow"><%= eyebrow %></span><h1><%= heading %></h1><p><%= description %></p>
   <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
-  <form method="post" action="/admin/login" class="stack-form">
+  <form method="post" action="<%= action %>" class="stack-form">
     <label>E-Mail<input type="email" name="email" autocomplete="username" required></label>
     <label>Passwort<input type="password" name="password" autocomplete="current-password" required></label>
     <button class="button" type="submit">Anmelden</button>
   </form>
+  <div class="login-switch"><% if (loginMode === 'wdl') { %><a href="/admin/login">Zum vollständigen Admin-Login</a><% } else { %><a href="/wdl-admin/login">Eigener Login für Wettkampf der Ligen</a><% } %></div>
 </div></section>
 <%- include('../partials/footer') %>

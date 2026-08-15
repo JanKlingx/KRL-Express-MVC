@@ -1,0 +1,29 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('path');
+const ejs = require('ejs');
+
+test('GP-Ergebnis markiert Podium und DNF getrennt', async () => {
+  const template = path.join(__dirname, '..', 'views', 'partials', 'gp-results.ejs');
+  const html = await ejs.renderFile(template, {
+    label: 'Testergebnis',
+    items: [{
+      season: 'Saison 12',
+      title: 'Test GP',
+      circuit: 'Teststrecke',
+      sortOrder: 1,
+      entries: [
+        { position: 1, driverName: 'Sieger', teamName: 'Team A', points: 25, status: '', sortOrder: 1 },
+        { position: 2, driverName: 'Zweiter', teamName: 'Team B', points: 18, status: '', sortOrder: 2 },
+        { position: 3, driverName: 'Dritter', teamName: 'Team C', points: 15, status: '', sortOrder: 3 },
+        { position: null, driverName: 'Ausfall', teamName: 'Team D', points: 0, status: 'DNF', sortOrder: 4 }
+      ]
+    }]
+  });
+
+  assert.match(html, /position-1/);
+  assert.match(html, /position-2/);
+  assert.match(html, /position-3/);
+  assert.match(html, /status-dnf/);
+  assert.match(html, />DNF</);
+});

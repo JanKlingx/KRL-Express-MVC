@@ -95,6 +95,8 @@ function parseHistoryRows(rows) {
 
     const header = rows[headerIndex].map(cleanCell);
     const totalIndex = header.findIndex((cell) => /Punkte/i.test(cell) && (cell.includes('∑') || cell.toLowerCase().includes('summe')));
+    const gapIndex = header.findIndex((cell) => /(?:Δ|Rückstand).*Punkte|Punkte.*(?:Δ|Rückstand)/i.test(cell));
+    const averageIndex = header.findIndex((cell) => /(?:Ø|Durchschnitt).*Punkte|Punkte.*(?:Ø|Durchschnitt)/i.test(cell));
     const drivers = [];
 
     for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex += 1) {
@@ -117,16 +119,21 @@ function parseHistoryRows(rows) {
           value,
           points: points === null ? 0 : points,
           cumulative,
-          fastestLap: /\*\*/.test(rawCell)
+          fastestLap: /\*\*/.test(rawCell),
+          status: /^(DNF|DNS|DNQ|DSQ|DNA)$/i.test(value) ? value.toUpperCase() : null
         };
       });
 
       const total = totalIndex >= 0 ? parseNumber(sourceRow[totalIndex]) : null;
+      const gap = gapIndex >= 0 ? parseNumber(sourceRow[gapIndex]) : null;
+      const average = averageIndex >= 0 ? parseNumber(sourceRow[averageIndex]) : null;
       drivers.push({
         position,
         name,
         team: cleanCell(sourceRow[2]),
         total: total === null ? cumulative : total,
+        gap,
+        average,
         results
       });
     }
@@ -138,6 +145,11 @@ function parseHistoryRows(rows) {
       }
       const completedRaces = races.slice(0, completedRaceCount);
       drivers.forEach((driver) => { driver.results = driver.results.slice(0, completedRaceCount); });
+      const leaderTotal = Math.max(...drivers.map((driver) => driver.total));
+      drivers.forEach((driver) => {
+        if (driver.gap === null) driver.gap = driver.total - leaderTotal;
+        if (driver.average === null) driver.average = completedRaceCount ? driver.total / completedRaceCount : 0;
+      });
       seasons.push({
         name: season.replace(/\s+/g, ' '),
         races: completedRaces,
