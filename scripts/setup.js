@@ -170,6 +170,9 @@ async function run() {
     await LeagueCompetitionStanding.findOrCreate({ where: { ParticipatingLeagueId: league.id }, defaults: { ParticipatingLeagueId: league.id, position: i + 1, drivers: `Fahrer ${i * 2 + 1} / Fahrer ${i * 2 + 2}`, constructorName, points: 120 - i * 17, wins: Math.max(0, 3 - i), gap: i === 0 ? 'Leader' : `+${i * 17}`, sortOrder: i } });
   }
 
+  // Übernimmt frisch erzeugte Legacy-Beispieldaten ebenfalls in die zentralen
+  // Teamaufstellungen. Bei bestehenden Installationen ist der Schritt idempotent.
+  await ensureSchema();
   console.log('Setup abgeschlossen. Datenbank, Beispieldaten und Admin wurden erstellt.');
   await sequelize.close();
 }

@@ -1,10 +1,11 @@
 const { Op } = require('sequelize');
 const {
   sequelize, League, Driver, Season, GrandPrixResult, GrandPrixResultEntry,
-  ParticipatingLeague, WdlResultEntry, LmuCockpit
+  ParticipatingLeague, WdlResultEntry, TeamRoster, TeamRosterDriver
 } = require('../models');
 const { pointsForPosition, recalculateDriverRaceCounts } = require('../services/championship');
 const seasonProgress = require('../services/seasonProgress');
+const { centralTeamDriverIds } = require('../services/teamRosters');
 
 const disciplines = {
   lmu: { scopeSlug: 'lmu', leagueType: 'lmu', title: 'LMU-Saisonverlauf' },
@@ -31,26 +32,53 @@ async function loadBase(discipline, query) {
   return { config, league, seasons, selectedSeason, races, selectedRace };
 }
 
-async function lmuRows(base) {
-  if (!base.selectedRace) return { rows: [] };
-  const driverWhere = base.selectedSeason.status === 'historical' ? {} : {
-    [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }]
-  };
-  const [drivers, entries, cockpits] = await Promise.all([
-    Driver.findAll({ where: driverWhere, order: [['name', 'ASC'], ['id', 'ASC']] }),
+function selectedHistoricalDriverIds(query, entries) {
+  const hasExplicitSelection = query && Object.prototype.hasOwnProperty.call(query, 'drivers');
+  const raw = Array.isArray(query?.drivers) ? query.drivers : query?.drivers !== undefined ? [query.drivers] : [];
+  const storedIds = hasExplicitSelection ? [] : entries.map((entry) => entry.DriverId);
+  return [...new Set([...raw, query?.addDriver, ...storedIds]
+    .flatMap((value) => String(value || '').split(',')).map(Number)
+    .filter((value) => Number.isInteger(value) && value > 0))].slice(0, 20);
+}
+
+async function lmuRows(base, query = {}) {
+  if (!base.selectedRace) return { rows: [], availableDrivers: [], historicalDriverIds: [] };
+  const [entries, rosters] = await Promise.all([
     GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: base.selectedRace.id } }),
-    LmuCockpit.findAll({ where: { LeagueId: base.league.id } })
+    TeamRoster.findAll({
+      where: { LeagueId: base.league.id, discipline: 'lmu' },
+      include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver' }] }],
+      order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
+    })
   ]);
   const teamNames = new Map();
-  cockpits.forEach((cockpit) => {
-    [cockpit.Driver1Id, cockpit.Driver2Id, cockpit.Driver3Id, cockpit.ReserveDriverId]
-      .filter(Boolean).forEach((driverId) => teamNames.set(Number(driverId), cockpit.teamName));
-  });
+  const defaultDriverIds = new Set();
+  const assignedDrivers = new Map();
+  rosters.filter((roster) => roster.assignments.length >= 3).forEach((roster) => roster.assignments.forEach((assignment) => {
+    teamNames.set(assignment.DriverId, roster.team.name);
+    assignedDrivers.set(assignment.DriverId, assignment.driver);
+    if (assignment.roleName !== 'Ersatzfahrer') defaultDriverIds.add(assignment.DriverId);
+  }));
+  let drivers;
+  let availableDrivers = [];
+  let historicalDriverIds = [];
+  if (base.selectedSeason.status === 'historical') {
+    availableDrivers = await Driver.findAll({ include: [{ association: 'aliases' }], order: [['name', 'ASC'], ['id', 'ASC']] });
+    historicalDriverIds = selectedHistoricalDriverIds(query, entries);
+    drivers = availableDrivers.filter((driver) => historicalDriverIds.includes(driver.id));
+  } else {
+    const reserves = await Driver.findAll({ where: { roleLmuReserve: true }, order: [['name', 'ASC'], ['id', 'ASC']] });
+    reserves.forEach((driver) => { if (!assignedDrivers.has(driver.id)) assignedDrivers.set(driver.id, driver); });
+    drivers = [...assignedDrivers.values()];
+  }
   return {
+    availableDrivers,
+    historicalDriverIds,
     rows: drivers.map((driver) => ({
       driver,
       teamName: teamNames.get(driver.id) || 'LMU-Team offen',
-      entry: entries.find((entry) => entry.DriverId === driver.id) || null
+      entry: entries.find((entry) => entry.DriverId === driver.id) || null,
+      defaultIncluded: defaultDriverIds.has(driver.id)
     }))
   };
 }
@@ -63,14 +91,15 @@ async function wdlRows(base) {
     WdlResultEntry.findAll({ where: { GrandPrixResultId: base.selectedRace.id } }),
     Driver.findAll({ order: [['name', 'ASC'], ['id', 'ASC']] })
   ]);
+  const allowedByParticipant = await Promise.all(participants.map((participant) => centralTeamDriverIds(participant.F1TeamId)));
   return {
     drivers,
-    rows: participants.map((participant) => ({
+    rows: participants.map((participant, index) => ({
       participant,
       entry: entries.find((entry) => entry.ParticipatingLeagueId === participant.id) || null,
       allowedDriverIds: base.selectedSeason.status === 'historical'
         ? drivers.map((driver) => driver.id)
-        : [participant.f1Team?.Driver1Id, participant.f1Team?.Driver2Id].filter(Boolean).map(Number)
+        : allowedByParticipant[index]
     }))
   };
 }
@@ -78,7 +107,7 @@ async function wdlRows(base) {
 exports.show = async (req, res, next) => {
   const base = await loadBase(req.params.discipline, req.query);
   if (!base) return next();
-  const data = req.params.discipline === 'lmu' ? await lmuRows(base) : await wdlRows(base);
+  const data = req.params.discipline === 'lmu' ? await lmuRows(base, req.query) : await wdlRows(base);
   res.render('admin/series-editor', { title: base.config.title, discipline: req.params.discipline, ...base, ...data });
 };
 
@@ -92,7 +121,7 @@ exports.save = async (req, res, next) => {
   const race = await GrandPrixResult.findByPk(req.params.raceId, { include: [{ association: 'seasonRecord' }] });
   if (!race || race.discipline !== discipline) return res.status(404).render('errors/404', { title: 'Rennen nicht gefunden' });
   const base = { selectedRace: race, selectedSeason: race.seasonRecord, league: await League.findByPk(race.LeagueId) };
-  const data = discipline === 'lmu' ? await lmuRows(base) : await wdlRows(base);
+  const data = discipline === 'lmu' ? await lmuRows(base, { drivers: Object.keys(req.body.rows || {}) }) : await wdlRows(base);
   const submittedRows = req.body.rows || {};
   const usedPositions = new Map();
   const claimPosition = (positionValue, label) => {
@@ -121,6 +150,11 @@ exports.save = async (req, res, next) => {
   try {
     await sequelize.transaction(async (transaction) => {
     if (discipline === 'lmu') {
+      if (race.seasonRecord.status === 'historical') {
+        const selectedIds = data.rows.map(({ driver }) => driver.id);
+        const omittedWhere = selectedIds.length ? { DriverId: { [Op.notIn]: selectedIds } } : {};
+        await GrandPrixResultEntry.destroy({ where: { GrandPrixResultId: race.id, ...omittedWhere }, transaction });
+      }
       for (const { driver, teamName, entry } of data.rows) {
         const row = submittedRows[String(driver.id)] || {};
         if (row.included !== 'on') { if (entry) await entry.destroy({ transaction }); continue; }

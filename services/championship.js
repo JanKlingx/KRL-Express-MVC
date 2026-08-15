@@ -13,8 +13,10 @@ const {
   RaceEvent,
   Season,
   SeasonCategory,
+  TeamRoster,
   WdlResultEntry
 } = require('../models');
+const { centralTeamDriverIds } = require('./teamRosters');
 
 function dateOnly(value) {
   const date = value ? new Date(value) : new Date();
@@ -267,9 +269,10 @@ async function ensureWdlEntries(race) {
   const where = season?.status === 'historical' ? {} : { isActive: true };
   const leagues = await ParticipatingLeague.findAll({ where, include: [{ association: 'f1Team' }], order: [['sortOrder', 'ASC'], ['id', 'ASC']], limit: season?.status === 'historical' ? undefined : 11 });
   for (const league of leagues) {
+    const driverIds = await centralTeamDriverIds(league.F1TeamId);
     await WdlResultEntry.findOrCreate({
       where: { GrandPrixResultId: race.id, ParticipatingLeagueId: league.id },
-      defaults: { GrandPrixResultId: race.id, ParticipatingLeagueId: league.id, Driver1Id: league.f1Team?.Driver1Id || null, Driver2Id: league.f1Team?.Driver2Id || null, sortOrder: league.sortOrder }
+      defaults: { GrandPrixResultId: race.id, ParticipatingLeagueId: league.id, Driver1Id: driverIds[0] || null, Driver2Id: driverIds[1] || null, sortOrder: league.sortOrder }
     });
   }
 }
@@ -277,15 +280,19 @@ async function ensureWdlEntries(race) {
 async function ensureLmuEntries(race) {
   const season = await Season.findByPk(race.SeasonId);
   if (!season || season.status === 'historical') return;
-  const drivers = await Driver.findAll({ where: { roleLmuRegular: true }, include: [{ association: 'team' }] });
-  for (const driver of drivers) {
+  const rosters = await TeamRoster.findAll({
+    where: { LeagueId: race.LeagueId, discipline: 'lmu' },
+    include: [{ association: 'team' }, { association: 'assignments', where: { roleName: { [Op.ne]: 'Ersatzfahrer' } }, required: false, include: [{ association: 'driver' }] }]
+  });
+  for (const roster of rosters.filter((entry) => entry.assignments.length >= 3)) for (const assignment of roster.assignments) {
+    const driver = assignment.driver;
     await GrandPrixResultEntry.findOrCreate({
       where: { GrandPrixResultId: race.id, DriverId: driver.id },
       defaults: {
         GrandPrixResultId: race.id,
         DriverId: driver.id,
         driverName: driver.name,
-        teamName: driver.team?.name || 'LMU-Team offen',
+        teamName: roster.team.name,
         points: 0,
         sortOrder: driver.sortOrder
       }

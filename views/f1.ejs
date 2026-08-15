@@ -9,11 +9,11 @@
     </div>
   </section>
   <section class="season-switcher container"><form method="get"><label for="season-select">Saison auswählen</label><select id="season-select" name="season"><%- include('partials/season-options', { seasons, selectedSeason }) %></select><noscript><button class="button button-small" type="submit">Saison laden</button></noscript></form></section>
-  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/teams?league=<%= league.id %>">✎ Teamaufstellungen bearbeiten</a><a href="/admin/drivers">✎ Fahrer-Stammdaten bearbeiten</a><a href="/admin/race-editor?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Saisonverlauf bearbeiten</a><a href="/admin/f1CalendarRounds">✎ Rennkalender bearbeiten</a></div><% } %>
+  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/team-rosters/f1">✎ Teamaufstellungen bearbeiten</a><a href="/admin/drivers">✎ Fahrer-Stammdaten bearbeiten</a><a href="/admin/race-editor?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Saisonverlauf bearbeiten</a><a href="/admin/f1CalendarRounds">✎ Rennkalender bearbeiten</a></div><% } %>
 
   <% if (selectedSeason?.status === 'active') { %><section class="section container">
     <div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>TEAMS & FAHRER</h2></div>
-    <div class="cockpit-grid"><% teams.forEach((team) => { const teamDrivers = [team.driverOne, team.driverTwo]; %><article class="cockpit-card"><% if (team.logoPath) { %><img class="cockpit-logo" src="<%= team.logoPath %>" alt="Logo <%= team.name %>"><% } %><span><%= team.car || 'Formel 1' %></span><h3><%= team.name %></h3><ul><% teamDrivers.forEach((driver, index) => { %><li><strong>Fahrer <%= index === 0 ? 'A' : 'B' %>:</strong> <%= driver?.name || 'Noch nicht besetzt' %><% if (driver) { %> · <%= driver.platform %><% } %></li><% }) %></ul></article><% }) %></div>
+    <div class="cockpit-grid"><% teams.forEach((team) => { %><article class="cockpit-card"><% if (team.logoPath) { %><img class="cockpit-logo" src="<%= team.logoPath %>" alt="Logo <%= team.name %>"><% } else { %><div class="roster-logo-fallback"><%= team.name.slice(0, 2).toUpperCase() %></div><% } %><span><%= team.car || 'Formel 1' %></span><h3><%= team.name %></h3><ul><% team.drivers.forEach((driver, index) => { %><li><strong>Fahrer <%= index + 1 %>:</strong> <%= driver.name %> · <%= driver.platform %><% if (driver.rosterRole === 'Ersatzfahrer') { %> · Ersatz<% } %></li><% }) %><% if (team.drivers.length < 2) { %><li>Noch <%= 2 - team.drivers.length %> Fahrerplatz/-plätze offen</li><% } %></ul></article><% }) %></div>
     <% if (!teams.length) { %><div class="empty-state">Noch keine Teams für diese Liga angelegt.</div><% } %>
   </section><% } %>
 

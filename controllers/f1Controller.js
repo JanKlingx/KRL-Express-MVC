@@ -1,4 +1,4 @@
-const { League, Team, Season, GrandPrixResult, GrandPrixResultEntry, RaceEvent } = require('../models');
+const { League, TeamRoster, TeamRosterDriver, Season, GrandPrixResult, GrandPrixResultEntry, RaceEvent } = require('../models');
 const { buildSeasonData } = require('../services/standings');
 const { sendCsv } = require('../services/csv');
 
@@ -8,11 +8,11 @@ async function loadLeagueData(slug, requestedSeasonId) {
   const seasons = await Season.findAll({ where: { leagueType: 'f1', scopeSlug: slug }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const where = selectedSeason ? { LeagueId: league.id, SeasonId: selectedSeason.id, discipline: 'f1' } : { LeagueId: league.id, season: league.currentSeason };
-  const [teams, gpResults, activeCalendar] = await Promise.all([
-    Team.findAll({
-      where: { LeagueId: league.id },
-      include: [{ association: 'driverOne', include: [{ association: 'aliases' }] }, { association: 'driverTwo', include: [{ association: 'aliases' }] }],
-      order: [['sortOrder', 'ASC'], ['name', 'ASC']]
+  const [rosters, gpResults, activeCalendar] = await Promise.all([
+    TeamRoster.findAll({
+      where: { LeagueId: league.id, discipline: 'f1' },
+      include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
+      order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
     }),
     GrandPrixResult.findAll({
       where,
@@ -22,8 +22,12 @@ async function loadLeagueData(slug, requestedSeasonId) {
     selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, isPublished: true }, order: [['startsAt', 'ASC']] }) : []
   ]);
   const driverMap = new Map();
-  teams.forEach((team) => [team.driverOne, team.driverTwo].filter(Boolean).forEach((driver) => {
-    if (!driverMap.has(driver.id)) driverMap.set(driver.id, { ...driver.toJSON(), team: { id: team.id, name: team.name, logoPath: team.logoPath } });
+  const teams = rosters.map((roster) => ({
+    ...roster.team.toJSON(), rosterId: roster.id,
+    drivers: roster.assignments.map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
+  })).filter((team) => team.drivers.length >= 2);
+  teams.forEach((team) => team.drivers.forEach((driver) => {
+    if (!driverMap.has(driver.id)) driverMap.set(driver.id, { ...driver, team: { id: team.id, name: team.name, logoPath: team.logoPath } });
   }));
   const drivers = [...driverMap.values()];
   const calendar = activeCalendar.length ? activeCalendar : gpResults

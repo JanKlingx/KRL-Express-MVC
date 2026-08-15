@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const {
-  sequelize, League, Team, Driver, Season, GrandPrixResult, GrandPrixResultEntry
+  sequelize, League, Team, TeamRoster, TeamRosterDriver, Driver, Season, GrandPrixResult, GrandPrixResultEntry
 } = require('../models');
 const { pointsForPosition, recalculateDriverRaceCounts } = require('../services/championship');
 const seasonProgress = require('../services/seasonProgress');
@@ -20,17 +20,36 @@ function findDriverEntry(driver, entries) {
   return entries.find((entry) => entry.DriverId === driver.id || (!entry.DriverId && names.has(entry.driverName)));
 }
 
-async function loadEligibleDrivers(season, teams) {
-  if (season.status === 'historical') {
-    return Driver.findAll({ include: [{ association: 'aliases' }], order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
-  }
+async function loadTeams(leagueId) {
+  const rosters = await TeamRoster.findAll({
+    where: { LeagueId: leagueId, discipline: 'f1' },
+    include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
+    order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
+  });
+  return rosters.map((roster) => ({
+    ...roster.team.toJSON(), rosterId: roster.id,
+    drivers: roster.assignments.map((assignment) => ({ driver: assignment.driver, roleName: assignment.roleName }))
+  })).filter((team) => team.drivers.length >= 2);
+}
+
+async function loadEligibleDrivers(teams) {
   const assigned = new Map();
-  teams.forEach((team) => [team.driverOne, team.driverTwo].filter(Boolean).forEach((driver) => {
-    if (!assigned.has(driver.id)) assigned.set(driver.id, { driver, assignedTeam: team, isReserve: false });
+  teams.forEach((team) => team.drivers.forEach(({ driver, roleName }) => {
+    if (!assigned.has(driver.id)) assigned.set(driver.id, { driver, assignedTeam: team, isReserve: roleName === 'Ersatzfahrer' });
   }));
   const reserves = await Driver.findAll({ where: { roleF1Reserve: true }, include: [{ association: 'aliases' }], order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
   reserves.forEach((driver) => { if (!assigned.has(driver.id)) assigned.set(driver.id, { driver, assignedTeam: null, isReserve: true }); });
   return [...assigned.values()];
+}
+
+function requestedDriverIds(query, entries, sprintEntries) {
+  const hasExplicitSelection = Object.prototype.hasOwnProperty.call(query, 'drivers');
+  const raw = Array.isArray(query.drivers) ? query.drivers : query.drivers !== undefined ? [query.drivers] : [];
+  const storedIds = hasExplicitSelection ? [] : [...entries.map((entry) => entry.DriverId), ...sprintEntries.map((entry) => entry.DriverId)];
+  const ids = [...raw, query.addDriver, ...storedIds]
+    .flatMap((value) => String(value || '').split(','))
+    .map(Number).filter((value) => Number.isInteger(value) && value > 0);
+  return [...new Set(ids)].slice(0, 20);
 }
 
 exports.show = async (req, res) => {
@@ -50,18 +69,25 @@ exports.show = async (req, res) => {
       circuit: selectedRace.circuit, sortOrder: selectedRace.sortOrder, raceType: 'sprint'
     }
   }) : null;
-  const teams = selectedLeague ? await Team.findAll({
-    where: { LeagueId: selectedLeague.id },
-    include: [{ association: 'driverOne', include: [{ association: 'aliases' }] }, { association: 'driverTwo', include: [{ association: 'aliases' }] }],
-    order: [['sortOrder', 'ASC'], ['name', 'ASC']]
-  }) : [];
+  const teams = selectedLeague
+    ? (selectedSeason?.status === 'historical'
+      ? await Team.findAll({ where: { LeagueId: null }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] })
+      : await loadTeams(selectedLeague.id))
+    : [];
   let rows = [];
+  let availableDrivers = [];
+  let historicalDriverIds = [];
   if (selectedRace && selectedSeason) {
-    const [eligible, entries, sprintEntries] = await Promise.all([
-      loadEligibleDrivers(selectedSeason, teams),
+    const [entries, sprintEntries] = await Promise.all([
       GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: selectedRace.id }, order: [['sortOrder', 'ASC'], ['position', 'ASC']] }),
       sprintRace ? GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: sprintRace.id }, order: [['sortOrder', 'ASC'], ['position', 'ASC']] }) : []
     ]);
+    let eligible;
+    if (selectedSeason.status === 'historical') {
+      availableDrivers = await Driver.findAll({ include: [{ association: 'aliases' }], order: [['name', 'ASC'], ['id', 'ASC']] });
+      historicalDriverIds = requestedDriverIds(req.query, entries, sprintEntries);
+      eligible = availableDrivers.filter((driver) => historicalDriverIds.includes(driver.id));
+    } else eligible = await loadEligibleDrivers(teams);
     rows = eligible.map((value) => {
       const wrapper = value.driver ? value : { driver: value, assignedTeam: null, isReserve: false };
       return {
@@ -73,26 +99,28 @@ exports.show = async (req, res) => {
   }
   res.render('admin/race-editor', {
     title: 'Tabellarischer Saisonverlauf', leagues, selectedLeague, seasons, selectedSeason,
-    races, selectedRace, sprintRace, teams, rows, statuses
+    races, selectedRace, sprintRace, teams, rows, statuses, availableDrivers, historicalDriverIds
   });
 };
 
 exports.save = async (req, res) => {
   const race = await GrandPrixResult.findByPk(req.params.raceId, { include: [{ model: League, as: 'league' }, { model: Season, as: 'seasonRecord' }] });
   if (!race || race.discipline !== 'f1' || !race.seasonRecord) return res.status(404).render('errors/404', { title: 'Formel-1-Rennen nicht gefunden' });
-  const teams = await Team.findAll({
-    where: { LeagueId: race.LeagueId },
-    include: [{ association: 'driverOne', include: [{ association: 'aliases' }] }, { association: 'driverTwo', include: [{ association: 'aliases' }] }]
-  });
-  const eligible = await loadEligibleDrivers(race.seasonRecord, teams);
+  const teams = race.seasonRecord.status === 'historical'
+    ? await Team.findAll({ where: { LeagueId: null }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] })
+    : await loadTeams(race.LeagueId);
+  const submittedDriverIds = Object.keys(req.body.rows || {}).map(Number).filter(Number.isInteger).slice(0, 20);
+  const eligible = race.seasonRecord.status === 'historical'
+    ? await Driver.findAll({ where: { id: { [Op.in]: submittedDriverIds } }, include: [{ association: 'aliases' }], order: [['name', 'ASC']] })
+    : await loadEligibleDrivers(teams);
   const driverRows = eligible.map((value) => value.driver ? value : { driver: value, assignedTeam: null, isReserve: false });
   const driverIds = driverRows.map(({ driver }) => driver.id);
   const sprintRace = await GrandPrixResult.findOne({
     where: { SeasonId: race.SeasonId, LeagueId: race.LeagueId, circuit: race.circuit, sortOrder: race.sortOrder, raceType: 'sprint' }
   });
   const [existingEntries, existingSprintEntries] = await Promise.all([
-    GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: race.id, [Op.or]: [{ DriverId: { [Op.in]: driverIds } }, { DriverId: null }] } }),
-    sprintRace ? GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: sprintRace.id, [Op.or]: [{ DriverId: { [Op.in]: driverIds } }, { DriverId: null }] } }) : []
+    GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: race.id } }),
+    sprintRace ? GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: sprintRace.id } }) : []
   ]);
   const submittedRows = req.body.rows || {};
   for (const event of [{ race, field: 'position' }, ...(sprintRace ? [{ race: sprintRace, field: 'sprintPosition' }] : [])]) {
@@ -111,6 +139,11 @@ exports.save = async (req, res) => {
   }
 
   await sequelize.transaction(async (transaction) => {
+    if (race.seasonRecord.status === 'historical') {
+      const omittedWhere = driverIds.length ? { DriverId: { [Op.notIn]: driverIds } } : {};
+      await GrandPrixResultEntry.destroy({ where: { GrandPrixResultId: race.id, ...omittedWhere }, transaction });
+      if (sprintRace) await GrandPrixResultEntry.destroy({ where: { GrandPrixResultId: sprintRace.id, ...omittedWhere }, transaction });
+    }
     for (const { driver, assignedTeam, isReserve } of driverRows) {
       const submitted = submittedRows[String(driver.id)] || {};
       const existing = findDriverEntry(driver, existingEntries);
@@ -120,7 +153,7 @@ exports.save = async (req, res) => {
         if (existingSprint) await existingSprint.destroy({ transaction });
         continue;
       }
-      const selectedTeam = submitted.TeamId && await Team.findOne({ where: { id: submitted.TeamId, LeagueId: race.LeagueId }, transaction });
+      const selectedTeam = submitted.TeamId && await Team.findByPk(submitted.TeamId, { transaction });
       const team = race.seasonRecord.status === 'historical' || isReserve ? selectedTeam : assignedTeam;
       if (!team) throw new Error(`${driver.name}: Bitte ein Team für dieses Rennen auswählen.`);
       const status = statuses.includes(submitted.status) ? submitted.status : '';

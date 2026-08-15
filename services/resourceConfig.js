@@ -14,6 +14,7 @@ const {
   syncSeriesCalendarEvent
 } = require('./championship');
 const { getDriverStatistics } = require('./driverStats');
+const { centralTeamDriverIds } = require('./teamRosters');
 
 const field = (name, label, type = 'text', required = false, options = {}) => ({
   name, label, type, required, ...options
@@ -97,43 +98,27 @@ async function syncDriverAliases(driver, body) {
 
 async function syncF1Driver(driver, body) {
   await syncDriverAliases(driver, body);
-  const assignments = await models.Team.findAll({
-    where: { [Op.or]: [{ Driver1Id: driver.id }, { Driver2Id: driver.id }] },
-    include: [{ model: models.League, as: 'league' }]
+  const assignments = await models.TeamRosterDriver.findAll({
+    where: { DriverId: driver.id },
+    include: [{ association: 'roster', include: [{ association: 'league' }] }]
   });
-  for (const team of assignments) {
-    const roleField = team.league?.slug === 'freitag' ? 'roleF1Friday' : 'roleF1Sunday';
-    if (!driver[roleField]) {
-      const changes = {};
-      if (team.Driver1Id === driver.id) changes.Driver1Id = null;
-      if (team.Driver2Id === driver.id) changes.Driver2Id = null;
-      await team.update(changes);
-    }
+  for (const assignment of assignments) {
+    const roster = assignment.roster;
+    if (roster?.discipline === 'f1') {
+      const roleField = roster.league?.slug === 'freitag' ? 'roleF1Friday' : 'roleF1Sunday';
+      if (!driver[roleField] && !driver.roleF1Reserve) await assignment.destroy();
+    } else if (roster?.discipline === 'lmu' && !driver.roleLmuRegular && !driver.roleLmuReserve) await assignment.destroy();
   }
 }
 
-async function prepareF1Team(values, body, existingTeam) {
-  if (values.Driver1Id && values.Driver2Id && Number(values.Driver1Id) === Number(values.Driver2Id)) {
-    throw new Error('Fahrer A und Fahrer B müssen unterschiedliche Fahrer sein.');
-  }
-  const league = await models.League.findByPk(values.LeagueId);
-  if (!league || league.type !== 'f1') throw new Error('Bitte eine F1-Liga auswählen.');
-  const expectedRoleField = league.slug === 'freitag' ? 'roleF1Friday' : 'roleF1Sunday';
-  for (const fieldName of ['Driver1Id', 'Driver2Id']) {
-    if (!values[fieldName]) continue;
-    const driver = await models.Driver.findByPk(values[fieldName]);
-    if (!driver || !driver[expectedRoleField]) {
-      throw new Error(`Für ${league.name} können nur Fahrer mit der passenden Stammfahrer-Rolle ausgewählt werden.`);
-    }
-    const otherTeam = await models.Team.findOne({
-      where: {
-        id: { [Op.ne]: existingTeam?.id || 0 },
-        LeagueId: league.id,
-        [Op.or]: [{ Driver1Id: driver.id }, { Driver2Id: driver.id }]
-      }
-    });
-    if (otherTeam) throw new Error(`${driver.name} ist bereits einem anderen F1-Team zugeordnet.`);
-  }
+async function prepareCentralTeam(values, body, existingTeam) {
+  values.LeagueId = null;
+  values.Driver1Id = null;
+  values.Driver2Id = null;
+  const duplicate = await models.Team.findOne({
+    where: { id: { [Op.ne]: existingTeam?.id || 0 }, name: values.name }
+  });
+  if (duplicate) throw new Error(`Das zentrale Team „${values.name}“ existiert bereits.`);
 }
 
 async function syncF1Team(team) {
@@ -147,6 +132,7 @@ async function removeF1Team(team) {
 }
 
 async function removeF1Driver(driver) {
+  await models.TeamRosterDriver.destroy({ where: { DriverId: driver.id } });
   const teams = await models.Team.findAll({ where: { [Op.or]: [{ Driver1Id: driver.id }, { Driver2Id: driver.id }] } });
   for (const team of teams) {
     const changes = {};
@@ -339,10 +325,10 @@ async function prepareWdlResult(values, body, existingEntry) {
   if (!race || race.discipline !== 'wdl' || !league) throw new Error('WDL-Rennen und teilnehmende Liga sind erforderlich.');
   if (race.seasonRecord?.status !== 'historical' && !league.isActive) throw new Error('Inaktive Ligen sind nur in historischen Saisons auswählbar.');
   if (values.Driver1Id && values.Driver2Id && Number(values.Driver1Id) === Number(values.Driver2Id)) throw new Error('Eine Liga muss zwei unterschiedliche Fahrer stellen.');
+  const teamDriverIds = new Set((await centralTeamDriverIds(league.F1TeamId)).map(Number));
   for (const driverId of [values.Driver1Id, values.Driver2Id].filter(Boolean)) {
     const driver = await models.Driver.findByPk(driverId);
-    const teamDriverIds = [league.f1Team?.Driver1Id, league.f1Team?.Driver2Id].filter(Boolean).map(Number);
-    if (!driver || (Number(driver.ParticipatingLeagueId) !== league.id && !teamDriverIds.includes(Number(driver.id)))) throw new Error('Die ausgewählten Fahrer müssen aus dem zugeordneten F1-Team oder der gewählten WDL-Liga stammen.');
+    if (!driver || (Number(driver.ParticipatingLeagueId) !== league.id && !teamDriverIds.has(Number(driver.id)))) throw new Error('Die ausgewählten Fahrer müssen aus dem zugeordneten F1-Team oder der gewählten WDL-Liga stammen.');
   }
   const duplicate = await models.WdlResultEntry.findOne({ where: { GrandPrixResultId: race.id, ParticipatingLeagueId: league.id } });
   if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Für diese Liga existiert bereits eine Ergebniszeile.');
@@ -364,15 +350,24 @@ async function syncParticipatingLeague(participant) {
   for (const race of races) await ensureWdlEntries(race);
   const freshParticipant = await models.ParticipatingLeague.findByPk(participant.id, { include: [{ association: 'f1Team' }] });
   if (!freshParticipant?.f1Team) return;
+  const driverIds = await centralTeamDriverIds(freshParticipant.F1TeamId);
   const entries = await models.WdlResultEntry.findAll({
     where: { ParticipatingLeagueId: participant.id, GrandPrixResultId: { [Op.in]: races.map((race) => race.id) } }
   });
   for (const entry of entries) {
     const values = {};
-    if (!entry.positionOne) values.Driver1Id = freshParticipant.f1Team.Driver1Id || null;
-    if (!entry.positionTwo) values.Driver2Id = freshParticipant.f1Team.Driver2Id || null;
+    if (!entry.positionOne) values.Driver1Id = driverIds[0] || null;
+    if (!entry.positionTwo) values.Driver2Id = driverIds[1] || null;
     if (Object.keys(values).length) await entry.update(values);
   }
+}
+
+async function prepareParticipatingLeague(values) {
+  if (!values.F1TeamId) return;
+  const team = await models.Team.findOne({ where: { id: values.F1TeamId, LeagueId: null } });
+  if (!team) throw new Error('Bitte ein zentrales Formel-1-Team auswählen.');
+  const driverIds = await centralTeamDriverIds(team.id);
+  if (driverIds.length < 2) throw new Error(`${team.name} benötigt zuerst eine vollständige F1-Aufstellung mit mindestens zwei Fahrern.`);
 }
 
 async function prepareKrlAssignment(values, body, existingEntry) {
@@ -478,13 +473,11 @@ module.exports = {
     ]
   },
   teams: {
-    title: 'F1-Teams', group: 'Formel 1 Liga',
-    description: 'Teams getrennt für Freitag und Sonntag pflegen und jeweils Fahrer A und Fahrer B zuordnen.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('f1'), filterByLeague: true, filterLabel: 'Teampflege nach Liga', prepareValues: prepareF1Team, afterSave: syncF1Team, beforeRemove: removeF1Team,
+    title: 'Zentrale Rennteams', group: 'Formel 1 Liga',
+    description: 'Teamname, Fahrzeug und Logo einmal zentral pflegen. Dasselbe Team kann anschließend in F1, LMU und WDL verwendet werden.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null }), prepareValues: prepareCentralTeam, afterSave: syncF1Team, beforeRemove: removeF1Team,
+    nextHref: '/admin/team-rosters/f1', nextLabel: 'Danach F1-Fahrerfelder zusammenstellen',
     fields: [
-      relation('LeagueId', 'Liga', models.League, (row) => `${row.name} · ${row.currentSeason}`, true, { where: { type: 'f1' } }),
       text('name', 'Teamname', true), text('car', 'Fahrzeug'),
-      relation('Driver1Id', 'Fahrer A', models.Driver, (row) => `#${row.id} · ${row.name}`, false, { where: { [Op.or]: [{ roleF1Friday: true }, { roleF1Sunday: true }] } }),
-      relation('Driver2Id', 'Fahrer B', models.Driver, (row) => `#${row.id} · ${row.name}`, false, { where: { [Op.or]: [{ roleF1Friday: true }, { roleF1Sunday: true }] } }),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
@@ -517,7 +510,7 @@ module.exports = {
   },
   lmuTeams: {
     title: 'LMU-Teams', group: 'LMU',
-    description: 'Teams und Fahrzeuge der LMU-Liga verwalten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('lmu'),
+    description: 'Teams und Fahrzeuge der LMU-Liga verwalten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('lmu'), hidden: true,
     fields: [
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
       text('name', 'Teamname', true), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
@@ -645,7 +638,7 @@ module.exports = {
   },
   cockpits: {
     title: 'LMU-Cockpits', group: 'LMU',
-    description: 'Fahrzeuge und Fahrerbesetzungen aus den LMU-Stammdaten auswählen.', model: models.LmuCockpit, upload: { field: 'logoPath', label: 'Cockpit-/Teamlogo' }, prepareValues: prepareCockpit,
+    description: 'Fahrzeuge und Fahrerbesetzungen aus den LMU-Stammdaten auswählen.', model: models.LmuCockpit, upload: { field: 'logoPath', label: 'Cockpit-/Teamlogo' }, prepareValues: prepareCockpit, hidden: true,
     fields: [
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
       text('teamName', 'Teamname', true), text('car', 'Fahrzeug'), text('vehicleClass', 'Klasse'), text('carNumber', 'Startnummer'),
@@ -686,11 +679,11 @@ module.exports = {
   },
   participatingLeagues: {
     title: 'WDL-Ligen', group: 'WDL',
-    description: 'WDL-Ligen mit Logo, Link, Aktivstatus und zugeordnetem Formel-1-Team verwalten.', model: models.ParticipatingLeague, upload: { field: 'logoPath', label: 'Liga-Logo' }, afterSave: syncParticipatingLeague,
+    description: 'WDL-Ligen mit Logo, Link, Aktivstatus und zugeordnetem zentralen Formel-1-Team verwalten.', model: models.ParticipatingLeague, upload: { field: 'logoPath', label: 'Liga-Logo' }, prepareValues: prepareParticipatingLeague, afterSave: syncParticipatingLeague,
     fields: [
       text('name', 'Liganame', true), text('abbreviation', 'Kürzel', false, { placeholder: 'KRL' }), text('constructorName', 'Konstrukteur'),
       url('websiteUrl', 'Link'), checkbox('isActive', 'Aktiv'),
-      relation('F1TeamId', 'Zugeordnetes Formel-1-Team', models.Team, (row) => row.name, false),
+      relation('F1TeamId', 'Zugeordnetes Formel-1-Team', models.Team, (row) => row.name, false, { where: { LeagueId: null } }),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },

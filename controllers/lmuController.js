@@ -1,5 +1,4 @@
-const { Op } = require('sequelize');
-const { League, Team, Driver, Season, GrandPrixResult, GrandPrixResultEntry, RaceEvent, LmuCockpit } = require('../models');
+const { League, Driver, TeamRoster, TeamRosterDriver, Season, GrandPrixResult, GrandPrixResultEntry, RaceEvent } = require('../models');
 const { buildSeasonData } = require('../services/standings');
 const { sendCsv } = require('../services/csv');
 
@@ -8,14 +7,29 @@ async function loadData(requestedSeasonId) {
   if (!league) return null;
   const seasons = await Season.findAll({ where: { leagueType: 'lmu', scopeSlug: 'lmu' }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
-  const driverWhere = selectedSeason?.status === 'historical' ? {} : { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }] };
-  const [cockpits, teams, drivers, gpResults, activeCalendar] = await Promise.all([
-    LmuCockpit.findAll({ where: { LeagueId: league.id }, include: [{ association: 'driverOne' }, { association: 'driverTwo' }, { association: 'driverThree' }, { association: 'reserve' }], order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
-    Team.findAll({ where: { LeagueId: league.id }, order: [['sortOrder', 'ASC']] }),
-    Driver.findAll({ where: driverWhere, include: [{ model: Team, as: 'team' }, { association: 'aliases' }], order: [['sortOrder', 'ASC']] }),
+  const [rosters, historicalDrivers, gpResults, activeCalendar] = await Promise.all([
+    TeamRoster.findAll({
+      where: { LeagueId: league.id, discipline: 'lmu' },
+      include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
+      order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
+    }),
+    selectedSeason?.status === 'historical' ? Driver.findAll({ include: [{ association: 'aliases' }], order: [['name', 'ASC']] }) : [],
     selectedSeason ? GrandPrixResult.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, discipline: 'lmu' }, include: [{ model: GrandPrixResultEntry, as: 'entries' }], order: [['sortOrder', 'ASC'], ['raceDate', 'ASC']] }) : [],
     selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, isPublished: true }, order: [['startsAt', 'ASC']] }) : []
   ]);
+  const driverMap = new Map();
+  rosters.filter((roster) => roster.assignments.length >= 3).forEach((roster) => roster.assignments.forEach((assignment) => {
+    if (!driverMap.has(assignment.DriverId)) driverMap.set(assignment.DriverId, {
+      ...assignment.driver.toJSON(), rosterRole: assignment.roleName,
+      team: { id: roster.team.id, name: roster.team.name, logoPath: roster.team.logoPath }
+    });
+  }));
+  const drivers = selectedSeason?.status === 'historical' ? historicalDrivers : [...driverMap.values()];
+  const cockpits = rosters.filter((roster) => roster.assignments.length >= 3).map((roster) => ({
+    ...roster.toJSON(), team: roster.team,
+    drivers: roster.assignments.map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
+  }));
+  const teams = rosters.map((roster) => roster.team);
   const calendar = activeCalendar.length ? activeCalendar : gpResults
     .filter((race) => race.raceDate)
     .map((race) => ({ id: `result-${race.id}`, title: race.title, circuit: race.circuit, startsAt: new Date(`${race.raceDate}T12:00:00Z`) }));

@@ -1,7 +1,7 @@
 const { DataTypes, Op } = require('sequelize');
 const {
-  sequelize, League, Driver, PointsRule, PointsScheme, PointAllocation,
-  SeasonCategory, Season, GrandPrixResult, RaceEvent
+  sequelize, League, Team, TeamRoster, TeamRosterDriver, Driver, PointsRule, PointsScheme, PointAllocation,
+  SeasonCategory, Season, GrandPrixResult, RaceEvent, LmuCockpit
 } = require('../models');
 
 async function addMissingColumn(table, description, name, definition) {
@@ -28,6 +28,9 @@ async function ensureSchema() {
   }
 
   const teamTable = await queryInterface.describeTable('teams');
+  if (teamTable.league_id && teamTable.league_id.allowNull === false) {
+    await queryInterface.changeColumn('teams', 'league_id', { type: DataTypes.INTEGER, allowNull: true });
+  }
   await addMissingColumn('teams', teamTable, 'driver1_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('teams', teamTable, 'driver2_id', { type: DataTypes.INTEGER, allowNull: true });
 
@@ -62,6 +65,27 @@ async function ensureSchema() {
       const drivers = await sequelize.models.Driver.findAll({ where: { TeamId: team.id }, order: [['sortOrder', 'ASC'], ['id', 'ASC']], limit: 2 });
       await team.update({ Driver1Id: drivers[0]?.id || null, Driver2Id: drivers[1]?.id || null });
     }
+    const legacyTeams = await Team.findAll({ where: { LeagueId: league.id }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
+    for (const team of legacyTeams) {
+      const [centralTeam] = await Team.findOrCreate({
+        where: { LeagueId: null, name: team.name },
+        defaults: { LeagueId: null, name: team.name, logoPath: team.logoPath, car: team.car, sortOrder: team.sortOrder }
+      });
+      const centralChanges = {};
+      if (!centralTeam.logoPath && team.logoPath) centralChanges.logoPath = team.logoPath;
+      if (!centralTeam.car && team.car) centralChanges.car = team.car;
+      if (Object.keys(centralChanges).length) await centralTeam.update(centralChanges);
+      const [roster] = await TeamRoster.findOrCreate({
+        where: { LeagueId: league.id, TeamId: centralTeam.id, discipline: 'f1' },
+        defaults: { LeagueId: league.id, TeamId: centralTeam.id, discipline: 'f1', sortOrder: team.sortOrder }
+      });
+      for (const [index, driverId] of [team.Driver1Id, team.Driver2Id].filter(Boolean).entries()) {
+        await TeamRosterDriver.findOrCreate({
+          where: { TeamRosterId: roster.id, DriverId: driverId },
+          defaults: { TeamRosterId: roster.id, DriverId: driverId, roleName: 'Stammfahrer', sortOrder: index }
+        });
+      }
+    }
   }
 
   const entryTable = await queryInterface.describeTable('grand_prix_result_entries');
@@ -72,6 +96,41 @@ async function ensureSchema() {
   await addMissingColumn('lmu_cockpits', cockpitTable, 'driver2_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('lmu_cockpits', cockpitTable, 'driver3_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('lmu_cockpits', cockpitTable, 'reserve_driver_id', { type: DataTypes.INTEGER, allowNull: true });
+  const legacyCockpits = await LmuCockpit.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
+  for (const cockpit of legacyCockpits) {
+    const [team] = await Team.findOrCreate({
+      where: { LeagueId: null, name: cockpit.teamName },
+      defaults: { LeagueId: null, name: cockpit.teamName, logoPath: cockpit.logoPath, car: cockpit.car, sortOrder: cockpit.sortOrder }
+    });
+    const [roster] = await TeamRoster.findOrCreate({
+      where: { LeagueId: cockpit.LeagueId, TeamId: team.id, discipline: 'lmu' },
+      defaults: {
+        LeagueId: cockpit.LeagueId, TeamId: team.id, discipline: 'lmu',
+        vehicleClass: cockpit.vehicleClass, carNumber: cockpit.carNumber, sortOrder: cockpit.sortOrder
+      }
+    });
+    const driverIds = [cockpit.Driver1Id, cockpit.Driver2Id, cockpit.Driver3Id, cockpit.ReserveDriverId].filter(Boolean);
+    for (const [index, driverId] of driverIds.entries()) {
+      await TeamRosterDriver.findOrCreate({
+        where: { TeamRosterId: roster.id, DriverId: driverId },
+        defaults: {
+          TeamRosterId: roster.id, DriverId: driverId,
+          roleName: driverId === cockpit.ReserveDriverId ? 'Ersatzfahrer' : 'Stammfahrer', sortOrder: index
+        }
+      });
+    }
+  }
+
+  const participantsWithLegacyTeams = await sequelize.models.ParticipatingLeague.findAll({ where: { F1TeamId: { [Op.ne]: null } } });
+  for (const participant of participantsWithLegacyTeams) {
+    const linkedTeam = await Team.findByPk(participant.F1TeamId);
+    if (!linkedTeam || linkedTeam.LeagueId === null) continue;
+    const [centralTeam] = await Team.findOrCreate({
+      where: { LeagueId: null, name: linkedTeam.name },
+      defaults: { LeagueId: null, name: linkedTeam.name, logoPath: linkedTeam.logoPath, car: linkedTeam.car, sortOrder: linkedTeam.sortOrder }
+    });
+    await participant.update({ F1TeamId: centralTeam.id });
+  }
 
   const competitionTable = await queryInterface.describeTable('league_competition_standings');
   await addMissingColumn('league_competition_standings', competitionTable, 'driver1_id', { type: DataTypes.INTEGER, allowNull: true });
