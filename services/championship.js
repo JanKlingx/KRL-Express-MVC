@@ -82,6 +82,7 @@ async function activateSeason(season) {
 
 async function assignPointsToRace(raceId, transaction) {
   const race = await GrandPrixResult.findByPk(raceId, { transaction });
+  if (race?.pointsMode === 'manual') return;
   const entries = await GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: raceId }, transaction });
   for (const entry of entries) {
     await entry.update({ points: await pointsForPosition(entry.position, { ...race?.toJSON(), fastestLap: entry.fastestLap }) }, { transaction });
@@ -90,6 +91,7 @@ async function assignPointsToRace(raceId, transaction) {
 
 async function assignWdlPoints(entry, transaction, raceValue) {
   const race = raceValue || await GrandPrixResult.findByPk(entry.GrandPrixResultId, { transaction });
+  if (race?.pointsMode === 'manual') return;
   const context = race?.toJSON() || { discipline: 'wdl', raceType: 'main' };
   const pointsOne = await pointsForPosition(entry.positionOne, { ...context, fastestLap: entry.fastestLapOne });
   const pointsTwo = await pointsForPosition(entry.positionTwo, { ...context, fastestLap: entry.fastestLapTwo });
@@ -111,7 +113,7 @@ async function recalculateDriverRaceCounts() {
     const race = entry.grandPrixResult;
     if (!race || race.isHistorical || race.seasonRecord?.status === 'historical') continue;
     const status = String(entry.status || '').toUpperCase();
-    if (!entry.position && !['DNF', 'DSQ'].includes(status)) continue;
+    if (race.pointsMode !== 'manual' && !entry.position && !['DNF', 'DSQ'].includes(status)) continue;
     const discipline = race.discipline === 'lmu' ? 'lmu' : race.discipline === 'f1' ? 'f1' : null;
     if (discipline && counts.has(entry.DriverId) && race.raceType !== 'sprint') counts.get(entry.DriverId)[discipline].add(race.id);
   }
@@ -130,6 +132,7 @@ async function recalculateAllPoints() {
   await sequelize.transaction(async (transaction) => {
     for (const entry of entries) {
       const race = entry.grandPrixResult?.toJSON() || {};
+      if (race.pointsMode === 'manual') continue;
       await entry.update({ points: await pointsForPosition(entry.position, { ...race, fastestLap: entry.fastestLap }) }, { transaction });
     }
     for (const entry of wdlEntries) await assignWdlPoints(entry, transaction, entry.race);

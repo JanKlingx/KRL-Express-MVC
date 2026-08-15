@@ -151,6 +151,7 @@ const GrandPrixResult = sequelize.define('GrandPrixResult', {
   raceDate: DataTypes.DATEONLY,
   discipline: { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' },
   raceType: { type: DataTypes.STRING, allowNull: false, defaultValue: 'main' },
+  pointsMode: { type: DataTypes.STRING, allowNull: false, defaultValue: 'database' },
   isHistorical: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   // Legacy columns remain populated so existing MariaDB installations can be
   // upgraded without dropping the former PNG fields.

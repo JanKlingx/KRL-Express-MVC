@@ -35,6 +35,7 @@ async function ensureSchema() {
   await addMissingColumn('grand_prix_results', resultTable, 'season_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('grand_prix_results', resultTable, 'discipline', { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' });
   await addMissingColumn('grand_prix_results', resultTable, 'race_type', { type: DataTypes.STRING, allowNull: false, defaultValue: 'main' });
+  await addMissingColumn('grand_prix_results', resultTable, 'points_mode', { type: DataTypes.STRING, allowNull: false, defaultValue: 'database' });
   await addMissingColumn('grand_prix_results', resultTable, 'is_historical', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
 
   const participatingTable = await queryInterface.describeTable('participating_leagues');

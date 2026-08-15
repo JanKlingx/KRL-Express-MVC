@@ -1,39 +1,41 @@
 <%- include('../partials/header', { title }) %>
 <section class="admin-shell"><div class="container">
-  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">F1 – Saisonverlauf</span><h1>TABELLARISCHE RENNEINGABE</h1><p class="admin-intro">Liga und Kalenderrennen auswählen. Danach erscheinen automatisch die Fahrer aus den passenden Teamaufstellungen.</p></div></div>
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">Formel 1 · Saisonverlauf</span><h1>RENNTABELLE PFLEGEN</h1><p class="admin-intro">Alles an einem Ort: Saison wählen, Strecken importieren oder selbst anlegen und anschließend Haupt- und Sprintergebnis direkt nebeneinander eintragen.</p></div></div>
 
   <form class="race-selector" method="get" action="/admin/race-editor">
-    <label for="league">F1-Liga auswählen</label>
-    <select id="league" name="league">
-      <% leagues.forEach((league) => { const role = league.slug === 'freitag' ? 'Stamm Freitag' : league.slug === 'sonntag' ? 'Stamm Sonntag' : `Stamm ${league.name}`; %><option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= role %></option><% }) %>
-    </select>
-    <label for="season">Saison auswählen</label>
-    <select id="season" name="season">
-      <%- include('../partials/season-options', { seasons, selectedSeason }) %>
-    </select>
-    <label for="race">Grand Prix auswählen</label>
-    <select id="race" name="race">
-      <% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>><%= race.season %> · R<%= race.sortOrder %> · <%= race.raceType === 'sprint' ? 'Sprint' : 'Hauptrennen' %> · <%= race.title %></option><% }) %>
-    </select>
+    <label for="league">Liga</label><select id="league" name="league"><% leagues.forEach((league) => { %><option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= league.name %></option><% }) %></select>
+    <label for="season">Saison</label><select id="season" name="season"><%- include('../partials/season-options', { seasons, selectedSeason }) %></select>
+    <label for="race">Rennen</label><select id="race" name="race"><% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>>R<%= race.sortOrder %> · <%= race.title %></option><% }) %></select>
     <noscript><button class="button button-small" type="submit">Öffnen</button></noscript>
   </form>
 
-  <% if (!selectedRace) { %><div class="empty-state">Lege zuerst im aktuellen F1-Rennkalender oder unter „Historische / manuelle Rennen“ ein Rennen für diese Saison an.</div><% } else { %>
+  <div class="season-admin-tools">
+    <details><summary>+ Saison anlegen</summary><form method="post" action="/admin/race-editor/seasons" class="compact-admin-form"><input type="hidden" name="LeagueId" value="<%= selectedLeague?.id || '' %>"><label>Saisonname<input name="name" required placeholder="z. B. Saison 13 oder 2022"></label><label>Art<select name="status"><option value="active">Aktuelle Saison</option><option value="historical">Historische Saison</option></select></label><button class="button button-small" type="submit">Saison anlegen</button></form></details>
+    <% if (selectedSeason) { %>
+      <details><summary>+ Rennen / Strecke selbst eingeben</summary><form method="post" action="/admin/race-editor/races" class="compact-admin-form"><input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><label>Rennen<input name="title" required placeholder="Großer Preis von Spa"></label><label>Strecke<input name="circuit" required placeholder="Spa-Francorchamps"></label><label>Datum<input type="date" name="raceDate"></label><label>Rennrunde<input type="number" min="1" name="sortOrder"></label><label>Eingabe<select name="pointsMode"><option value="database">Plätze → Punkte aus Datenbank</option><option value="manual">Punkte direkt eingeben</option></select></label><label class="checkbox-control"><input type="checkbox" name="hasSprint"><span>Sprint-Spalte anzeigen</span></label><button class="button button-small" type="submit">Rennen anlegen</button></form></details>
+      <details><summary>↓ Strecken aus F1-Rennkalender importieren</summary><form method="post" action="/admin/race-editor/import-calendar" class="compact-admin-form"><input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><label>Eingabe<select name="pointsMode"><option value="database">Plätze → Punkte aus Datenbank</option><option value="manual">Punkte direkt eingeben</option></select></label><button class="button button-small" type="submit">Kalender übernehmen</button></form></details>
+    <% } %>
+  </div>
+
+  <% if (!selectedRace) { %><div class="empty-state">Für diese Saison gibt es noch kein Rennen. Importiere den Rennkalender oder gib die erste Strecke oben selbst ein.</div><% } else { %>
+    <div class="race-settings-bar">
+      <form method="post" action="/admin/race-editor/<%= selectedRace.id %>/settings" class="compact-admin-form"><label>Eingabemodus<select name="pointsMode"><option value="database" <%= selectedRace.pointsMode === 'database' ? 'selected' : '' %>>Plätze → Punkte aus Datenbank</option><option value="manual" <%= selectedRace.pointsMode === 'manual' ? 'selected' : '' %>>Punkte direkt eingeben</option></select></label><label class="checkbox-control"><input type="checkbox" name="hasSprint" <%= sprintRace ? 'checked' : '' %>><span>Sprint-Spalte</span></label><button class="button button-small" type="submit">Rennen aktualisieren</button></form>
+      <form method="post" action="/admin/race-editor/<%= selectedRace.id %>?_method=DELETE" data-confirm="Rennen einschließlich Sprint und Ergebnissen wirklich löschen?"><button class="button button-ghost button-small" type="submit">Rennen löschen</button></form>
+    </div>
+
     <form method="post" action="/admin/race-editor/<%= selectedRace.id %>" class="race-sheet-form">
-      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedRace.season %> · <%= selectedRace.raceType === 'sprint' ? 'Sprintrennen' : 'Hauptrennen' %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
-      <div class="table-wrap race-sheet"><table><thead><tr><th>Dabei</th><th>ID</th><th>Fahrer / Aliase</th><th>Plattform</th><th>Team</th><th>Platz</th><th>Status</th><th>Punkte</th><th>SR</th></tr></thead><tbody>
-        <% rows.forEach(({ driver, entry, assignedTeam, isReserve }) => { %><tr class="<%= entry ? 'sheet-row-active' : '' %>">
-          <td><input type="checkbox" name="rows[<%= driver.id %>][included]" <%= entry ? 'checked' : '' %> aria-label="<%= driver.name %> berücksichtigen"></td>
-          <td><strong>#<%= driver.id %></strong></td>
-          <td><strong><%= driver.name %></strong><% if (driver.aliases.length) { %><small><%= driver.aliases.map((alias) => alias.alias).join(' · ') %></small><% } %></td>
-          <td><%= driver.platform %></td><td><% if (selectedSeason.status === 'active' && assignedTeam && !isReserve) { %><input type="hidden" name="rows[<%= driver.id %>][TeamId]" value="<%= assignedTeam.id %>"><%= assignedTeam.name %><% } else { %><select name="rows[<%= driver.id %>][TeamId]" aria-label="Team <%= driver.name %>"><option value="">Team wählen …</option><% teams.forEach((team) => { %><option value="<%= team.id %>" <%= entry?.teamName === team.name ? 'selected' : '' %>><%= team.name %></option><% }) %></select><% } %></td>
-          <td><input type="number" min="1" name="rows[<%= driver.id %>][position]" value="<%= entry?.position || '' %>" aria-label="Platz <%= driver.name %>"></td>
-          <td><select name="rows[<%= driver.id %>][status]" aria-label="Status <%= driver.name %>"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= String(entry?.status || '') === status ? 'selected' : '' %>><%= status || 'Gewertet' %></option><% }) %></select></td>
-          <td><strong><%= entry ? Number(entry.points) : 'auto' %></strong></td>
-          <td><input type="checkbox" name="rows[<%= driver.id %>][fastestLap]" <%= entry?.fastestLap ? 'checked' : '' %> aria-label="Schnellste Runde <%= driver.name %>"></td>
+      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedSeason.name %> · R<%= selectedRace.sortOrder %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
+      <div class="table-wrap race-sheet"><table><thead><tr><th>Dabei</th><th>Fahrer / Aliase</th><th>Team</th><% if (selectedRace.pointsMode === 'manual') { %><th>GP-Punkte</th><% } else { %><th>GP-Platz</th><th>SR</th><% } %><% if (sprintRace) { if (sprintRace.pointsMode === 'manual') { %><th>Sprint-Punkte</th><% } else { %><th>Sprint-Platz</th><th>Sprint-SR</th><% } } %><th>Status</th></tr></thead><tbody>
+        <% rows.forEach(({ driver, entry, sprintEntry, assignedTeam, isReserve }) => { const activeEntry = entry || sprintEntry; %><tr class="<%= activeEntry ? 'sheet-row-active' : '' %>">
+          <td><input type="checkbox" name="rows[<%= driver.id %>][included]" <%= activeEntry ? 'checked' : '' %> aria-label="<%= driver.name %> berücksichtigen"></td>
+          <td><strong>#<%= driver.id %> · <%= driver.name %></strong><% if (driver.aliases.length) { %><small><%= driver.aliases.map((alias) => alias.alias).join(' · ') %></small><% } %></td>
+          <td><% if (selectedSeason.status === 'active' && assignedTeam && !isReserve) { %><input type="hidden" name="rows[<%= driver.id %>][TeamId]" value="<%= assignedTeam.id %>"><%= assignedTeam.name %><% } else { %><select name="rows[<%= driver.id %>][TeamId]"><option value="">Team wählen …</option><% teams.forEach((team) => { %><option value="<%= team.id %>" <%= activeEntry?.teamName === team.name ? 'selected' : '' %>><%= team.name %></option><% }) %></select><% } %></td>
+          <% if (selectedRace.pointsMode === 'manual') { %><td><input type="number" min="0" step="0.5" name="rows[<%= driver.id %>][points]" value="<%= entry ? Number(entry.points) : '' %>"></td><% } else { %><td><input type="number" min="1" name="rows[<%= driver.id %>][position]" value="<%= entry?.position || '' %>"></td><td><input type="checkbox" name="rows[<%= driver.id %>][fastestLap]" <%= entry?.fastestLap ? 'checked' : '' %>></td><% } %>
+          <% if (sprintRace) { if (sprintRace.pointsMode === 'manual') { %><td><input type="number" min="0" step="0.5" name="rows[<%= driver.id %>][sprintPoints]" value="<%= sprintEntry ? Number(sprintEntry.points) : '' %>"></td><% } else { %><td><input type="number" min="1" name="rows[<%= driver.id %>][sprintPosition]" value="<%= sprintEntry?.position || '' %>"></td><td><input type="checkbox" name="rows[<%= driver.id %>][sprintFastestLap]" <%= sprintEntry?.fastestLap ? 'checked' : '' %>></td><% } } %>
+          <td><select name="rows[<%= driver.id %>][status]"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= String(entry?.status || sprintEntry?.status || '') === status ? 'selected' : '' %>><%= status || 'Gewertet' %></option><% }) %></select></td>
         </tr><% }) %>
       </tbody></table></div>
-      <div class="sheet-help">Die Punkte werden immer aus der zentralen Punktetabelle berechnet. Aktuelle Saisons übernehmen Stammfahrer und Teams automatisch; F1-Ersatzfahrer können manuell einem Team zugeordnet werden. Historische Saisons erlauben alle Fahrer und eine freie Teamwahl.</div>
+      <div class="sheet-help"><strong><%= selectedRace.pointsMode === 'manual' ? 'Direkte Punkteeingabe:' : 'Automatische Wertung:' %></strong> <%= selectedRace.pointsMode === 'manual' ? 'Für frühere Punktesysteme werden die eingetragenen Punkte unverändert gespeichert.' : 'Du trägst nur Plätze ein; die gültige Punktetabelle berechnet GP- und WM-Punkte.' %> Bei einem Sprint erscheinen die Sprintfelder direkt als zusätzliche Spalten.</div>
       <button class="button" type="submit">Gesamte Tabelle speichern</button>
     </form>
   <% } %>

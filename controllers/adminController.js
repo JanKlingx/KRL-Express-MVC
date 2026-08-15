@@ -76,7 +76,17 @@ exports.dashboard = async (req, res) => {
     else result.push({ name: group, modules: [[key, config]] });
     return result;
   }, []);
-  const groupOrder = ['Stammdaten', 'Formel 1 Liga', 'WDL', 'LMU', 'Saisonverwaltung', 'Startseite', 'Teams', 'KRL Icons'];
+  const progressModules = [
+    ['f1SeasonProgress', { group: 'Formel 1 Liga', href: '/admin/race-editor', title: 'Saisonverlauf', description: 'Saison wählen, Rennen aus dem F1-Kalender übernehmen oder manuell anlegen und direkt tabellarisch pflegen.' }],
+    ['wdlSeasonProgress', { group: 'WDL', href: '/admin/season-progress/wdl', title: 'Saisonverlauf', description: 'WDL-Rennen importieren oder anlegen und Ergebnisse wahlweise über Plätze oder direkte Punkte erfassen.' }],
+    ['lmuSeasonProgress', { group: 'LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf', description: 'LMU-Rennen importieren oder anlegen und die vollständige Renntabelle auf einer Seite pflegen.' }]
+  ];
+  progressModules.forEach(([key, config]) => {
+    const group = groups.find((entry) => entry.name === config.group);
+    if (group) group.modules.unshift([key, config]);
+    else groups.push({ name: config.group, modules: [[key, config]] });
+  });
+  const groupOrder = ['Stammdaten', 'Formel 1 Liga', 'WDL', 'LMU', 'Startseite', 'Teams', 'KRL Icons'];
   groups.sort((left, right) => groupOrder.indexOf(left.name) - groupOrder.indexOf(right.name));
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',

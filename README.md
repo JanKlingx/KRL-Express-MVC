@@ -31,7 +31,7 @@ Im Dashboard lassen sich folgende Inhalte anlegen, bearbeiten und löschen:
 - zentrale Fahrer-Stammdaten mit kombinierbaren F1-/LMU-Rollen, ehemaligen Fahrer-Rängen, Aliasen und Plattform
 - rangabhängige Fahrerstatistiken mit Punkten, gefahrenen Rennen, Siegen, Siegesquote sowie P1/P2/P3; Fahrerbilder, Startnummer und manuelle Reihenfolge entfallen
 - versionierte Punktesysteme für F1-Hauptrennen, F1-Sprints, LMU und WDL mit Schnellste-Runde-Bonus und Gültigkeitszeitraum
-- aktive und historische Saisons mit Kategorien, automatischem oder manuellem Rennkalender
+- aktive und historische Saisons direkt im jeweiligen F1-, LMU- oder WDL-Saisonverlauf
 - Startseitenstatistiken, interne KRL-Teams mit Fahrer-Rollen und KRL Icons
 - getrennte Teampflege für Freitag und Sonntag mit Fahrer A und Fahrer B
 - F1-Fahrerrollen `Stamm Freitag`, `Stamm Sonntag` und `F1 Ersatz` sowie `LMU Stammfahrer` und `LMU Ersatzfahrer`
@@ -45,11 +45,11 @@ Alle Bilder werden ausschließlich als PNG, JPG oder WebP vom eigenen Gerät hoc
 
 ## GP-Ergebnisse und Saisonverlauf
 
-Ein Rennen wird zuerst im `F1-Rennkalender (aktuell)` angelegt. Eine Strecke enthält die getrennten Freitags- und Sonntagsdaten sowie optional die Kennzeichnung als Sprint-Event. Dadurch entstehen Hauptrennen und gegebenenfalls ein zusätzlicher Sprint in den aktiven Saisons automatisch. Historische Rennen werden unter `Historische / manuelle Rennen` gepflegt. Die Ergebniszeilen sind die einzige Wertungsquelle: Die öffentliche Seite erzeugt daraus GP-Results, Fahrer-WM, Team-WM, Punkteverlauf und Saisonmatrix. In jeder Rennspalte werden P1, P2 und P3 in Gold, Silber und Bronze hervorgehoben.
+Der Saisonverlauf befindet sich direkt in der passenden Dashboard-Kategorie Formel 1, LMU oder WDL. Dort werden Saison und Strecke angelegt oder Rennen aus dem jeweiligen Rennkalender importiert. Eine F1-Strecke kann als Sprint-Event aktiviert werden; die Sprintpflege erscheint dann als zusätzliche Spaltengruppe direkt neben dem Hauptrennen. Die frühere globale Admin-Kategorie `Saisonverwaltung` mit getrennten Saison-Kategorien und historischen Rennen ist nicht mehr sichtbar. Die Ergebniszeilen sind die einzige Wertungsquelle: Die öffentliche Seite erzeugt daraus GP-Results, Fahrer-WM, Team-WM, Punkteverlauf und Saisonmatrix. In jeder Rennspalte werden P1, P2 und P3 in Gold, Silber und Bronze hervorgehoben.
 
 Für die schnelle Eingabe stehen `/admin/race-editor`, `/admin/season-progress/lmu` und `/admin/season-progress/wdl` bereit. Die Pflege beginnt immer mit Saison und Kalenderrennen; anschließend wird das vollständige Rennen statt einzelner Fahrerformulare gespeichert. In der aktiven F1-Saison erscheinen die Fahrer der passenden Teamaufstellung und F1-Ersatzfahrer; historische Saisons erlauben alle Fahrer und eine freie Teamwahl. Rennergebnisse referenzieren die stabile Fahrer-ID, sodass Namenswechsel über Aliase hinweg korrekt zusammengezählt werden. Nur aktive F1-Hauptrennen und LMU-Ergebnisse erhöhen die Rennzähler.
 
-Punkte werden über `Punktesysteme` und `Punkte je Platz` gepflegt. Jedes System gehört zu F1, LMU oder WDL, kann zeitlich begrenzt werden und optional Punkte für die schnellste Runde vergeben. Formel 1 besitzt getrennte Platzierungswerte für Haupt- und Sprintrennen. Änderungen berechnen alle vorhandenen Ergebnisse sofort neu.
+Pro Rennen kann zwischen `Plätze → Punkte aus Datenbank` und `Punkte direkt eingeben` gewechselt werden. Der direkte Modus ist für historische Wertungen mit abweichenden Punktesystemen gedacht und wird bei Änderungen an der zentralen Punktetabelle nicht überschrieben. Im automatischen Modus werden Punkte über `Punktesysteme` und `Punkte je Platz` berechnet. Jedes System gehört zu F1, LMU oder WDL, kann zeitlich begrenzt werden und optional Punkte für die schnellste Runde vergeben. Formel 1 besitzt getrennte Platzierungswerte für Haupt- und Sprintrennen.
 
 F1-Teams werden je Liga separat gepflegt. In der Teampflege werden einem Team wie Mercedes direkt `Fahrer A` und `Fahrer B` aus den passenden Stammfahrern zugeordnet. Die Fahrerpflege enthält deshalb keine Teamzuordnung; sie verwaltet nur Stammdaten, Aliase und die F1-Rolle.
 
