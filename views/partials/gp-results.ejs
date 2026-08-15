@@ -1,0 +1,55 @@
+<% if (items.length) { %>
+  <div class="carousel gp-carousel" data-carousel tabindex="0" aria-label="<%= label %>">
+    <div class="carousel-track">
+      <% items.forEach((item, index) => { const classified = item.entries || []; %>
+        <article class="carousel-slide gp-result-card <%= index === 0 ? 'active' : '' %>" aria-hidden="<%= index !== 0 %>">
+          <header class="gp-result-header">
+            <div>
+              <span class="gp-round">RUNDE <%= item.sortOrder || index + 1 %></span>
+              <h3><%= item.title %></h3>
+              <p><%= item.circuit || 'Strecke folgt' %><%= item.raceDate ? ` · ${item.raceDate}` : '' %></p>
+            </div>
+            <span class="gp-season"><%= item.season %></span>
+          </header>
+
+          <% if (classified.length) { %>
+            <div class="gp-podium" aria-label="Podium">
+              <% classified.slice(0, 3).forEach((entry) => { %>
+                <article class="podium-place podium-place-<%= entry.position || entry.sortOrder %>">
+                  <span><%= entry.position ? `P${entry.position}` : (entry.status || '–') %></span>
+                  <strong><%= entry.driverName %></strong>
+                  <small><%= entry.teamName || 'Privatteam' %></small>
+                </article>
+              <% }) %>
+            </div>
+
+            <div class="table-wrap gp-classification">
+              <table>
+                <thead><tr><th>Pos.</th><th>Fahrer</th><th>Team</th><th>Punkte</th></tr></thead>
+                <tbody>
+                  <% classified.forEach((entry) => { %>
+                    <tr>
+                      <td><strong><%= entry.status || entry.position || '–' %></strong></td>
+                      <td><%= entry.driverName %><% if (entry.fastestLap) { %><span class="fastest-lap" title="Schnellste Runde"> SR</span><% } %></td>
+                      <td><%= entry.teamName || '–' %></td>
+                      <td><strong><%= Number(entry.points) %></strong></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } else { %>
+            <div class="empty-state">Für diesen Grand Prix wurde noch keine Klassifikation eingetragen.</div>
+          <% } %>
+        </article>
+      <% }) %>
+    </div>
+    <% if (items.length > 1) { %>
+      <button class="carousel-control prev" type="button" aria-label="Vorheriges Ergebnis">‹</button>
+      <button class="carousel-control next" type="button" aria-label="Nächstes Ergebnis">›</button>
+      <div class="carousel-dots" aria-label="Ergebnis auswählen"></div>
+    <% } %>
+  </div>
+<% } else { %>
+  <div class="empty-state">Noch keine Grand-Prix-Ergebnisse eingetragen.</div>
+<% } %>

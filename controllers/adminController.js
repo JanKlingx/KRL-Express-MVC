@@ -7,6 +7,10 @@ function getConfig(resource) {
 
 function readValues(fields, body) {
   return fields.reduce((values, field) => {
+    if (field.type === 'checkbox') {
+      values[field.name] = body[field.name] === 'on' || body[field.name] === 'true' || body[field.name] === '1';
+      return values;
+    }
     const value = body[field.name];
     values[field.name] = value === '' || value === undefined ? null : value;
     return values;

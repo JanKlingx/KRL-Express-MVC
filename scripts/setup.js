@@ -2,7 +2,7 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const {
   sequelize, User, SiteStatistic, TeamCategory, TeamMember, League, Team, Driver,
-  DriverStanding, TeamStanding, GrandPrixResult, LmuCockpit, LmuStandingImage,
+  DriverStanding, TeamStanding, GrandPrixResult, GrandPrixResultEntry, LmuCockpit, LmuStandingImage,
   ParticipatingLeague, LeagueCompetitionStanding
 } = require('../models');
 
@@ -29,7 +29,25 @@ async function seedF1(league, prefix) {
   for (let i = 0; i < teams.length; i += 1) {
     await TeamStanding.findOrCreate({ where: { LeagueId: league.id, TeamId: teams[i].id, season: league.currentSeason }, defaults: { LeagueId: league.id, TeamId: teams[i].id, season: league.currentSeason, position: i + 1, points: 290 - i * 58, wins: 5 - i * 2, gap: i === 0 ? 'Leader' : `+${i * 58}`, sortOrder: i } });
   }
-  await GrandPrixResult.findOrCreate({ where: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa' }, defaults: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa', circuit: 'Circuit de Spa-Francorchamps', raceDate: '2026-08-01', imagePath: '/images/krl-placeholder.svg', altText: 'Platzhalter für das Ergebnis des Großen Preises von Spa', sortOrder: 1 } });
+  const [grandPrix] = await GrandPrixResult.findOrCreate({
+    where: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa' },
+    defaults: { LeagueId: league.id, season: league.currentSeason, title: 'Großer Preis von Spa', circuit: 'Circuit de Spa-Francorchamps', raceDate: '2026-08-01', sortOrder: 1 }
+  });
+  const pointsByPosition = [25, 18, 15, 12, 10, 8, 6, 4];
+  for (let i = 0; i < drivers.length; i += 1) {
+    await GrandPrixResultEntry.findOrCreate({
+      where: { GrandPrixResultId: grandPrix.id, driverName: drivers[i].name },
+      defaults: {
+        GrandPrixResultId: grandPrix.id,
+        position: i + 1,
+        driverName: drivers[i].name,
+        teamName: teams[i % teams.length].name,
+        points: pointsByPosition[i],
+        fastestLap: i === 0,
+        sortOrder: i
+      }
+    });
+  }
 }
 
 async function run() {

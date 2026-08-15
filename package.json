@@ -8,8 +8,9 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "setup": "node scripts/setup.js",
+    "import:history": "node scripts/import-season-history.js",
     "check": "node --check server.js && node --check app.js && node --check controllers/adminController.js",
-    "test": "node --test tests/app.test.js"
+    "test": "node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=20"

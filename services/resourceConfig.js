@@ -4,6 +4,8 @@ const number = (name, label, required = false) => ({ name, label, type: 'number'
 const text = (name, label, required = false) => ({ name, label, type: 'text', required });
 const textarea = (name, label, required = false) => ({ name, label, type: 'textarea', required });
 const date = (name, label, required = false) => ({ name, label, type: 'date', required });
+const url = (name, label, required = false) => ({ name, label, type: 'url', required });
+const checkbox = (name, label) => ({ name, label, type: 'checkbox', required: false });
 
 module.exports = {
   statistics: {
@@ -39,8 +41,16 @@ module.exports = {
     fields: [number('LeagueId', 'Liga-ID', true), number('TeamId', 'Team-ID', true), text('season', 'Saison', true), number('position', 'Position', true), number('points', 'Punkte', true), number('wins', 'Siege'), text('gap', 'Rückstand'), number('sortOrder', 'Sortierung')]
   },
   gpResults: {
-    title: 'F1 GP-Ergebnisse (PNG)', model: models.GrandPrixResult, upload: 'imagePath',
-    fields: [number('LeagueId', 'Liga-ID', true), text('season', 'Saison', true), text('title', 'Grand Prix', true), text('circuit', 'Strecke'), date('raceDate', 'Renndatum'), text('altText', 'Alternativtext', true), number('sortOrder', 'Sortierung')]
+    title: 'F1 Grand Prix', model: models.GrandPrixResult,
+    fields: [number('LeagueId', 'Liga-ID', true), text('season', 'Saison', true), text('title', 'Grand Prix', true), text('circuit', 'Strecke'), date('raceDate', 'Renndatum'), number('sortOrder', 'Rennrunde / Sortierung')]
+  },
+  gpResultEntries: {
+    title: 'F1 GP-Klassifikationen', model: models.GrandPrixResultEntry,
+    fields: [number('GrandPrixResultId', 'Grand-Prix-ID', true), number('position', 'Position'), text('driverName', 'Fahrer', true), text('teamName', 'Team'), number('points', 'Punkte', true), text('status', 'Status (z. B. DNF)'), checkbox('fastestLap', 'Schnellste Runde'), number('sortOrder', 'Sortierung')]
+  },
+  historySources: {
+    title: 'Saisonverlauf (Google Sheets)', model: models.LeagueHistorySource,
+    fields: [number('LeagueId', 'Liga-ID', true), text('label', 'Bezeichnung', true), url('sheetUrl', 'Öffentlicher Google-Sheets-Link', true), number('sortOrder', 'Sortierung')]
   },
   cockpits: {
     title: 'LMU-Cockpits', model: models.LmuCockpit,
