@@ -9,18 +9,18 @@
     </select>
     <label for="season">Saison auswählen</label>
     <select id="season" name="season">
-      <% seasons.forEach((season) => { %><option value="<%= season.id %>" <%= selectedSeason?.id === season.id ? 'selected' : '' %>><%= season.name %> · <%= season.status === 'active' ? 'Aktiv' : 'Historisch' %></option><% }) %>
+      <%- include('../partials/season-options', { seasons, selectedSeason }) %>
     </select>
     <label for="race">Grand Prix auswählen</label>
     <select id="race" name="race">
-      <% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>><%= race.season %> · R<%= race.sortOrder %> · <%= race.title %></option><% }) %>
+      <% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>><%= race.season %> · R<%= race.sortOrder %> · <%= race.raceType === 'sprint' ? 'Sprint' : 'Hauptrennen' %> · <%= race.title %></option><% }) %>
     </select>
     <noscript><button class="button button-small" type="submit">Öffnen</button></noscript>
   </form>
 
   <% if (!selectedRace) { %><div class="empty-state">Lege zuerst im aktuellen F1-Rennkalender oder unter „Historische / manuelle Rennen“ ein Rennen für diese Saison an.</div><% } else { %>
     <form method="post" action="/admin/race-editor/<%= selectedRace.id %>" class="race-sheet-form">
-      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedRace.season %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
+      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedRace.season %> · <%= selectedRace.raceType === 'sprint' ? 'Sprintrennen' : 'Hauptrennen' %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
       <div class="table-wrap race-sheet"><table><thead><tr><th>Dabei</th><th>ID</th><th>Fahrer / Aliase</th><th>Plattform</th><th>Team</th><th>Platz</th><th>Status</th><th>Punkte</th><th>SR</th></tr></thead><tbody>
         <% rows.forEach(({ driver, entry, assignedTeam, isReserve }) => { %><tr class="<%= entry ? 'sheet-row-active' : '' %>">
           <td><input type="checkbox" name="rows[<%= driver.id %>][included]" <%= entry ? 'checked' : '' %> aria-label="<%= driver.name %> berücksichtigen"></td>

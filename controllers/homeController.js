@@ -1,13 +1,13 @@
 const {
   SiteStatistic, League, RaceEvent, KrlTeam, KrlIcon
 } = require('../models');
-const { Op } = require('sequelize');
+const { Op, col } = require('sequelize');
 
 exports.index = async (req, res) => {
   const [statistics, krlTeams, krlIcons, leagues, nextRace] = await Promise.all([
     SiteStatistic.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
-    KrlTeam.findAll({ include: [{ association: 'assignments', include: [{ association: 'driver' }] }], order: [['sortOrder', 'ASC'], [{ association: 'assignments' }, 'sortOrder', 'ASC']] }),
-    KrlIcon.findAll({ include: [{ association: 'driver' }], order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
+    KrlTeam.findAll({ include: [{ association: 'assignments', include: [{ association: 'driver' }] }], order: [[col('KrlTeam.sort_order'), 'ASC'], [col('assignments.sort_order'), 'ASC']] }),
+    KrlIcon.findAll({ include: [{ association: 'driver' }], order: [[col('KrlIcon.sort_order'), 'ASC'], [col('KrlIcon.id'), 'ASC']] }),
     League.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
     RaceEvent.findOne({
       where: { startsAt: { [Op.gte]: new Date() }, isPublished: true },

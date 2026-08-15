@@ -1,5 +1,8 @@
 const { DataTypes, Op } = require('sequelize');
-const { sequelize, League, Driver, PointsRule, Season, GrandPrixResult, RaceEvent } = require('../models');
+const {
+  sequelize, League, Driver, PointsRule, PointsScheme, PointAllocation,
+  SeasonCategory, Season, GrandPrixResult, RaceEvent
+} = require('../models');
 
 async function addMissingColumn(table, description, name, definition) {
   if (!description[name]) await sequelize.getQueryInterface().addColumn(table, name, definition);
@@ -14,8 +17,10 @@ async function ensureSchema() {
   await addMissingColumn('drivers', driverTable, 'role_f1_friday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_sunday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_reserve', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('drivers', driverTable, 'role_former_f1', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_lmu_regular', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_lmu_reserve', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('drivers', driverTable, 'role_former_lmu', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'races_f1', { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 });
   await addMissingColumn('drivers', driverTable, 'races_lmu', { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 });
   if (driverTable.league_id && driverTable.league_id.allowNull === false) {
@@ -29,11 +34,22 @@ async function ensureSchema() {
   const resultTable = await queryInterface.describeTable('grand_prix_results');
   await addMissingColumn('grand_prix_results', resultTable, 'season_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('grand_prix_results', resultTable, 'discipline', { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' });
+  await addMissingColumn('grand_prix_results', resultTable, 'race_type', { type: DataTypes.STRING, allowNull: false, defaultValue: 'main' });
   await addMissingColumn('grand_prix_results', resultTable, 'is_historical', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
 
   const participatingTable = await queryInterface.describeTable('participating_leagues');
   await addMissingColumn('participating_leagues', participatingTable, 'is_active', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true });
   await addMissingColumn('participating_leagues', participatingTable, 'f1_team_id', { type: DataTypes.INTEGER, allowNull: true });
+
+  const f1RoundTable = await queryInterface.describeTable('f1_calendar_rounds');
+  await addMissingColumn('f1_calendar_rounds', f1RoundTable, 'has_sprint', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+
+  const wdlResultTable = await queryInterface.describeTable('wdl_result_entries');
+  await addMissingColumn('wdl_result_entries', wdlResultTable, 'fastest_lap_one', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('wdl_result_entries', wdlResultTable, 'fastest_lap_two', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+
+  const seasonTable = await queryInterface.describeTable('seasons');
+  await addMissingColumn('seasons', seasonTable, 'season_category_id', { type: DataTypes.INTEGER, allowNull: true });
 
   const f1Leagues = await League.findAll({ where: { type: 'f1' } });
   for (const league of f1Leagues) {
@@ -69,6 +85,28 @@ async function ensureSchema() {
     await PointsRule.findOrCreate({ where: { position: index + 1 }, defaults: { position: index + 1, points: standardPoints[index], sortOrder: index + 1 } });
   }
 
+  for (const discipline of ['f1', 'lmu', 'wdl']) {
+    const [scheme] = await PointsScheme.findOrCreate({
+      where: { name: `Standard ${discipline.toUpperCase()}`, discipline },
+      defaults: { name: `Standard ${discipline.toUpperCase()}`, discipline, fastestLapEnabled: false, fastestLapPoints: 1, sortOrder: 1 }
+    });
+    for (let index = 0; index < standardPoints.length; index += 1) {
+      await PointAllocation.findOrCreate({
+        where: { PointsSchemeId: scheme.id, raceType: 'main', position: index + 1 },
+        defaults: { PointsSchemeId: scheme.id, raceType: 'main', position: index + 1, points: standardPoints[index], sortOrder: index + 1 }
+      });
+    }
+    if (discipline === 'f1') {
+      const sprintPoints = [8, 7, 6, 5, 4, 3, 2, 1];
+      for (let index = 0; index < sprintPoints.length; index += 1) {
+        await PointAllocation.findOrCreate({
+          where: { PointsSchemeId: scheme.id, raceType: 'sprint', position: index + 1 },
+          defaults: { PointsSchemeId: scheme.id, raceType: 'sprint', position: index + 1, points: sprintPoints[index], sortOrder: index + 1 }
+        });
+      }
+    }
+  }
+
   const leagues = await League.findAll();
   const activeSeasons = new Map();
   for (const league of leagues.filter((entry) => ['f1', 'lmu', 'competition'].includes(entry.type))) {
@@ -82,6 +120,15 @@ async function ensureSchema() {
       where: { id: { [Op.ne]: season.id }, leagueType, scopeSlug: league.slug, status: 'active' }
     });
     activeSeasons.set(league.id, season);
+    const [currentCategory] = await SeasonCategory.findOrCreate({
+      where: { name: 'Aktuelle Saison', leagueType, scopeSlug: league.slug },
+      defaults: { name: 'Aktuelle Saison', leagueType, scopeSlug: league.slug, sortOrder: 0 }
+    });
+    if (!season.SeasonCategoryId) await season.update({ SeasonCategoryId: currentCategory.id });
+    await SeasonCategory.findOrCreate({
+      where: { name: 'Ältere Saisons', leagueType, scopeSlug: league.slug },
+      defaults: { name: 'Ältere Saisons', leagueType, scopeSlug: league.slug, sortOrder: 10 }
+    });
   }
 
   const legacyResults = await GrandPrixResult.findAll({ include: [{ model: League, as: 'league' }] });
@@ -93,7 +140,23 @@ async function ensureSchema() {
       where: { name: result.season, leagueType, scopeSlug: result.league?.slug || leagueType },
       defaults: { name: result.season, leagueType, scopeSlug: result.league?.slug || leagueType, status: 'historical', calendarMode: 'manual', sortOrder: 0 }
     });
+    if (season && !season.SeasonCategoryId) {
+      const category = await SeasonCategory.findOne({ where: { name: isActive ? 'Aktuelle Saison' : 'Ältere Saisons', leagueType, scopeSlug: result.league?.slug || leagueType } });
+      if (category) await season.update({ SeasonCategoryId: category.id });
+    }
     await result.update({ SeasonId: season?.id || null, discipline: leagueType, isHistorical: !isActive });
+  }
+
+  const uncategorizedSeasons = await Season.findAll({ where: { SeasonCategoryId: null } });
+  for (const season of uncategorizedSeasons) {
+    const category = await SeasonCategory.findOne({
+      where: {
+        name: season.status === 'active' ? 'Aktuelle Saison' : 'Ältere Saisons',
+        leagueType: season.leagueType,
+        scopeSlug: season.scopeSlug
+      }
+    });
+    if (category) await season.update({ SeasonCategoryId: category.id });
   }
 
   const legacyEvents = await RaceEvent.findAll();

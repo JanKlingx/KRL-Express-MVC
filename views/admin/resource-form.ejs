@@ -8,7 +8,7 @@
     <% if (error) { %><div class="form-error" role="alert"><strong>Speichern nicht möglich:</strong> <%= error %></div><% } %>
 
     <form class="resource-form" method="post" enctype="multipart/form-data" action="<%= adminBasePath %>/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
-      <% config.fields.forEach((field) => { const value = entry ? (entry[field.name] ?? '') : ''; const inputId = `${resource}-${field.name}`; %>
+      <% config.fields.filter((field) => !field.visibleWhen || field.visibleWhen(entry)).forEach((field) => { const value = entry ? (entry[field.name] ?? '') : ''; const inputId = `${resource}-${field.name}`; %>
         <label for="<%= inputId %>" class="field-<%= field.type %>">
           <span><%= field.label %><% if (field.required) { %><b aria-hidden="true"> *</b><% } %></span>
           <% if (field.type === 'textarea') { %>

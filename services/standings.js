@@ -18,7 +18,9 @@ function raceCode(race, index) {
 function buildSeasonData(leagueValue, resultValues, driverValues = []) {
   const league = plain(leagueValue);
   const races = resultValues.map(plain).sort((left, right) =>
-    number(left.sortOrder) - number(right.sortOrder) || String(left.raceDate || '').localeCompare(String(right.raceDate || ''))
+    number(left.sortOrder) - number(right.sortOrder)
+      || (left.raceType === 'sprint' ? -1 : 1) - (right.raceType === 'sprint' ? -1 : 1)
+      || String(left.raceDate || '').localeCompare(String(right.raceDate || ''))
   );
   const drivers = new Map();
   const namesToKeys = new Map();
@@ -65,7 +67,7 @@ function buildSeasonData(leagueValue, resultValues, driverValues = []) {
       const status = String(entry.status || '').trim().toUpperCase() || null;
       cumulative += points;
       driver.total += points;
-      if (position === 1) driver.wins += 1;
+      if (position === 1 && race.raceType !== 'sprint') driver.wins += 1;
       if (entry.teamName) driver.team = entry.teamName;
       return {
         value: status || (position ? `P${position}` : '–'),
@@ -94,7 +96,7 @@ function buildSeasonData(leagueValue, resultValues, driverValues = []) {
       const teamName = entry.teamName || 'Privatteam';
       const team = teamMap.get(teamName) || { name: teamName, points: 0, wins: 0 };
       team.points += number(entry.points);
-      if (number(entry.position) === 1) team.wins += 1;
+      if (number(entry.position) === 1 && race.raceType !== 'sprint') team.wins += 1;
       teamMap.set(teamName, team);
     });
   });

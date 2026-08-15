@@ -2,7 +2,7 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const {
   sequelize, User, SiteStatistic, TeamCategory, TeamMember, League, Team, Driver,
-  DriverStanding, TeamStanding, GrandPrixResult, GrandPrixResultEntry, RaceEvent, Season, LmuCockpit, LmuStandingImage,
+  DriverStanding, TeamStanding, GrandPrixResult, GrandPrixResultEntry, RaceEvent, SeasonCategory, Season, LmuCockpit, LmuStandingImage,
   ParticipatingLeague, LeagueCompetitionStanding
 } = require('../models');
 const { ensureSchema } = require('../services/schema');
@@ -113,6 +113,15 @@ async function run() {
     if (!['f1', 'lmu', 'competition'].includes(league.type)) continue;
     const leagueType = league.type === 'competition' ? 'wdl' : league.type;
     const [season] = await Season.findOrCreate({ where: { name: league.currentSeason, leagueType, scopeSlug: league.slug }, defaults: { name: league.currentSeason, leagueType, scopeSlug: league.slug, status: 'active', calendarMode: 'automatic', sortOrder: 1 } });
+    const [category] = await SeasonCategory.findOrCreate({
+      where: { name: 'Aktuelle Saison', leagueType, scopeSlug: league.slug },
+      defaults: { name: 'Aktuelle Saison', leagueType, scopeSlug: league.slug, sortOrder: 0 }
+    });
+    if (!season.SeasonCategoryId) await season.update({ SeasonCategoryId: category.id });
+    await SeasonCategory.findOrCreate({
+      where: { name: 'Ältere Saisons', leagueType, scopeSlug: league.slug },
+      defaults: { name: 'Ältere Saisons', leagueType, scopeSlug: league.slug, sortOrder: 10 }
+    });
     seasons[league.slug] = season;
   }
   await seedF1(leagues.freitag, seasons.freitag, 'FR');

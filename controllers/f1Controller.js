@@ -5,7 +5,7 @@ const { sendCsv } = require('../services/csv');
 async function loadLeagueData(slug, requestedSeasonId) {
   const league = await League.findOne({ where: { slug, type: 'f1' } });
   if (!league) return null;
-  const seasons = await Season.findAll({ where: { leagueType: 'f1', scopeSlug: slug }, order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
+  const seasons = await Season.findAll({ where: { leagueType: 'f1', scopeSlug: slug }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const where = selectedSeason ? { LeagueId: league.id, SeasonId: selectedSeason.id, discipline: 'f1' } : { LeagueId: league.id, season: league.currentSeason };
   const [teams, gpResults, activeCalendar] = await Promise.all([
@@ -17,7 +17,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
     GrandPrixResult.findAll({
       where,
       include: [{ model: GrandPrixResultEntry, as: 'entries' }],
-      order: [['sortOrder', 'ASC'], ['raceDate', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'sortOrder', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'position', 'ASC']]
+      order: [['sortOrder', 'ASC'], ['raceType', 'DESC'], ['raceDate', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'sortOrder', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'position', 'ASC']]
     }),
     selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, isPublished: true }, order: [['startsAt', 'ASC']] }) : []
   ]);

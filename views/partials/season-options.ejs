@@ -1,0 +1,10 @@
+<%
+  const optionGroups = [];
+  seasons.forEach((season) => {
+    const label = season.category?.name || (season.status === 'active' ? 'Aktuelle Saison' : 'Ältere Saisons');
+    let group = optionGroups.find((item) => item.label === label);
+    if (!group) { group = { label, seasons: [] }; optionGroups.push(group); }
+    group.seasons.push(season);
+  });
+%>
+<% optionGroups.forEach((group) => { %><optgroup label="<%= group.label %>"><% group.seasons.forEach((season) => { %><option value="<%= season.id %>" <%= selectedSeason?.id === season.id ? 'selected' : '' %>><%= season.name %><%= season.status === 'active' ? ' · Aktiv' : '' %></option><% }) %></optgroup><% }) %>

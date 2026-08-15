@@ -28,25 +28,28 @@ Der gemeinsame Login für KRL- und WDL-Verwaltung befindet sich unter `http://lo
 
 Im Dashboard lassen sich folgende Inhalte anlegen, bearbeiten und löschen:
 
-- zentrale Fahrer-Stammdaten mit kombinierbaren F1-/LMU-Rollen, Aliasen, Plattform und automatisch gezählten Rennen
-- globale Punktetabelle für F1, LMU und WDL; Änderungen berechnen alle vorhandenen Ergebnisse sofort neu
-- aktive und historische Saisons mit automatischem oder manuellem Rennkalender
+- zentrale Fahrer-Stammdaten mit kombinierbaren F1-/LMU-Rollen, ehemaligen Fahrer-Rängen, Aliasen und Plattform
+- rangabhängige Fahrerstatistiken mit Punkten, gefahrenen Rennen, Siegen, Siegesquote sowie P1/P2/P3; Fahrerbilder, Startnummer und manuelle Reihenfolge entfallen
+- versionierte Punktesysteme für F1-Hauptrennen, F1-Sprints, LMU und WDL mit Schnellste-Runde-Bonus und Gültigkeitszeitraum
+- aktive und historische Saisons mit Kategorien, automatischem oder manuellem Rennkalender
 - Startseitenstatistiken, interne KRL-Teams mit Fahrer-Rollen und KRL Icons
 - getrennte Teampflege für Freitag und Sonntag mit Fahrer A und Fahrer B
 - F1-Fahrerrollen `Stamm Freitag`, `Stamm Sonntag` und `F1 Ersatz` sowie `LMU Stammfahrer` und `LMU Ersatzfahrer`
 - stabile Fahrer-IDs mit Plattform und beliebig vielen Aliasen direkt im Fahrerformular; Team und Gamertag werden dort nicht gepflegt
-- Google-Sheets-ähnliche F1-Renneingabe sowie LMU- und WDL-Saisonverläufe
+- Google-Sheets-ähnliche, rennzentrierte Gesamteingabe für F1, LMU und WDL
 - automatisch erzeugte Fahrer-/Team-WM, Liga-Standings, GP-Results, WDL-Diagramm und CSV-/PNG-Exporte
-- F1-Rennkalender mit Datum und Startzeit getrennt für Freitag und Sonntag, LMU-/WDL-Kalender sowie LMU-Cockpits
+- F1-Rennkalender mit Datum und Startzeit getrennt für Freitag und Sonntag sowie optionalem Sprint-Event, LMU-/WDL-Kalender und LMU-Cockpits
 - aktive WDL-Ligen mit Logo, Link und zugeordnetem F1-Team; in historischen Saisons bleiben auch inaktive Ligen auswählbar
 
 Alle Bilder werden ausschließlich als PNG, JPG oder WebP vom eigenen Gerät hochgeladen. Externe Bild-URLs und automatische Bildimporte sind nicht vorgesehen.
 
 ## GP-Ergebnisse und Saisonverlauf
 
-Ein Rennen wird zuerst im `F1-Rennkalender (aktuell)` angelegt. Eine Strecke enthält dabei die getrennten Freitags- und Sonntagsdaten. Dadurch entstehen die Rennen in den aktiven Saisons automatisch. Historische Rennen werden unter `Historische / manuelle Rennen` gepflegt. Die Ergebniszeilen sind die einzige Wertungsquelle: Die öffentliche Seite erzeugt daraus GP-Results, Fahrer-WM, Team-WM, Punkteverlauf und Saisonmatrix. In jeder Rennspalte werden P1, P2 und P3 in Gold, Silber und Bronze hervorgehoben.
+Ein Rennen wird zuerst im `F1-Rennkalender (aktuell)` angelegt. Eine Strecke enthält die getrennten Freitags- und Sonntagsdaten sowie optional die Kennzeichnung als Sprint-Event. Dadurch entstehen Hauptrennen und gegebenenfalls ein zusätzlicher Sprint in den aktiven Saisons automatisch. Historische Rennen werden unter `Historische / manuelle Rennen` gepflegt. Die Ergebniszeilen sind die einzige Wertungsquelle: Die öffentliche Seite erzeugt daraus GP-Results, Fahrer-WM, Team-WM, Punkteverlauf und Saisonmatrix. In jeder Rennspalte werden P1, P2 und P3 in Gold, Silber und Bronze hervorgehoben.
 
-Für die schnelle Eingabe steht unter `/admin/race-editor` eine tabellarische, Google-Sheets-ähnliche Ansicht bereit. Dort werden Liga, Saison und Rennen ausgewählt. In der aktiven Saison erscheinen die Fahrer der passenden Teamaufstellung und F1-Ersatzfahrer; historische Saisons erlauben alle Fahrer und eine freie Teamwahl. Rennergebnisse referenzieren die stabile Fahrer-ID, sodass Namenswechsel über Aliase hinweg korrekt zusammengezählt werden. Nur aktive F1-/LMU-Ergebnisse erhöhen die Rennzähler.
+Für die schnelle Eingabe stehen `/admin/race-editor`, `/admin/season-progress/lmu` und `/admin/season-progress/wdl` bereit. Die Pflege beginnt immer mit Saison und Kalenderrennen; anschließend wird das vollständige Rennen statt einzelner Fahrerformulare gespeichert. In der aktiven F1-Saison erscheinen die Fahrer der passenden Teamaufstellung und F1-Ersatzfahrer; historische Saisons erlauben alle Fahrer und eine freie Teamwahl. Rennergebnisse referenzieren die stabile Fahrer-ID, sodass Namenswechsel über Aliase hinweg korrekt zusammengezählt werden. Nur aktive F1-Hauptrennen und LMU-Ergebnisse erhöhen die Rennzähler.
+
+Punkte werden über `Punktesysteme` und `Punkte je Platz` gepflegt. Jedes System gehört zu F1, LMU oder WDL, kann zeitlich begrenzt werden und optional Punkte für die schnellste Runde vergeben. Formel 1 besitzt getrennte Platzierungswerte für Haupt- und Sprintrennen. Änderungen berechnen alle vorhandenen Ergebnisse sofort neu.
 
 F1-Teams werden je Liga separat gepflegt. In der Teampflege werden einem Team wie Mercedes direkt `Fahrer A` und `Fahrer B` aus den passenden Stammfahrern zugeordnet. Die Fahrerpflege enthält deshalb keine Teamzuordnung; sie verwaltet nur Stammdaten, Aliase und die F1-Rolle.
 

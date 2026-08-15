@@ -13,6 +13,7 @@ const {
   syncF1CalendarRound,
   syncSeriesCalendarEvent
 } = require('./championship');
+const { getDriverStatistics } = require('./driverStats');
 
 const field = (name, label, type = 'text', required = false, options = {}) => ({
   name, label, type, required, ...options
@@ -64,8 +65,26 @@ const aliasesField = () => textarea('aliasesText', 'Aliase / frühere Namen', fa
 async function prepareDriverForForm(entry) {
   if (!entry?.id) return entry;
   const values = typeof entry.toJSON === 'function' ? entry.toJSON() : { ...entry };
-  const aliases = await models.DriverAlias.findAll({ where: { DriverId: entry.id }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
-  return { ...values, aliasesText: aliases.map((alias) => alias.alias).join(', ') };
+  const [aliases, stats] = await Promise.all([
+    models.DriverAlias.findAll({ where: { DriverId: entry.id }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
+    getDriverStatistics(entry.id)
+  ]);
+  return {
+    ...values,
+    aliasesText: aliases.map((alias) => alias.alias).join(', '),
+    pointsF1: stats.f1.points,
+    winsF1: stats.f1.wins,
+    winRateF1: stats.f1.winRate,
+    podium1F1: stats.f1.podium1,
+    podium2F1: stats.f1.podium2,
+    podium3F1: stats.f1.podium3,
+    pointsLmu: stats.lmu.points,
+    winsLmu: stats.lmu.wins,
+    winRateLmu: stats.lmu.winRate,
+    podium1Lmu: stats.lmu.podium1,
+    podium2Lmu: stats.lmu.podium2,
+    podium3Lmu: stats.lmu.podium3
+  };
 }
 
 async function syncDriverAliases(driver, body) {
@@ -209,6 +228,50 @@ async function prepareSeason(values) {
     throw new Error('Der Bereich passt nicht zum ausgewählten Ligatyp.');
   }
   if (values.status === 'active') values.calendarMode = 'automatic';
+  if (values.SeasonCategoryId) {
+    const category = await models.SeasonCategory.findByPk(values.SeasonCategoryId);
+    if (!category || category.leagueType !== values.leagueType || category.scopeSlug !== values.scopeSlug) {
+      throw new Error('Die Saison-Kategorie gehört nicht zum ausgewählten Ligabereich.');
+    }
+  } else {
+    const category = await models.SeasonCategory.findOne({
+      where: { name: values.status === 'active' ? 'Aktuelle Saison' : 'Ältere Saisons', leagueType: values.leagueType, scopeSlug: values.scopeSlug }
+    });
+    values.SeasonCategoryId = category?.id || null;
+  }
+}
+
+async function preparePointsScheme(values, body, existingEntry) {
+  if (values.validFrom && values.validUntil && values.validFrom > values.validUntil) {
+    throw new Error('„Gültig von“ darf nicht nach „Gültig bis“ liegen.');
+  }
+  const overlaps = await models.PointsScheme.findOne({
+    where: {
+      id: { [Op.ne]: existingEntry?.id || 0 },
+      discipline: values.discipline,
+      [Op.and]: [
+        { [Op.or]: [{ validFrom: null }, { validFrom: { [Op.lte]: values.validUntil || '9999-12-31' } }] },
+        { [Op.or]: [{ validUntil: null }, { validUntil: { [Op.gte]: values.validFrom || '0001-01-01' } }] }
+      ]
+    }
+  });
+  if (overlaps) throw new Error(`Der Gültigkeitszeitraum überschneidet sich mit „${overlaps.name}“.`);
+  if (!values.fastestLapEnabled) values.fastestLapPoints = 0;
+}
+
+async function preparePointAllocation(values, body, existingEntry) {
+  const scheme = await models.PointsScheme.findByPk(values.PointsSchemeId);
+  if (!scheme) throw new Error('Bitte ein Punktesystem auswählen.');
+  if (scheme.discipline !== 'f1' && values.raceType === 'sprint') throw new Error('Sprintpunkte sind ausschließlich für Formel 1 möglich.');
+  const duplicate = await models.PointAllocation.findOne({
+    where: { PointsSchemeId: scheme.id, raceType: values.raceType, position: values.position }
+  });
+  if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Für diesen Platz existiert im gewählten Rennen bereits ein Punktewert.');
+}
+
+async function prepareSeasonCategory(values) {
+  const expectedScopes = { f1: ['freitag', 'sonntag'], lmu: ['lmu'], wdl: ['wettkampf'] };
+  if (!expectedScopes[values.leagueType]?.includes(values.scopeSlug)) throw new Error('Kategorie und Ligabereich passen nicht zusammen.');
 }
 
 async function syncSeason(season) {
@@ -263,7 +326,7 @@ async function prepareSeriesEntry(values, body, existingEntry) {
   if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Dieser Fahrer besitzt für das Rennen bereits ein Ergebnis.');
   values.driverName = driver.name;
   values.teamName = driver.team?.name || 'LMU-Team offen';
-  values.points = await pointsForPosition(values.position);
+  values.points = await pointsForPosition(values.position, { ...race.toJSON(), fastestLap: values.fastestLap });
 }
 
 async function syncSeriesEntry() {
@@ -283,8 +346,8 @@ async function prepareWdlResult(values, body, existingEntry) {
   }
   const duplicate = await models.WdlResultEntry.findOne({ where: { GrandPrixResultId: race.id, ParticipatingLeagueId: league.id } });
   if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Für diese Liga existiert bereits eine Ergebniszeile.');
-  values.pointsOne = await pointsForPosition(values.positionOne);
-  values.pointsTwo = await pointsForPosition(values.positionTwo);
+  values.pointsOne = await pointsForPosition(values.positionOne, { ...race.toJSON(), fastestLap: values.fastestLapOne });
+  values.pointsTwo = await pointsForPosition(values.positionTwo, { ...race.toJSON(), fastestLap: values.fastestLapTwo });
   values.totalPoints = Number(values.pointsOne) + Number(values.pointsTwo);
 }
 
@@ -357,10 +420,47 @@ module.exports = {
   },
   pointsRules: {
     title: 'Punktetabelle', group: 'Stammdaten',
-    description: 'Globale Punkte je Platzierung. Änderungen gelten sofort für F1, LMU und WDL.', model: models.PointsRule, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints,
+    description: 'Legacy-Punktetabelle für bestehende Installationen.', model: models.PointsRule, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints, hidden: true,
     fields: [
       number('position', 'Platz', true, { min: 1, step: 1 }), number('points', 'Punktewert', true, { min: 0, step: 0.5 }),
       number('sortOrder', 'Reihenfolge', false, { min: 0, step: 1 })
+    ]
+  },
+  pointsSchemes: {
+    title: 'Punktesysteme', group: 'Stammdaten',
+    description: 'Getrennte und zeitlich gültige Punktesysteme für Formel 1, LMU und WDL verwalten.', model: models.PointsScheme,
+    prepareValues: preparePointsScheme, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints,
+    nextResource: 'pointAllocations', nextLabel: 'Danach Punkte je Platz pflegen',
+    fields: [
+      text('name', 'Bezeichnung', true, { placeholder: 'F1 ab Saison 2026' }),
+      select('discipline', 'Bereich', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
+      date('validFrom', 'Gültig von'), date('validUntil', 'Gültig bis'),
+      checkbox('fastestLapEnabled', 'Punkte für schnellste Runde'),
+      number('fastestLapPoints', 'Punkte für schnellste Runde', false, { min: 0, step: 0.5 }),
+      number('sortOrder', 'Priorität', false, { min: 0, step: 1 })
+    ]
+  },
+  pointAllocations: {
+    title: 'Punkte je Platz', group: 'Stammdaten',
+    description: 'Hauptrennen- und Sprintpunkte innerhalb eines Punktesystems festlegen.', model: models.PointAllocation,
+    prepareValues: preparePointAllocation, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints,
+    fields: [
+      relation('PointsSchemeId', 'Punktesystem', models.PointsScheme, (row) => `${row.name} · ${row.discipline.toUpperCase()}`, true),
+      select('raceType', 'Rennentyp', [['main', 'Hauptrennen'], ['sprint', 'Sprintrennen']], true),
+      number('position', 'Platz', true, { min: 1, step: 1 }),
+      number('points', 'Punktewert', true, { min: 0, step: 0.5 }),
+      number('sortOrder', 'Reihenfolge', false, { min: 0, step: 1 })
+    ]
+  },
+  seasonCategories: {
+    title: 'Saison-Kategorien', group: 'Saisonverwaltung',
+    description: 'Saisons übersichtlich unter Kategorien wie „Aktuelle Saison“ oder „Ältere Saisons“ gruppieren.', model: models.SeasonCategory,
+    prepareValues: prepareSeasonCategory,
+    fields: [
+      text('name', 'Kategoriename', true),
+      select('leagueType', 'Ligatyp', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
+      select('scopeSlug', 'Bereich', [['freitag', 'F1 Freitag'], ['sonntag', 'F1 Sonntag'], ['lmu', 'LMU'], ['wettkampf', 'WDL']], true),
+      number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   seasons: {
@@ -373,6 +473,7 @@ module.exports = {
       select('scopeSlug', 'Bereich / Ligenseite', [['freitag', 'F1 Freitag'], ['sonntag', 'F1 Sonntag'], ['lmu', 'LMU'], ['wettkampf', 'WDL']], true),
       select('status', 'Saisonstatus', [['active', 'Aktiv'], ['historical', 'Historisch']], true),
       select('calendarMode', 'Rennkalender-Modus', [['automatic', 'Automatisch aus Stammdaten'], ['manual', 'Manuell pflegen']], true),
+      relation('SeasonCategoryId', 'Kategorie', models.SeasonCategory, (row) => `${row.name} · ${row.scopeSlug}`),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
@@ -390,17 +491,28 @@ module.exports = {
   drivers: {
     title: 'Fahrer-Pflege', group: 'Stammdaten',
     description: 'Zentrale Fahrer-Stammdaten. Rollen sind kombinierbar; gefahrene F1-/LMU-Rennen werden automatisch gezählt.', model: models.Driver,
-    upload: { field: 'avatarPath', label: 'Fahrerbild' },
+    listFields: ['name', 'aliasesText', 'platform', 'nationality'],
     prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncF1Driver, beforeRemove: removeF1Driver,
     fields: [
       text('name', 'Name', true), aliasesField(), platformField(),
-      number('racesF1', 'Gefahrene Rennen F1', false, { min: 0, step: 1, readonly: true, persist: false }),
-      number('racesLmu', 'Gefahrene Rennen LMU', false, { min: 0, step: 1, readonly: true, persist: false }),
+      number('racesF1', 'Gefahrene Rennen F1', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('racesLmu', 'Gefahrene Rennen LMU', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
       checkbox('roleF1Friday', 'Rang: Stamm Freitag'), checkbox('roleF1Sunday', 'Rang: Stamm Sonntag'),
-      checkbox('roleF1Reserve', 'Rang: F1 Ersatz'), checkbox('roleLmuRegular', 'Rang: LMU Stammfahrer'),
-      checkbox('roleLmuReserve', 'Rang: LMU Ersatzfahrer'),
-      number('number', 'Startnummer', false, { min: 0, step: 1 }), text('nationality', 'Nationalität'),
-      number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      checkbox('roleF1Reserve', 'Rang: F1 Ersatz'), checkbox('roleFormerF1', 'Rang: Ehemaliger Formel-1-Fahrer'),
+      checkbox('roleLmuRegular', 'Rang: LMU Stammfahrer'), checkbox('roleLmuReserve', 'Rang: LMU Ersatzfahrer'),
+      checkbox('roleFormerLmu', 'Rang: Ehemaliger LMU-Fahrer'), text('nationality', 'Nationalität'),
+      number('pointsF1', 'F1-Punkte', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('winsF1', 'Siege F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('winRateF1', 'Siegesquote F1 (%)', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('podium1F1', 'Platz 1 F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('podium2F1', 'Platz 2 F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('podium3F1', 'Platz 3 F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('pointsLmu', 'LMU-Punkte', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
+      number('winsLmu', 'Siege LMU', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
+      number('winRateLmu', 'Siegesquote LMU (%)', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
+      number('podium1Lmu', 'Platz 1 LMU', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
+      number('podium2Lmu', 'Platz 2 LMU', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
+      number('podium3Lmu', 'Platz 3 LMU', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu })
     ]
   },
   lmuTeams: {
@@ -462,6 +574,7 @@ module.exports = {
     prepareValues: prepareF1Round, afterSave: syncF1CalendarRound, beforeRemove: removeF1CalendarRound, nextHref: '/admin/race-editor', nextLabel: 'Danach Saisonverlauf pflegen',
     fields: [
       text('circuit', 'Strecke', true), date('sundayDate', 'Datum Sonntag'), date('fridayDate', 'Datum Freitag'),
+      checkbox('hasSprint', 'Sprint-Event'),
       text('sundayTime', 'Startzeit Sonntag', false, { placeholder: '19:00' }), text('fridayTime', 'Startzeit Freitag', false, { placeholder: '19:30' }),
       number('sortOrder', 'Rennrunde', false, { min: 1, step: 1 })
     ]
@@ -474,6 +587,7 @@ module.exports = {
       relation('SeasonId', 'Saison', models.Season, (row) => `${row.name} · ${row.scopeSlug}`, true),
       relation('LeagueId', 'Ligenseite', models.League, (row) => row.name, true),
       text('title', 'Rennen / GP', true), text('circuit', 'Strecke', true), date('raceDate', 'Datum', true),
+      select('raceType', 'Rennentyp', [['main', 'Hauptrennen'], ['sprint', 'Sprintrennen']], true),
       number('sortOrder', 'Rennrunde', false, { min: 1, step: 1 })
     ]
   },
@@ -503,25 +617,28 @@ module.exports = {
   lmuResultEntries: {
     title: 'LMU-Saisonverlauf', group: 'LMU',
     description: 'LMU-Platzierungen eintragen; Punkte, WM, GP-Results und Rennanzahl werden automatisch berechnet.', model: models.GrandPrixResultEntry,
-    prepareValues: prepareSeriesEntry, afterSave: syncSeriesEntry, afterRemove: recalculateDriverRaceCounts,
+    prepareValues: prepareSeriesEntry, afterSave: syncSeriesEntry, afterRemove: recalculateDriverRaceCounts, hidden: true,
     fields: [
       relation('GrandPrixResultId', 'LMU-Rennen', models.GrandPrixResult, (row) => `${row.season} · ${row.title}`, true, { where: { discipline: 'lmu' } }),
       relation('DriverId', 'Fahrer', models.Driver, (row) => `#${row.id} · ${row.name}`, true),
       number('position', 'Platz', false, { min: 1, step: 1 }),
       number('points', 'Punkte (automatisch)', false, { readonly: true, persist: false }),
       select('status', 'Status', [['', 'Gewertet'], ['DNF', 'DNF'], ['DNS', 'DNS'], ['DSQ', 'DSQ']], false),
+      checkbox('fastestLap', 'Schnellste Runde'),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   wdlResultEntries: {
     title: 'WDL-Saisonverlauf', group: 'WDL',
     description: 'Zwei Fahrerplätze je Liga eintragen; Punkte, Liga-Standings, Results und Diagramm entstehen automatisch.', model: models.WdlResultEntry,
-    prepareValues: prepareWdlResult, afterSave: syncWdlResult,
+    prepareValues: prepareWdlResult, afterSave: syncWdlResult, hidden: true,
     fields: [
       relation('GrandPrixResultId', 'WDL-Rennen', models.GrandPrixResult, (row) => `${row.season} · ${row.title}`, true, { where: { discipline: 'wdl' } }),
       relation('ParticipatingLeagueId', 'WDL-Liga', models.ParticipatingLeague, (row) => row.name, true),
       relation('Driver1Id', 'Fahrer 1', models.Driver, (row) => `#${row.id} · ${row.name}`), number('positionOne', 'Platz Fahrer 1', false, { min: 1, step: 1 }),
+      checkbox('fastestLapOne', 'Schnellste Runde Fahrer 1'),
       relation('Driver2Id', 'Fahrer 2', models.Driver, (row) => `#${row.id} · ${row.name}`), number('positionTwo', 'Platz Fahrer 2', false, { min: 1, step: 1 }),
+      checkbox('fastestLapTwo', 'Schnellste Runde Fahrer 2'),
       number('totalPoints', 'Gesamtpunkte (automatisch)', false, { readonly: true, persist: false }),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]

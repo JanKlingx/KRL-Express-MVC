@@ -46,3 +46,14 @@ test('Fahrer-ID hält Wertungen trotz Namenswechsel und Alias zusammen', () => {
   assert.equal(data.driverStandings[0].wins, 1);
   assert.equal(data.driverStandings[0].points, 25);
 });
+
+test('Sprintpunkte zählen zur WM, aber ein Sprintsieg nicht als Grand-Prix-Sieg', () => {
+  const data = buildSeasonData(league, [
+    { title: 'Sprint · Spa', raceType: 'sprint', sortOrder: 1, entries: [{ driverName: 'Fahrer A', teamName: 'Team Rot', position: 1, points: 8 }] },
+    { title: 'Großer Preis von Spa', raceType: 'main', sortOrder: 1, entries: [{ driverName: 'Fahrer A', teamName: 'Team Rot', position: 2, points: 18 }] }
+  ], drivers);
+  assert.equal(data.driverStandings[0].points, 26);
+  assert.equal(data.driverStandings[0].wins, 0);
+  assert.equal(data.teamStandings[0].wins, 0);
+  assert.equal(data.selectedHistory.races[0].title, 'Sprint · Spa');
+});
