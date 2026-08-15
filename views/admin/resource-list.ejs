@@ -14,6 +14,9 @@
     <% if (config.nextResource) { %>
       <div class="workflow-hint"><strong>Nächster Schritt:</strong> <a href="<%= adminBasePath %>/<%= config.nextResource %>"><%= config.nextLabel %> →</a></div>
     <% } %>
+    <% if (config.nextHref) { %>
+      <div class="workflow-hint"><strong>Nächster Schritt:</strong> <a href="<%= config.nextHref %>"><%= config.nextLabel %> →</a></div>
+    <% } %>
 
     <% if (config.filterByLeague) { %>
       <form class="admin-filter" method="get">

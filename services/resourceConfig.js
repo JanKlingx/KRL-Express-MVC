@@ -35,6 +35,40 @@ const listWhereForLeagueType = (type) => async () => {
 };
 
 const platformField = () => select('platform', 'Plattform', [['PC', 'PC'], ['PlayStation', 'PlayStation'], ['Xbox', 'Xbox']], true);
+const aliasesField = () => textarea('aliasesText', 'Aliase / frühere Namen', false, { persist: false, help: 'Mehrere Namen mit Komma oder jeweils in einer neuen Zeile trennen.' });
+
+async function prepareDriverForForm(entry) {
+  if (!entry?.id) return entry;
+  const values = typeof entry.toJSON === 'function' ? entry.toJSON() : { ...entry };
+  const aliases = await models.DriverAlias.findAll({ where: { DriverId: entry.id }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
+  return { ...values, aliasesText: aliases.map((alias) => alias.alias).join(', ') };
+}
+
+async function syncDriverAliases(driver, body) {
+  const aliases = [...new Set(String(body.aliasesText || '').split(/[,;\n]+/).map((alias) => alias.trim()).filter((alias) => alias && alias !== driver.name))];
+  await models.sequelize.transaction(async (transaction) => {
+    await models.DriverAlias.destroy({ where: { DriverId: driver.id }, transaction });
+    if (aliases.length) await models.DriverAlias.bulkCreate(aliases.map((alias, index) => ({ DriverId: driver.id, alias, sortOrder: index })), { transaction });
+  });
+}
+
+async function syncCalendarGrandPrix(event) {
+  const league = await models.League.findByPk(event.LeagueId);
+  if (!league || league.type !== 'f1') return;
+  let grandPrix = event.GrandPrixResultId && await models.GrandPrixResult.findByPk(event.GrandPrixResultId);
+  if (!grandPrix) {
+    grandPrix = await models.GrandPrixResult.create({ LeagueId: league.id, season: league.currentSeason, title: event.title, circuit: event.circuit, raceDate: event.startsAt, sortOrder: event.sortOrder });
+    await event.update({ GrandPrixResultId: grandPrix.id });
+  } else {
+    await grandPrix.update({ LeagueId: league.id, season: league.currentSeason, title: event.title, circuit: event.circuit, raceDate: event.startsAt, sortOrder: event.sortOrder });
+  }
+}
+
+async function removeCalendarGrandPrix(event) {
+  if (!event.GrandPrixResultId) return;
+  const grandPrix = await models.GrandPrixResult.findByPk(event.GrandPrixResultId);
+  if (grandPrix) await grandPrix.destroy();
+}
 
 async function prepareRaceEntry(values, body, existingEntry) {
   const [race, driver] = await Promise.all([
@@ -130,20 +164,12 @@ module.exports = {
     title: 'F1-Fahrer', group: 'F1 – Fahrer & Teams',
     description: 'F1-Stammfahrer je Liga verwalten und einem Team zuordnen.', model: models.Driver, filterByLeague: true, getListWhere: listWhereForLeagueType('f1'),
     upload: { field: 'avatarPath', label: 'Fahrerbild' },
-    prepareValues: prepareDriver,
+    prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncDriverAliases,
     fields: [
-      relation('LeagueId', 'Liga', models.League, (row) => row.name, true, { where: { type: 'f1' } }),
-      relation('TeamId', 'Team', models.Team, (row) => `${row.name} · Liga #${row.LeagueId}`), text('name', 'Fahrername', true),
-      number('number', 'Startnummer', false, { min: 0, step: 1 }), text('gamerTag', 'Gamertag'), platformField(), text('nationality', 'Nationalität'),
+      relation('LeagueId', 'Stammfahrer-Rolle', models.League, (row) => row.slug === 'freitag' ? 'Stamm Freitag' : row.slug === 'sonntag' ? 'Stamm Sonntag' : `Stamm ${row.name}`, true, { where: { type: 'f1' } }),
+      relation('TeamId', 'Team', models.Team, (row) => row.name), text('name', 'Fahrername', true), aliasesField(),
+      number('number', 'Startnummer', false, { min: 0, step: 1 }), platformField(), text('nationality', 'Nationalität'),
       text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
-    ]
-  },
-  driverAliases: {
-    title: 'Fahrer-Aliase', group: 'Fahrer-Stammdaten',
-    description: 'Frühere Namen einem stabilen Fahrer-Datensatz zuordnen.', model: models.DriverAlias,
-    fields: [
-      relation('DriverId', 'Fahrer', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`, true),
-      text('alias', 'Früherer Name / Alias', true), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   lmuTeams: {
@@ -157,27 +183,27 @@ module.exports = {
   lmuDrivers: {
     title: 'LMU-Fahrer', group: 'LMU – Stammdaten',
     description: 'LMU-Fahrer aus den Stammdaten Teams zuordnen.', model: models.Driver, filterByLeague: true, getListWhere: listWhereForLeagueType('lmu'),
-    upload: { field: 'avatarPath', label: 'Fahrerbild' }, prepareValues: prepareDriver,
+    upload: { field: 'avatarPath', label: 'Fahrerbild' }, prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncDriverAliases,
     fields: [
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
-      relation('TeamId', 'LMU-Team', models.Team, (row) => `${row.name} · Liga #${row.LeagueId}`), text('name', 'Fahrername', true),
-      text('gamerTag', 'Gamertag'), platformField(), text('nationality', 'Nationalität'), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      relation('TeamId', 'LMU-Team', models.Team, (row) => row.name), text('name', 'Fahrername', true), aliasesField(),
+      platformField(), text('nationality', 'Nationalität'), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   wdlDrivers: {
     title: 'WDL-Fahrer', group: 'Wettkampf der Ligen',
     description: 'WDL-Fahrer einer teilnehmenden Liga zuordnen.', model: models.Driver, getListWhere: listWhereForLeagueType('competition'),
-    upload: { field: 'avatarPath', label: 'Fahrerbild' }, prepareValues: prepareDriver,
+    upload: { field: 'avatarPath', label: 'Fahrerbild' }, prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncDriverAliases,
     fields: [
       relation('LeagueId', 'WDL-Wettbewerb', models.League, (row) => row.name, true, { where: { type: 'competition' } }),
       relation('ParticipatingLeagueId', 'Teilnehmende Liga / WDL-Team', models.ParticipatingLeague, (row) => row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name, true),
-      text('name', 'Fahrername', true), text('gamerTag', 'Gamertag'), platformField(), text('nationality', 'Nationalität'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      text('name', 'Fahrername', true), aliasesField(), platformField(), text('nationality', 'Nationalität'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   gpResults: {
     title: 'Grand Prix & Rennposter', group: 'F1 – Saisonverlauf',
     description: 'Zuerst ein Rennen anlegen und optional das Rennposter hochladen.', model: models.GrandPrixResult,
-    upload: { field: 'imagePath', label: 'Rennposter' },
+    upload: { field: 'imagePath', label: 'Rennposter' }, hidden: true,
     nextResource: 'gpResultEntries', nextLabel: 'Danach Fahrer klassifizieren',
     fields: [
       relation('LeagueId', 'Liga', models.League, (row) => row.name, true, { where: { type: 'f1' } }),
@@ -188,7 +214,7 @@ module.exports = {
   gpResultEntries: {
     title: 'Saisonverlauf eintragen', group: 'F1 – Saisonverlauf',
     description: 'Hier pro Rennen die Stammfahrer, Positionen und Punkte erfassen. GP-Results sowie Fahrer- und Team-WM werden daraus automatisch erzeugt.', model: models.GrandPrixResultEntry,
-    prepareValues: prepareRaceEntry,
+    prepareValues: prepareRaceEntry, hidden: true,
     prepareEntry: prepareRaceEntryForForm,
     fields: [
       relation('GrandPrixResultId', 'Grand Prix', models.GrandPrixResult, (row) => `${row.season} · ${row.title}`, true),
@@ -214,7 +240,8 @@ module.exports = {
   },
   f1Calendar: {
     title: 'F1-Rennkalender', group: 'Rennkalender',
-    description: 'F1-Termine pflegen; der nächste veröffentlichte Termin erscheint automatisch auf der Startseite.', model: models.RaceEvent, getListWhere: listWhereForLeagueType('f1'),
+    description: 'Rennen anlegen und anschließend direkt den tabellarischen Saisonverlauf pflegen.', model: models.RaceEvent, getListWhere: listWhereForLeagueType('f1'), afterSave: syncCalendarGrandPrix, beforeRemove: removeCalendarGrandPrix,
+    nextHref: '/admin/race-editor', nextLabel: 'Danach Saisonverlauf tabellarisch eingeben',
     fields: [
       relation('LeagueId', 'F1-Liga', models.League, (row) => row.name, true, { where: { type: 'f1' } }),
       text('title', 'Rennen', true), text('circuit', 'Strecke'), dateTime('startsAt', 'Startdatum und Uhrzeit', true),

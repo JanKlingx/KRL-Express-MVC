@@ -184,6 +184,8 @@ Driver.hasMany(GrandPrixResultEntry, { as: 'raceEntries', foreignKey: { name: 'D
 GrandPrixResultEntry.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: true } });
 League.hasMany(RaceEvent, { as: 'raceEvents', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 RaceEvent.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
+GrandPrixResult.hasOne(RaceEvent, { as: 'calendarEvent', foreignKey: { name: 'GrandPrixResultId', allowNull: true }, onDelete: 'SET NULL' });
+RaceEvent.belongsTo(GrandPrixResult, { as: 'grandPrixResult', foreignKey: { name: 'GrandPrixResultId', allowNull: true } });
 League.hasMany(LmuCockpit, { as: 'cockpits', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 LmuCockpit.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 LmuCockpit.belongsTo(Driver, { as: 'driverOne', foreignKey: { name: 'Driver1Id', allowNull: true }, onDelete: 'SET NULL' });
