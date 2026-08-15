@@ -21,8 +21,8 @@ async function seedF1(league, prefix) {
   const drivers = [];
   for (let i = 0; i < 8; i += 1) {
     const [driver] = await Driver.findOrCreate({
-      where: { LeagueId: league.id, gamerTag: `${prefix.toLowerCase()}_driver_${i + 1}` },
-      defaults: { LeagueId: league.id, TeamId: teams[i % teams.length].id, name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, gamerTag: `${prefix.toLowerCase()}_driver_${i + 1}`, nationality: i % 2 ? 'DE' : 'AT', car: teams[i % teams.length].car, sortOrder: i }
+      where: { LeagueId: league.id, name: `KRL Fahrer ${i + 1}` },
+      defaults: { LeagueId: league.id, TeamId: teams[i % teams.length].id, name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, nationality: i % 2 ? 'DE' : 'AT', car: teams[i % teams.length].car, sortOrder: i }
     });
     drivers.push(driver);
     await DriverStanding.findOrCreate({ where: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason }, defaults: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason, position: i + 1, points: 164 - i * 15, wins: Math.max(0, 4 - i), gap: i === 0 ? 'Leader' : `+${i * 15}`, sortOrder: i } });
@@ -109,10 +109,17 @@ async function run() {
   ];
   for (let index = 0; index < calendarData.length; index += 1) {
     const [league, title, circuit, startsAt] = calendarData[index];
-    await RaceEvent.findOrCreate({
+    const [event] = await RaceEvent.findOrCreate({
       where: { LeagueId: league.id, title },
       defaults: { LeagueId: league.id, title, circuit, startsAt, durationMinutes: league.type === 'lmu' ? 360 : 120, isPublished: true, sortOrder: index + 1 }
     });
+    if (league.type === 'f1') {
+      const [grandPrix] = await GrandPrixResult.findOrCreate({
+        where: { LeagueId: league.id, season: league.currentSeason, title },
+        defaults: { LeagueId: league.id, season: league.currentSeason, title, circuit, raceDate: startsAt, sortOrder: index + 1 }
+      });
+      if (event.GrandPrixResultId !== grandPrix.id) await event.update({ GrandPrixResultId: grandPrix.id });
+    }
   }
 
   const cockpitData = [

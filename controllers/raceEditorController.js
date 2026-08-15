@@ -6,9 +6,13 @@ const {
 const statuses = ['', 'DNF', 'DNS', 'DNQ', 'DSQ', 'DNA'];
 const standardPoints = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
-async function getRaces() {
+async function getRaces(leagueId) {
   return GrandPrixResult.findAll({
-    include: [{ model: League, as: 'league', where: { type: 'f1' } }],
+    where: leagueId ? { LeagueId: leagueId } : undefined,
+    include: [
+      { model: League, as: 'league', where: { type: 'f1' } },
+      { association: 'calendarEvent', required: true }
+    ],
     order: [[{ model: League, as: 'league' }, 'sortOrder', 'ASC'], ['season', 'DESC'], ['sortOrder', 'ASC']]
   });
 }
@@ -19,7 +23,10 @@ function findDriverEntry(driver, entries) {
 }
 
 exports.show = async (req, res) => {
-  const races = await getRaces();
+  const leagues = await League.findAll({ where: { type: 'f1' }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
+  const requestedLeagueId = Number(req.query.league);
+  const selectedLeague = leagues.find((league) => league.id === requestedLeagueId) || leagues[0] || null;
+  const races = await getRaces(selectedLeague?.id);
   const selectedId = Number(req.query.race) || races[0]?.id;
   const selectedRace = races.find((race) => race.id === selectedId) || null;
   let rows = [];
@@ -34,7 +41,7 @@ exports.show = async (req, res) => {
     ]);
     rows = drivers.map((driver) => ({ driver, entry: findDriverEntry(driver, entries) || null }));
   }
-  res.render('admin/race-editor', { title: 'Tabellarischer Saisonverlauf', races, selectedRace, rows, statuses, standardPoints });
+  res.render('admin/race-editor', { title: 'Tabellarischer Saisonverlauf', leagues, selectedLeague, races, selectedRace, rows, statuses, standardPoints });
 };
 
 exports.save = async (req, res) => {
@@ -55,7 +62,7 @@ exports.save = async (req, res) => {
     const position = Number(submitted.position);
     if (usedPositions.has(position)) {
       req.session.flash = { type: 'error', message: `Platz ${position} wurde doppelt vergeben (${usedPositions.get(position)} und ${driver.name}).` };
-      return res.redirect(`/admin/race-editor?race=${race.id}`);
+      return res.redirect(`/admin/race-editor?league=${race.LeagueId}&race=${race.id}`);
     }
     usedPositions.set(position, driver.name);
   }
@@ -90,5 +97,5 @@ exports.save = async (req, res) => {
   });
 
   req.session.flash = { type: 'success', message: `${race.title}: Saisonverlauf wurde tabellarisch gespeichert.` };
-  res.redirect(`/admin/race-editor?race=${race.id}`);
+  res.redirect(`/admin/race-editor?league=${race.LeagueId}&race=${race.id}`);
 };

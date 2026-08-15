@@ -67,7 +67,7 @@ function readValues(fields, body) {
 }
 
 exports.dashboard = async (req, res) => {
-  const modules = Object.entries(resourceConfig);
+  const modules = Object.entries(resourceConfig).filter(([, config]) => !config.hidden);
   const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count({ where: config.getListWhere ? await config.getListWhere() : {} })])));
   const groups = modules.reduce((result, [key, config]) => {
     const group = config.group || 'Weitere Inhalte';
@@ -128,7 +128,8 @@ exports.create = async (req, res, next) => {
         throw new Error(`${config.upload.label || 'Bild'} muss hochgeladen werden.`);
       }
     }
-    await config.model.create(values);
+    const entry = await config.model.create(values);
+    if (config.afterSave) await config.afterSave(entry, req.body);
     req.session.flash = { type: 'success', message: 'Eintrag wurde gespeichert.' };
     res.redirect(`${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
@@ -160,6 +161,7 @@ exports.update = async (req, res, next) => {
     }
     const oldPath = config.upload ? entry[config.upload.field] : null;
     await entry.update(values);
+    if (config.afterSave) await config.afterSave(entry, req.body);
     if (newPath && oldPath) await deleteUpload(oldPath);
     req.session.flash = { type: 'success', message: 'Änderungen wurden gespeichert.' };
     res.redirect(`${getBasePath(req)}/${req.params.resource}`);
@@ -175,6 +177,7 @@ exports.remove = async (req, res, next) => {
   const entry = await config.model.findByPk(req.params.id);
   if (!entry) return next();
   const imagePath = config.upload ? entry[config.upload.field] : null;
+  if (config.beforeRemove) await config.beforeRemove(entry);
   await entry.destroy();
   if (imagePath) await deleteUpload(imagePath);
   req.session.flash = { type: 'success', message: 'Eintrag wurde gelöscht.' };
