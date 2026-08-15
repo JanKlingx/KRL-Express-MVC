@@ -84,8 +84,38 @@ const GrandPrixResult = sequelize.define('GrandPrixResult', {
   title: { type: DataTypes.STRING, allowNull: false },
   circuit: DataTypes.STRING,
   raceDate: DataTypes.DATEONLY,
-  imagePath: { type: DataTypes.STRING, allowNull: false },
-  altText: { type: DataTypes.STRING, allowNull: false },
+  // Legacy columns remain populated so existing MariaDB installations can be
+  // upgraded without dropping the former PNG fields.
+  imagePath: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+  altText: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+  ...commonSort
+});
+
+const GrandPrixResultEntry = sequelize.define('GrandPrixResultEntry', {
+  position: DataTypes.INTEGER,
+  driverName: { type: DataTypes.STRING, allowNull: false },
+  teamName: DataTypes.STRING,
+  points: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 },
+  status: DataTypes.STRING,
+  fastestLap: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  ...commonSort
+});
+
+const LeagueHistorySource = sequelize.define('LeagueHistorySource', {
+  label: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Google Sheets' },
+  sheetUrl: {
+    type: DataTypes.TEXT,
+    allowNull: false,
+    validate: {
+      isGoogleSheetsUrl(value) {
+        let url;
+        try { url = new URL(value); } catch (error) { throw new Error('Bitte einen vollständigen Google-Sheets-Link eintragen.'); }
+        if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com' || !url.pathname.startsWith('/spreadsheets/')) {
+          throw new Error('Es sind nur öffentliche HTTPS-Links von docs.google.com erlaubt.');
+        }
+      }
+    }
+  },
   ...commonSort
 });
 
@@ -149,6 +179,10 @@ Team.hasMany(TeamStanding, { as: 'standings', foreignKey: { name: 'TeamId', allo
 TeamStanding.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: false } });
 League.hasMany(GrandPrixResult, { as: 'gpResults', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 GrandPrixResult.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
+GrandPrixResult.hasMany(GrandPrixResultEntry, { as: 'entries', foreignKey: { name: 'GrandPrixResultId', allowNull: false }, onDelete: 'CASCADE' });
+GrandPrixResultEntry.belongsTo(GrandPrixResult, { as: 'grandPrixResult', foreignKey: { name: 'GrandPrixResultId', allowNull: false } });
+League.hasOne(LeagueHistorySource, { as: 'historySource', foreignKey: { name: 'LeagueId', allowNull: false, unique: true }, onDelete: 'CASCADE' });
+LeagueHistorySource.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false, unique: true } });
 League.hasMany(LmuCockpit, { as: 'cockpits', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 LmuCockpit.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 League.hasMany(LmuStandingImage, { as: 'lmuStandingImages', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -168,6 +202,8 @@ module.exports = {
   DriverStanding,
   TeamStanding,
   GrandPrixResult,
+  GrandPrixResultEntry,
+  LeagueHistorySource,
   LmuCockpit,
   LmuStandingImage,
   ParticipatingLeague,

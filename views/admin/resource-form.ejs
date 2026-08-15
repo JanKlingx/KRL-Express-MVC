@@ -5,6 +5,7 @@
     <% config.fields.forEach(field => { const value = entry ? (entry[field.name] ?? '') : ''; %>
       <label><%= field.label %><% if (field.required) { %><span aria-hidden="true"> *</span><% } %>
         <% if (field.type === 'textarea') { %><textarea name="<%= field.name %>" rows="4" <%= field.required ? 'required' : '' %>><%= value %></textarea>
+        <% } else if (field.type === 'checkbox') { %><input type="checkbox" name="<%= field.name %>" <%= value ? 'checked' : '' %>>
         <% } else { %><input type="<%= field.type %>" name="<%= field.name %>" value="<%= value %>" <%= field.required ? 'required' : '' %> <%= field.type === 'number' ? 'step="any"' : '' %>><% } %>
       </label>
     <% }) %>

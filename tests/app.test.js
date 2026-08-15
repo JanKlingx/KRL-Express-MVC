@@ -1,10 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const request = require('supertest');
 const app = require('../app');
-const { sequelize, GrandPrixResult } = require('../models');
+const { sequelize, GrandPrixResult, GrandPrixResultEntry } = require('../models');
 
 const publicPages = [
   ['/', 'KATZES RACING LEAGUE'],
@@ -38,36 +36,40 @@ test('Admin kann sich anmelden und Dashboard öffnen', async () => {
   assert.match(dashboard.text, /ADMIN-DASHBOARD/);
 });
 
-test('Ungültige PNG-Signatur wird abgelehnt und nicht gespeichert', async () => {
+test('Grand Prix und Klassifikation werden ohne PNG verwaltet', async () => {
   const agent = request.agent(app);
   await agent.post('/admin/login').type('form').send({ email: 'admin@krl.test', password: 'TestPasswort123' });
-  const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
-  const before = fs.readdirSync(uploadDir).length;
-  const response = await agent.post('/admin/gpResults')
-    .field('LeagueId', '1').field('season', 'Saison 12').field('title', 'Ungültig')
-    .field('altText', 'Ungültige Testdatei').field('sortOrder', '99')
-    .attach('image', Buffer.from('keine png datei'), { filename: 'test.png', contentType: 'image/png' });
-  assert.equal(response.status, 400);
-  assert.equal(fs.readdirSync(uploadDir).length, before);
-});
-
-test('Gültige PNG-Datei wird gespeichert und beim Löschen entfernt', async () => {
-  const agent = request.agent(app);
-  await agent.post('/admin/login').type('form').send({ email: 'admin@krl.test', password: 'TestPasswort123' });
-  const onePixelPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
-  const create = await agent.post('/admin/gpResults')
-    .field('LeagueId', '1').field('season', 'Saison 12').field('title', 'Upload-Funktionstest')
-    .field('altText', 'Ein Pixel als Upload-Funktionstest').field('sortOrder', '99')
-    .attach('image', onePixelPng, { filename: 'ergebnis.png', contentType: 'image/png' });
+  const title = `Render-Funktionstest-${Date.now()}`;
+  const create = await agent.post('/admin/gpResults').type('form').send({
+    LeagueId: 1,
+    season: 'Saison 12',
+    title,
+    circuit: 'Teststrecke',
+    raceDate: '2026-08-15',
+    sortOrder: 99
+  });
   assert.equal(create.status, 302);
-  const entry = await GrandPrixResult.findOne({ where: { title: 'Upload-Funktionstest' } });
-  assert.ok(entry);
-  const absolutePath = path.join(__dirname, '..', 'public', entry.imagePath);
-  assert.equal(fs.existsSync(absolutePath), true);
-  const remove = await agent.delete(`/admin/gpResults/${entry.id}`);
+  const grandPrix = await GrandPrixResult.findOne({ where: { title } });
+  assert.ok(grandPrix);
+
+  const classificationResponse = await agent.post('/admin/gpResultEntries').type('form').send({
+    GrandPrixResultId: grandPrix.id,
+    position: 1,
+    driverName: 'Testfahrer',
+    teamName: 'KRL Testteam',
+    points: 26,
+    fastestLap: 'on',
+    sortOrder: 1
+  });
+  assert.equal(classificationResponse.status, 302);
+  const classification = await GrandPrixResultEntry.findOne({ where: { GrandPrixResultId: grandPrix.id } });
+  assert.equal(classification.driverName, 'Testfahrer');
+  assert.equal(classification.fastestLap, true);
+
+  const remove = await agent.delete(`/admin/gpResults/${grandPrix.id}`);
   assert.equal(remove.status, 302);
-  assert.equal(await GrandPrixResult.findByPk(entry.id), null);
-  assert.equal(fs.existsSync(absolutePath), false);
+  assert.equal(await GrandPrixResult.findByPk(grandPrix.id), null);
+  assert.equal(await GrandPrixResultEntry.findByPk(classification.id), null);
 });
 
 test.after(async () => {

@@ -1,9 +1,38 @@
 <%- include('partials/header', { title }) %>
-<section class="league-hero" style="--accent:<%= league.accentColor %>"><div class="container"><span class="eyebrow">FORMEL 1 · <%= league.currentSeason %></span><h1><%= league.name %></h1><p><%= league.description %></p><div class="facts"><span>Renntag <strong><%= league.raceDay %></strong></span><span>Start <strong><%= league.raceTime %></strong></span><span>Saison <strong><%= league.currentSeason %></strong></span></div></div></section>
-<section class="section container"><div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>FAHRERFELD</h2></div><div class="driver-grid">
-  <% drivers.forEach(driver => { %><article class="driver-card"><div class="driver-number"><%= driver.number || '–' %></div><div class="avatar"><%= driver.name.charAt(0) %></div><h3><%= driver.name %></h3><span><%= driver.team ? driver.team.name : 'Privatteam' %></span><small><%= driver.nationality || '' %> · <%= driver.car || (driver.team && driver.team.car) || 'F1' %></small></article><% }) %>
-</div></section>
-<section class="section section-dark"><div class="container standings-grid"><div><div class="section-heading left"><span>AKTUELLER STAND</span><h2>FAHRER-WM</h2></div><div class="table-wrap"><table><thead><tr><th>Pos.</th><th>Fahrer</th><th>Team</th><th>Punkte</th><th>Siege</th></tr></thead><tbody><% driverStandings.forEach(row => { %><tr><td><strong><%= row.position %></strong></td><td><%= row.driver.name %></td><td><%= row.driver.team ? row.driver.team.name : '–' %></td><td><strong><%= row.points %></strong></td><td><%= row.wins %></td></tr><% }) %></tbody></table></div></div>
-<div><div class="section-heading left"><span>KONSTRUKTEURE</span><h2>TEAM-WM</h2></div><div class="table-wrap"><table><thead><tr><th>Pos.</th><th>Team</th><th>Punkte</th><th>Siege</th><th>Gap</th></tr></thead><tbody><% teamStandings.forEach(row => { %><tr><td><strong><%= row.position %></strong></td><td><%= row.team.name %></td><td><strong><%= row.points %></strong></td><td><%= row.wins %></td><td><%= row.gap || '–' %></td></tr><% }) %></tbody></table></div></div></div></section>
-<section class="section container"><div class="section-heading"><span>RENNEN FÜR RENNEN</span><h2>GP-ERGEBNISSE</h2></div><%- include('partials/carousel', { items: gpResults, label: 'Grand-Prix-Ergebnisse' }) %></section>
+<div class="league-page" style="--accent:<%= league.accentColor %>">
+  <section class="league-hero">
+    <div class="container">
+      <span class="eyebrow">FORMEL 1 · <%= league.currentSeason %></span>
+      <h1><%= league.name %></h1>
+      <p><%= league.description %></p>
+      <div class="facts"><span>Renntag <strong><%= league.raceDay %></strong></span><span>Start <strong><%= league.raceTime %></strong></span><span>Saison <strong><%= league.currentSeason %></strong></span></div>
+    </div>
+  </section>
+
+  <section class="section container">
+    <div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>FAHRERFELD</h2></div>
+    <div class="driver-grid">
+      <% drivers.forEach(driver => { %><article class="driver-card"><div class="driver-number"><%= driver.number || '–' %></div><div class="avatar"><%= driver.name.charAt(0) %></div><h3><%= driver.name %></h3><span><%= driver.team ? driver.team.name : 'Privatteam' %></span><small><%= driver.nationality || '' %> · <%= driver.car || (driver.team && driver.team.car) || 'F1' %></small></article><% }) %>
+    </div>
+  </section>
+
+  <section class="section section-dark">
+    <div class="container standings-grid">
+      <div><div class="section-heading left"><span>AKTUELLER STAND</span><h2>FAHRER-WM</h2></div><div class="table-wrap"><table><thead><tr><th>Pos.</th><th>Fahrer</th><th>Team</th><th>Punkte</th><th>Siege</th></tr></thead><tbody><% driverStandings.forEach(row => { %><tr><td><strong><%= row.position %></strong></td><td><%= row.driver.name %></td><td><%= row.driver.team ? row.driver.team.name : '–' %></td><td><strong><%= row.points %></strong></td><td><%= row.wins %></td></tr><% }) %></tbody></table></div></div>
+      <div><div class="section-heading left"><span>KONSTRUKTEURE</span><h2>TEAM-WM</h2></div><div class="table-wrap"><table><thead><tr><th>Pos.</th><th>Team</th><th>Punkte</th><th>Siege</th><th>Gap</th></tr></thead><tbody><% teamStandings.forEach(row => { %><tr><td><strong><%= row.position %></strong></td><td><%= row.team.name %></td><td><strong><%= row.points %></strong></td><td><%= row.wins %></td><td><%= row.gap || '–' %></td></tr><% }) %></tbody></table></div></div>
+    </div>
+  </section>
+
+  <section class="section container gp-results-section">
+    <div class="section-heading"><span>RENNEN FÜR RENNEN</span><h2>GP-ERGEBNISSE</h2></div>
+    <%- include('partials/gp-results', { items: gpResults, label: 'Grand-Prix-Ergebnisse' }) %>
+  </section>
+
+  <section class="section section-dark season-history-section" id="season-history">
+    <div class="container">
+      <div class="section-heading"><span>VOM AUFTAKT BIS ZUM FINALE</span><h2>SAISONVERLAUF</h2></div>
+      <%- include('partials/season-history', { history, selectedHistory, league }) %>
+    </div>
+  </section>
+</div>
 <%- include('partials/footer') %>
