@@ -21,21 +21,30 @@ function buildSeasonData(leagueValue, resultValues, driverValues = []) {
     number(left.sortOrder) - number(right.sortOrder) || String(left.raceDate || '').localeCompare(String(right.raceDate || ''))
   );
   const drivers = new Map();
+  const namesToKeys = new Map();
 
   driverValues.map(plain).forEach((driver) => {
-    drivers.set(driver.name, {
+    const key = driver.id ? `id:${driver.id}` : `name:${driver.name}`;
+    drivers.set(key, {
+      id: driver.id || null,
       name: driver.name,
       team: plain(driver.team)?.name || 'Privatteam',
       results: [],
       total: 0,
       wins: 0
     });
+    namesToKeys.set(driver.name, key);
+    (driver.aliases || []).map(plain).forEach((alias) => namesToKeys.set(alias.alias, key));
   });
+
+  const keyForEntry = (entry) => entry.DriverId ? `id:${entry.DriverId}` : (namesToKeys.get(entry.driverName) || `name:${entry.driverName}`);
 
   races.forEach((race) => {
     (race.entries || []).map(plain).forEach((entry) => {
-      if (!drivers.has(entry.driverName)) {
-        drivers.set(entry.driverName, {
+      const key = keyForEntry(entry);
+      if (!drivers.has(key)) {
+        drivers.set(key, {
+          id: entry.DriverId || null,
           name: entry.driverName,
           team: entry.teamName || 'Privatteam',
           results: [],
@@ -46,10 +55,10 @@ function buildSeasonData(leagueValue, resultValues, driverValues = []) {
     });
   });
 
-  for (const driver of drivers.values()) {
+  for (const [driverKey, driver] of drivers.entries()) {
     let cumulative = 0;
     driver.results = races.map((race) => {
-      const entry = (race.entries || []).map(plain).find((candidate) => candidate.driverName === driver.name);
+      const entry = (race.entries || []).map(plain).find((candidate) => keyForEntry(candidate) === driverKey);
       if (!entry) return { value: '–', points: 0, cumulative, status: null, position: null, fastestLap: false };
       const points = number(entry.points);
       const position = number(entry.position) || null;

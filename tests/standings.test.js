@@ -36,3 +36,13 @@ test('CSV-Downloads sind Excel-kompatibel und maskieren Trennzeichen', () => {
   assert.ok(csv.startsWith('\uFEFF'));
   assert.match(csv, /"Rot;Blau"/);
 });
+
+test('Fahrer-ID hält Wertungen trotz Namenswechsel und Alias zusammen', () => {
+  const data = buildSeasonData(league, [{
+    title: 'Test GP', sortOrder: 1, entries: [{ DriverId: 77, driverName: 'Alter Name', teamName: 'Team Rot', position: 1, points: 25 }]
+  }], [{ id: 77, name: 'Neuer Name', team: { name: 'Team Rot' }, aliases: [{ alias: 'Alter Name' }] }]);
+  assert.equal(data.driverStandings.length, 1);
+  assert.equal(data.driverStandings[0].driver.name, 'Neuer Name');
+  assert.equal(data.driverStandings[0].wins, 1);
+  assert.equal(data.driverStandings[0].points, 25);
+});

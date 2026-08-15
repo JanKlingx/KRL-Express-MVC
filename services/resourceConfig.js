@@ -1,4 +1,5 @@
 const models = require('../models');
+const { Op } = require('sequelize');
 
 const field = (name, label, type = 'text', required = false, options = {}) => ({
   name, label, type, required, ...options
@@ -7,6 +8,7 @@ const number = (name, label, required = false, options = {}) => field(name, labe
 const text = (name, label, required = false, options = {}) => field(name, label, 'text', required, options);
 const textarea = (name, label, required = false, options = {}) => field(name, label, 'textarea', required, options);
 const date = (name, label, required = false, options = {}) => field(name, label, 'date', required, options);
+const dateTime = (name, label, required = false, options = {}) => field(name, label, 'datetime-local', required, options);
 const url = (name, label, required = false, options = {}) => field(name, label, 'url', required, options);
 const checkbox = (name, label, options = {}) => field(name, label, 'checkbox', false, options);
 const select = (name, label, choices, required = false, options = {}) => field(name, label, 'select', required, { choices, ...options });
@@ -17,10 +19,22 @@ const relation = (name, label, model, formatOption, required = false, options = 
 });
 
 async function prepareDriver(values) {
-  if (!values.TeamId) return;
-  const team = await models.Team.findByPk(values.TeamId);
-  if (!team || team.LeagueId !== Number(values.LeagueId)) throw new Error('Das ausgewählte Team gehört nicht zur ausgewählten Liga.');
+  if (values.TeamId) {
+    const team = await models.Team.findByPk(values.TeamId);
+    if (!team || team.LeagueId !== Number(values.LeagueId)) throw new Error('Das ausgewählte Team gehört nicht zur ausgewählten Liga.');
+  }
+  if (values.ParticipatingLeagueId) {
+    const participant = await models.ParticipatingLeague.findByPk(values.ParticipatingLeagueId);
+    if (!participant) throw new Error('Die ausgewählte WDL-Liga existiert nicht.');
+  }
 }
+
+const listWhereForLeagueType = (type) => async () => {
+  const leagues = await models.League.findAll({ where: { type }, attributes: ['id'] });
+  return { LeagueId: { [Op.in]: leagues.map((league) => league.id) } };
+};
+
+const platformField = () => select('platform', 'Plattform', [['PC', 'PC'], ['PlayStation', 'PlayStation'], ['Xbox', 'Xbox']], true);
 
 async function prepareRaceEntry(values, body, existingEntry) {
   const [race, driver] = await Promise.all([
@@ -30,19 +44,43 @@ async function prepareRaceEntry(values, body, existingEntry) {
   if (!race || !driver) throw new Error('Grand Prix und Stammfahrer müssen ausgewählt werden.');
   if (race.LeagueId !== driver.LeagueId) throw new Error('Der Stammfahrer gehört nicht zur Liga dieses Grand Prix.');
   const duplicate = await models.GrandPrixResultEntry.findOne({
-    where: { GrandPrixResultId: race.id, driverName: driver.name }
+    where: { GrandPrixResultId: race.id, [Op.or]: [{ DriverId: driver.id }, { driverName: driver.name }] }
   });
   if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Für diesen Stammfahrer existiert bei diesem Grand Prix bereits ein Ergebnis.');
   values.driverName = driver.name;
   values.teamName = driver.team?.name || 'Privatteam';
+  values.DriverId = driver.id;
 }
 
 async function prepareRaceEntryForForm(entry) {
   if (!entry?.driverName) return entry;
   const values = typeof entry.toJSON === 'function' ? entry.toJSON() : { ...entry };
+  if (values.DriverId) return values;
   const race = await models.GrandPrixResult.findByPk(values.GrandPrixResultId);
   const driver = race && await models.Driver.findOne({ where: { LeagueId: race.LeagueId, name: values.driverName } });
   return { ...values, DriverId: driver?.id || '' };
+}
+
+async function prepareCockpit(values) {
+  const mappings = [['Driver1Id', 'driver1'], ['Driver2Id', 'driver2'], ['Driver3Id', 'driver3'], ['ReserveDriverId', 'reserveDriver']];
+  for (const [idField, nameField] of mappings) {
+    if (!values[idField]) { values[nameField] = null; continue; }
+    const driver = await models.Driver.findByPk(values[idField]);
+    if (!driver || driver.LeagueId !== Number(values.LeagueId)) throw new Error('Alle ausgewählten Cockpit-Fahrer müssen zur gewählten LMU-Liga gehören.');
+    values[nameField] = driver.name;
+  }
+}
+
+async function prepareWdlStanding(values) {
+  const participantId = Number(values.ParticipatingLeagueId);
+  const selected = [];
+  for (const fieldName of ['Driver1Id', 'Driver2Id']) {
+    if (!values[fieldName]) continue;
+    const driver = await models.Driver.findByPk(values[fieldName]);
+    if (!driver || driver.ParticipatingLeagueId !== participantId) throw new Error('Die ausgewählten WDL-Fahrer müssen zur teilnehmenden Liga gehören.');
+    selected.push(driver.name);
+  }
+  values.drivers = selected.join(' / ') || null;
 }
 
 module.exports = {
@@ -82,22 +120,58 @@ module.exports = {
   },
   teams: {
     title: 'F1-Teams', group: 'F1 – Fahrer & Teams',
-    description: 'Teams einer F1-Liga verwalten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' },
+    description: 'Teams einer F1-Liga verwalten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('f1'),
     fields: [
       relation('LeagueId', 'Liga', models.League, (row) => `${row.name} · ${row.currentSeason}`, true, { where: { type: 'f1' } }),
       text('name', 'Teamname', true), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   drivers: {
-    title: 'Stammfahrer-Verwaltung', group: 'F1 – Fahrer & Teams',
-    description: 'Stammfahrer je F1-Liga verwalten und einem Team zuordnen.', model: models.Driver, filterByLeague: true,
+    title: 'F1-Fahrer', group: 'F1 – Fahrer & Teams',
+    description: 'F1-Stammfahrer je Liga verwalten und einem Team zuordnen.', model: models.Driver, filterByLeague: true, getListWhere: listWhereForLeagueType('f1'),
     upload: { field: 'avatarPath', label: 'Fahrerbild' },
     prepareValues: prepareDriver,
     fields: [
       relation('LeagueId', 'Liga', models.League, (row) => row.name, true, { where: { type: 'f1' } }),
       relation('TeamId', 'Team', models.Team, (row) => `${row.name} · Liga #${row.LeagueId}`), text('name', 'Fahrername', true),
-      number('number', 'Startnummer', false, { min: 0, step: 1 }), text('gamerTag', 'Gamertag'), text('nationality', 'Nationalität'),
+      number('number', 'Startnummer', false, { min: 0, step: 1 }), text('gamerTag', 'Gamertag'), platformField(), text('nationality', 'Nationalität'),
       text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  driverAliases: {
+    title: 'Fahrer-Aliase', group: 'Fahrer-Stammdaten',
+    description: 'Frühere Namen einem stabilen Fahrer-Datensatz zuordnen.', model: models.DriverAlias,
+    fields: [
+      relation('DriverId', 'Fahrer', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`, true),
+      text('alias', 'Früherer Name / Alias', true), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  lmuTeams: {
+    title: 'LMU-Teams', group: 'LMU – Stammdaten',
+    description: 'Teams und Fahrzeuge der LMU-Liga verwalten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('lmu'),
+    fields: [
+      relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
+      text('name', 'Teamname', true), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  lmuDrivers: {
+    title: 'LMU-Fahrer', group: 'LMU – Stammdaten',
+    description: 'LMU-Fahrer aus den Stammdaten Teams zuordnen.', model: models.Driver, filterByLeague: true, getListWhere: listWhereForLeagueType('lmu'),
+    upload: { field: 'avatarPath', label: 'Fahrerbild' }, prepareValues: prepareDriver,
+    fields: [
+      relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
+      relation('TeamId', 'LMU-Team', models.Team, (row) => `${row.name} · Liga #${row.LeagueId}`), text('name', 'Fahrername', true),
+      text('gamerTag', 'Gamertag'), platformField(), text('nationality', 'Nationalität'), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  wdlDrivers: {
+    title: 'WDL-Fahrer', group: 'Wettkampf der Ligen',
+    description: 'WDL-Fahrer einer teilnehmenden Liga zuordnen.', model: models.Driver, getListWhere: listWhereForLeagueType('competition'),
+    upload: { field: 'avatarPath', label: 'Fahrerbild' }, prepareValues: prepareDriver,
+    fields: [
+      relation('LeagueId', 'WDL-Wettbewerb', models.League, (row) => row.name, true, { where: { type: 'competition' } }),
+      relation('ParticipatingLeagueId', 'Teilnehmende Liga / WDL-Team', models.ParticipatingLeague, (row) => row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name, true),
+      text('name', 'Fahrername', true), text('gamerTag', 'Gamertag'), platformField(), text('nationality', 'Nationalität'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   gpResults: {
@@ -119,7 +193,7 @@ module.exports = {
     fields: [
       relation('GrandPrixResultId', 'Grand Prix', models.GrandPrixResult, (row) => `${row.season} · ${row.title}`, true),
       number('position', 'Platz', false, { min: 1, step: 1, help: 'Bei DNS/DNQ kann das Feld leer bleiben.' }),
-      relation('DriverId', 'Stammfahrer', models.Driver, (row) => `${row.name} · Liga #${row.LeagueId}`, true, { persist: false }),
+      relation('DriverId', 'Stammfahrer', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`, true),
       number('points', 'Punkte', true, { min: 0, step: 0.5 }),
       select('status', 'Rennstatus', [['', 'Gewertet / Zieleinlauf'], ['DNF', 'DNF – nicht beendet'], ['DNS', 'DNS – nicht gestartet'], ['DNQ', 'DNQ – nicht qualifiziert'], ['DSQ', 'DSQ – disqualifiziert'], ['DNA', 'DNA – nicht angetreten']], false),
       checkbox('fastestLap', 'Schnellste Runde'), number('sortOrder', 'Reihenfolge', false, { min: 0, step: 1 })
@@ -127,12 +201,33 @@ module.exports = {
   },
   cockpits: {
     title: 'LMU-Cockpits', group: 'LMU',
-    description: 'Fahrzeuge und Fahrerbesetzungen verwalten.', model: models.LmuCockpit, upload: { field: 'logoPath', label: 'Cockpit-/Teamlogo' },
+    description: 'Fahrzeuge und Fahrerbesetzungen aus den LMU-Stammdaten auswählen.', model: models.LmuCockpit, upload: { field: 'logoPath', label: 'Cockpit-/Teamlogo' }, prepareValues: prepareCockpit,
     fields: [
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
-      text('teamName', 'Teamname', true), text('car', 'Fahrzeug'), text('vehicleClass', 'Klasse'),
-      text('carNumber', 'Startnummer'), text('driver1', 'Fahrer 1'), text('driver2', 'Fahrer 2'), text('driver3', 'Fahrer 3'),
-      text('reserveDriver', 'Ersatzfahrer'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      text('teamName', 'Teamname', true), text('car', 'Fahrzeug'), text('vehicleClass', 'Klasse'), text('carNumber', 'Startnummer'),
+      relation('Driver1Id', 'Fahrer 1', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`),
+      relation('Driver2Id', 'Fahrer 2', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`),
+      relation('Driver3Id', 'Fahrer 3', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`),
+      relation('ReserveDriverId', 'Ersatzfahrer', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`),
+      number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  f1Calendar: {
+    title: 'F1-Rennkalender', group: 'Rennkalender',
+    description: 'F1-Termine pflegen; der nächste veröffentlichte Termin erscheint automatisch auf der Startseite.', model: models.RaceEvent, getListWhere: listWhereForLeagueType('f1'),
+    fields: [
+      relation('LeagueId', 'F1-Liga', models.League, (row) => row.name, true, { where: { type: 'f1' } }),
+      text('title', 'Rennen', true), text('circuit', 'Strecke'), dateTime('startsAt', 'Startdatum und Uhrzeit', true),
+      number('durationMinutes', 'Dauer in Minuten', false, { min: 1, step: 1 }), checkbox('isPublished', 'Auf Webseite anzeigen'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  lmuCalendar: {
+    title: 'LMU-Rennkalender', group: 'Rennkalender',
+    description: 'LMU-Termine pflegen; der nächste veröffentlichte Termin erscheint automatisch auf der Startseite.', model: models.RaceEvent, getListWhere: listWhereForLeagueType('lmu'),
+    fields: [
+      relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
+      text('title', 'Rennen', true), text('circuit', 'Strecke'), dateTime('startsAt', 'Startdatum und Uhrzeit', true),
+      number('durationMinutes', 'Dauer in Minuten', false, { min: 1, step: 1 }), checkbox('isPublished', 'Auf Webseite anzeigen'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   lmuStandingImages: {
@@ -145,7 +240,7 @@ module.exports = {
     ]
   },
   participatingLeagues: {
-    title: 'Teilnehmende Ligen', group: 'Wettkampf der Ligen',
+    title: 'WDL-Teams / Ligen', group: 'Wettkampf der Ligen',
     description: 'Communities und Konstrukteure für den WDL verwalten.', model: models.ParticipatingLeague, upload: { field: 'logoPath', label: 'Liga-Logo' },
     fields: [
       text('name', 'Liganame', true), text('abbreviation', 'Kürzel', false, { placeholder: 'KRL' }), text('constructorName', 'Konstrukteur'),
@@ -154,10 +249,12 @@ module.exports = {
   },
   competitionStandings: {
     title: 'WDL-Teamstandings', group: 'Wettkampf der Ligen',
-    description: 'Platzierung und Punkte der teilnehmenden Ligen pflegen.', model: models.LeagueCompetitionStanding,
+    description: 'Platzierung, Punkte und Fahrer aus den WDL-Stammdaten pflegen.', model: models.LeagueCompetitionStanding, prepareValues: prepareWdlStanding,
     fields: [
       relation('ParticipatingLeagueId', 'Teilnehmende Liga', models.ParticipatingLeague, (row) => row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name, true),
-      number('position', 'Position', true, { min: 1, step: 1 }), text('drivers', 'Fahrer', false, { placeholder: 'Fahrer 1 / Fahrer 2' }),
+      number('position', 'Position', true, { min: 1, step: 1 }),
+      relation('Driver1Id', 'Fahrer 1', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`),
+      relation('Driver2Id', 'Fahrer 2', models.Driver, (row) => `#${row.id} · ${row.name} · ${row.platform}`),
       text('constructorName', 'Konstrukteur'), number('points', 'Punkte', true, { min: 0, step: 0.5 }),
       number('wins', 'Siege', false, { min: 0, step: 1 }), text('gap', 'Rückstand'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]

@@ -30,6 +30,8 @@ Im Dashboard lassen sich folgende Inhalte anlegen, bearbeiten und löschen:
 
 - Startseitenstatistiken und Teamstruktur
 - Ligen, F1-Teams und ligaweise gefilterte Stammfahrer
+- getrennte F1-, LMU- und WDL-Fahrer-/Team-Stammdaten
+- stabile Fahrer-IDs mit Plattform und beliebig vielen früheren Namen/Aliasen
 - Grand Prix und Saisonverlaufszeilen mit deutlich sichtbaren Podiums- und Statusmarkierungen (DNF, DNS, DNQ, DSQ, DNA)
 - automatisch erzeugte Fahrer-WM, Team-WM und GP-Results
 - LMU-Cockpits und LMU-WM-Grafiken
@@ -40,6 +42,10 @@ Alle Bilder werden ausschließlich als PNG, JPG oder WebP vom eigenen Gerät hoc
 ## GP-Ergebnisse und Saisonverlauf
 
 Ein Grand Prix wird zuerst unter `Grand Prix & Rennposter` angelegt. Danach werden unter `Saisonverlauf eintragen` Stammfahrer, Platz, Status und Punkte erfasst. Diese Einträge sind die einzige Ergebnisquelle: Die öffentliche Seite erzeugt daraus automatisch GP-Results, Fahrer-WM, Team-WM, Punkteverlauf und Saisonmatrix. In jeder Rennspalte werden P1, P2 und P3 in Gold, Silber und Bronze hervorgehoben.
+
+Für die schnelle Eingabe steht unter `/admin/race-editor` eine tabellarische, Google-Sheets-ähnliche Ansicht bereit. Dort wird ein Rennen ausgewählt und das komplette Fahrerfeld gemeinsam gespeichert. Rennergebnisse referenzieren die stabile Fahrer-ID; Namenswechsel werden deshalb über Aliase hinweg korrekt zusammengezählt.
+
+F1- und LMU-Rennkalender werden im Adminbereich gepflegt. Der zeitlich nächste veröffentlichte Termin beider Disziplinen erscheint automatisch auf der Startseite. Angemeldete Admins sehen auf den öffentlichen F1-, LMU- und WDL-Seiten direkte Stift-Links zur jeweiligen Stammdatenpflege.
 
 Fahrer-WM, Team-WM und sämtliche GP-Results lassen sich auf der jeweiligen Ligaseite als Excel-kompatible CSV-Datei herunterladen.
 

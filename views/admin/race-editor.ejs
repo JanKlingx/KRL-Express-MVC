@@ -1,0 +1,33 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container">
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">F1 – Saisonverlauf</span><h1>TABELLARISCHE RENNEINGABE</h1><p class="admin-intro">Wie in Google Sheets: Rennen auswählen, Fahrer aktivieren und Platz, Status sowie Punkte direkt in einer Tabelle eintragen.</p></div></div>
+
+  <form class="race-selector" method="get" action="/admin/race-editor">
+    <label for="race">Grand Prix auswählen</label>
+    <select id="race" name="race" onchange="this.form.submit()">
+      <% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>><%= race.league.name %> · <%= race.season %> · R<%= race.sortOrder %> · <%= race.title %></option><% }) %>
+    </select>
+    <noscript><button class="button button-small" type="submit">Öffnen</button></noscript>
+  </form>
+
+  <% if (!selectedRace) { %><div class="empty-state">Lege zuerst unter „Grand Prix & Rennposter“ ein Rennen an.</div><% } else { %>
+    <form method="post" action="/admin/race-editor/<%= selectedRace.id %>" class="race-sheet-form">
+      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedRace.season %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
+      <div class="table-wrap race-sheet"><table><thead><tr><th>Dabei</th><th>ID</th><th>Fahrer / Aliase</th><th>Plattform</th><th>Team</th><th>Platz</th><th>Status</th><th>Punkte</th><th>SR</th></tr></thead><tbody>
+        <% rows.forEach(({ driver, entry }) => { %><tr class="<%= entry ? 'sheet-row-active' : '' %>">
+          <td><input type="checkbox" name="rows[<%= driver.id %>][included]" <%= entry ? 'checked' : '' %> aria-label="<%= driver.name %> berücksichtigen"></td>
+          <td><strong>#<%= driver.id %></strong></td>
+          <td><strong><%= driver.name %></strong><% if (driver.aliases.length) { %><small><%= driver.aliases.map((alias) => alias.alias).join(' · ') %></small><% } %></td>
+          <td><%= driver.platform %></td><td><%= driver.team?.name || 'Privatteam' %></td>
+          <td><input type="number" min="1" name="rows[<%= driver.id %>][position]" value="<%= entry?.position || '' %>" aria-label="Platz <%= driver.name %>"></td>
+          <td><select name="rows[<%= driver.id %>][status]" aria-label="Status <%= driver.name %>"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= String(entry?.status || '') === status ? 'selected' : '' %>><%= status || 'Gewertet' %></option><% }) %></select></td>
+          <td><input type="number" min="0" step="0.5" name="rows[<%= driver.id %>][points]" value="<%= entry ? Number(entry.points) : '' %>" aria-label="Punkte <%= driver.name %>"></td>
+          <td><input type="checkbox" name="rows[<%= driver.id %>][fastestLap]" <%= entry?.fastestLap ? 'checked' : '' %> aria-label="Schnellste Runde <%= driver.name %>"></td>
+        </tr><% }) %>
+      </tbody></table></div>
+      <div class="sheet-help">Leere Punkte werden anhand der Standardplätze P1–P10 automatisch mit 25–18–15–12–10–8–6–4–2–1 vorbelegt. Nicht aktivierte Fahrer werden für dieses Rennen entfernt.</div>
+      <button class="button" type="submit">Gesamte Tabelle speichern</button>
+    </form>
+  <% } %>
+</div></section>
+<%- include('../partials/footer') %>

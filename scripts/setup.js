@@ -2,9 +2,10 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const {
   sequelize, User, SiteStatistic, TeamCategory, TeamMember, League, Team, Driver,
-  DriverStanding, TeamStanding, GrandPrixResult, GrandPrixResultEntry, LmuCockpit, LmuStandingImage,
+  DriverStanding, TeamStanding, GrandPrixResult, GrandPrixResultEntry, RaceEvent, LmuCockpit, LmuStandingImage,
   ParticipatingLeague, LeagueCompetitionStanding
 } = require('../models');
+const { ensureSchema } = require('../services/schema');
 
 async function seedF1(league, prefix) {
   const teamData = [
@@ -35,10 +36,11 @@ async function seedF1(league, prefix) {
   });
   const pointsByPosition = [25, 18, 15, 12, 10, 8, 6, 4];
   for (let i = 0; i < drivers.length; i += 1) {
-    await GrandPrixResultEntry.findOrCreate({
+    const [entry] = await GrandPrixResultEntry.findOrCreate({
       where: { GrandPrixResultId: grandPrix.id, driverName: drivers[i].name },
       defaults: {
         GrandPrixResultId: grandPrix.id,
+        DriverId: drivers[i].id,
         position: i + 1,
         driverName: drivers[i].name,
         teamName: teams[i % teams.length].name,
@@ -47,6 +49,7 @@ async function seedF1(league, prefix) {
         sortOrder: i
       }
     });
+    if (!entry.DriverId) await entry.update({ DriverId: drivers[i].id });
   }
 }
 
@@ -55,6 +58,7 @@ async function run() {
     throw new Error('ADMIN_EMAIL und ADMIN_PASSWORD müssen in der .env-Datei gesetzt sein.');
   }
   await sequelize.sync();
+  await ensureSchema();
   const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 12);
   const adminEmail = process.env.ADMIN_EMAIL.toLowerCase();
   const [admin, created] = await User.findOrCreate({ where: { email: adminEmail }, defaults: { email: adminEmail, passwordHash, role: 'admin' } });
@@ -97,6 +101,19 @@ async function run() {
   }
   await seedF1(leagues.freitag, 'FR');
   await seedF1(leagues.sonntag, 'SO');
+
+  const calendarData = [
+    [leagues.freitag, 'Großer Preis von Spa', 'Circuit de Spa-Francorchamps', '2026-09-04T18:00:00.000Z'],
+    [leagues.sonntag, 'Großer Preis von Monza', 'Autodromo Nazionale Monza', '2026-09-06T17:30:00.000Z'],
+    [leagues.lmu, '6 Stunden von Fuji', 'Fuji Speedway', '2026-09-12T17:00:00.000Z']
+  ];
+  for (let index = 0; index < calendarData.length; index += 1) {
+    const [league, title, circuit, startsAt] = calendarData[index];
+    await RaceEvent.findOrCreate({
+      where: { LeagueId: league.id, title },
+      defaults: { LeagueId: league.id, title, circuit, startsAt, durationMinutes: league.type === 'lmu' ? 360 : 120, isPublished: true, sortOrder: index + 1 }
+    });
+  }
 
   const cockpitData = [
     ['KRL Hyperion', 'BMW M Hybrid V8', 'Hypercar', '21'],
