@@ -31,7 +31,17 @@ async function getFieldOptions(config) {
 async function renderForm(req, res, config, entry, error, status = 200) {
   const resource = req.params.resource;
   const fieldOptions = await getFieldOptions(config);
-  const preparedEntry = config.prepareEntry ? await config.prepareEntry(entry) : entry;
+  let preparedEntry = config.prepareEntry ? await config.prepareEntry(entry) : entry;
+  if (preparedEntry && config.fields.some((field) => field.type === 'datetime-local')) {
+    preparedEntry = typeof preparedEntry.toJSON === 'function' ? preparedEntry.toJSON() : { ...preparedEntry };
+    config.fields.filter((field) => field.type === 'datetime-local').forEach((field) => {
+      if (preparedEntry[field.name]) {
+        preparedEntry[field.name] = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).format(new Date(preparedEntry[field.name])).replace(' ', 'T');
+      }
+    });
+  }
   return res.status(status).render('admin/resource-form', {
     title: `${config.title}: ${entry && entry.id ? 'Bearbeiten' : 'Neu'}`,
     resource,
@@ -58,7 +68,7 @@ function readValues(fields, body) {
 
 exports.dashboard = async (req, res) => {
   const modules = Object.entries(resourceConfig);
-  const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count()])));
+  const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count({ where: config.getListWhere ? await config.getListWhere() : {} })])));
   const groups = modules.reduce((result, [key, config]) => {
     const group = config.group || 'Weitere Inhalte';
     const existing = result.find((entry) => entry.name === group);
@@ -80,7 +90,7 @@ exports.dashboard = async (req, res) => {
 exports.list = async (req, res, next) => {
   const config = getConfig(req, req.params.resource);
   if (!config) return next();
-  const where = {};
+  const where = config.getListWhere ? await config.getListWhere() : {};
   if (config.filterByLeague && req.query.league) where.LeagueId = Number(req.query.league);
   let entries = await config.model.findAll({ where, order: [['sortOrder', 'ASC'], ['id', 'ASC']].filter(([field]) => config.model.rawAttributes[field]) });
   if (config.prepareEntry) entries = await Promise.all(entries.map((entry) => config.prepareEntry(entry)));

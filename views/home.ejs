@@ -6,7 +6,7 @@
     <h1>WILLKOMMEN BEI DER<br><span>KATZES RACING LEAGUE</span></h1>
     <p>Faire Rennen, starke Fahrerfelder und echte Motorsport-Leidenschaft – in mehreren Ligen und auf mehreren Plattformen.</p>
     <div class="hero-actions"><a class="button" href="https://discord.com" target="_blank" rel="noopener">Jetzt beitreten</a><a class="button button-ghost" href="#ligen">Ligen ansehen</a></div>
-    <aside class="next-race"><span>NÄCHSTES RENNEN</span><strong>Großer Preis von Spa</strong><small>Freitag · 20:00 Uhr</small><div class="countdown" data-countdown="2026-09-04T20:00:00+02:00">00T : 00H : 00M</div></aside>
+    <aside class="next-race"><span>NÄCHSTES RENNEN</span><% if (nextRace) { %><strong><%= nextRace.title %></strong><small><%= nextRace.league.name %> · <%= nextRace.date %> · <%= nextRace.time %> Uhr</small><div class="countdown" data-countdown="<%= nextRace.iso %>">00T : 00H : 00M</div><% } else { %><strong>Termin folgt</strong><small>Im Adminbereich einen F1- oder LMU-Termin veröffentlichen.</small><% } %></aside>
   </div>
 </section>
 

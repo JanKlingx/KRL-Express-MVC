@@ -8,13 +8,16 @@
       <div class="facts"><span>Renntag <strong><%= league.raceDay %></strong></span><span>Start <strong><%= league.raceTime %></strong></span><span>Saison <strong><%= league.currentSeason %></strong></span></div>
     </div>
   </section>
+  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/drivers?league=<%= league.id %>">✎ Fahrerfeld bearbeiten</a><a href="/admin/race-editor">✎ Saisonverlauf tabellarisch bearbeiten</a><a href="/admin/f1Calendar">✎ Rennkalender bearbeiten</a></div><% } %>
 
   <section class="section container">
     <div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>FAHRERFELD</h2></div>
     <div class="driver-grid">
-      <% drivers.forEach(driver => { %><article class="driver-card"><div class="driver-number"><%= driver.number || '–' %></div><div class="avatar"><% if (driver.avatarPath) { %><img src="<%= driver.avatarPath %>" alt="<%= driver.name %>"><% } else { %><%= driver.name.charAt(0) %><% } %></div><h3><%= driver.name %></h3><span><%= driver.team ? driver.team.name : 'Privatteam' %></span><small><%= driver.nationality || '' %> · <%= driver.car || (driver.team && driver.team.car) || 'F1' %></small></article><% }) %>
+      <% drivers.forEach(driver => { %><article class="driver-card"><div class="driver-number"><%= driver.number || '–' %></div><div class="avatar"><% if (driver.avatarPath) { %><img src="<%= driver.avatarPath %>" alt="<%= driver.name %>"><% } else { %><%= driver.name.charAt(0) %><% } %></div><% if (driver.team?.logoPath) { %><img class="driver-team-logo" src="<%= driver.team.logoPath %>" alt="Logo <%= driver.team.name %>"><% } %><h3><%= driver.name %></h3><span><%= driver.team ? driver.team.name : 'Privatteam' %></span><small><%= driver.platform %> · <%= driver.nationality || '' %> · <%= driver.car || (driver.team && driver.team.car) || 'F1' %></small><% if (driver.aliases.length) { %><small>Früher: <%= driver.aliases.map((alias) => alias.alias).join(', ') %></small><% } %></article><% }) %>
     </div>
   </section>
+
+  <section class="section container"><div class="section-heading"><span>ALLE TERMINE</span><h2>RENNKALENDER</h2></div><div class="calendar-grid"><% calendar.forEach((race) => { %><article class="calendar-card"><time datetime="<%= race.startsAt.toISOString() %>"><%= new Intl.DateTimeFormat('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Berlin' }).format(race.startsAt) %></time><h3><%= race.title %></h3><p><%= race.circuit || league.name %></p></article><% }) %><% if (!calendar.length) { %><div class="empty-state">Noch keine Renntermine veröffentlicht.</div><% } %></div></section>
 
   <section class="section section-dark">
     <div class="container standings-grid">

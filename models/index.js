@@ -55,9 +55,15 @@ const Driver = sequelize.define('Driver', {
   name: { type: DataTypes.STRING, allowNull: false },
   number: DataTypes.INTEGER,
   gamerTag: DataTypes.STRING,
+  platform: { type: DataTypes.STRING, allowNull: false, defaultValue: 'PC' },
   nationality: DataTypes.STRING,
   avatarPath: DataTypes.STRING,
   car: DataTypes.STRING,
+  ...commonSort
+});
+
+const DriverAlias = sequelize.define('DriverAlias', {
+  alias: { type: DataTypes.STRING, allowNull: false },
   ...commonSort
 });
 
@@ -98,6 +104,15 @@ const GrandPrixResultEntry = sequelize.define('GrandPrixResultEntry', {
   points: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 },
   status: DataTypes.STRING,
   fastestLap: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  ...commonSort
+});
+
+const RaceEvent = sequelize.define('RaceEvent', {
+  title: { type: DataTypes.STRING, allowNull: false },
+  circuit: DataTypes.STRING,
+  startsAt: { type: DataTypes.DATE, allowNull: false },
+  durationMinutes: DataTypes.INTEGER,
+  isPublished: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   ...commonSort
 });
 
@@ -151,6 +166,8 @@ League.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'LeagueId', allowNul
 Driver.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 Team.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'TeamId', allowNull: true }, onDelete: 'SET NULL' });
 Driver.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: true } });
+Driver.hasMany(DriverAlias, { as: 'aliases', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
+DriverAlias.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
 League.hasMany(DriverStanding, { as: 'driverStandings', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 DriverStanding.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 Driver.hasMany(DriverStanding, { as: 'standings', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
@@ -163,12 +180,24 @@ League.hasMany(GrandPrixResult, { as: 'gpResults', foreignKey: { name: 'LeagueId
 GrandPrixResult.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 GrandPrixResult.hasMany(GrandPrixResultEntry, { as: 'entries', foreignKey: { name: 'GrandPrixResultId', allowNull: false }, onDelete: 'CASCADE' });
 GrandPrixResultEntry.belongsTo(GrandPrixResult, { as: 'grandPrixResult', foreignKey: { name: 'GrandPrixResultId', allowNull: false } });
+Driver.hasMany(GrandPrixResultEntry, { as: 'raceEntries', foreignKey: { name: 'DriverId', allowNull: true }, onDelete: 'SET NULL' });
+GrandPrixResultEntry.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: true } });
+League.hasMany(RaceEvent, { as: 'raceEvents', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
+RaceEvent.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 League.hasMany(LmuCockpit, { as: 'cockpits', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 LmuCockpit.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
+LmuCockpit.belongsTo(Driver, { as: 'driverOne', foreignKey: { name: 'Driver1Id', allowNull: true }, onDelete: 'SET NULL' });
+LmuCockpit.belongsTo(Driver, { as: 'driverTwo', foreignKey: { name: 'Driver2Id', allowNull: true }, onDelete: 'SET NULL' });
+LmuCockpit.belongsTo(Driver, { as: 'driverThree', foreignKey: { name: 'Driver3Id', allowNull: true }, onDelete: 'SET NULL' });
+LmuCockpit.belongsTo(Driver, { as: 'reserve', foreignKey: { name: 'ReserveDriverId', allowNull: true }, onDelete: 'SET NULL' });
 League.hasMany(LmuStandingImage, { as: 'lmuStandingImages', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 LmuStandingImage.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 ParticipatingLeague.hasMany(LeagueCompetitionStanding, { as: 'standings', foreignKey: { name: 'ParticipatingLeagueId', allowNull: false }, onDelete: 'CASCADE' });
 LeagueCompetitionStanding.belongsTo(ParticipatingLeague, { as: 'participatingLeague', foreignKey: { name: 'ParticipatingLeagueId', allowNull: false } });
+LeagueCompetitionStanding.belongsTo(Driver, { as: 'driverOne', foreignKey: { name: 'Driver1Id', allowNull: true }, onDelete: 'SET NULL' });
+LeagueCompetitionStanding.belongsTo(Driver, { as: 'driverTwo', foreignKey: { name: 'Driver2Id', allowNull: true }, onDelete: 'SET NULL' });
+ParticipatingLeague.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'ParticipatingLeagueId', allowNull: true }, onDelete: 'SET NULL' });
+Driver.belongsTo(ParticipatingLeague, { as: 'participatingLeague', foreignKey: { name: 'ParticipatingLeagueId', allowNull: true } });
 
 module.exports = {
   sequelize,
@@ -179,10 +208,12 @@ module.exports = {
   League,
   Team,
   Driver,
+  DriverAlias,
   DriverStanding,
   TeamStanding,
   GrandPrixResult,
   GrandPrixResultEntry,
+  RaceEvent,
   LmuCockpit,
   LmuStandingImage,
   ParticipatingLeague,

@@ -3,7 +3,8 @@ const {
   Team,
   Driver,
   GrandPrixResult,
-  GrandPrixResultEntry
+  GrandPrixResultEntry,
+  RaceEvent
 } = require('../models');
 const { buildSeasonData } = require('../services/standings');
 const { sendCsv } = require('../services/csv');
@@ -11,15 +12,16 @@ const { sendCsv } = require('../services/csv');
 async function loadLeagueData(slug) {
   const league = await League.findOne({ where: { slug, type: 'f1' } });
   if (!league) return null;
-  const [drivers, gpResults] = await Promise.all([
-    Driver.findAll({ where: { LeagueId: league.id }, include: [{ model: Team, as: 'team' }], order: [['sortOrder', 'ASC'], ['number', 'ASC']] }),
+  const [drivers, gpResults, calendar] = await Promise.all([
+    Driver.findAll({ where: { LeagueId: league.id }, include: [{ model: Team, as: 'team' }, { association: 'aliases' }], order: [['sortOrder', 'ASC'], ['number', 'ASC']] }),
     GrandPrixResult.findAll({
       where: { LeagueId: league.id, season: league.currentSeason },
       include: [{ model: GrandPrixResultEntry, as: 'entries' }],
       order: [['sortOrder', 'ASC'], ['raceDate', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'sortOrder', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'position', 'ASC']]
-    })
+    }),
+    RaceEvent.findAll({ where: { LeagueId: league.id, isPublished: true }, order: [['startsAt', 'ASC']] })
   ]);
-  return { league, drivers, gpResults, ...buildSeasonData(league, gpResults, drivers) };
+  return { league, drivers, gpResults, calendar, ...buildSeasonData(league, gpResults, drivers) };
 }
 
 exports.show = async (req, res) => {

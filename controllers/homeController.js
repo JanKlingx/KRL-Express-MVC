@@ -1,17 +1,29 @@
 const {
-  SiteStatistic, TeamCategory, TeamMember, League
+  SiteStatistic, TeamCategory, TeamMember, League, RaceEvent
 } = require('../models');
+const { Op } = require('sequelize');
 
 exports.index = async (req, res) => {
-  const [statistics, categories, leagues] = await Promise.all([
+  const [statistics, categories, leagues, nextRace] = await Promise.all([
     SiteStatistic.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
     TeamCategory.findAll({
       include: [{ model: TeamMember, as: 'members' }],
       order: [['sortOrder', 'ASC'], [{ model: TeamMember, as: 'members' }, 'sortOrder', 'ASC']]
     }),
-    League.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] })
+    League.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
+    RaceEvent.findOne({
+      where: { startsAt: { [Op.gte]: new Date() }, isPublished: true },
+      include: [{ model: League, as: 'league', where: { type: { [Op.in]: ['f1', 'lmu'] } } }],
+      order: [['startsAt', 'ASC']]
+    })
   ]);
-  res.render('home', { title: 'Katzes Racing League', statistics, categories, leagues });
+  const nextRaceView = nextRace && {
+    ...nextRace.toJSON(),
+    iso: nextRace.startsAt.toISOString(),
+    date: new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }).format(nextRace.startsAt),
+    time: new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(nextRace.startsAt)
+  };
+  res.render('home', { title: 'Katzes Racing League', statistics, categories, leagues, nextRace: nextRaceView });
 };
 
 exports.endurance = (req, res) => res.render('placeholder', {
