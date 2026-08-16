@@ -137,6 +137,17 @@ test('KRL Icons besitzen eine eigene öffentliche Seite', async () => {
   assert.match(css, /#e91e63/);
 });
 
+test('Öffentlicher Rennkalender fängt ungültige Altdaten ohne Absturz ab', async () => {
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'partials', 'race-calendar.ejs'), {
+    calendar: [{ title: 'Altes Rennen', circuit: 'Unbekannt', startsAt: '0000-00-00 00:00:00' }],
+    league: { name: 'Freitagsliga', accentColor: '#6ef2f2', logoPath: null },
+    emptyMessage: 'Keine Termine'
+  });
+  assert.match(html, /race-calendar-invalid/);
+  assert.match(html, /TERMIN IM ADMIN PRÜFEN/);
+  assert.doesNotMatch(html, /Invalid Date/);
+});
+
 test('Teamaufstellungen sortieren MariaDB-Spalten über den richtigen Alias', () => {
   const options = {
     include: [
