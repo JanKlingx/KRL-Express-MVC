@@ -46,6 +46,7 @@ const League = sequelize.define('League', {
 
 const Team = sequelize.define('Team', {
   name: { type: DataTypes.STRING, allowNull: false },
+  discipline: { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' },
   logoPath: DataTypes.STRING,
   car: DataTypes.STRING,
   ...commonSort
@@ -71,6 +72,8 @@ const Driver = sequelize.define('Driver', {
   roleF1Friday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleF1Sunday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleF1Reserve: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  roleF1ReserveFriday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  roleF1ReserveSunday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleFormerF1: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleLmuRegular: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleLmuReserve: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
@@ -180,6 +183,17 @@ const GrandPrixResultEntry = sequelize.define('GrandPrixResultEntry', {
   status: DataTypes.STRING,
   fastestLap: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   ...commonSort
+});
+
+const F1RaceLineupEntry = sequelize.define('F1RaceLineupEntry', {
+  roleType: { type: DataTypes.STRING, allowNull: false },
+  status: { type: DataTypes.STRING, allowNull: false },
+  ...commonSort
+}, {
+  indexes: [
+    { unique: true, fields: ['grand_prix_result_id', 'driver_id'] },
+    { unique: true, fields: ['grand_prix_result_id', 'replacement_for_driver_id'] }
+  ]
 });
 
 const RaceEvent = sequelize.define('RaceEvent', {
@@ -304,6 +318,16 @@ GrandPrixResult.hasMany(GrandPrixResultEntry, { as: 'entries', foreignKey: { nam
 GrandPrixResultEntry.belongsTo(GrandPrixResult, { as: 'grandPrixResult', foreignKey: { name: 'GrandPrixResultId', allowNull: false } });
 Driver.hasMany(GrandPrixResultEntry, { as: 'raceEntries', foreignKey: { name: 'DriverId', allowNull: true }, onDelete: 'SET NULL' });
 GrandPrixResultEntry.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: true } });
+Team.hasMany(GrandPrixResultEntry, { as: 'raceEntries', foreignKey: { name: 'TeamId', allowNull: true }, onDelete: 'SET NULL' });
+GrandPrixResultEntry.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: true } });
+GrandPrixResult.hasMany(F1RaceLineupEntry, { as: 'lineupEntries', foreignKey: { name: 'GrandPrixResultId', allowNull: false }, onDelete: 'CASCADE' });
+F1RaceLineupEntry.belongsTo(GrandPrixResult, { as: 'race', foreignKey: { name: 'GrandPrixResultId', allowNull: false } });
+Driver.hasMany(F1RaceLineupEntry, { as: 'raceLineups', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
+F1RaceLineupEntry.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
+Driver.hasMany(F1RaceLineupEntry, { as: 'replacementLineups', foreignKey: { name: 'ReplacementForDriverId', allowNull: true }, onDelete: 'SET NULL' });
+F1RaceLineupEntry.belongsTo(Driver, { as: 'replacementFor', foreignKey: { name: 'ReplacementForDriverId', allowNull: true } });
+Team.hasMany(F1RaceLineupEntry, { as: 'plannedDrivers', foreignKey: { name: 'TeamId', allowNull: true }, onDelete: 'SET NULL' });
+F1RaceLineupEntry.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: true } });
 League.hasMany(RaceEvent, { as: 'raceEvents', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 RaceEvent.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 Season.hasMany(RaceEvent, { as: 'raceEvents', foreignKey: { name: 'SeasonId', allowNull: true }, onDelete: 'SET NULL' });
@@ -360,6 +384,7 @@ module.exports = {
   TeamStanding,
   GrandPrixResult,
   GrandPrixResultEntry,
+  F1RaceLineupEntry,
   RaceEvent,
   LmuCockpit,
   LmuStandingImage,

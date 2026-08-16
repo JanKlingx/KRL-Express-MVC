@@ -22,14 +22,13 @@ async function loadRoster(id) {
 
 function driverWhere(discipline) {
   return discipline === 'f1'
-    ? { [Op.or]: [{ roleF1Friday: true }, { roleF1Sunday: true }, { roleF1Reserve: true }] }
+    ? { [Op.or]: [{ roleF1Friday: true }, { roleF1Sunday: true }] }
     : { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }] };
 }
 
 function driverFitsRoster(driver, roster) {
   if (roster.discipline === 'lmu') return driver.roleLmuRegular || driver.roleLmuReserve;
-  const regular = roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday;
-  return regular || driver.roleF1Reserve;
+  return roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday;
 }
 
 exports.show = async (req, res, next) => {
@@ -38,7 +37,7 @@ exports.show = async (req, res, next) => {
   if (!config) return next();
   const [leagues, teams, drivers, rosters] = await Promise.all([
     League.findAll({ where: { type: config.leagueType }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
-    Team.findAll({ where: { LeagueId: null }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
+    Team.findAll({ where: { LeagueId: null, discipline }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
     Driver.findAll({ where: driverWhere(discipline), include: [{ association: 'aliases' }], order: [['name', 'ASC'], ['id', 'ASC']] }),
     TeamRoster.findAll({
       where: { discipline },
@@ -60,7 +59,7 @@ exports.create = async (req, res, next) => {
     const [league, team] = await Promise.all([
       League.findByPk(req.body.LeagueId), Team.findByPk(req.body.TeamId)
     ]);
-    if (!league || league.type !== config.leagueType || !team || team.LeagueId !== null) throw new Error('Liga und zentrales Team müssen ausgewählt werden.');
+    if (!league || league.type !== config.leagueType || !team || team.LeagueId !== null || team.discipline !== discipline) throw new Error('Liga und passendes zentrales Team müssen ausgewählt werden.');
     const duplicate = await TeamRoster.findOne({ where: { discipline, LeagueId: league.id, TeamId: team.id } });
     if (duplicate) throw new Error(`${team.name} ist in ${league.name} bereits vorhanden.`);
     await TeamRoster.create({

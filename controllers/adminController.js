@@ -78,6 +78,7 @@ exports.dashboard = async (req, res) => {
   }, []);
   const progressModules = [
     ['f1Rosters', { group: 'Formel 1 Liga', href: '/admin/team-rosters/f1', title: 'F1-Fahrerfelder', description: 'Zentrale Teams je Liga einsetzen und pro Team mindestens zwei oder beliebig viele Fahrer zuordnen.' }],
+    ['f1RaceLineup', { group: 'Formel 1 Liga', href: '/admin/f1-race-lineup', title: 'Fahrereinteilung nächstes Rennen', description: 'Stamm- und Ersatzfahrer je Rennen farbig markieren und Ersatzfahrer direkt einem Teamplatz zuordnen.' }],
     ['f1SeasonProgress', { group: 'Formel 1 Liga', href: '/admin/race-editor', title: 'Saisonverlauf', description: 'Saison wählen, Rennen aus dem F1-Kalender übernehmen oder manuell anlegen und direkt tabellarisch pflegen.' }],
     ['wdlSeasonProgress', { group: 'WDL', href: '/admin/season-progress/wdl', title: 'Saisonverlauf', description: 'WDL-Rennen importieren oder anlegen und Ergebnisse wahlweise über Plätze oder direkte Punkte erfassen.' }],
     ['lmuRosters', { group: 'LMU', href: '/admin/team-rosters/lmu', title: 'LMU-Cockpits', description: 'Zentrale Teams übernehmen und je Cockpit mindestens drei oder beliebig viele Fahrer zuordnen.' }],
@@ -88,7 +89,7 @@ exports.dashboard = async (req, res) => {
     if (group) group.modules.unshift([key, config]);
     else groups.push({ name: config.group, modules: [[key, config]] });
   });
-  const groupOrder = ['Stammdaten', 'Formel 1 Liga', 'WDL', 'LMU', 'Startseite', 'Teams', 'KRL Icons'];
+  const groupOrder = ['Stammdaten', 'Zentrale Rennteams', 'Formel 1 Liga', 'WDL', 'LMU', 'Startseite', 'Teams', 'KRL Icons'];
   groups.sort((left, right) => groupOrder.indexOf(left.name) - groupOrder.indexOf(right.name));
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',

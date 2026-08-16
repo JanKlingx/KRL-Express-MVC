@@ -1,5 +1,6 @@
 <%- include('../partials/header', { title }) %>
 <% const displayedFields = config.listFields ? config.listFields.map((name) => config.fields.find((field) => field.name === name)).filter(Boolean) : config.fields.slice(0, 5); %>
+<% const calendarDate = (value, withTime = false) => value ? new Intl.DateTimeFormat('de-DE', withTime ? { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' } : { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date(withTime ? value : `${value}T12:00:00Z`)) : 'Noch offen'; %>
 <section class="admin-shell">
   <div class="container">
     <div class="admin-heading">
@@ -29,6 +30,14 @@
 
     <% if (!entries.length) { %>
       <div class="empty-state">Noch keine Einträge vorhanden. Starte mit „Neuer Eintrag“.</div>
+    <% } else if (config.cardView) { %>
+      <div class="admin-calendar-grid">
+        <% entries.forEach((entry, index) => { %><article class="admin-calendar-card"><header><span class="calendar-round-badge">R<%= entry.sortOrder || index + 1 %></span><div><span><%= config.cardView === 'calendar-f1' ? 'FORMEL 1' : config.title.replace('-Rennkalender', '').toUpperCase() %></span><h2><%= entry.circuit || entry.title %></h2></div><% if (entry.hasSprint) { %><span class="calendar-sprint-badge">SPRINT</span><% } %></header>
+          <% if (config.cardView === 'calendar-f1') { %><div class="calendar-schedule"><div><span>Freitagsliga</span><strong><%= calendarDate(entry.fridayDate) %></strong><small><%= entry.fridayTime || 'Startzeit offen' %></small></div><div><span>Sonntagsliga</span><strong><%= calendarDate(entry.sundayDate) %></strong><small><%= entry.sundayTime || 'Startzeit offen' %></small></div></div>
+          <% } else { %><div class="calendar-event-date"><span><%= entry.isPublished ? 'Im Frontend sichtbar' : 'Nicht veröffentlicht' %></span><strong><%= calendarDate(entry.startsAt, true) %></strong><small><%= entry.circuit || 'Strecke offen' %><%= entry.durationMinutes ? ` · ${entry.durationMinutes} Minuten` : '' %></small></div><% } %>
+          <footer><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Kalendereintrag wirklich löschen?"><button type="submit">Löschen</button></form></footer>
+        </article><% }) %>
+      </div>
     <% } else { %>
       <div class="table-wrap admin-table"><table><thead><tr><th>ID</th><% displayedFields.forEach((field) => { %><th><%= field.label %></th><% }) %><th>Aktionen</th></tr></thead><tbody>
         <% entries.forEach((entry) => { %><tr><td><span class="id-badge">#<%= entry.id %></span></td><% displayedFields.forEach((field) => { const rawValue = entry[field.name]; const option = (fieldOptions[field.name] || []).find((candidate) => candidate.value === String(rawValue)); %><td><%= option ? option.label : (field.type === 'checkbox' ? (rawValue ? 'Ja' : 'Nein') : (rawValue ?? '–')) %></td><% }) %><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Eintrag wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %>

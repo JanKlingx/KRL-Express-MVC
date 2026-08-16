@@ -291,6 +291,7 @@ async function ensureLmuEntries(race) {
       defaults: {
         GrandPrixResultId: race.id,
         DriverId: driver.id,
+        TeamId: roster.team.id,
         driverName: driver.name,
         teamName: roster.team.name,
         points: 0,

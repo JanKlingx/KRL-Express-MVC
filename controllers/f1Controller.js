@@ -24,7 +24,9 @@ async function loadLeagueData(slug, requestedSeasonId) {
   const driverMap = new Map();
   const teams = rosters.map((roster) => ({
     ...roster.team.toJSON(), rosterId: roster.id,
-    drivers: roster.assignments.map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
+    drivers: roster.assignments
+      .filter((assignment) => assignment.roleName !== 'Ersatzfahrer')
+      .map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
   })).filter((team) => team.drivers.length >= 2);
   teams.forEach((team) => team.drivers.forEach((driver) => {
     if (!driverMap.has(driver.id)) driverMap.set(driver.id, { ...driver, team: { id: team.id, name: team.name, logoPath: team.logoPath } });

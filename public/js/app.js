@@ -77,6 +77,17 @@
     select.addEventListener('change', () => select.form?.requestSubmit());
   });
 
+  document.querySelectorAll('.lineup-selector select').forEach((select) => {
+    select.addEventListener('change', () => select.form?.requestSubmit());
+  });
+
+  document.querySelectorAll('[data-lineup-status]').forEach((select) => {
+    select.addEventListener('change', () => {
+      [...select.classList].filter((name) => name.startsWith('status-')).forEach((name) => select.classList.remove(name));
+      select.classList.add(`status-${select.value}`);
+    });
+  });
+
   const raceSelector = document.querySelector('.race-selector');
   if (raceSelector) {
     raceSelector.querySelector('[name="league"]')?.addEventListener('change', () => {

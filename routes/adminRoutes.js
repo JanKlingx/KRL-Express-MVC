@@ -4,6 +4,7 @@ const adminController = require('../controllers/adminController');
 const raceEditorController = require('../controllers/raceEditorController');
 const seriesEditorController = require('../controllers/seriesEditorController');
 const teamRosterController = require('../controllers/teamRosterController');
+const f1RaceLineupController = require('../controllers/f1RaceLineupController');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -15,6 +16,8 @@ router.post('/team-rosters/:discipline(f1|lmu)', asyncHandler(teamRosterControll
 router.post('/team-rosters/:discipline(f1|lmu)/:rosterId/drivers', asyncHandler(teamRosterController.addDriver));
 router.delete('/team-rosters/:discipline(f1|lmu)/assignments/:assignmentId', asyncHandler(teamRosterController.removeDriver));
 router.delete('/team-rosters/:discipline(f1|lmu)/:rosterId', asyncHandler(teamRosterController.removeRoster));
+router.get('/f1-race-lineup', asyncHandler(f1RaceLineupController.show));
+router.post('/f1-race-lineup/:raceId', asyncHandler(f1RaceLineupController.save));
 router.get('/race-editor', asyncHandler(raceEditorController.show));
 router.post('/race-editor/seasons', asyncHandler(raceEditorController.createSeason));
 router.post('/race-editor/races', asyncHandler(raceEditorController.createRace));
