@@ -1,0 +1,36 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container">
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">Formel 1 · aktuelle Saison</span><h1>FAHREREINTEILUNG</h1><p class="admin-intro">Stammfahrer und Ersatzfahrer für das ausgewählte Rennen farbig markieren. Ein zugeteilter Ersatzfahrer übernimmt im Saisonverlauf automatisch das Team des ersetzten Stammfahrers.</p></div><div class="lineup-heading-actions"><a class="button button-ghost" href="/admin/drivers">Fahrer-Ränge pflegen</a><a class="button button-ghost" href="/admin/team-rosters/f1">F1-Fahrerfelder</a></div></div>
+
+  <form class="lineup-selector" method="get" action="/admin/f1-race-lineup">
+    <label>Liga<select name="league"><% leagues.forEach((league) => { %><option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= league.name %></option><% }) %></select></label>
+    <label>Aktuelles Rennen<select name="race"><% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>>R<%= race.sortOrder %> · <%= race.title %><%= race.raceDate ? ` · ${new Intl.DateTimeFormat('de-DE').format(new Date(`${race.raceDate}T12:00:00Z`))}` : '' %></option><% }) %></select></label>
+    <noscript><button class="button button-small" type="submit">Öffnen</button></noscript>
+  </form>
+
+  <% if (!activeSeason) { %><div class="empty-state">Für diese Liga ist keine aktuelle Saison angelegt.</div>
+  <% } else if (!selectedRace) { %><div class="empty-state">In <%= activeSeason.name %> ist noch kein Rennen vorhanden. Lege zuerst den Rennkalender an.</div>
+  <% } else { %>
+    <div class="lineup-race-heading"><div><span><%= activeSeason.name %> · R<%= selectedRace.sortOrder %></span><h2><%= selectedRace.title %></h2><p><%= selectedRace.circuit || '' %><%= selectedRace.raceDate ? ` · ${new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${selectedRace.raceDate}T12:00:00Z`))}` : '' %></p></div><span class="lineup-plan-state"><%= hasSavedPlan ? 'Einteilung gespeichert' : 'Noch nicht gespeichert' %></span></div>
+
+    <form method="post" action="/admin/f1-race-lineup/<%= selectedRace.id %>" class="lineup-board">
+      <section class="lineup-section reserve-section">
+        <div class="lineup-section-heading"><div><span>PASSENDER LIGA-RANG</span><h2>ERSATZFAHRER</h2></div><p><%= selectedLeague.slug === 'freitag' ? 'Ersatz Freitag' : 'Ersatz Sonntag' %></p></div>
+        <div class="status-legend"><% reserveStatuses.forEach((status) => { %><span class="status-<%= status.value %>"><%= status.label %></span><% }) %></div>
+        <% if (!reserveRows.length) { %><div class="empty-state">Noch keine Fahrer mit dem Rang „<%= selectedLeague.slug === 'freitag' ? 'Ersatz Freitag' : 'Ersatz Sonntag' %>“ angelegt.</div><% } else { %>
+          <div class="reserve-driver-grid"><% reserveRows.forEach((row) => { %><article class="reserve-driver-card"><div><strong>#<%= row.driver.id %> · <%= row.driver.name %></strong><small><%= row.driver.platform %><%= row.driver.aliases?.length ? ` · ${row.driver.aliases.map((alias) => alias.alias).join(', ')}` : '' %></small></div><label>Status<select name="reserve[<%= row.driver.id %>][status]" class="lineup-status status-<%= row.status %>" data-lineup-status><% reserveStatuses.forEach((status) => { %><option value="<%= status.value %>" <%= row.status === status.value ? 'selected' : '' %>><%= status.label %></option><% }) %></select></label><p><span>Einteilung</span><strong><%= row.assignedTo ? `${row.assignedTo.team.name} · für ${row.assignedTo.driver.name}` : 'Noch nicht zugeteilt' %></strong></p></article><% }) %></div>
+        <% } %>
+      </section>
+
+      <section class="lineup-section regular-section">
+        <div class="lineup-section-heading"><div><span>FAHREREINTEILUNG FÜR DAS RENNEN</span><h2>STAMMFAHRER JE TEAM</h2></div><p>Ersatz direkt dem Teamplatz zuordnen</p></div>
+        <div class="status-legend"><% regularStatuses.forEach((status) => { %><span class="status-<%= status.value %>"><%= status.label %></span><% }) %></div>
+        <div class="lineup-team-grid"><% teamCards.forEach((card) => { %><article class="lineup-team-card"><header><% if (card.team.logoPath) { %><img src="<%= card.team.logoPath %>" alt="Logo <%= card.team.name %>"><% } else { %><div class="roster-logo-fallback"><%= card.team.name.slice(0, 2).toUpperCase() %></div><% } %><div><span>Team</span><h3><%= card.team.name %></h3></div></header><div class="lineup-regular-list"><% card.rows.forEach((row) => { %><div class="lineup-regular-row"><div class="lineup-driver-name"><strong>#<%= row.driver.id %> · <%= row.driver.name %></strong><small><%= row.driver.platform %></small></div><label>Status<select name="regular[<%= row.driver.id %>][status]" class="lineup-status status-<%= row.status %>" data-lineup-status><% regularStatuses.forEach((status) => { %><option value="<%= status.value %>" <%= row.status === status.value ? 'selected' : '' %>><%= status.label %></option><% }) %></select></label><label>Ersatzfahrer<select name="regular[<%= row.driver.id %>][ReplacementDriverId]"><option value="">Kein Ersatz</option><% reserves.forEach((reserve) => { %><option value="<%= reserve.id %>" <%= row.replacementDriverId === reserve.id ? 'selected' : '' %>><%= reserve.name %></option><% }) %></select></label></div><% }) %></div></article><% }) %></div>
+      </section>
+
+      <div class="lineup-save-bar"><div><strong>Auswirkung:</strong> Die gespeicherte Einteilung wird nur für dieses Rennen der aktuellen Saison in den Saisonverlauf übernommen. Historische Saisons bleiben unverändert.</div><button class="button" type="submit">Fahrereinteilung speichern</button></div>
+    </form>
+    <div class="workflow-hint"><strong>Nächster Schritt:</strong> <a href="/admin/race-editor?league=<%= selectedLeague.id %>&season=<%= activeSeason.id %>&race=<%= selectedRace.id %>">Saisonverlauf für dieses Rennen öffnen →</a></div>
+  <% } %>
+</div></section>
+<%- include('../partials/footer') %>

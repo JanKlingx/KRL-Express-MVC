@@ -34,7 +34,10 @@ const relation = (name, label, model, formatOption, required = false, options = 
 });
 
 async function prepareDriver(values, body) {
-  if (Object.prototype.hasOwnProperty.call(body, 'roleF1Friday') || Object.prototype.hasOwnProperty.call(body, 'roleF1Sunday') || Object.prototype.hasOwnProperty.call(body, 'roleF1Reserve')) {
+  if (['roleF1Friday', 'roleF1Sunday', 'roleF1ReserveFriday', 'roleF1ReserveSunday'].some((name) => Object.prototype.hasOwnProperty.call(values, name))) {
+    if (values.roleF1Friday && values.roleF1ReserveFriday) throw new Error('Ein Fahrer kann in der Freitagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
+    if (values.roleF1Sunday && values.roleF1ReserveSunday) throw new Error('Ein Fahrer kann in der Sonntagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
+    values.roleF1Reserve = Boolean(values.roleF1ReserveFriday || values.roleF1ReserveSunday);
     values.f1Role = values.roleF1Reserve ? 'reserve' : values.roleF1Friday && !values.roleF1Sunday ? 'friday' : values.roleF1Sunday && !values.roleF1Friday ? 'sunday' : null;
     if (values.roleF1Friday !== values.roleF1Sunday) {
       const slug = values.roleF1Friday ? 'freitag' : 'sonntag';
@@ -57,8 +60,13 @@ const listWhereForLeagueType = (type) => async () => {
   return { LeagueId: { [Op.in]: leagues.map((league) => league.id) } };
 };
 const f1DriverWhere = () => ({
-  [Op.or]: [{ roleF1Friday: true }, { roleF1Sunday: true }, { roleF1Reserve: true }, { roleLmuRegular: true }, { roleLmuReserve: true }]
+  [Op.or]: [
+    { roleF1Friday: true }, { roleF1Sunday: true },
+    { roleF1ReserveFriday: true }, { roleF1ReserveSunday: true },
+    { roleLmuRegular: true }, { roleLmuReserve: true }
+  ]
 });
+const hasF1Rank = (entry) => Boolean(entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1ReserveFriday || entry?.roleF1ReserveSunday || entry?.roleFormerF1);
 
 const platformField = () => select('platform', 'Plattform', [['PC', 'PC'], ['PlayStation', 'PlayStation'], ['Xbox', 'Xbox']], true);
 const aliasesField = () => textarea('aliasesText', 'Aliase / frühere Namen', false, { persist: false, help: 'Mehrere Namen mit Komma oder jeweils in einer neuen Zeile trennen.' });
@@ -106,19 +114,39 @@ async function syncF1Driver(driver, body) {
     const roster = assignment.roster;
     if (roster?.discipline === 'f1') {
       const roleField = roster.league?.slug === 'freitag' ? 'roleF1Friday' : 'roleF1Sunday';
-      if (!driver[roleField] && !driver.roleF1Reserve) await assignment.destroy();
+      if (!driver[roleField]) await assignment.destroy();
     } else if (roster?.discipline === 'lmu' && !driver.roleLmuRegular && !driver.roleLmuReserve) await assignment.destroy();
   }
 }
 
-async function prepareCentralTeam(values, body, existingTeam) {
+async function prepareCentralTeam(discipline, values, body, existingTeam) {
   values.LeagueId = null;
   values.Driver1Id = null;
   values.Driver2Id = null;
+  values.discipline = discipline;
   const duplicate = await models.Team.findOne({
-    where: { id: { [Op.ne]: existingTeam?.id || 0 }, name: values.name }
+    where: { id: { [Op.ne]: existingTeam?.id || 0 }, LeagueId: null, name: values.name, discipline }
   });
-  if (duplicate) throw new Error(`Das zentrale Team „${values.name}“ existiert bereits.`);
+  if (duplicate) throw new Error(`Das ${discipline === 'lmu' ? 'LMU' : 'Formel-1'}-Team „${values.name}“ existiert bereits.`);
+}
+
+const prepareF1Team = (values, body, existingTeam) => prepareCentralTeam('f1', values, body, existingTeam);
+const prepareLmuTeam = (values, body, existingTeam) => prepareCentralTeam('lmu', values, body, existingTeam);
+
+async function prepareTeamForForm(entry, discipline) {
+  if (!entry?.id) return entry;
+  const values = typeof entry.toJSON === 'function' ? entry.toJSON() : { ...entry };
+  const resultEntries = await models.GrandPrixResultEntry.findAll({
+    where: {
+      [Op.or]: [
+        { TeamId: entry.id },
+        { TeamId: null, teamName: entry.name }
+      ]
+    },
+    attributes: ['points'],
+    include: [{ association: 'grandPrixResult', where: { discipline }, attributes: [] }]
+  });
+  return { ...values, totalPoints: resultEntries.reduce((sum, result) => sum + Number(result.points || 0), 0) };
 }
 
 async function syncF1Team(team) {
@@ -364,7 +392,7 @@ async function syncParticipatingLeague(participant) {
 
 async function prepareParticipatingLeague(values) {
   if (!values.F1TeamId) return;
-  const team = await models.Team.findOne({ where: { id: values.F1TeamId, LeagueId: null } });
+  const team = await models.Team.findOne({ where: { id: values.F1TeamId, LeagueId: null, discipline: 'f1' } });
   if (!team) throw new Error('Bitte ein zentrales Formel-1-Team auswählen.');
   const driverIds = await centralTeamDriverIds(team.id);
   if (driverIds.length < 2) throw new Error(`${team.name} benötigt zuerst eine vollständige F1-Aufstellung mit mindestens zwei Fahrern.`);
@@ -473,12 +501,13 @@ module.exports = {
     ]
   },
   teams: {
-    title: 'Zentrale Rennteams', group: 'Formel 1 Liga',
-    description: 'Teamname, Fahrzeug und Logo einmal zentral pflegen. Dasselbe Team kann anschließend in F1, LMU und WDL verwendet werden.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null }), prepareValues: prepareCentralTeam, afterSave: syncF1Team, beforeRemove: removeF1Team,
+    title: 'Formel-1-Teams', group: 'Zentrale Rennteams',
+    description: 'Formel-1-Team einmal zentral mit Name und Upload-Logo pflegen. Die Gesamtpunkte werden automatisch aus allen F1-Saisonverläufen addiert.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null, discipline: 'f1' }), prepareValues: prepareF1Team, prepareEntry: (entry) => prepareTeamForForm(entry, 'f1'), afterSave: syncF1Team, beforeRemove: removeF1Team,
     nextHref: '/admin/team-rosters/f1', nextLabel: 'Danach F1-Fahrerfelder zusammenstellen',
+    listFields: ['name', 'totalPoints'],
     fields: [
-      text('name', 'Teamname', true), text('car', 'Fahrzeug'),
-      number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      text('name', 'Teamname', true),
+      number('totalPoints', 'Gesamte Punkte (automatisch)', false, { readonly: true, persist: false })
     ]
   },
   drivers: {
@@ -488,18 +517,19 @@ module.exports = {
     prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncF1Driver, beforeRemove: removeF1Driver,
     fields: [
       text('name', 'Name', true), aliasesField(), platformField(),
-      number('racesF1', 'Gefahrene Rennen F1', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('racesF1', 'Gefahrene Rennen F1', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('racesLmu', 'Gefahrene Rennen LMU', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
       checkbox('roleF1Friday', 'Rang: Stamm Freitag'), checkbox('roleF1Sunday', 'Rang: Stamm Sonntag'),
-      checkbox('roleF1Reserve', 'Rang: F1 Ersatz'), checkbox('roleFormerF1', 'Rang: Ehemaliger Formel-1-Fahrer'),
+      checkbox('roleF1ReserveFriday', 'Rang: Ersatz Freitag'), checkbox('roleF1ReserveSunday', 'Rang: Ersatz Sonntag'),
+      checkbox('roleFormerF1', 'Rang: Ehemaliger Formel-1-Fahrer'),
       checkbox('roleLmuRegular', 'Rang: LMU Stammfahrer'), checkbox('roleLmuReserve', 'Rang: LMU Ersatzfahrer'),
       checkbox('roleFormerLmu', 'Rang: Ehemaliger LMU-Fahrer'), text('nationality', 'Nationalität'),
-      number('pointsF1', 'F1-Punkte', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
-      number('winsF1', 'Siege F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
-      number('winRateF1', 'Siegesquote F1 (%)', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
-      number('podium1F1', 'Platz 1 F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
-      number('podium2F1', 'Platz 2 F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
-      number('podium3F1', 'Platz 3 F1', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1Reserve || entry?.roleFormerF1 }),
+      number('pointsF1', 'F1-Punkte', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
+      number('winsF1', 'Siege F1', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
+      number('winRateF1', 'Siegesquote F1 (%)', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
+      number('podium1F1', 'Platz 1 F1', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
+      number('podium2F1', 'Platz 2 F1', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
+      number('podium3F1', 'Platz 3 F1', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('pointsLmu', 'LMU-Punkte', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
       number('winsLmu', 'Siege LMU', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
       number('winRateLmu', 'Siegesquote LMU (%)', false, { readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
@@ -509,11 +539,13 @@ module.exports = {
     ]
   },
   lmuTeams: {
-    title: 'LMU-Teams', group: 'LMU',
-    description: 'Teams und Fahrzeuge der LMU-Liga verwalten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: listWhereForLeagueType('lmu'), hidden: true,
+    title: 'LMU-Teams', group: 'Zentrale Rennteams',
+    description: 'LMU-Team zentral mit Namen pflegen. Die Gesamtpunkte werden automatisch aus allen LMU-Saisonverläufen addiert.', model: models.Team, getListWhere: async () => ({ LeagueId: null, discipline: 'lmu' }), prepareValues: prepareLmuTeam, prepareEntry: (entry) => prepareTeamForForm(entry, 'lmu'),
+    nextHref: '/admin/team-rosters/lmu', nextLabel: 'Danach LMU-Cockpits zusammenstellen',
+    listFields: ['name', 'totalPoints'],
     fields: [
-      relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
-      text('name', 'Teamname', true), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      text('name', 'Teamname', true),
+      number('totalPoints', 'Gesamte Punkte (automatisch)', false, { readonly: true, persist: false })
     ]
   },
   lmuDrivers: {
@@ -564,7 +596,7 @@ module.exports = {
   f1CalendarRounds: {
     title: 'F1-Rennkalender (aktuell)', group: 'Formel 1 Liga',
     description: 'Eine Strecke pflegen; Freitag und Sonntag werden automatisch als getrennte Rennen erzeugt.', model: models.F1CalendarRound,
-    prepareValues: prepareF1Round, afterSave: syncF1CalendarRound, beforeRemove: removeF1CalendarRound, nextHref: '/admin/race-editor', nextLabel: 'Danach Saisonverlauf pflegen',
+    prepareValues: prepareF1Round, afterSave: syncF1CalendarRound, beforeRemove: removeF1CalendarRound, nextHref: '/admin/race-editor', nextLabel: 'Danach Saisonverlauf pflegen', cardView: 'calendar-f1',
     fields: [
       text('circuit', 'Strecke', true), date('sundayDate', 'Datum Sonntag'), date('fridayDate', 'Datum Freitag'),
       checkbox('hasSprint', 'Sprint-Event'),
@@ -587,7 +619,7 @@ module.exports = {
   lmuSeasonCalendar: {
     title: 'LMU-Rennkalender', group: 'LMU',
     description: 'Aktuelle LMU-Strecken mit Datum und Startzeit pflegen.', model: models.RaceEvent,
-    prepareValues: prepareSeriesCalendar, afterSave: syncSeriesCalendarEvent, beforeRemove: removeSeriesCalendarEvent,
+    prepareValues: prepareSeriesCalendar, afterSave: syncSeriesCalendarEvent, beforeRemove: removeSeriesCalendarEvent, cardView: 'calendar-series',
     fields: [
       relation('SeasonId', 'LMU-Saison', models.Season, (row) => row.name, true, { where: { leagueType: 'lmu' } }),
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
@@ -599,7 +631,7 @@ module.exports = {
   wdlSeasonCalendar: {
     title: 'WDL-Rennkalender', group: 'WDL',
     description: 'Aktuelle WDL-Strecken mit Datum und Startzeit pflegen.', model: models.RaceEvent,
-    prepareValues: prepareSeriesCalendar, afterSave: syncSeriesCalendarEvent, beforeRemove: removeSeriesCalendarEvent,
+    prepareValues: prepareSeriesCalendar, afterSave: syncSeriesCalendarEvent, beforeRemove: removeSeriesCalendarEvent, cardView: 'calendar-series',
     fields: [
       relation('SeasonId', 'WDL-Saison', models.Season, (row) => row.name, true, { where: { leagueType: 'wdl' } }),
       relation('LeagueId', 'WDL-Seite', models.League, (row) => row.name, true, { where: { type: 'competition' } }),
@@ -683,7 +715,7 @@ module.exports = {
     fields: [
       text('name', 'Liganame', true), text('abbreviation', 'Kürzel', false, { placeholder: 'KRL' }), text('constructorName', 'Konstrukteur'),
       url('websiteUrl', 'Link'), checkbox('isActive', 'Aktiv'),
-      relation('F1TeamId', 'Zugeordnetes Formel-1-Team', models.Team, (row) => row.name, false, { where: { LeagueId: null } }),
+      relation('F1TeamId', 'Zugeordnetes Formel-1-Team', models.Team, (row) => row.name, false, { where: { LeagueId: null, discipline: 'f1' } }),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },

@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const {
   sequelize, League, Driver, Season, GrandPrixResult, GrandPrixResultEntry,
-  ParticipatingLeague, WdlResultEntry, TeamRoster, TeamRosterDriver
+  ParticipatingLeague, WdlResultEntry, TeamRoster, TeamRosterDriver, Team
 } = require('../models');
 const { pointsForPosition, recalculateDriverRaceCounts } = require('../services/championship');
 const seasonProgress = require('../services/seasonProgress');
@@ -52,10 +52,12 @@ async function lmuRows(base, query = {}) {
     })
   ]);
   const teamNames = new Map();
+  const teamIds = new Map();
   const defaultDriverIds = new Set();
   const assignedDrivers = new Map();
   rosters.filter((roster) => roster.assignments.length >= 3).forEach((roster) => roster.assignments.forEach((assignment) => {
     teamNames.set(assignment.DriverId, roster.team.name);
+    teamIds.set(assignment.DriverId, roster.team.id);
     assignedDrivers.set(assignment.DriverId, assignment.driver);
     if (assignment.roleName !== 'Ersatzfahrer') defaultDriverIds.add(assignment.DriverId);
   }));
@@ -77,6 +79,7 @@ async function lmuRows(base, query = {}) {
     rows: drivers.map((driver) => ({
       driver,
       teamName: teamNames.get(driver.id) || 'LMU-Team offen',
+      teamId: teamIds.get(driver.id) || null,
       entry: entries.find((entry) => entry.DriverId === driver.id) || null,
       defaultIncluded: defaultDriverIds.has(driver.id)
     }))
@@ -155,12 +158,15 @@ exports.save = async (req, res, next) => {
         const omittedWhere = selectedIds.length ? { DriverId: { [Op.notIn]: selectedIds } } : {};
         await GrandPrixResultEntry.destroy({ where: { GrandPrixResultId: race.id, ...omittedWhere }, transaction });
       }
-      for (const { driver, teamName, entry } of data.rows) {
+      for (const { driver, teamName, teamId, entry } of data.rows) {
         const row = submittedRows[String(driver.id)] || {};
         if (row.included !== 'on') { if (entry) await entry.destroy({ transaction }); continue; }
+        const savedTeamName = row.teamName?.trim() || teamName;
+        const matchedTeam = teamId ? null : await Team.findOne({ where: { LeagueId: null, discipline: 'lmu', name: savedTeamName }, transaction });
         const values = {
           GrandPrixResultId: race.id, DriverId: driver.id, driverName: driver.name,
-          teamName: row.teamName?.trim() || teamName,
+          TeamId: teamId || matchedTeam?.id || null,
+          teamName: savedTeamName,
           position: race.pointsMode === 'manual' ? null : (row.position ? Number(row.position) : null),
           status: row.status || null,
           fastestLap: race.pointsMode === 'database' && row.fastestLap === 'on',

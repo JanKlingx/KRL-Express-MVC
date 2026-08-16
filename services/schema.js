@@ -11,12 +11,16 @@ async function addMissingColumn(table, description, name, definition) {
 async function ensureSchema() {
   const queryInterface = sequelize.getQueryInterface();
   const driverTable = await queryInterface.describeTable('drivers');
+  const hadFridayReserveRole = Boolean(driverTable.role_f1_reserve_friday);
+  const hadSundayReserveRole = Boolean(driverTable.role_f1_reserve_sunday);
   await addMissingColumn('drivers', driverTable, 'platform', { type: DataTypes.STRING, allowNull: false, defaultValue: 'PC' });
   await addMissingColumn('drivers', driverTable, 'participating_league_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('drivers', driverTable, 'f1_role', { type: DataTypes.STRING, allowNull: true });
   await addMissingColumn('drivers', driverTable, 'role_f1_friday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_sunday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_reserve', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('drivers', driverTable, 'role_f1_reserve_friday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('drivers', driverTable, 'role_f1_reserve_sunday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_former_f1', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_lmu_regular', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_lmu_reserve', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
@@ -33,6 +37,7 @@ async function ensureSchema() {
   }
   await addMissingColumn('teams', teamTable, 'driver1_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('teams', teamTable, 'driver2_id', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('teams', teamTable, 'discipline', { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' });
 
   const resultTable = await queryInterface.describeTable('grand_prix_results');
   await addMissingColumn('grand_prix_results', resultTable, 'season_id', { type: DataTypes.INTEGER, allowNull: true });
@@ -68,8 +73,8 @@ async function ensureSchema() {
     const legacyTeams = await Team.findAll({ where: { LeagueId: league.id }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
     for (const team of legacyTeams) {
       const [centralTeam] = await Team.findOrCreate({
-        where: { LeagueId: null, name: team.name },
-        defaults: { LeagueId: null, name: team.name, logoPath: team.logoPath, car: team.car, sortOrder: team.sortOrder }
+        where: { LeagueId: null, name: team.name, discipline: 'f1' },
+        defaults: { LeagueId: null, name: team.name, discipline: 'f1', logoPath: team.logoPath, car: team.car, sortOrder: team.sortOrder }
       });
       const centralChanges = {};
       if (!centralTeam.logoPath && team.logoPath) centralChanges.logoPath = team.logoPath;
@@ -90,6 +95,39 @@ async function ensureSchema() {
 
   const entryTable = await queryInterface.describeTable('grand_prix_result_entries');
   await addMissingColumn('grand_prix_result_entries', entryTable, 'driver_id', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('grand_prix_result_entries', entryTable, 'team_id', { type: DataTypes.INTEGER, allowNull: true });
+
+  const existingLmuRosters = await TeamRoster.findAll({
+    where: { discipline: 'lmu' }, include: [{ association: 'team' }]
+  });
+  for (const roster of existingLmuRosters) {
+    if (roster.team?.discipline === 'lmu') continue;
+    const [lmuTeam] = await Team.findOrCreate({
+      where: { LeagueId: null, name: roster.team.name, discipline: 'lmu' },
+      defaults: {
+        LeagueId: null, name: roster.team.name, discipline: 'lmu',
+        logoPath: roster.team.logoPath, car: roster.team.car, sortOrder: roster.team.sortOrder
+      }
+    });
+    const targetRoster = await TeamRoster.findOne({
+      where: { id: { [Op.ne]: roster.id }, LeagueId: roster.LeagueId, TeamId: lmuTeam.id, discipline: 'lmu' }
+    });
+    if (!targetRoster) {
+      await roster.update({ TeamId: lmuTeam.id });
+      continue;
+    }
+    const assignments = await TeamRosterDriver.findAll({ where: { TeamRosterId: roster.id } });
+    for (const assignment of assignments) {
+      await TeamRosterDriver.findOrCreate({
+        where: { TeamRosterId: targetRoster.id, DriverId: assignment.DriverId },
+        defaults: {
+          TeamRosterId: targetRoster.id, DriverId: assignment.DriverId,
+          roleName: assignment.roleName, sortOrder: assignment.sortOrder
+        }
+      });
+    }
+    await roster.destroy();
+  }
 
   const cockpitTable = await queryInterface.describeTable('lmu_cockpits');
   await addMissingColumn('lmu_cockpits', cockpitTable, 'driver1_id', { type: DataTypes.INTEGER, allowNull: true });
@@ -99,8 +137,8 @@ async function ensureSchema() {
   const legacyCockpits = await LmuCockpit.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
   for (const cockpit of legacyCockpits) {
     const [team] = await Team.findOrCreate({
-      where: { LeagueId: null, name: cockpit.teamName },
-      defaults: { LeagueId: null, name: cockpit.teamName, logoPath: cockpit.logoPath, car: cockpit.car, sortOrder: cockpit.sortOrder }
+      where: { LeagueId: null, name: cockpit.teamName, discipline: 'lmu' },
+      defaults: { LeagueId: null, name: cockpit.teamName, discipline: 'lmu', logoPath: cockpit.logoPath, car: cockpit.car, sortOrder: cockpit.sortOrder }
     });
     const [roster] = await TeamRoster.findOrCreate({
       where: { LeagueId: cockpit.LeagueId, TeamId: team.id, discipline: 'lmu' },
@@ -126,8 +164,8 @@ async function ensureSchema() {
     const linkedTeam = await Team.findByPk(participant.F1TeamId);
     if (!linkedTeam || linkedTeam.LeagueId === null) continue;
     const [centralTeam] = await Team.findOrCreate({
-      where: { LeagueId: null, name: linkedTeam.name },
-      defaults: { LeagueId: null, name: linkedTeam.name, logoPath: linkedTeam.logoPath, car: linkedTeam.car, sortOrder: linkedTeam.sortOrder }
+      where: { LeagueId: null, name: linkedTeam.name, discipline: 'f1' },
+      defaults: { LeagueId: null, name: linkedTeam.name, discipline: 'f1', logoPath: linkedTeam.logoPath, car: linkedTeam.car, sortOrder: linkedTeam.sortOrder }
     });
     await participant.update({ F1TeamId: centralTeam.id });
   }
@@ -227,6 +265,13 @@ async function ensureSchema() {
   await Driver.update({ roleF1Friday: true }, { where: { f1Role: 'friday' } });
   await Driver.update({ roleF1Sunday: true }, { where: { f1Role: 'sunday' } });
   await Driver.update({ roleF1Reserve: true }, { where: { f1Role: 'reserve' } });
+  if (!hadFridayReserveRole) await Driver.update({ roleF1ReserveFriday: true }, { where: { roleF1Reserve: true } });
+  if (!hadSundayReserveRole) await Driver.update({ roleF1ReserveSunday: true }, { where: { roleF1Reserve: true } });
+
+  const f1Rosters = await TeamRoster.findAll({ where: { discipline: 'f1' }, attributes: ['id'] });
+  if (f1Rosters.length) await TeamRosterDriver.destroy({
+    where: { TeamRosterId: { [Op.in]: f1Rosters.map((roster) => roster.id) }, roleName: 'Ersatzfahrer' }
+  });
   const lmuLeague = leagues.find((league) => league.type === 'lmu');
   if (lmuLeague) await Driver.update({ roleLmuRegular: true }, { where: { LeagueId: lmuLeague.id, roleLmuRegular: false, roleLmuReserve: false } });
 
@@ -247,6 +292,16 @@ async function ensureSchema() {
       }
     });
     await event.update({ GrandPrixResultId: grandPrix.id });
+  }
+
+  const entriesWithoutTeam = await sequelize.models.GrandPrixResultEntry.findAll({
+    where: { TeamId: null, teamName: { [Op.ne]: null } },
+    include: [{ association: 'grandPrixResult' }]
+  });
+  for (const entry of entriesWithoutTeam) {
+    const discipline = entry.grandPrixResult?.discipline === 'lmu' ? 'lmu' : 'f1';
+    const team = await Team.findOne({ where: { LeagueId: null, discipline, name: entry.teamName } });
+    if (team) await entry.update({ TeamId: team.id });
   }
 }
 

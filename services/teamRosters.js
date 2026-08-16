@@ -7,9 +7,12 @@ async function centralTeamDriverIds(teamId, discipline = 'f1', minimum = discipl
     include: [{ association: 'assignments' }],
     order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
   });
-  return [...new Set(rosters
-    .filter((roster) => roster.assignments.length >= minimum)
-    .flatMap((roster) => roster.assignments.map((assignment) => assignment.DriverId)))];
+  return [...new Set(rosters.flatMap((roster) => {
+    const assignments = discipline === 'f1'
+      ? roster.assignments.filter((assignment) => assignment.roleName !== 'Ersatzfahrer')
+      : roster.assignments;
+    return assignments.length >= minimum ? assignments.map((assignment) => assignment.DriverId) : [];
+  }))];
 }
 
 module.exports = { centralTeamDriverIds };
