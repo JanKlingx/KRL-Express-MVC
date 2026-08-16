@@ -163,7 +163,11 @@ async function prepareCentralTeam(discipline, values, body, existingTeam) {
 }
 
 const prepareF1Team = (values, body, existingTeam) => prepareCentralTeam('f1', values, body, existingTeam);
-const prepareLmuTeam = (values, body, existingTeam) => prepareCentralTeam('lmu', values, body, existingTeam);
+async function prepareLmuTeam(values, body, existingTeam) {
+  await prepareCentralTeam('lmu', values, body, existingTeam);
+  const lmuCar = values.LmuCarId && await models.LmuCar.findByPk(values.LmuCarId);
+  if (!lmuCar) throw new Error('Bitte ein vorhandenes LMU-Auto aus den Stammdaten auswählen.');
+}
 
 async function prepareTeamForForm(entry, discipline) {
   if (!entry?.id) return entry;
@@ -189,6 +193,10 @@ async function syncF1Team(team) {
 
 async function removeF1Team(team) {
   return team;
+}
+
+async function removeLmuCar(lmuCar) {
+  await models.Team.update({ LmuCarId: null }, { where: { LmuCarId: lmuCar.id } });
 }
 
 async function removeF1Driver(driver) {
@@ -585,12 +593,26 @@ module.exports = {
   },
   lmuTeams: {
     title: 'LMU-Teams', group: 'Zentrale Rennteams',
-    description: 'LMU-Team zentral mit Namen pflegen. Die Gesamtpunkte werden automatisch aus allen LMU-Saisonverläufen addiert.', model: models.Team, getListWhere: async () => ({ LeagueId: null, discipline: 'lmu' }), prepareValues: prepareLmuTeam, prepareEntry: (entry) => prepareTeamForForm(entry, 'lmu'),
+    description: 'LMU-Team zentral mit Namen pflegen und ein Auto aus den LMU-Auto-Stammdaten zuordnen. Die Gesamtpunkte werden automatisch aus allen LMU-Saisonverläufen addiert.', model: models.Team, getListWhere: async () => ({ LeagueId: null, discipline: 'lmu' }), prepareValues: prepareLmuTeam, prepareEntry: (entry) => prepareTeamForForm(entry, 'lmu'),
     nextHref: '/admin/team-rosters/lmu', nextLabel: 'Danach LMU-Cockpits zusammenstellen',
-    listFields: ['name', 'totalPoints'],
+    listFields: ['name', 'LmuCarId', 'totalPoints'],
     fields: [
       text('name', 'Teamname', true),
+      relation('LmuCarId', 'LMU-Auto / Marke', models.LmuCar, (row) => `${row.manufacturer} · ${row.name}${row.vehicleClass ? ` · ${row.vehicleClass}` : ''}`, true),
       number('totalPoints', 'Gesamte Punkte (automatisch)', false, { readonly: true, persist: false })
+    ]
+  },
+  lmuCars: {
+    title: 'LMU-Autos & Marken', group: 'Zentrale Rennteams',
+    description: 'LMU-Fahrzeuge einmalig als Stammdaten pflegen und anschließend den vorhandenen LMU-Teams zuordnen.', model: models.LmuCar,
+    upload: { field: 'logoPath', label: 'Marken-/Fahrzeuglogo' }, beforeRemove: removeLmuCar,
+    nextResource: 'lmuTeams', nextLabel: 'Danach vorhandenen LMU-Teams ein Auto zuordnen',
+    listFields: ['manufacturer', 'name', 'vehicleClass'],
+    fields: [
+      text('manufacturer', 'Marke', true, { placeholder: 'Porsche' }),
+      text('name', 'Auto / Modell', true, { placeholder: '963' }),
+      text('vehicleClass', 'Klasse', false, { placeholder: 'Hypercar, LMP2 oder LMGT3' }),
+      number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   lmuDrivers: {

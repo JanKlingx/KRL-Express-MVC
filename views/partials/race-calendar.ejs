@@ -1,0 +1,12 @@
+<% if (calendar.length) { %>
+  <div class="race-calendar-grid">
+    <% calendar.forEach((race, index) => { const startsAt = new Date(race.startsAt); const month = new Intl.DateTimeFormat('de-DE', { month: 'short', timeZone: 'Europe/Berlin' }).format(startsAt).replace('.', '').toUpperCase(); %>
+      <article class="race-calendar-card" style="--calendar-accent:<%= league.accentColor || '#6ef2f2' %>">
+        <% if (league.logoPath) { %><img class="race-calendar-watermark" src="<%= league.logoPath %>" alt="" aria-hidden="true"><% } %>
+        <div class="race-calendar-round"><span>RUNDE</span><strong><%= String(index + 1).padStart(2, '0') %></strong></div>
+        <time datetime="<%= startsAt.toISOString() %>"><strong><%= new Intl.DateTimeFormat('de-DE', { day: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt) %></strong><span><%= month %></span><small><%= new Intl.DateTimeFormat('de-DE', { year: 'numeric', timeZone: 'Europe/Berlin' }).format(startsAt) %></small></time>
+        <div class="race-calendar-info"><span><%= new Intl.DateTimeFormat('de-DE', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt) %> Uhr</span><h3><%= race.title %></h3><p><%= race.circuit || league.name %></p></div>
+      </article>
+    <% }) %>
+  </div>
+<% } else { %><div class="empty-state"><%= emptyMessage %></div><% } %>

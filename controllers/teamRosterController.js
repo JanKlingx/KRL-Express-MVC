@@ -47,12 +47,12 @@ exports.show = async (req, res, next) => {
   const leagues = await League.findAll({ where: { type: config.leagueType }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
   const selectedLeague = leagues.find((league) => league.id === Number(req.query.league)) || leagues[0] || null;
   const [teams, drivers, rosters] = await Promise.all([
-    Team.findAll({ where: { LeagueId: null, discipline }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
+    Team.findAll({ where: { LeagueId: null, discipline }, include: discipline === 'lmu' ? [{ association: 'lmuCar' }] : [], order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
     Driver.findAll({ where: driverWhere(discipline), include: [{ association: 'aliases' }], order: [['name', 'ASC'], ['id', 'ASC']] }),
     selectedLeague ? TeamRoster.findAll({
       where: { discipline, LeagueId: selectedLeague.id },
       include: [
-        { association: 'team' }, { association: 'league' },
+        { association: 'team', include: discipline === 'lmu' ? [{ association: 'lmuCar' }] : [] }, { association: 'league' },
         { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }
       ],
       order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]

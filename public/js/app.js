@@ -19,6 +19,26 @@
     });
   });
 
+  document.querySelectorAll('[data-bulk-actions]').forEach((toolbar) => {
+    const selectAll = toolbar.querySelector('[data-bulk-select-all]');
+    const items = [...document.querySelectorAll('[data-bulk-item]')];
+    const count = toolbar.querySelector('[data-bulk-count]');
+    const submit = toolbar.querySelector('.bulk-delete-button');
+    const update = () => {
+      const selected = items.filter((item) => item.checked).length;
+      count.textContent = String(selected);
+      submit.disabled = selected === 0;
+      selectAll.checked = items.length > 0 && selected === items.length;
+      selectAll.indeterminate = selected > 0 && selected < items.length;
+    };
+    selectAll.addEventListener('change', () => {
+      items.forEach((item) => { item.checked = selectAll.checked; });
+      update();
+    });
+    items.forEach((item) => item.addEventListener('change', update));
+    update();
+  });
+
   document.querySelectorAll('[data-carousel]').forEach((carousel) => {
     const slides = [...carousel.querySelectorAll('.carousel-slide')];
     const dots = carousel.querySelector('.carousel-dots');
@@ -200,54 +220,119 @@
     chart.appendChild(svg);
   });
 
-  document.querySelector('[data-wdl-export]')?.addEventListener('click', async () => {
-    const source = document.querySelector('#wdl-export-data');
-    if (!source) return;
-    const payload = JSON.parse(source.textContent);
-    const rows = payload.standings || [];
-    const canvas = document.createElement('canvas');
-    canvas.width = 1400;
-    canvas.height = 270 + rows.length * 72;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#070a0c';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#6ef2f2';
-    context.fillRect(0, 0, 14, canvas.height);
-    const logo = new Image();
-    logo.src = payload.logo;
-    await new Promise((resolve) => { logo.onload = resolve; logo.onerror = resolve; });
-    if (logo.complete && logo.naturalWidth) context.drawImage(logo, 55, 45, 120, 90);
-    context.fillStyle = '#f5f8fa';
-    context.font = 'bold 48px Arial';
-    context.fillText('WDL LIGA-STANDINGS', 220, 85);
-    context.fillStyle = '#9aa8b1';
-    context.font = '28px Arial';
-    context.fillText(payload.season || 'Saison', 220, 128);
-    const maximum = Math.max(1, ...rows.map((row) => Number(row.points) || 0));
-    rows.forEach((row, index) => {
-      const y = 205 + index * 72;
-      context.fillStyle = '#12191e';
-      context.fillRect(55, y - 38, 1290, 56);
-      context.fillStyle = '#f5f8fa';
-      context.font = 'bold 26px Arial';
-      context.fillText(`${row.position}. ${row.name}`, 78, y);
-      context.fillStyle = '#203038';
-      context.fillRect(610, y - 24, 590, 28);
-      context.fillStyle = '#6ef2f2';
-      context.fillRect(610, y - 24, 590 * ((Number(row.points) || 0) / maximum), 28);
-      context.fillStyle = '#f5f8fa';
-      context.textAlign = 'right';
-      context.fillText(String(row.points), 1315, y);
-      context.textAlign = 'left';
+  const exportSlug = (value) => String(value || 'export').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const loadExportImage = (source) => new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = source;
+  });
+  const fitText = (context, value, maximumWidth) => {
+    let text = String(value || '–').replace(/\s+/g, ' ').trim();
+    if (context.measureText(text).width <= maximumWidth) return text;
+    while (text.length > 2 && context.measureText(`${text}…`).width > maximumWidth) text = text.slice(0, -1);
+    return `${text}…`;
+  };
+  const drawContainedImage = (context, image, x, y, width, height) => {
+    if (!image?.naturalWidth) return;
+    const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+    const targetWidth = image.naturalWidth * scale;
+    const targetHeight = image.naturalHeight * scale;
+    context.drawImage(image, x + (width - targetWidth) / 2, y + (height - targetHeight) / 2, targetWidth, targetHeight);
+  };
+  const readExportTables = (target) => {
+    const tables = target.matches('table') ? [target] : [...target.querySelectorAll('table')];
+    return tables.map((table) => {
+      const section = table.closest('[data-png-section]');
+      const card = table.closest('article');
+      return {
+        title: section?.dataset.pngSection || card?.querySelector('h3')?.textContent.trim() || '',
+        headers: [...table.querySelectorAll('thead th')].map((cell) => cell.textContent.trim()),
+        rows: [...table.querySelectorAll('tbody tr')].map((row) => [...row.querySelectorAll('th,td')].map((cell) => cell.textContent.trim()))
+      };
     });
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `wdl-${String(payload.season || 'saison').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-standings.png`;
-      link.click();
-      URL.revokeObjectURL(link.href);
-    }, 'image/png');
+  };
+
+  document.querySelectorAll('[data-png-export]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const target = document.querySelector(button.dataset.pngTarget);
+      if (!target) return;
+      const tables = readExportTables(target);
+      const accent = /^#[0-9a-f]{6}$/i.test(button.dataset.pngAccent || '') ? button.dataset.pngAccent : '#6ef2f2';
+      const headerHeight = 225;
+      const tableHeaderHeight = 54;
+      const sectionHeight = tables.length > 1 ? 58 : 0;
+      const rowHeight = 52;
+      const contentHeight = tables.reduce((height, table) => height + sectionHeight + tableHeaderHeight + Math.max(1, table.rows.length) * rowHeight + 28, 0);
+      const canvas = document.createElement('canvas');
+      canvas.width = 1600;
+      canvas.height = Math.max(500, headerHeight + contentHeight + 70);
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#070a0c';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = accent;
+      context.fillRect(0, 0, 16, canvas.height);
+      context.fillStyle = '#10171b';
+      context.fillRect(46, 34, 1508, 150);
+      const logo = await loadExportImage(button.dataset.pngLogo || '/images/krl-placeholder.svg');
+      drawContainedImage(context, logo, 76, 52, 155, 112);
+      context.fillStyle = '#f5f8fa';
+      context.font = '700 50px Arial';
+      context.fillText(fitText(context, button.dataset.pngTitle, 1220), 270, 96);
+      context.fillStyle = '#9aa8b1';
+      context.font = '28px Arial';
+      context.fillText(fitText(context, button.dataset.pngSubtitle || 'Saison', 1220), 270, 140);
+
+      let y = headerHeight;
+      tables.forEach((table, tableIndex) => {
+        if (tables.length > 1) {
+          context.fillStyle = accent;
+          context.fillRect(58, y, 1484, sectionHeight - 8);
+          context.fillStyle = '#061012';
+          context.font = '700 27px Arial';
+          context.fillText(fitText(context, table.title || `Ergebnis ${tableIndex + 1}`, 1420), 80, y + 34);
+          y += sectionHeight;
+        }
+        const columnCount = Math.max(1, table.headers.length, ...table.rows.map((row) => row.length));
+        const availableWidth = 1484;
+        const samples = Array.from({ length: columnCount }, (_, columnIndex) => [table.headers[columnIndex], ...table.rows.map((row) => row[columnIndex])]);
+        const weights = samples.map((values) => Math.max(7, Math.min(28, Math.max(...values.map((value) => String(value || '').length)))));
+        const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+        const widths = weights.map((weight) => availableWidth * weight / weightTotal);
+        context.fillStyle = '#1b272e';
+        context.fillRect(58, y, availableWidth, tableHeaderHeight);
+        let x = 58;
+        context.font = '700 22px Arial';
+        context.fillStyle = accent;
+        for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+          context.fillText(fitText(context, table.headers[columnIndex] || '', widths[columnIndex] - 28), x + 14, y + 35);
+          x += widths[columnIndex];
+        }
+        y += tableHeaderHeight;
+        const rows = table.rows.length ? table.rows : [['Keine Daten vorhanden']];
+        rows.forEach((row, rowIndex) => {
+          context.fillStyle = rowIndex % 2 ? '#0d1418' : '#121b20';
+          context.fillRect(58, y, availableWidth, rowHeight - 2);
+          x = 58;
+          context.font = rowIndex < 3 ? '700 21px Arial' : '20px Arial';
+          context.fillStyle = '#f5f8fa';
+          for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+            context.fillText(fitText(context, row[columnIndex] || '', widths[columnIndex] - 28), x + 14, y + 33);
+            x += widths[columnIndex];
+          }
+          y += rowHeight;
+        });
+        y += 28;
+      });
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${exportSlug(button.dataset.pngFilename)}-${exportSlug(button.dataset.pngSubtitle)}.png`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }, 'image/png');
+    });
   });
 
   const countdown = document.querySelector('[data-countdown]');

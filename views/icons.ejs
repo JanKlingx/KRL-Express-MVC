@@ -1,0 +1,9 @@
+<%- include('partials/header', { title }) %>
+<section class="league-hero icons-hero"><div class="container"><span class="eyebrow">HALL OF FAME</span><h1>KRL <span>ICONS</span></h1><p>Fahrer und Persönlichkeiten, die die Katzes Racing League nachhaltig geprägt haben.</p><div class="facts"><span>Auszeichnungen <strong><%= icons.length %></strong></span><span>Status <strong>Unvergessen</strong></span></div></div></section>
+<% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/krlIcons">✎ KRL Icons pflegen</a></div><% } %>
+<section class="section container">
+  <div class="section-heading"><span>AUSGEZEICHNET</span><h2>UNSERE KRL ICONS</h2></div>
+  <% if (icons.length) { %><div class="icon-hall-grid"><% icons.forEach((icon, index) => { %><article class="icon-hall-card"><span class="icon-hall-number"><%= String(index + 1).padStart(2, '0') %></span><div class="icon-hall-initial"><%= icon.driver.name.charAt(0) %></div><div><span>KRL ICON</span><h2><%= icon.driver.name %></h2><p><%= icon.text %></p><small><%= icon.appointedAt ? `Ernannt am ${new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date(`${icon.appointedAt}T12:00:00Z`))}` : 'Ernennungsdatum offen' %></small></div></article><% }) %></div>
+  <% } else { %><div class="empty-state">Noch wurden keine KRL Icons ernannt.</div><% } %>
+</section>
+<%- include('partials/footer') %>

@@ -10,6 +10,7 @@ process.env.DB_PASSWORD ||= 'krl';
 
 const resourceConfig = require('../services/resourceConfig');
 const models = require('../models');
+const adminController = require('../controllers/adminController');
 const { F1RaceLineupEntry } = models;
 
 const layout = { currentPath: '/admin', isAdmin: true, flash: null };
@@ -74,6 +75,47 @@ test('Vorhandene F1-Teams erhalten einen verpflichtenden Farbcode', () => {
   assert.equal(accentColor.required, true);
   assert.equal(models.Team.rawAttributes.accentColor.field, 'accent_color');
   assert.equal(models.Team.rawAttributes.accentColor.defaultValue, '#6ef2f2');
+});
+
+test('Stammdatenlisten bieten Mehrfachauswahl zum Löschen', async () => {
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'resource-list.ejs'), {
+    ...layout, title: 'Formel-1-Teams', adminBasePath: '/admin', resource: 'teams',
+    config: resourceConfig.teams,
+    entries: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be', totalPoints: 120 }],
+    fieldOptions: {}, selectedLeague: '', leagueOptions: [], selectedRank: '', rankGroups: []
+  });
+  assert.match(html, /id="bulk-delete-form"/);
+  assert.match(html, /name="ids" value="4"/);
+  assert.match(html, /Alle sichtbaren auswählen/);
+  assert.match(html, /Auswahl löschen/);
+});
+
+test('Mehrfachlöschen entfernt nur ausgewählte Stammdatensätze', async () => {
+  const originalFindAll = models.Team.findAll;
+  const destroyed = [];
+  models.Team.findAll = async () => [
+    { id: 2, logoPath: null, destroy: async () => destroyed.push(2) },
+    { id: 7, logoPath: null, destroy: async () => destroyed.push(7) }
+  ];
+  const req = { params: { resource: 'teams' }, body: { ids: ['2', '7', '7', 'ungueltig'] }, session: {}, adminBasePath: '/admin' };
+  const res = { redirectPath: null, redirect(value) { this.redirectPath = value; } };
+  try {
+    await adminController.bulkRemove(req, res, () => {});
+    assert.deepEqual(destroyed, [2, 7]);
+    assert.equal(req.session.flash.message, '2 Einträge wurden gelöscht.');
+    assert.equal(res.redirectPath, '/admin/teams');
+  } finally {
+    models.Team.findAll = originalFindAll;
+  }
+});
+
+test('LMU-Autos sind eigene Stammdaten und werden vorhandenen LMU-Teams zugeordnet', () => {
+  assert.ok(resourceConfig.lmuCars);
+  assert.equal(resourceConfig.lmuCars.model, models.LmuCar);
+  const relation = resourceConfig.lmuTeams.fields.find((field) => field.name === 'LmuCarId');
+  assert.equal(relation.required, true);
+  assert.equal(relation.relation.model, models.LmuCar);
+  assert.equal(models.Team.rawAttributes.LmuCarId.field, 'lmu_car_id');
 });
 
 test('MariaDB-kompatibler Ersatzfahrerindex hat einen kurzen Namen', () => {
