@@ -25,6 +25,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
   const teams = rosters.map((roster) => ({
     id: roster.team.id,
     name: roster.team.name,
+    accentColor: roster.team.accentColor,
     logoPath: roster.team.logoPath,
     rosterId: roster.id,
     drivers: roster.assignments
