@@ -18,12 +18,13 @@ test('Teamaufstellung zeigt mehr als zwei Fahrer und weist auf die Mindestzahl h
   }));
   const league = { id: 1, name: 'KRL Freitagsliga', slug: 'freitag' };
   const team = { id: 1, name: 'Mercedes', car: 'Mercedes', logoPath: null };
+  const availableTeam = { id: 2, name: 'Racing Bulls', car: 'Mercedes', logoPath: '/uploads/racing-bulls.png' };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'team-rosters.ejs'), {
     ...layout, title: 'F1-Fahrerfelder', discipline: 'f1',
     config: { title: 'F1-Fahrerfelder', description: 'Test', minimum: 2 },
-    leagues: [league], selectedLeague: league, teams: [team], drivers,
+    leagues: [league], selectedLeague: league, teams: [team, availableTeam], drivers,
     rosters: [{
-      id: 1, league, team, assignments: drivers.slice(0, 4).map((driver, index) => ({ id: index + 1, DriverId: driver.id, roleName: 'Stammfahrer', driver }))
+      id: 1, TeamId: team.id, league, team, assignments: drivers.slice(0, 4).map((driver, index) => ({ id: index + 1, DriverId: driver.id, roleName: 'Stammfahrer', driver }))
     }]
   });
   drivers.forEach((driver) => assert.match(html, new RegExp(driver.name)));
@@ -31,7 +32,27 @@ test('Teamaufstellung zeigt mehr als zwei Fahrer und weist auf die Mindestzahl h
   assert.match(html, /option value="Fahrer E" data-driver-id="5"/);
   assert.match(html, /name="DriverId" data-driver-id/);
   assert.match(html, /option value="1" selected/);
+  assert.match(html, /team-choice-card team-choice-assigned/);
+  assert.match(html, /team-choice-card team-choice-available/);
+  assert.match(html, /name="TeamId" value="2"/);
   assert.match(html, /ME/);
+});
+
+test('Öffentliche F1-Teamkarte zeigt nur Logo und Fahrernamen statt veraltetem Fahrzeugfeld', async () => {
+  const season = { id: 1, name: 'Saison 13', status: 'active', category: null };
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'f1.ejs'), {
+    ...layout, isAdmin: false, title: 'Freitagsliga', seasons: [season], selectedSeason: season,
+    league: { id: 1, slug: 'freitag', name: 'Freitagsliga', currentSeason: season.name, accentColor: '#6ef2f2', description: 'Testliga', raceDay: 'Freitag', raceTime: '20:00' },
+    teams: [{ id: 2, name: 'Racing Bulls', car: 'Mercedes', logoPath: '/uploads/racing-bulls.png', drivers: [{ name: 'Fahrer A', platform: 'PC' }, { name: 'Fahrer B', platform: 'PC' }] }],
+    calendar: [], driverStandings: [], teamStandings: [], gpResults: [], history: { seasons: [], warning: null }, selectedHistory: null
+  });
+  assert.match(html, /class="f1-team-grid"/);
+  assert.match(html, /src="\/uploads\/racing-bulls\.png" alt="Racing Bulls"/);
+  assert.match(html, /Fahrer A/);
+  assert.match(html, /Fahrer B/);
+  assert.doesNotMatch(html, /Mercedes/);
+  assert.doesNotMatch(html, /Fahrer 1:/);
+  assert.doesNotMatch(html, /· PC/);
 });
 
 test('Historische Saison verwendet Fahrersuche statt Teilnahme-Checkbox', async () => {
