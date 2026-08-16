@@ -39,6 +39,37 @@
     update();
   });
 
+  document.querySelectorAll('[data-upload-dropzone]').forEach((dropzone) => {
+    const input = dropzone.querySelector('input[type="file"]');
+    const name = dropzone.querySelector('[data-upload-name]');
+    const preview = dropzone.querySelector('[data-upload-local-preview]');
+    const showFile = () => {
+      const file = input.files?.[0];
+      name.textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : 'oder zum Auswählen klicken';
+      if (!file || !file.type.startsWith('image/')) { preview.hidden = true; return; }
+      const reader = new FileReader();
+      reader.addEventListener('load', () => { preview.src = reader.result; preview.hidden = false; });
+      reader.readAsDataURL(file);
+    };
+    ['dragenter', 'dragover'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.add('is-dragging');
+    }));
+    ['dragleave', 'drop'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropzone.classList.remove('is-dragging');
+    }));
+    dropzone.addEventListener('drop', (event) => {
+      const files = event.dataTransfer?.files;
+      if (!files?.length) return;
+      const transfer = new DataTransfer();
+      transfer.items.add(files[0]);
+      input.files = transfer.files;
+      showFile();
+    });
+    input.addEventListener('change', showFile);
+  });
+
   document.querySelectorAll('[data-carousel]').forEach((carousel) => {
     const slides = [...carousel.querySelectorAll('.carousel-slide')];
     const dots = carousel.querySelector('.carousel-dots');

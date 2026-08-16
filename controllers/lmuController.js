@@ -10,7 +10,7 @@ async function loadData(requestedSeasonId) {
   const [rosters, historicalDrivers, gpResults, activeCalendar] = await Promise.all([
     TeamRoster.findAll({
       where: { LeagueId: league.id, discipline: 'lmu' },
-      include: [{ association: 'team', include: [{ association: 'lmuCar' }] }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
+      include: [{ association: 'team', include: [{ association: 'lmuCar' }] }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }, { association: 'lmuCar' }] }] }],
       order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
     }),
     selectedSeason?.status === 'historical' ? Driver.findAll({ include: [{ association: 'aliases' }], order: [['name', 'ASC']] }) : [],
@@ -18,22 +18,22 @@ async function loadData(requestedSeasonId) {
     selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, isPublished: true }, order: [['startsAt', 'ASC']] }) : []
   ]);
   const driverMap = new Map();
-  rosters.filter((roster) => roster.assignments.length >= 3).forEach((roster) => roster.assignments.forEach((assignment) => {
+  rosters.filter((roster) => roster.assignments.filter((assignment) => assignment.roleName !== 'Ersatzfahrer').length >= 3).forEach((roster) => roster.assignments.filter((assignment) => assignment.roleName !== 'Ersatzfahrer').forEach((assignment) => {
     if (!driverMap.has(assignment.DriverId)) driverMap.set(assignment.DriverId, {
       ...assignment.driver.toJSON(), rosterRole: assignment.roleName,
       team: { id: roster.team.id, name: roster.team.name, logoPath: roster.team.logoPath, lmuCar: roster.team.lmuCar }
     });
   }));
   const drivers = selectedSeason?.status === 'historical' ? historicalDrivers : [...driverMap.values()];
-  const cockpits = rosters.filter((roster) => roster.assignments.length >= 3).map((roster) => ({
+  const cockpits = rosters.filter((roster) => roster.assignments.filter((assignment) => assignment.roleName !== 'Ersatzfahrer').length >= 3).map((roster) => ({
     ...roster.toJSON(), team: roster.team,
-    drivers: roster.assignments.map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
+    drivers: roster.assignments.filter((assignment) => assignment.roleName !== 'Ersatzfahrer').map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
   }));
   const teams = rosters.map((roster) => roster.team);
   const calendar = activeCalendar.length ? activeCalendar : gpResults
     .filter((race) => race.raceDate)
     .map((race) => ({ id: `result-${race.id}`, title: race.title, circuit: race.circuit, startsAt: new Date(`${race.raceDate}T12:00:00Z`) }));
-  const leagueForSeason = { ...league.toJSON(), currentSeason: selectedSeason?.name || league.currentSeason };
+  const leagueForSeason = { ...league.toJSON(), currentSeason: selectedSeason?.name || league.currentSeason, accentColor: selectedSeason?.accentColor || league.accentColor };
   return { league: leagueForSeason, seasons, selectedSeason, cockpits, teams, drivers, gpResults, calendar, ...buildSeasonData(leagueForSeason, gpResults, drivers) };
 }
 
@@ -47,7 +47,7 @@ exports.downloadStandings = async (req, res) => {
   const data = await loadData(req.query.season);
   if (!data) return res.status(404).end();
   const rows = [['Position', 'Fahrer', 'Team', 'Punkte', 'Siege']];
-  data.driverStandings.forEach((row) => rows.push([row.position, row.driver.name, row.driver.team.name, row.points, row.wins]));
+  data.driverStandings.forEach((row) => rows.push([row.position, row.driver.lmuDisplayName || row.driver.name, row.driver.team.name, row.points, row.wins]));
   sendCsv(res, `lmu-${data.selectedSeason?.name || data.league.currentSeason}-wm.csv`, rows);
 };
 

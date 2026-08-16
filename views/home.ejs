@@ -50,7 +50,7 @@
         <% team.assignments.forEach(assignment => { const member = assignment.driver; %>
           <article class="person-card">
 
-            <div class="avatar"><%= member.name.charAt(0) %></div>
+            <div class="avatar"><% if (assignment.imagePath) { %><img src="<%= assignment.imagePath %>" alt="<%= member.name %>"><% } else { %><%= member.name.charAt(0) %><% } %></div>
 
             <strong><%= member.name %></strong>
             <span><%= assignment.roleName %></span>

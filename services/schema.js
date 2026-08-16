@@ -14,6 +14,8 @@ async function ensureSchema() {
   const hadFridayReserveRole = Boolean(driverTable.role_f1_reserve_friday);
   const hadSundayReserveRole = Boolean(driverTable.role_f1_reserve_sunday);
   await addMissingColumn('drivers', driverTable, 'platform', { type: DataTypes.STRING, allowNull: false, defaultValue: 'PC' });
+  await addMissingColumn('drivers', driverTable, 'lmu_display_name', { type: DataTypes.STRING, allowNull: true });
+  await addMissingColumn('drivers', driverTable, 'lmu_car_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('drivers', driverTable, 'participating_league_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('drivers', driverTable, 'f1_role', { type: DataTypes.STRING, allowNull: true });
   await addMissingColumn('drivers', driverTable, 'role_f1_friday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
@@ -48,6 +50,16 @@ async function ensureSchema() {
   await addMissingColumn('grand_prix_results', resultTable, 'points_mode', { type: DataTypes.STRING, allowNull: false, defaultValue: 'database' });
   await addMissingColumn('grand_prix_results', resultTable, 'is_historical', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
 
+  const resultEntryTable = await queryInterface.describeTable('grand_prix_result_entries');
+  await addMissingColumn('grand_prix_result_entries', resultEntryTable, 'pole_position', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+
+  const pointsSchemeTable = await queryInterface.describeTable('points_schemes');
+  await addMissingColumn('points_schemes', pointsSchemeTable, 'pole_position_enabled', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('points_schemes', pointsSchemeTable, 'pole_position_points', { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 });
+
+  const lmuCarTable = await queryInterface.describeTable('lmu_cars');
+  await addMissingColumn('lmu_cars', lmuCarTable, 'additional_info', { type: DataTypes.STRING, allowNull: true });
+
   const participatingTable = await queryInterface.describeTable('participating_leagues');
   await addMissingColumn('participating_leagues', participatingTable, 'is_active', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true });
   await addMissingColumn('participating_leagues', participatingTable, 'f1_team_id', { type: DataTypes.INTEGER, allowNull: true });
@@ -62,6 +74,11 @@ async function ensureSchema() {
 
   const seasonTable = await queryInterface.describeTable('seasons');
   await addMissingColumn('seasons', seasonTable, 'season_category_id', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('seasons', seasonTable, 'points_scheme_id', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('seasons', seasonTable, 'accent_color', { type: DataTypes.STRING, allowNull: true });
+
+  const krlAssignmentTable = await queryInterface.describeTable('krl_team_assignments');
+  await addMissingColumn('krl_team_assignments', krlAssignmentTable, 'image_path', { type: DataTypes.STRING, allowNull: true });
 
   const f1Leagues = await League.findAll({ where: { type: 'f1' } });
   for (const league of f1Leagues) {
@@ -96,7 +113,7 @@ async function ensureSchema() {
     }
   }
 
-  const entryTable = await queryInterface.describeTable('grand_prix_result_entries');
+  const entryTable = resultEntryTable;
   await addMissingColumn('grand_prix_result_entries', entryTable, 'driver_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('grand_prix_result_entries', entryTable, 'team_id', { type: DataTypes.INTEGER, allowNull: true });
 

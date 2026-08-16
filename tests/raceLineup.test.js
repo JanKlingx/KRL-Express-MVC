@@ -61,3 +61,23 @@ test('Rennkalender wird als grafische Karten statt einfacher Tabelle gerendert',
   assert.match(html, /admin-calendar-test/);
   assert.doesNotMatch(html, /class="table-wrap admin-table"/);
 });
+
+test('LMU-Fahrereinteilung nutzt LMU-Anzeigename, persönliches Auto und Ersatzstatus', async () => {
+  const league = { id: 1, name: 'KRL LMU', slug: 'lmu' };
+  const season = { id: 2, name: 'LMU 2026', status: 'active' };
+  const race = { id: 3, title: '6H Spa', circuit: 'Spa', raceDate: '2026-09-04', sortOrder: 1 };
+  const car = { manufacturer: 'BMW', name: 'M4 GT3' };
+  const regular = { id: 7, name: 'Paul', lmuDisplayName: 'Paul Schober | alaric01', platform: 'PC', lmuCar: car };
+  const reserve = { id: 8, name: 'Reserve', lmuDisplayName: 'Reserve | R8', platform: 'PC', lmuCar: car };
+  const team = { id: 9, name: 'A.C.N. Racing', logoPath: null, lmuCar: car };
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'lmu-race-lineup.ejs'), {
+    ...layout, title: 'LMU-Fahrereinteilung', league, activeSeason: season, races: [race], selectedRace: race,
+    regularStatuses: REGULAR_STATUSES, reserveStatuses: RESERVE_STATUSES, displayName: (driver) => driver.lmuDisplayName || driver.name,
+    reserves: [reserve], reserveRows: [{ driver: reserve, status: 'auf_abruf', assignedTo: null }],
+    teamCards: [{ team, rows: [{ driver: regular, team, status: 'anwesend', replacementDriverId: null }] }], hasSavedPlan: true
+  });
+  assert.match(html, /Paul Schober \| alaric01/);
+  assert.match(html, /BMW M4 GT3/);
+  assert.match(html, /status-auf_abruf/);
+  assert.match(html, /LMU-Fahrereinteilung speichern/);
+});

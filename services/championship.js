@@ -28,22 +28,30 @@ async function pointsForPosition(position, context = {}) {
   if (!Number.isInteger(numericPosition) || numericPosition < 1) return 0;
   const discipline = context.discipline || 'f1';
   const effectiveDate = dateOnly(context.raceDate);
-  const scheme = await PointsScheme.findOne({
-    where: {
-      discipline,
-      [Op.and]: [
-        { [Op.or]: [{ validFrom: null }, { validFrom: { [Op.lte]: effectiveDate } }] },
-        { [Op.or]: [{ validUntil: null }, { validUntil: { [Op.gte]: effectiveDate } }] }
-      ]
-    },
-    order: [['validFrom', 'DESC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
-  });
+  let selectedSchemeId = context.PointsSchemeId || null;
+  if (!selectedSchemeId && context.SeasonId) {
+    const season = await Season.findByPk(context.SeasonId, { attributes: ['PointsSchemeId'] });
+    selectedSchemeId = season?.PointsSchemeId || null;
+  }
+  const scheme = selectedSchemeId
+    ? await PointsScheme.findOne({ where: { id: selectedSchemeId, discipline } })
+    : await PointsScheme.findOne({
+      where: {
+        discipline,
+        [Op.and]: [
+          { [Op.or]: [{ validFrom: null }, { validFrom: { [Op.lte]: effectiveDate } }] },
+          { [Op.or]: [{ validUntil: null }, { validUntil: { [Op.gte]: effectiveDate } }] }
+        ]
+      },
+      order: [['validFrom', 'DESC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
+    });
   if (scheme) {
     const allocation = await PointAllocation.findOne({
       where: { PointsSchemeId: scheme.id, raceType: context.raceType || 'main', position: numericPosition }
     });
     const fastestLapBonus = context.fastestLap && scheme.fastestLapEnabled ? Number(scheme.fastestLapPoints || 0) : 0;
-    return Number(allocation?.points || 0) + fastestLapBonus;
+    const polePositionBonus = discipline === 'lmu' && context.polePosition && scheme.polePositionEnabled ? Number(scheme.polePositionPoints || 0) : 0;
+    return Number(allocation?.points || 0) + fastestLapBonus + polePositionBonus;
   }
   const rule = await PointsRule.findOne({ where: { position: numericPosition } });
   return rule ? Number(rule.points) : 0;
@@ -87,7 +95,7 @@ async function assignPointsToRace(raceId, transaction) {
   if (race?.pointsMode === 'manual') return;
   const entries = await GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: raceId }, transaction });
   for (const entry of entries) {
-    await entry.update({ points: await pointsForPosition(entry.position, { ...race?.toJSON(), fastestLap: entry.fastestLap }) }, { transaction });
+    await entry.update({ points: await pointsForPosition(entry.position, { ...race?.toJSON(), fastestLap: entry.fastestLap, polePosition: entry.polePosition }) }, { transaction });
   }
 }
 
@@ -135,7 +143,7 @@ async function recalculateAllPoints() {
     for (const entry of entries) {
       const race = entry.grandPrixResult?.toJSON() || {};
       if (race.pointsMode === 'manual') continue;
-      await entry.update({ points: await pointsForPosition(entry.position, { ...race, fastestLap: entry.fastestLap }) }, { transaction });
+      await entry.update({ points: await pointsForPosition(entry.position, { ...race, fastestLap: entry.fastestLap, polePosition: entry.polePosition }) }, { transaction });
     }
     for (const entry of wdlEntries) await assignWdlPoints(entry, transaction, entry.race);
   });
@@ -229,7 +237,7 @@ async function syncSeriesCalendarEvent(event) {
   if (!season || !league) throw new Error('Rennkalender benötigt Saison und Liga.');
   const discipline = season.leagueType === 'wdl' ? 'wdl' : season.leagueType;
   const [race] = await GrandPrixResult.findOrCreate({
-    where: { SeasonId: season.id, LeagueId: league.id, circuit: event.circuit || event.title },
+    where: { SeasonId: season.id, LeagueId: league.id, circuit: event.circuit || event.title, raceType: 'main' },
     defaults: {
       SeasonId: season.id,
       LeagueId: league.id,
@@ -238,11 +246,12 @@ async function syncSeriesCalendarEvent(event) {
       circuit: event.circuit,
       raceDate: event.startsAt,
       discipline,
+      raceType: 'main',
       isHistorical: season.status === 'historical',
       sortOrder: event.sortOrder
     }
   });
-  await race.update({ title: event.title, raceDate: event.startsAt, discipline, isHistorical: season.status === 'historical', sortOrder: event.sortOrder });
+  await race.update({ title: event.title, raceDate: event.startsAt, discipline, raceType: 'main', isHistorical: season.status === 'historical', sortOrder: event.sortOrder });
   await event.update({ GrandPrixResultId: race.id, isPublished: season.status === 'active' });
   if (discipline === 'wdl') await ensureWdlEntries(race);
   if (discipline === 'lmu') await ensureLmuEntries(race);

@@ -31,7 +31,8 @@ async function loadData(requestedSeasonId) {
   const calendar = publishedCalendar.length ? publishedCalendar : races
     .filter((race) => race.raceDate)
     .map((race) => ({ id: `result-${race.id}`, title: race.title, circuit: race.circuit, startsAt: new Date(`${race.raceDate}T12:00:00Z`) }));
-  return { pageLeague, seasons, selectedSeason, leagues, races, calendar, standings: buildWdlStandings(races) };
+  const pageLeagueForSeason = { ...pageLeague.toJSON(), currentSeason: selectedSeason?.name || pageLeague.currentSeason, accentColor: selectedSeason?.accentColor || pageLeague.accentColor };
+  return { pageLeague: pageLeagueForSeason, seasons, selectedSeason, leagues, races, calendar, standings: buildWdlStandings(races) };
 }
 
 exports.show = async (req, res) => {
