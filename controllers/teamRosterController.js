@@ -12,8 +12,8 @@ const configs = {
   }
 };
 
-function redirectPath(discipline) {
-  return `/admin/team-rosters/${discipline}`;
+function redirectPath(discipline, leagueId) {
+  return `/admin/team-rosters/${discipline}${leagueId ? `?league=${Number(leagueId)}` : ''}`;
 }
 
 async function loadRoster(id) {
@@ -31,24 +31,34 @@ function driverFitsRoster(driver, roster) {
   return roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday;
 }
 
+async function resolveDriver(body) {
+  if (Number(body.DriverId) > 0) return Driver.findByPk(body.DriverId);
+  const search = String(body.driverSearch || '').trim().toLocaleLowerCase('de-DE');
+  if (!search) return null;
+  const drivers = await Driver.findAll({ include: [{ association: 'aliases' }] });
+  return drivers.find((driver) => driver.name.toLocaleLowerCase('de-DE') === search
+    || driver.aliases.some((alias) => alias.alias.toLocaleLowerCase('de-DE') === search)) || null;
+}
+
 exports.show = async (req, res, next) => {
   const discipline = req.params.discipline;
   const config = configs[discipline];
   if (!config) return next();
-  const [leagues, teams, drivers, rosters] = await Promise.all([
-    League.findAll({ where: { type: config.leagueType }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
+  const leagues = await League.findAll({ where: { type: config.leagueType }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
+  const selectedLeague = leagues.find((league) => league.id === Number(req.query.league)) || leagues[0] || null;
+  const [teams, drivers, rosters] = await Promise.all([
     Team.findAll({ where: { LeagueId: null, discipline }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
     Driver.findAll({ where: driverWhere(discipline), include: [{ association: 'aliases' }], order: [['name', 'ASC'], ['id', 'ASC']] }),
-    TeamRoster.findAll({
-      where: { discipline },
+    selectedLeague ? TeamRoster.findAll({
+      where: { discipline, LeagueId: selectedLeague.id },
       include: [
         { association: 'team' }, { association: 'league' },
         { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }
       ],
       order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
-    })
+    }) : []
   ]);
-  res.render('admin/team-rosters', { title: config.title, discipline, config, leagues, teams, drivers, rosters });
+  res.render('admin/team-rosters', { title: config.title, discipline, config, leagues, selectedLeague, teams, drivers, rosters });
 };
 
 exports.create = async (req, res, next) => {
@@ -72,14 +82,16 @@ exports.create = async (req, res, next) => {
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
   }
-  res.redirect(redirectPath(discipline));
+  res.redirect(redirectPath(discipline, req.body.LeagueId));
 };
 
 exports.addDriver = async (req, res, next) => {
   const discipline = req.params.discipline;
   if (!configs[discipline]) return next();
+  let roster;
   try {
-    const [roster, driver] = await Promise.all([loadRoster(req.params.rosterId), Driver.findByPk(req.body.DriverId)]);
+    roster = await loadRoster(req.params.rosterId);
+    const driver = await resolveDriver(req.body);
     if (!roster || roster.discipline !== discipline || !driver) throw new Error('Aufstellung oder Fahrer wurde nicht gefunden.');
     if (!driverFitsRoster(driver, roster)) throw new Error(`${driver.name} besitzt nicht die passende Fahrerrolle für ${roster.league.name}.`);
     const otherRoster = await TeamRosterDriver.findOne({
@@ -100,25 +112,27 @@ exports.addDriver = async (req, res, next) => {
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
   }
-  res.redirect(redirectPath(discipline));
+  res.redirect(redirectPath(discipline, roster?.LeagueId));
 };
 
 exports.removeDriver = async (req, res, next) => {
   const discipline = req.params.discipline;
   if (!configs[discipline]) return next();
   const assignment = await TeamRosterDriver.findByPk(req.params.assignmentId, { include: [{ association: 'roster' }] });
+  const leagueId = assignment?.roster?.LeagueId;
   if (assignment?.roster?.discipline === discipline) await assignment.destroy();
   req.session.flash = { type: 'success', message: 'Fahrer wurde aus der Aufstellung entfernt.' };
-  res.redirect(redirectPath(discipline));
+  res.redirect(redirectPath(discipline, leagueId));
 };
 
 exports.removeRoster = async (req, res, next) => {
   const discipline = req.params.discipline;
   if (!configs[discipline]) return next();
   const roster = await TeamRoster.findOne({ where: { id: req.params.rosterId, discipline } });
+  const leagueId = roster?.LeagueId;
   if (roster) await roster.destroy();
   req.session.flash = { type: 'success', message: 'Aufstellung wurde entfernt. Das zentrale Team bleibt erhalten.' };
-  res.redirect(redirectPath(discipline));
+  res.redirect(redirectPath(discipline, leagueId));
 };
 
 module.exports.configs = configs;

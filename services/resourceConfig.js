@@ -33,7 +33,37 @@ const relation = (name, label, model, formatOption, required = false, options = 
   where: undefined
 });
 
-async function prepareDriver(values, body) {
+const NATIONALITY_CHOICES = [
+  ['DE', 'Deutschland (DE)'], ['AT', 'Österreich (AT)'], ['CH', 'Schweiz (CH)'], ['AU', 'Australien (AU)'],
+  ['BE', 'Belgien (BE)'], ['BR', 'Brasilien (BR)'], ['CA', 'Kanada (CA)'], ['DK', 'Dänemark (DK)'],
+  ['ES', 'Spanien (ES)'], ['FI', 'Finnland (FI)'], ['FR', 'Frankreich (FR)'], ['GB', 'Großbritannien (GB)'],
+  ['IT', 'Italien (IT)'], ['JP', 'Japan (JP)'], ['MX', 'Mexiko (MX)'], ['NL', 'Niederlande (NL)'],
+  ['NO', 'Norwegen (NO)'], ['PL', 'Polen (PL)'], ['SE', 'Schweden (SE)'], ['US', 'USA (US)']
+];
+
+const DRIVER_RANKS = [
+  { value: 'f1-friday', label: 'Stamm Freitag', where: { roleF1Friday: true }, matches: (driver) => Boolean(driver.roleF1Friday) },
+  { value: 'f1-sunday', label: 'Stamm Sonntag', where: { roleF1Sunday: true }, matches: (driver) => Boolean(driver.roleF1Sunday) },
+  { value: 'f1-reserve-friday', label: 'Ersatz Freitag', where: { roleF1ReserveFriday: true }, matches: (driver) => Boolean(driver.roleF1ReserveFriday) },
+  { value: 'f1-reserve-sunday', label: 'Ersatz Sonntag', where: { roleF1ReserveSunday: true }, matches: (driver) => Boolean(driver.roleF1ReserveSunday) },
+  { value: 'lmu-regular', label: 'LMU Stammfahrer', where: { roleLmuRegular: true }, matches: (driver) => Boolean(driver.roleLmuRegular) },
+  { value: 'lmu-reserve', label: 'LMU Ersatzfahrer', where: { roleLmuReserve: true }, matches: (driver) => Boolean(driver.roleLmuReserve) },
+  { value: 'former-f1', label: 'Ehemalige Formel-1-Fahrer', where: { roleFormerF1: true }, matches: (driver) => Boolean(driver.roleFormerF1) },
+  { value: 'former-lmu', label: 'Ehemalige LMU-Fahrer', where: { roleFormerLmu: true }, matches: (driver) => Boolean(driver.roleFormerLmu) }
+];
+
+async function prepareDriver(values, body, existingDriver) {
+  values.name = String(values.name || '').trim();
+  const duplicateName = await models.Driver.findOne({
+    where: {
+      id: { [Op.ne]: existingDriver?.id || 0 },
+      [Op.and]: models.sequelize.where(
+        models.sequelize.fn('LOWER', models.sequelize.col('name')),
+        values.name.toLocaleLowerCase('de-DE')
+      )
+    }
+  });
+  if (duplicateName) throw new Error(`Der Fahrername „${values.name}“ ist bereits vergeben. Verwende bei einer Namensänderung die Aliase im bestehenden Fahrerprofil.`);
   if (['roleF1Friday', 'roleF1Sunday', 'roleF1ReserveFriday', 'roleF1ReserveSunday'].some((name) => Object.prototype.hasOwnProperty.call(values, name))) {
     if (values.roleF1Friday && values.roleF1ReserveFriday) throw new Error('Ein Fahrer kann in der Freitagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
     if (values.roleF1Sunday && values.roleF1ReserveSunday) throw new Error('Ein Fahrer kann in der Sonntagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
@@ -63,12 +93,14 @@ const f1DriverWhere = () => ({
   [Op.or]: [
     { roleF1Friday: true }, { roleF1Sunday: true },
     { roleF1ReserveFriday: true }, { roleF1ReserveSunday: true },
-    { roleLmuRegular: true }, { roleLmuReserve: true }
+    { roleLmuRegular: true }, { roleLmuReserve: true },
+    { roleFormerF1: true }, { roleFormerLmu: true }
   ]
 });
 const hasF1Rank = (entry) => Boolean(entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1ReserveFriday || entry?.roleF1ReserveSunday || entry?.roleFormerF1);
 
 const platformField = () => select('platform', 'Plattform', [['PC', 'PC'], ['PlayStation', 'PlayStation'], ['Xbox', 'Xbox']], true);
+const nationalityField = () => select('nationality', 'Nationalität', NATIONALITY_CHOICES);
 const aliasesField = () => textarea('aliasesText', 'Aliase / frühere Namen', false, { persist: false, help: 'Mehrere Namen mit Komma oder jeweils in einer neuen Zeile trennen.' });
 
 async function prepareDriverForForm(entry) {
@@ -283,6 +315,16 @@ async function preparePointAllocation(values, body, existingEntry) {
   if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Für diesen Platz existiert im gewählten Rennen bereits ein Punktewert.');
 }
 
+async function preparePointsSchemeForList(entry) {
+  if (!entry?.id) return entry;
+  const values = typeof entry.toJSON === 'function' ? entry.toJSON() : { ...entry };
+  const allocations = await models.PointAllocation.findAll({
+    where: { PointsSchemeId: entry.id },
+    order: [['raceType', 'ASC'], ['position', 'ASC'], ['id', 'ASC']]
+  });
+  return { ...values, allocations: allocations.map((allocation) => allocation.toJSON()) };
+}
+
 async function prepareSeasonCategory(values) {
   const expectedScopes = { f1: ['freitag', 'sonntag'], lmu: ['lmu'], wdl: ['wettkampf'] };
   if (!expectedScopes[values.leagueType]?.includes(values.scopeSlug)) throw new Error('Kategorie und Ligabereich passen nicht zusammen.');
@@ -451,9 +493,9 @@ module.exports = {
   },
   pointsSchemes: {
     title: 'Punktesysteme', group: 'Stammdaten',
-    description: 'Getrennte und zeitlich gültige Punktesysteme für Formel 1, LMU und WDL verwalten.', model: models.PointsScheme,
-    prepareValues: preparePointsScheme, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints,
-    nextResource: 'pointAllocations', nextLabel: 'Danach Punkte je Platz pflegen',
+    description: 'Punktesystem und zugehörige Punkte je Platz gemeinsam verwalten. Hauptrennen und F1-Sprints sind direkt am jeweiligen System aufgelistet.', model: models.PointsScheme,
+    prepareValues: preparePointsScheme, prepareEntry: preparePointsSchemeForList, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints,
+    cardView: 'points-schemes',
     fields: [
       text('name', 'Bezeichnung', true, { placeholder: 'F1 ab Saison 2026' }),
       select('discipline', 'Bereich', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
@@ -465,8 +507,9 @@ module.exports = {
   },
   pointAllocations: {
     title: 'Punkte je Platz', group: 'Stammdaten',
-    description: 'Hauptrennen- und Sprintpunkte innerhalb eines Punktesystems festlegen.', model: models.PointAllocation,
+    description: 'Punktewert direkt innerhalb des ausgewählten Punktesystems ergänzen oder bearbeiten.', model: models.PointAllocation,
     prepareValues: preparePointAllocation, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints,
+    getCreateDefaults: (req) => ({ PointsSchemeId: req.query.scheme || '' }), returnHref: '/admin/pointsSchemes', hidden: true,
     fields: [
       relation('PointsSchemeId', 'Punktesystem', models.PointsScheme, (row) => `${row.name} · ${row.discipline.toUpperCase()}`, true),
       select('raceType', 'Rennentyp', [['main', 'Hauptrennen'], ['sprint', 'Sprintrennen']], true),
@@ -512,9 +555,10 @@ module.exports = {
   },
   drivers: {
     title: 'Fahrer-Pflege', group: 'Stammdaten',
-    description: 'Zentrale Fahrer-Stammdaten. Rollen sind kombinierbar; gefahrene F1-/LMU-Rennen werden automatisch gezählt.', model: models.Driver,
+    description: 'Zentrale Fahrer-Stammdaten. Namen sind eindeutig, Rollen sind kombinierbar und erzeugen automatisch die Rang-Kategorien in der Übersicht.', model: models.Driver,
     listFields: ['name', 'aliasesText', 'platform', 'nationality'],
     prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncF1Driver, beforeRemove: removeF1Driver,
+    rankFilters: DRIVER_RANKS, groupByRanks: true,
     fields: [
       text('name', 'Name', true), aliasesField(), platformField(),
       number('racesF1', 'Gefahrene Rennen F1', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: hasF1Rank }),
@@ -523,7 +567,7 @@ module.exports = {
       checkbox('roleF1ReserveFriday', 'Rang: Ersatz Freitag'), checkbox('roleF1ReserveSunday', 'Rang: Ersatz Sonntag'),
       checkbox('roleFormerF1', 'Rang: Ehemaliger Formel-1-Fahrer'),
       checkbox('roleLmuRegular', 'Rang: LMU Stammfahrer'), checkbox('roleLmuReserve', 'Rang: LMU Ersatzfahrer'),
-      checkbox('roleFormerLmu', 'Rang: Ehemaliger LMU-Fahrer'), text('nationality', 'Nationalität'),
+      checkbox('roleFormerLmu', 'Rang: Ehemaliger LMU-Fahrer'), nationalityField(),
       number('pointsF1', 'F1-Punkte', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('winsF1', 'Siege F1', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('winRateF1', 'Siegesquote F1 (%)', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
@@ -555,7 +599,7 @@ module.exports = {
     fields: [
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
       relation('TeamId', 'LMU-Team', models.Team, (row) => row.name), text('name', 'Fahrername', true), aliasesField(),
-      platformField(), text('nationality', 'Nationalität'), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      platformField(), nationalityField(), text('car', 'Fahrzeug'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   wdlDrivers: {
@@ -565,7 +609,7 @@ module.exports = {
     fields: [
       relation('LeagueId', 'WDL-Wettbewerb', models.League, (row) => row.name, true, { where: { type: 'competition' } }),
       relation('ParticipatingLeagueId', 'Teilnehmende Liga / WDL-Team', models.ParticipatingLeague, (row) => row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name, true),
-      text('name', 'Fahrername', true), aliasesField(), platformField(), text('nationality', 'Nationalität'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      text('name', 'Fahrername', true), aliasesField(), platformField(), nationalityField(), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   gpResults: {

@@ -13,7 +13,7 @@ const { sequelize, TeamRoster, TeamRosterDriver } = require('../models');
 const layout = { currentPath: '/admin', isAdmin: true, flash: null };
 
 test('Teamaufstellung zeigt mehr als zwei Fahrer und weist auf die Mindestzahl hin', async () => {
-  const drivers = ['Fahrer A', 'Fahrer B', 'Fahrer C', 'Fahrer D'].map((name, index) => ({
+  const drivers = ['Fahrer A', 'Fahrer B', 'Fahrer C', 'Fahrer D', 'Fahrer E'].map((name, index) => ({
     id: index + 1, name, platform: 'PC', aliases: [], roleF1Friday: true, roleF1Reserve: false
   }));
   const league = { id: 1, name: 'KRL Freitagsliga', slug: 'freitag' };
@@ -21,13 +21,16 @@ test('Teamaufstellung zeigt mehr als zwei Fahrer und weist auf die Mindestzahl h
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'team-rosters.ejs'), {
     ...layout, title: 'F1-Fahrerfelder', discipline: 'f1',
     config: { title: 'F1-Fahrerfelder', description: 'Test', minimum: 2 },
-    leagues: [league], teams: [team], drivers,
+    leagues: [league], selectedLeague: league, teams: [team], drivers,
     rosters: [{
-      id: 1, league, team, assignments: drivers.map((driver, index) => ({ id: index + 1, DriverId: driver.id, roleName: 'Stammfahrer', driver }))
+      id: 1, league, team, assignments: drivers.slice(0, 4).map((driver, index) => ({ id: index + 1, DriverId: driver.id, roleName: 'Stammfahrer', driver }))
     }]
   });
   drivers.forEach((driver) => assert.match(html, new RegExp(driver.name)));
   assert.match(html, /<strong>4<\/strong> Fahrer · mindestens 2 ✓/);
+  assert.match(html, /option value="Fahrer E" data-driver-id="5"/);
+  assert.match(html, /name="DriverId" data-driver-id/);
+  assert.match(html, /option value="1" selected/);
   assert.match(html, /ME/);
 });
 

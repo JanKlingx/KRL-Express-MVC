@@ -1,7 +1,7 @@
 <%- include('../partials/header', { title }) %>
 <section class="admin-shell">
   <div class="container narrow">
-    <a class="back-link" href="<%= adminBasePath %>/<%= resource %>">← Zur Übersicht</a>
+    <a class="back-link" href="<%= returnHref %>">← Zur Übersicht</a>
     <span class="form-kicker"><%= config.group %></span>
     <h1><%= entry && entry.id ? 'EINTRAG BEARBEITEN' : 'NEUER EINTRAG' %></h1>
     <p class="form-hint"><%= config.description %> Pflichtfelder sind mit * markiert.</p>
@@ -39,7 +39,7 @@
 
       <div class="form-actions">
         <button class="button" type="submit">Speichern</button>
-        <a class="button button-ghost" href="<%= adminBasePath %>/<%= resource %>">Abbrechen</a>
+        <a class="button button-ghost" href="<%= returnHref %>">Abbrechen</a>
       </div>
     </form>
   </div>

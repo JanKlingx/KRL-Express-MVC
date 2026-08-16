@@ -81,6 +81,21 @@
     select.addEventListener('change', () => select.form?.requestSubmit());
   });
 
+  document.querySelectorAll('[data-driver-picker]').forEach((form) => {
+    const search = form.querySelector('[data-driver-search]');
+    const driverId = form.querySelector('[data-driver-id]');
+    const options = [...form.querySelectorAll('datalist option')];
+    const syncDriver = () => {
+      const normalized = search.value.trim().toLocaleLowerCase('de-DE');
+      const match = options.find((option) => option.value.toLocaleLowerCase('de-DE') === normalized);
+      driverId.value = match?.dataset.driverId || '';
+      search.setCustomValidity(match || !normalized ? '' : 'Bitte einen Fahrer aus der Namensliste auswählen.');
+    };
+    search.addEventListener('input', syncDriver);
+    search.addEventListener('change', syncDriver);
+    form.addEventListener('submit', syncDriver);
+  });
+
   document.querySelectorAll('[data-lineup-status]').forEach((select) => {
     select.addEventListener('change', () => {
       [...select.classList].filter((name) => name.startsWith('status-')).forEach((name) => select.classList.remove(name));
