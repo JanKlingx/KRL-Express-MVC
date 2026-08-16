@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const ejs = require('ejs');
 const {
-  REGULAR_STATUSES, RESERVE_STATUSES, regularStarts, reserveRoleField, reserveStarts
+  REGULAR_STATUSES, RESERVE_STATUSES, regularStarts, regularRoleField, reserveRoleField, reserveStarts
 } = require('../services/raceLineup');
 
 const layout = { currentPath: '/admin/f1-race-lineup', isAdmin: true, flash: null };
@@ -18,7 +18,9 @@ test('Statuslogik übernimmt nur bestätigte Fahrer in den aktuellen Saisonverla
   assert.equal(reserveStarts('auf_abruf'), true);
   assert.equal(reserveStarts('angefragt'), false);
   assert.equal(reserveRoleField('freitag'), 'roleF1ReserveFriday');
+  assert.equal(reserveRoleField('samstag'), 'roleF1ReserveSaturday');
   assert.equal(reserveRoleField('sonntag'), 'roleF1ReserveSunday');
+  assert.equal(regularRoleField('samstag'), 'roleF1Saturday');
 });
 
 test('Fahrereinteilung zeigt Team, Stammfahrer, Ersatzfahrer und alle Statusfarben', async () => {
@@ -69,7 +71,7 @@ test('LMU-Fahrereinteilung nutzt LMU-Anzeigename, persönliches Auto und Ersatzs
   const car = { manufacturer: 'BMW', name: 'M4 GT3' };
   const regular = { id: 7, name: 'Paul', lmuDisplayName: 'Paul Schober | alaric01', platform: 'PC', lmuCar: car };
   const reserve = { id: 8, name: 'Reserve', lmuDisplayName: 'Reserve | R8', platform: 'PC', lmuCar: car };
-  const team = { id: 9, name: 'A.C.N. Racing', logoPath: null, lmuCar: car };
+  const team = { id: 9, name: 'A.C.N. Racing', logoPath: null };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'lmu-race-lineup.ejs'), {
     ...layout, title: 'LMU-Fahrereinteilung', league, activeSeason: season, races: [race], selectedRace: race,
     regularStatuses: REGULAR_STATUSES, reserveStatuses: RESERVE_STATUSES, displayName: (driver) => driver.lmuDisplayName || driver.name,
@@ -79,5 +81,6 @@ test('LMU-Fahrereinteilung nutzt LMU-Anzeigename, persönliches Auto und Ersatzs
   assert.match(html, /Paul Schober \| alaric01/);
   assert.match(html, /BMW M4 GT3/);
   assert.match(html, /status-auf_abruf/);
+  assert.match(html, /LMU-FAHRERFELD/);
   assert.match(html, /LMU-Fahrereinteilung speichern/);
 });

@@ -8,6 +8,7 @@ const {
 const { ensureSchema } = require('../services/schema');
 
 async function seedF1(league, season, prefix) {
+  const leagueRole = league.slug === 'freitag' ? 'friday' : league.slug === 'samstag' ? 'saturday' : 'sunday';
   const teamData = [
     { name: `${prefix} Apex Motorsport`, car: 'Ferrari' },
     { name: `${prefix} Velocity Racing`, car: 'McLaren' },
@@ -23,10 +24,10 @@ async function seedF1(league, season, prefix) {
   for (let i = 0; i < 8; i += 1) {
     const [driver] = await Driver.findOrCreate({
       where: { LeagueId: league.id, name: `KRL Fahrer ${i + 1}` },
-      defaults: { LeagueId: league.id, TeamId: teams[Math.floor(i / 2)].id, f1Role: league.slug === 'freitag' ? 'friday' : 'sunday', roleF1Friday: league.slug === 'freitag', roleF1Sunday: league.slug === 'sonntag', name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, nationality: i % 2 ? 'DE' : 'AT', sortOrder: i }
+      defaults: { LeagueId: league.id, TeamId: teams[Math.floor(i / 2)].id, f1Role: leagueRole, roleF1Friday: league.slug === 'freitag', roleF1Saturday: league.slug === 'samstag', roleF1Sunday: league.slug === 'sonntag', name: `KRL Fahrer ${i + 1}`, number: 11 + i * 3, nationality: i % 2 ? 'DE' : 'AT', sortOrder: i }
     });
     drivers.push(driver);
-    await driver.update({ f1Role: league.slug === 'freitag' ? 'friday' : 'sunday', roleF1Friday: league.slug === 'freitag', roleF1Sunday: league.slug === 'sonntag' });
+    await driver.update({ f1Role: leagueRole, roleF1Friday: league.slug === 'freitag', roleF1Saturday: league.slug === 'samstag', roleF1Sunday: league.slug === 'sonntag' });
     await DriverStanding.findOrCreate({ where: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason }, defaults: { LeagueId: league.id, DriverId: driver.id, season: league.currentSeason, position: i + 1, points: 164 - i * 15, wins: Math.max(0, 4 - i), gap: i === 0 ? 'Leader' : `+${i * 15}`, sortOrder: i } });
   }
   for (let i = 0; i < teams.length; i += 1) {
@@ -98,10 +99,11 @@ async function run() {
 
   const leagueData = [
     { name: 'KRL Freitagsliga', slug: 'freitag', type: 'f1', currentSeason: 'Saison 12', raceDay: 'Freitag', raceTime: '20:00 Uhr', description: 'Der schnelle Start ins Rennwochenende mit fairen F1-Rennen.', accentColor: '#6ef2f2', sortOrder: 1 },
-    { name: 'KRL Sonntagsliga', slug: 'sonntag', type: 'f1', currentSeason: 'Saison 10', raceDay: 'Sonntag', raceTime: '19:30 Uhr', description: 'Das Sonntags-Highlight mit Strategie, Spannung und Live-Kommentar.', accentColor: '#6ef2f2', sortOrder: 2 },
-    { name: 'KRL LMU Liga', slug: 'lmu', type: 'lmu', currentSeason: 'Saison 3', raceDay: 'Samstag', raceTime: '19:00 Uhr', description: 'Multiclass-Langstrecke mit festen Cockpits und echtem Teamwork.', accentColor: '#ff343f', sortOrder: 3 },
-    { name: 'Wettkampf der Ligen', slug: 'wettkampf', type: 'competition', currentSeason: '2026', raceDay: 'Sonntag', raceTime: '19:30 Uhr', description: 'Communities treten für ihre Liga gegeneinander an.', accentColor: '#ff343f', sortOrder: 4 },
-    { name: 'KRL Endurance', slug: 'endurance', type: 'endurance', currentSeason: '2026', raceDay: 'Eventkalender', raceTime: '', description: 'Besondere Langstrecken-Events für eingespielte Teams.', accentColor: '#f0b74a', sortOrder: 5 }
+    { name: 'KRL Samstagsliga', slug: 'samstag', type: 'f1', currentSeason: 'Saison 1', raceDay: 'Samstag', raceTime: '18:30 Uhr', description: 'Die Formel-1-Samstagsliga der KRL.', accentColor: '#6ef2f2', sortOrder: 2 },
+    { name: 'KRL Sonntagsliga', slug: 'sonntag', type: 'f1', currentSeason: 'Saison 10', raceDay: 'Sonntag', raceTime: '19:30 Uhr', description: 'Das Sonntags-Highlight mit Strategie, Spannung und Live-Kommentar.', accentColor: '#6ef2f2', sortOrder: 3 },
+    { name: 'KRL LMU Liga', slug: 'lmu', type: 'lmu', currentSeason: 'Saison 3', raceDay: 'Samstag', raceTime: '19:00 Uhr', description: 'Multiclass-Langstrecke mit festen Teams und echtem Teamwork.', accentColor: '#ff343f', sortOrder: 4 },
+    { name: 'Wettkampf der Ligen', slug: 'wettkampf', type: 'competition', currentSeason: '2026', raceDay: 'Sonntag', raceTime: '19:30 Uhr', description: 'Communities treten für ihre Liga gegeneinander an.', accentColor: '#ff343f', sortOrder: 5 },
+    { name: 'KRL Endurance', slug: 'endurance', type: 'endurance', currentSeason: '2026', raceDay: 'Eventkalender', raceTime: '', description: 'Besondere Langstrecken-Events für eingespielte Teams.', accentColor: '#f0b74a', sortOrder: 6 }
   ];
   const leagues = {};
   for (const data of leagueData) {
@@ -125,6 +127,7 @@ async function run() {
     seasons[league.slug] = season;
   }
   await seedF1(leagues.freitag, seasons.freitag, 'FR');
+  await seedF1(leagues.samstag, seasons.samstag, 'SA');
   await seedF1(leagues.sonntag, seasons.sonntag, 'SO');
 
   const calendarData = [

@@ -89,19 +89,21 @@ test('Historische Saison verwendet Fahrersuche statt Teilnahme-Checkbox', async 
   assert.doesNotMatch(html, /type="checkbox" name="rows\[7\]\[included\]"/);
 });
 
-test('LMU-Kachel verwendet das zentrale Team und zeigt mehr als drei Fahrer', async () => {
+test('LMU-Fahrerfeld verwendet das zentrale Team und zeigt persönliche Autologos', async () => {
   const season = { id: 1, name: 'Saison 4', status: 'active', category: null };
-  const cockpitDrivers = ['LMU A', 'LMU B', 'LMU C', 'LMU D'].map((name) => ({ name, rosterRole: 'Stammfahrer' }));
+  const cockpitDrivers = ['LMU A', 'LMU B', 'LMU C', 'LMU D'].map((name) => ({
+    name, rosterRole: 'Stammfahrer', lmuCar: { manufacturer: 'Porsche', name: '963', logoPath: '/uploads/porsche.png' }
+  }));
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'lmu.ejs'), {
     ...layout, isAdmin: false, title: 'LMU', selectedSeason: season, seasons: [season],
     league: { id: 3, name: 'LMU', currentSeason: season.name, accentColor: '#ff343f', logoPath: '/uploads/lmu.png', description: 'Langstrecke', raceDay: 'Samstag', raceTime: '19:00' },
     drivers: [], calendar: [], driverStandings: [], teamStandings: [], gpResults: [],
-    cockpits: [{ carNumber: '7', vehicleClass: 'Hypercar', team: { name: 'Mercedes', car: null, logoPath: null, lmuCar: { manufacturer: 'Porsche', name: '963', vehicleClass: 'Hypercar', logoPath: '/uploads/porsche.png' } }, drivers: cockpitDrivers }]
+    teamRosters: [{ team: { name: 'Mercedes', logoPath: null }, drivers: cockpitDrivers }]
   });
   cockpitDrivers.forEach((driver) => assert.match(html, new RegExp(driver.name)));
   assert.match(html, /roster-logo-fallback">ME</);
-  assert.match(html, /Porsche 963/);
   assert.match(html, /src="\/uploads\/porsche.png"/);
+  assert.doesNotMatch(html, />Porsche 963</);
   assert.match(html, /data-png-title="LMU · Fahrer-WM"/);
 });
 

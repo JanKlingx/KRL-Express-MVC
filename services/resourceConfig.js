@@ -44,8 +44,10 @@ const NATIONALITY_CHOICES = [
 
 const DRIVER_RANKS = [
   { value: 'f1-friday', label: 'Stamm Freitag', where: { roleF1Friday: true }, matches: (driver) => Boolean(driver.roleF1Friday) },
+  { value: 'f1-saturday', label: 'Stamm Samstag', where: { roleF1Saturday: true }, matches: (driver) => Boolean(driver.roleF1Saturday) },
   { value: 'f1-sunday', label: 'Stamm Sonntag', where: { roleF1Sunday: true }, matches: (driver) => Boolean(driver.roleF1Sunday) },
   { value: 'f1-reserve-friday', label: 'Ersatz Freitag', where: { roleF1ReserveFriday: true }, matches: (driver) => Boolean(driver.roleF1ReserveFriday) },
+  { value: 'f1-reserve-saturday', label: 'Ersatz Samstag', where: { roleF1ReserveSaturday: true }, matches: (driver) => Boolean(driver.roleF1ReserveSaturday) },
   { value: 'f1-reserve-sunday', label: 'Ersatz Sonntag', where: { roleF1ReserveSunday: true }, matches: (driver) => Boolean(driver.roleF1ReserveSunday) },
   { value: 'lmu-regular', label: 'LMU Stammfahrer', where: { roleLmuRegular: true }, matches: (driver) => Boolean(driver.roleLmuRegular) },
   { value: 'lmu-reserve', label: 'LMU Ersatzfahrer', where: { roleLmuReserve: true }, matches: (driver) => Boolean(driver.roleLmuReserve) },
@@ -69,13 +71,15 @@ async function prepareDriver(values, body, existingDriver) {
     warning.duplicateDriver = { id: duplicateName.id, name: duplicateName.name };
     throw warning;
   }
-  if (['roleF1Friday', 'roleF1Sunday', 'roleF1ReserveFriday', 'roleF1ReserveSunday'].some((name) => Object.prototype.hasOwnProperty.call(values, name))) {
+  if (['roleF1Friday', 'roleF1Saturday', 'roleF1Sunday', 'roleF1ReserveFriday', 'roleF1ReserveSaturday', 'roleF1ReserveSunday'].some((name) => Object.prototype.hasOwnProperty.call(values, name))) {
     if (values.roleF1Friday && values.roleF1ReserveFriday) throw new Error('Ein Fahrer kann in der Freitagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
+    if (values.roleF1Saturday && values.roleF1ReserveSaturday) throw new Error('Ein Fahrer kann in der Samstagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
     if (values.roleF1Sunday && values.roleF1ReserveSunday) throw new Error('Ein Fahrer kann in der Sonntagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
-    values.roleF1Reserve = Boolean(values.roleF1ReserveFriday || values.roleF1ReserveSunday);
-    values.f1Role = values.roleF1Reserve ? 'reserve' : values.roleF1Friday && !values.roleF1Sunday ? 'friday' : values.roleF1Sunday && !values.roleF1Friday ? 'sunday' : null;
-    if (values.roleF1Friday !== values.roleF1Sunday) {
-      const slug = values.roleF1Friday ? 'freitag' : 'sonntag';
+    values.roleF1Reserve = Boolean(values.roleF1ReserveFriday || values.roleF1ReserveSaturday || values.roleF1ReserveSunday);
+    const regularSlugs = [['freitag', values.roleF1Friday], ['samstag', values.roleF1Saturday], ['sonntag', values.roleF1Sunday]].filter(([, enabled]) => enabled).map(([slug]) => slug);
+    values.f1Role = values.roleF1Reserve ? 'reserve' : regularSlugs.length === 1 ? ({ freitag: 'friday', samstag: 'saturday', sonntag: 'sunday' })[regularSlugs[0]] : null;
+    if (regularSlugs.length === 1) {
+      const slug = regularSlugs[0];
       const league = await models.League.findOne({ where: { slug, type: 'f1' } });
       values.LeagueId = league?.id || null;
     } else if (!values.roleLmuRegular && !values.roleLmuReserve) values.LeagueId = null;
@@ -96,13 +100,13 @@ const listWhereForLeagueType = (type) => async () => {
 };
 const f1DriverWhere = () => ({
   [Op.or]: [
-    { roleF1Friday: true }, { roleF1Sunday: true },
-    { roleF1ReserveFriday: true }, { roleF1ReserveSunday: true },
+    { roleF1Friday: true }, { roleF1Saturday: true }, { roleF1Sunday: true },
+    { roleF1ReserveFriday: true }, { roleF1ReserveSaturday: true }, { roleF1ReserveSunday: true },
     { roleLmuRegular: true }, { roleLmuReserve: true },
     { roleFormerF1: true }, { roleFormerLmu: true }
   ]
 });
-const hasF1Rank = (entry) => Boolean(entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1ReserveFriday || entry?.roleF1ReserveSunday || entry?.roleFormerF1);
+const hasF1Rank = (entry) => Boolean(entry?.roleF1Friday || entry?.roleF1Saturday || entry?.roleF1Sunday || entry?.roleF1ReserveFriday || entry?.roleF1ReserveSaturday || entry?.roleF1ReserveSunday || entry?.roleFormerF1);
 const hasLmuRank = (entry) => Boolean(entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu);
 
 const platformField = () => select('platform', 'Plattform', [['PC', 'PC'], ['PlayStation', 'PlayStation'], ['Xbox', 'Xbox']], true);
@@ -151,7 +155,7 @@ async function syncF1Driver(driver, body) {
   for (const assignment of assignments) {
     const roster = assignment.roster;
     if (roster?.discipline === 'f1') {
-      const roleField = roster.league?.slug === 'freitag' ? 'roleF1Friday' : 'roleF1Sunday';
+      const roleField = require('./raceLineup').regularRoleField(roster.league?.slug);
       if (!driver[roleField]) await assignment.destroy();
     } else if (roster?.discipline === 'lmu' && !driver.roleLmuRegular && !driver.roleLmuReserve) await assignment.destroy();
   }
@@ -171,8 +175,14 @@ async function prepareCentralTeam(discipline, values, body, existingTeam) {
 const prepareF1Team = (values, body, existingTeam) => prepareCentralTeam('f1', values, body, existingTeam);
 async function prepareLmuTeam(values, body, existingTeam) {
   await prepareCentralTeam('lmu', values, body, existingTeam);
-  const lmuCar = values.LmuCarId && await models.LmuCar.findByPk(values.LmuCarId);
-  if (!lmuCar) throw new Error('Bitte ein vorhandenes LMU-Auto aus den Stammdaten auswählen.');
+  values.LmuCarId = null;
+}
+
+async function prepareF1TeamWithHistory(entry) {
+  const values = await prepareTeamForForm(entry, 'f1');
+  if (!entry?.id) return values;
+  const profiles = await models.F1CarProfile.findAll({ where: { BaseTeamId: entry.id }, order: [['seasonLabel', 'DESC'], ['name', 'ASC']] });
+  return { ...values, historicalProfilesText: profiles.map((profile) => `${profile.name}${profile.seasonLabel ? ` (${profile.seasonLabel})` : ''}`).join(', ') || 'Keine' };
 }
 
 async function prepareTeamForForm(entry, discipline) {
@@ -202,6 +212,7 @@ async function removeF1Team(team) {
 }
 
 async function removeLmuCar(lmuCar) {
+  await models.Driver.update({ LmuCarId: null }, { where: { LmuCarId: lmuCar.id } });
   await models.Team.update({ LmuCarId: null }, { where: { LmuCarId: lmuCar.id } });
 }
 
@@ -283,7 +294,7 @@ async function prepareWdlStanding(values) {
 }
 
 async function prepareSeason(values) {
-  const expectedScopes = { f1: ['freitag', 'sonntag'], lmu: ['lmu'], wdl: ['wettkampf'] };
+  const expectedScopes = { f1: ['freitag', 'samstag', 'sonntag'], lmu: ['lmu'], wdl: ['wettkampf'] };
   if (!expectedScopes[values.leagueType]?.includes(values.scopeSlug)) {
     throw new Error('Der Bereich passt nicht zum ausgewählten Ligatyp.');
   }
@@ -351,7 +362,7 @@ async function preparePointsSchemeForList(entry) {
 }
 
 async function prepareSeasonCategory(values) {
-  const expectedScopes = { f1: ['freitag', 'sonntag'], lmu: ['lmu'], wdl: ['wettkampf'] };
+  const expectedScopes = { f1: ['freitag', 'samstag', 'sonntag'], lmu: ['lmu'], wdl: ['wettkampf'] };
   if (!expectedScopes[values.leagueType]?.includes(values.scopeSlug)) throw new Error('Kategorie und Ligabereich passen nicht zusammen.');
 }
 
@@ -360,7 +371,7 @@ async function syncSeason(season) {
 }
 
 async function prepareF1Round(values) {
-  const activeSeasons = await models.Season.count({ where: { leagueType: 'f1', status: 'active', scopeSlug: { [Op.in]: ['freitag', 'sonntag'] } } });
+  const activeSeasons = await models.Season.count({ where: { leagueType: 'f1', status: 'active', scopeSlug: { [Op.in]: ['freitag', 'samstag', 'sonntag'] } } });
   if (!activeSeasons) throw new Error('Lege zuerst mindestens eine aktive Formel-1-Saison an.');
   if (!values.fridayDate && !values.sundayDate) throw new Error('Mindestens ein Freitag- oder Sonntagsdatum ist erforderlich.');
 }
@@ -565,7 +576,7 @@ module.exports = {
     fields: [
       text('name', 'Kategoriename', true),
       select('leagueType', 'Ligatyp', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
-      select('scopeSlug', 'Bereich', [['freitag', 'F1 Freitag'], ['sonntag', 'F1 Sonntag'], ['lmu', 'LMU'], ['wettkampf', 'WDL']], true),
+      select('scopeSlug', 'Bereich', [['freitag', 'F1 Freitag'], ['samstag', 'F1 Samstag'], ['sonntag', 'F1 Sonntag'], ['lmu', 'LMU'], ['wettkampf', 'WDL']], true),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
@@ -576,7 +587,7 @@ module.exports = {
     fields: [
       text('name', 'Saisonname', true, { placeholder: '2024, Season 8 oder WDL 2023' }),
       select('leagueType', 'Ligatyp', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
-      select('scopeSlug', 'Bereich / Ligenseite', [['freitag', 'F1 Freitag'], ['sonntag', 'F1 Sonntag'], ['lmu', 'LMU'], ['wettkampf', 'WDL']], true),
+      select('scopeSlug', 'Bereich / Ligenseite', [['freitag', 'F1 Freitag'], ['samstag', 'F1 Samstag'], ['sonntag', 'F1 Sonntag'], ['lmu', 'LMU'], ['wettkampf', 'WDL']], true),
       select('status', 'Saisonstatus', [['active', 'Aktiv'], ['historical', 'Historisch']], true),
       select('calendarMode', 'Rennkalender-Modus', [['automatic', 'Automatisch aus Stammdaten'], ['manual', 'Manuell pflegen']], true),
       field('accentColor', 'Saisonfarbe', 'color', false, { help: 'Ersetzt in dieser Saison die allgemeine Ligafarbe.' }),
@@ -587,12 +598,13 @@ module.exports = {
   },
   teams: {
     title: 'Formel-1-Teams', group: 'Zentrale Rennteams',
-    description: 'Bestehende Formel-1-Teams zentral mit Name, Farbcode und Upload-Logo pflegen. Die Teamfarbe gestaltet die Karten in den Ligaseiten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null, discipline: 'f1' }), prepareValues: prepareF1Team, prepareEntry: (entry) => prepareTeamForForm(entry, 'f1'), afterSave: syncF1Team, beforeRemove: removeF1Team,
-    nextHref: '/admin/team-rosters/f1', nextLabel: 'Danach F1-Fahrerfelder zusammenstellen',
-    listFields: ['name', 'accentColor', 'totalPoints'],
+    description: 'Aktuelle Formel-1-Teams zentral pflegen. Zugeordnete historische Teamprofile werden direkt mit angezeigt.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null, discipline: 'f1' }), prepareValues: prepareF1Team, prepareEntry: prepareF1TeamWithHistory, afterSave: syncF1Team, beforeRemove: removeF1Team,
+    nextHref: '/admin/f1CarProfiles', nextLabel: 'Historische Teams anlegen oder bearbeiten',
+    listFields: ['name', 'accentColor', 'historicalProfilesText', 'totalPoints'],
     fields: [
       text('name', 'Teamname', true),
       field('accentColor', 'Teamfarbe', 'color', true, { help: 'Färbt die Teamkarte in den F1-Ligaseiten. Der genaue Hex-Farbcode wird vom Farbwähler gespeichert.' }),
+      text('historicalProfilesText', 'Historische Teams', false, { readonly: true, persist: false }),
       number('totalPoints', 'Gesamte Punkte (automatisch)', false, { readonly: true, persist: false })
     ]
   },
@@ -606,8 +618,8 @@ module.exports = {
       text('name', 'Name', true), checkbox('confirmDuplicateName', 'Namensgleichheit bestätigt', { persist: false, help: 'Nur aktivieren, wenn wirklich eine zweite Person mit demselben Namen angelegt wird.' }), aliasesField(), platformField(),
       number('racesF1', 'Gefahrene Rennen F1', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('racesLmu', 'Gefahrene Rennen LMU', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
-      checkbox('roleF1Friday', 'Rang: Stamm Freitag'), checkbox('roleF1Sunday', 'Rang: Stamm Sonntag'),
-      checkbox('roleF1ReserveFriday', 'Rang: Ersatz Freitag'), checkbox('roleF1ReserveSunday', 'Rang: Ersatz Sonntag'),
+      checkbox('roleF1Friday', 'Rang: Stamm Freitag'), checkbox('roleF1Saturday', 'Rang: Stamm Samstag'), checkbox('roleF1Sunday', 'Rang: Stamm Sonntag'),
+      checkbox('roleF1ReserveFriday', 'Rang: Ersatz Freitag'), checkbox('roleF1ReserveSaturday', 'Rang: Ersatz Samstag'), checkbox('roleF1ReserveSunday', 'Rang: Ersatz Sonntag'),
       checkbox('roleFormerF1', 'Rang: Ehemaliger Formel-1-Fahrer'),
       checkbox('roleLmuRegular', 'Rang: LMU Stammfahrer'), checkbox('roleLmuReserve', 'Rang: LMU Ersatzfahrer'),
       checkbox('roleFormerLmu', 'Rang: Ehemaliger LMU-Fahrer'),
@@ -630,18 +642,17 @@ module.exports = {
   },
   lmuTeams: {
     title: 'LMU-Teams', group: 'Zentrale Rennteams',
-    description: 'LMU-Team zentral mit Namen pflegen und ein Auto aus den LMU-Auto-Stammdaten zuordnen. Die Gesamtpunkte werden automatisch aus allen LMU-Saisonverläufen addiert.', model: models.Team, getListWhere: async () => ({ LeagueId: null, discipline: 'lmu' }), prepareValues: prepareLmuTeam, prepareEntry: (entry) => prepareTeamForForm(entry, 'lmu'),
-    nextHref: '/admin/team-rosters/lmu', nextLabel: 'Danach LMU-Cockpits zusammenstellen',
-    listFields: ['name', 'LmuCarId', 'totalPoints'],
+    description: '1. Team anlegen, 2. im LMU-Fahrerfeld Stammfahrer hinzufügen, fertig. Fahrzeuge werden ausschließlich direkt den Fahrern zugeordnet.', model: models.Team, getListWhere: async () => ({ LeagueId: null, discipline: 'lmu' }), prepareValues: prepareLmuTeam, prepareEntry: (entry) => prepareTeamForForm(entry, 'lmu'),
+    nextHref: '/admin/team-rosters/lmu', nextLabel: 'Schritt 2: Fahrer zum Team hinzufügen',
+    listFields: ['name', 'totalPoints'],
     fields: [
       text('name', 'Teamname', true),
-      relation('LmuCarId', 'LMU-Auto / Marke', models.LmuCar, (row) => `${row.manufacturer} · ${row.name}${row.vehicleClass ? ` · ${row.vehicleClass}` : ''}`, true),
       number('totalPoints', 'Gesamte Punkte (automatisch)', false, { readonly: true, persist: false })
     ]
   },
   lmuCars: {
     title: 'LMU-Autos & Marken', group: 'Zentrale Rennteams',
-    description: 'LMU-Fahrzeuge einmalig als Stammdaten pflegen und anschließend den vorhandenen LMU-Teams zuordnen.', model: models.LmuCar,
+    description: 'LMU-Fahrzeuge einmalig als Stammdaten pflegen und anschließend direkt den LMU-Stammfahrern zuordnen.', model: models.LmuCar,
     upload: { field: 'logoPath', label: 'Marken-/Fahrzeuglogo' }, beforeRemove: removeLmuCar,
     nextHref: '/admin/lmu-car-assignments', nextLabel: 'Danach LMU-Stammfahrern Autos zuordnen',
     listFields: ['manufacturer', 'name', 'vehicleClass', 'additionalInfo'],
@@ -653,14 +664,14 @@ module.exports = {
     ]
   },
   f1CarProfiles: {
-    title: 'Formel-1-Autoprofile', group: 'Zentrale Rennteams',
-    description: 'Historische Formel-1-Autoprofile einem zentralen aktuellen F1-Team zuordnen und danach nur diesem Team in einer Saison zuweisen.', model: models.F1CarProfile,
+    title: 'Historische Formel-1-Teams', group: 'Zentrale Rennteams',
+    description: 'Historischen Teamnamen, Farbe und Logo pflegen und dem heutigen Stammteam zuordnen, z. B. Renault → Alpine.', model: models.F1CarProfile,
     upload: { field: 'logoPath', label: 'Fahrzeug-/Teamlogo' },
     listFields: ['name', 'seasonLabel', 'accentColor'],
     nextHref: '/admin/season-setup', nextLabel: 'Danach einer Saison zuweisen',
     fields: [
-      relation('BaseTeamId', 'Aktuelles Formel-1-Team', models.Team, (row) => row.name, true, { where: { LeagueId: null, discipline: 'f1' } }),
-      text('name', 'Profilname', true, { placeholder: 'Mercedes W11' }),
+      relation('BaseTeamId', 'Zugehöriges aktuelles Formel-1-Team', models.Team, (row) => row.name, true, { where: { LeagueId: null, discipline: 'f1' } }),
+      text('name', 'Historischer Teamname', true, { placeholder: 'Renault' }),
       text('seasonLabel', 'Historische Saison / Zeitraum', false, { placeholder: '2020 oder Saison 8' }),
       field('accentColor', 'Fahrzeugfarbe', 'color', true),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
@@ -715,6 +726,7 @@ module.exports = {
     title: 'F1-Rennkalender (aktuell)', group: 'Formel 1 Liga',
     description: 'Eine Strecke pflegen; Freitag und Sonntag werden automatisch als getrennte Rennen erzeugt.', model: models.F1CalendarRound,
     prepareValues: prepareF1Round, afterSave: syncF1CalendarRound, beforeRemove: removeF1CalendarRound, nextHref: '/admin/race-editor', nextLabel: 'Danach Saisonverlauf pflegen', cardView: 'calendar-f1',
+    hidden: true,
     fields: [
       text('circuit', 'Strecke', true), date('sundayDate', 'Datum Sonntag'), date('fridayDate', 'Datum Freitag'),
       checkbox('hasSprint', 'Sprint-Event'), checkbox('isTestDay', 'Als Testtag markieren'),
@@ -738,6 +750,7 @@ module.exports = {
     title: 'LMU-Rennkalender', group: 'LMU',
     description: 'Aktuelle LMU-Strecken mit Datum und Startzeit pflegen.', model: models.RaceEvent,
     prepareValues: prepareSeriesCalendar, afterSave: syncSeriesCalendarEvent, beforeRemove: removeSeriesCalendarEvent, cardView: 'calendar-series',
+    hidden: true,
     fields: [
       relation('SeasonId', 'LMU-Saison', models.Season, (row) => row.name, true, { where: { leagueType: 'lmu' } }),
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),

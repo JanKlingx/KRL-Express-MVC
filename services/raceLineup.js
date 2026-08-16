@@ -20,7 +20,15 @@ const REGULAR_STATUS_VALUES = new Set(REGULAR_STATUSES.map((status) => status.va
 const RESERVE_STATUS_VALUES = new Set(RESERVE_STATUSES.map((status) => status.value));
 
 function reserveRoleField(leagueSlug) {
-  return leagueSlug === 'freitag' ? 'roleF1ReserveFriday' : 'roleF1ReserveSunday';
+  if (leagueSlug === 'freitag') return 'roleF1ReserveFriday';
+  if (leagueSlug === 'samstag') return 'roleF1ReserveSaturday';
+  return 'roleF1ReserveSunday';
+}
+
+function regularRoleField(leagueSlug) {
+  if (leagueSlug === 'freitag') return 'roleF1Friday';
+  if (leagueSlug === 'samstag') return 'roleF1Saturday';
+  return 'roleF1Sunday';
 }
 
 function normalizeRegularStatus(value) {
@@ -45,6 +53,7 @@ module.exports = {
   normalizeRegularStatus,
   normalizeReserveStatus,
   regularStarts,
+  regularRoleField,
   reserveRoleField,
   reserveStarts
 };

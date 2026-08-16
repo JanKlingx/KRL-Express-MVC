@@ -23,6 +23,8 @@ test('Fahrerpflege nutzt feste Nationalitäten und Rangfilter', () => {
   assert.deepEqual(nationality.choices.find(([value]) => value === 'AU'), ['AU', 'Australien (AU)']);
   assert.equal(resourceConfig.drivers.groupByRanks, true);
   assert.equal(resourceConfig.drivers.rankFilters.some((rank) => rank.value === 'f1-friday'), true);
+  assert.equal(resourceConfig.drivers.rankFilters.some((rank) => rank.value === 'f1-saturday'), true);
+  assert.ok(resourceConfig.drivers.fields.some((field) => field.name === 'roleF1ReserveSaturday'));
 });
 
 test('Fahrerpflege warnt bei Namensgleichheit und erlaubt eine bestätigte zweite Person', async () => {
@@ -66,7 +68,7 @@ test('LMU-Stammdaten enthalten Anzeigename, persönliches Auto, Zusatz und Pole-
   assert.equal(models.GrandPrixResultEntry.rawAttributes.polePosition.defaultValue, false);
 });
 
-test('Saison-Assistent zeigt Liga, Farbprofil, Kalender, Punkte und F1-Autos als Klickprozess', async () => {
+test('Saison-Assistent endet für aktuelle Saisons nach dem einmaligen Punkteschritt', async () => {
   const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
   const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2026' } };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
@@ -79,9 +81,25 @@ test('Saison-Assistent zeigt Liga, Farbprofil, Kalender, Punkte und F1-Autos als
   assert.match(html, /LIGA AUSWÄHLEN/);
   assert.match(html, /RENNKALENDER ERSTELLEN/);
   assert.match(html, /PUNKTESYSTEM/);
-  assert.match(html, /FORMEL-1-AUTOS ZUWEISEN/);
   assert.match(html, /value="20:00"/);
+  assert.doesNotMatch(html, /TEAMPROFILE DER SAISON ZUWEISEN/);
+  assert.equal((html.match(/name="PointsSchemeId"/g) || []).length, 1);
+  assert.match(html, /Aktuellen Saisonverlauf pflegen/);
+});
+
+test('Historische F1-Saison erhält im fünften Schritt verknüpfte Teamprofile', async () => {
+  const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
+  const season = { id: 2, name: 'Saison 2020', status: 'historical', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2020' } };
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
+    ...layout, title: 'Saison-Assistent', leagues: [league], selectedLeague: league, discipline: 'f1',
+    seasons: [season], selectedSeason: season, pointsSchemes: [{ id: 3, name: 'F1 2020' }], calendar: [],
+    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be' }],
+    carProfiles: [{ id: 5, BaseTeamId: 4, name: 'Mercedes W11', seasonLabel: '2020' }],
+    carAssignmentMap: { 4: 5 }, defaultTime: '20:00', progressHref: '/admin/race-editor?league=1&season=2'
+  });
+  assert.match(html, /TEAMPROFILE DER SAISON ZUWEISEN/);
   assert.match(html, /Mercedes W11/);
+  assert.match(html, /Cockpit-\/Teamprofile speichern/);
 });
 
 test('Tabellen-Hub bündelt Pflege, Frontend und Downloads pro Saison', async () => {
@@ -172,13 +190,13 @@ test('Mehrfachlöschen entfernt nur ausgewählte Stammdatensätze', async () => 
   }
 });
 
-test('LMU-Autos sind eigene Stammdaten und werden vorhandenen LMU-Teams zugeordnet', () => {
+test('LMU-Autos sind eigene Stammdaten und werden nur LMU-Fahrern zugeordnet', () => {
   assert.ok(resourceConfig.lmuCars);
   assert.equal(resourceConfig.lmuCars.model, models.LmuCar);
-  const relation = resourceConfig.lmuTeams.fields.find((field) => field.name === 'LmuCarId');
-  assert.equal(relation.required, true);
-  assert.equal(relation.relation.model, models.LmuCar);
-  assert.equal(models.Team.rawAttributes.LmuCarId.field, 'lmu_car_id');
+  assert.equal(resourceConfig.lmuTeams.fields.some((field) => field.name === 'LmuCarId'), false);
+  const driverCar = resourceConfig.drivers.fields.find((field) => field.name === 'LmuCarId');
+  assert.equal(driverCar.relation.model, models.LmuCar);
+  assert.equal(models.Driver.rawAttributes.LmuCarId.field, 'lmu_car_id');
 });
 
 test('KRL Icons werden nur mit Ernennungsmonat statt vollständigem Datum gepflegt', async () => {

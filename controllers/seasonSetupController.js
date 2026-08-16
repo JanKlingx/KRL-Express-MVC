@@ -20,6 +20,7 @@ function extractTime(value, fallback = '20:00') {
 
 function progressHref(league, season) {
   if (!league || !season) return null;
+  if (league.type === 'f1' && season.status === 'active') return `/admin/current-season-progress?league=${league.id}`;
   if (league.type === 'f1') return `/admin/race-editor?league=${league.id}&season=${season.id}`;
   return `/admin/season-progress/${disciplineForLeague(league)}?season=${season.id}`;
 }
@@ -68,13 +69,11 @@ exports.createSeason = async (req, res) => {
     const discipline = disciplineForLeague(league);
     const duplicate = await Season.findOne({ where: { leagueType: discipline, scopeSlug: league.slug, name } });
     if (duplicate) throw new Error(`Die Saison „${name}“ existiert für ${league.name} bereits.`);
-    const pointsScheme = req.body.PointsSchemeId ? await PointsScheme.findByPk(req.body.PointsSchemeId) : null;
-    if (pointsScheme && pointsScheme.discipline !== discipline) throw new Error('Das Punktesystem gehört nicht zur ausgewählten Liga.');
     const accentColor = /^#[0-9a-f]{6}$/i.test(req.body.accentColor || '') ? req.body.accentColor : league.accentColor;
     const season = await Season.create({
       name, leagueType: discipline, scopeSlug: league.slug,
       status: req.body.status === 'historical' ? 'historical' : 'active',
-      calendarMode: 'manual', accentColor, PointsSchemeId: pointsScheme?.id || null
+      calendarMode: 'manual', accentColor, PointsSchemeId: null
     });
     await activateSeason(season);
     req.session.flash = { type: 'success', message: `${season.name} wurde für ${league.name} angelegt. Als Nächstes kann der Rennkalender gepflegt werden.` };

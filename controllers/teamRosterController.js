@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { League, Team, Driver, TeamRoster, TeamRosterDriver } = require('../models');
+const { regularRoleField } = require('../services/raceLineup');
 
 const configs = {
   f1: {
@@ -7,8 +8,8 @@ const configs = {
     description: 'Zentrale Teams einer F1-Liga zuordnen und anschließend mindestens zwei Fahrer hinzufügen.'
   },
   lmu: {
-    title: 'LMU-Cockpits', leagueType: 'lmu', minimum: 3,
-    description: 'Zentrale Teams als LMU-Cockpit verwenden und anschließend mindestens drei Fahrer hinzufügen.'
+    title: 'LMU-Fahrerfeld', leagueType: 'lmu', minimum: 1,
+    description: '1. LMU-Team auswählen, 2. LMU-Stammfahrer hinzufügen, fertig. Das persönliche Auto wird direkt beim Fahrer gepflegt.'
   }
 };
 
@@ -22,13 +23,13 @@ async function loadRoster(id) {
 
 function driverWhere(discipline) {
   return discipline === 'f1'
-    ? { [Op.or]: [{ roleF1Friday: true }, { roleF1Sunday: true }] }
+    ? { [Op.or]: [{ roleF1Friday: true }, { roleF1Saturday: true }, { roleF1Sunday: true }] }
     : { roleLmuRegular: true };
 }
 
 function driverFitsRoster(driver, roster) {
   if (roster.discipline === 'lmu') return driver.roleLmuRegular;
-  return roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday;
+  return Boolean(driver[regularRoleField(roster.league.slug)]);
 }
 
 async function resolveDriver(body) {
@@ -47,18 +48,18 @@ exports.show = async (req, res, next) => {
   const leagues = await League.findAll({ where: { type: config.leagueType }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
   const selectedLeague = leagues.find((league) => league.id === Number(req.query.league)) || leagues[0] || null;
   const [teams, drivers, rosters] = await Promise.all([
-    Team.findAll({ where: { LeagueId: null, discipline }, include: discipline === 'lmu' ? [{ association: 'lmuCar' }] : [], order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
+    Team.findAll({ where: { LeagueId: null, discipline }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
     Driver.findAll({ where: driverWhere(discipline), include: [{ association: 'aliases' }, ...(discipline === 'lmu' ? [{ association: 'lmuCar' }] : [])], order: [['name', 'ASC'], ['id', 'ASC']] }),
     selectedLeague ? TeamRoster.findAll({
       where: { discipline, LeagueId: selectedLeague.id },
       include: [
-        { association: 'team', include: discipline === 'lmu' ? [{ association: 'lmuCar' }] : [] }, { association: 'league' },
+        { association: 'team' }, { association: 'league' },
         { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }, ...(discipline === 'lmu' ? [{ association: 'lmuCar' }] : [])] }] }
       ],
       order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
     }) : []
   ]);
-  res.render('admin/team-rosters', { title: config.title, discipline, config, leagues, selectedLeague, teams, drivers, rosters });
+  res.render('admin/team-rosters', { title: config.title, discipline, config, leagues, selectedLeague, teams, drivers, rosters, driverFitsRoster });
 };
 
 exports.create = async (req, res, next) => {
@@ -74,8 +75,8 @@ exports.create = async (req, res, next) => {
     if (duplicate) throw new Error(`${team.name} ist in ${league.name} bereits vorhanden.`);
     await TeamRoster.create({
       discipline, LeagueId: league.id, TeamId: team.id,
-      vehicleClass: req.body.vehicleClass?.trim() || null,
-      carNumber: req.body.carNumber?.trim() || null,
+      vehicleClass: discipline === 'f1' ? req.body.vehicleClass?.trim() || null : null,
+      carNumber: discipline === 'f1' ? req.body.carNumber?.trim() || null : null,
       sortOrder: Number(req.body.sortOrder || 0)
     });
     req.session.flash = { type: 'success', message: `${team.name} wurde hinzugefügt. Jetzt Fahrer zuordnen.` };
@@ -100,7 +101,7 @@ exports.addDriver = async (req, res, next) => {
     });
     if (otherRoster && otherRoster.TeamRosterId !== roster.id) throw new Error(`${driver.name} ist in dieser Liga bereits einem anderen Team zugeordnet.`);
     const count = await TeamRosterDriver.count({ where: { TeamRosterId: roster.id } });
-    const isF1Regular = roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday;
+    const isF1Regular = Boolean(driver[regularRoleField(roster.league.slug)]);
     const roleName = discipline === 'f1'
       ? (isF1Regular ? 'Stammfahrer' : 'Ersatzfahrer')
       : 'Stammfahrer';
