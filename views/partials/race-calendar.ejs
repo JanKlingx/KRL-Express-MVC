@@ -1,11 +1,11 @@
 <% if (calendar.length) { %>
   <div class="race-calendar-grid">
-    <% calendar.forEach((race, index) => { const startsAt = new Date(race.startsAt); const month = new Intl.DateTimeFormat('de-DE', { month: 'short', timeZone: 'Europe/Berlin' }).format(startsAt).replace('.', '').toUpperCase(); %>
-      <article class="race-calendar-card <%= race.isTestDay ? 'race-calendar-test' : '' %>" style="--calendar-accent:<%= league.accentColor || '#6ef2f2' %>">
+    <% calendar.forEach((race, index) => { const startsAt = new Date(race.startsAt); const hasValidDate = Boolean(race.startsAt) && !Number.isNaN(startsAt.getTime()); const month = hasValidDate ? new Intl.DateTimeFormat('de-DE', { month: 'short', timeZone: 'Europe/Berlin' }).format(startsAt).replace('.', '').toUpperCase() : 'OFFEN'; const cardClasses = ['race-calendar-card', race.isTestDay && 'race-calendar-test', !hasValidDate && 'race-calendar-invalid'].filter(Boolean).join(' '); %>
+      <article class="<%= cardClasses %>" style="--calendar-accent:<%= league.accentColor || '#6ef2f2' %>">
         <% if (league.logoPath) { %><img class="race-calendar-watermark" src="<%= league.logoPath %>" alt="" aria-hidden="true"><% } %>
         <div class="race-calendar-round"><span>RUNDE</span><strong><%= String(index + 1).padStart(2, '0') %></strong></div>
-        <time datetime="<%= startsAt.toISOString() %>"><strong><%= new Intl.DateTimeFormat('de-DE', { day: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt) %></strong><span><%= month %></span><small><%= new Intl.DateTimeFormat('de-DE', { year: 'numeric', timeZone: 'Europe/Berlin' }).format(startsAt) %></small></time>
-        <div class="race-calendar-info"><div class="race-calendar-tags"><span><%= new Intl.DateTimeFormat('de-DE', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt) %> Uhr</span><% if (race.isTestDay) { %><strong>TESTTAG</strong><% } %></div><h3><%= race.title %></h3><p><%= race.circuit || league.name %></p></div>
+        <time<% if (hasValidDate) { %> datetime="<%= startsAt.toISOString() %>"<% } %>><strong><%= hasValidDate ? new Intl.DateTimeFormat('de-DE', { day: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt) : '–' %></strong><span><%= month %></span><small><%= hasValidDate ? new Intl.DateTimeFormat('de-DE', { year: 'numeric', timeZone: 'Europe/Berlin' }).format(startsAt) : 'DATUM' %></small></time>
+        <div class="race-calendar-info"><div class="race-calendar-tags"><span><%= hasValidDate ? `${new Intl.DateTimeFormat('de-DE', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt)} Uhr` : 'TERMIN IM ADMIN PRÜFEN' %></span><% if (race.isTestDay) { %><strong>TESTTAG</strong><% } %></div><h3><%= race.title %></h3><p><%= race.circuit || league.name %></p></div>
       </article>
     <% }) %>
   </div>
