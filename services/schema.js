@@ -19,9 +19,11 @@ async function ensureSchema() {
   await addMissingColumn('drivers', driverTable, 'participating_league_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('drivers', driverTable, 'f1_role', { type: DataTypes.STRING, allowNull: true });
   await addMissingColumn('drivers', driverTable, 'role_f1_friday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('drivers', driverTable, 'role_f1_saturday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_sunday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_reserve', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_reserve_friday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('drivers', driverTable, 'role_f1_reserve_saturday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_f1_reserve_sunday', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_former_f1', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('drivers', driverTable, 'role_lmu_regular', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
@@ -79,13 +81,25 @@ async function ensureSchema() {
 
   const f1CarProfileTable = await queryInterface.describeTable('f1_car_profiles');
   await addMissingColumn('f1_car_profiles', f1CarProfileTable, 'base_team_id', { type: DataTypes.INTEGER, allowNull: true });
+  if (f1CarProfileTable.constructor_name && f1CarProfileTable.constructor_name.allowNull === false) {
+    await queryInterface.changeColumn('f1_car_profiles', 'constructor_name', { type: DataTypes.STRING, allowNull: true });
+  }
 
   const krlAssignmentTable = await queryInterface.describeTable('krl_team_assignments');
   await addMissingColumn('krl_team_assignments', krlAssignmentTable, 'image_path', { type: DataTypes.STRING, allowNull: true });
 
+  await League.findOrCreate({
+    where: { slug: 'samstag' },
+    defaults: {
+      name: 'KRL Samstagsliga', slug: 'samstag', type: 'f1', currentSeason: 'Saison 1',
+      raceDay: 'Samstag', raceTime: '18:30 Uhr', description: 'Die Formel-1-Samstagsliga der KRL.',
+      accentColor: '#6ef2f2', sortOrder: 2
+    }
+  });
+
   const f1Leagues = await League.findAll({ where: { type: 'f1' } });
   for (const league of f1Leagues) {
-    const f1Role = league.slug === 'freitag' ? 'friday' : 'sunday';
+    const f1Role = league.slug === 'freitag' ? 'friday' : league.slug === 'samstag' ? 'saturday' : 'sunday';
     await sequelize.models.Driver.update({ f1Role }, { where: { LeagueId: league.id, f1Role: null } });
     const teams = await sequelize.models.Team.findAll({ where: { LeagueId: league.id } });
     for (const team of teams) {
@@ -287,6 +301,7 @@ async function ensureSchema() {
   }
 
   await Driver.update({ roleF1Friday: true }, { where: { f1Role: 'friday' } });
+  await Driver.update({ roleF1Saturday: true }, { where: { f1Role: 'saturday' } });
   await Driver.update({ roleF1Sunday: true }, { where: { f1Role: 'sunday' } });
   await Driver.update({ roleF1Reserve: true }, { where: { f1Role: 'reserve' } });
   if (!hadFridayReserveRole) await Driver.update({ roleF1ReserveFriday: true }, { where: { roleF1Reserve: true } });

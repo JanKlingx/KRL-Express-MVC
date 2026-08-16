@@ -78,7 +78,7 @@ function requestedDriverIds(query, entries, sprintEntries) {
   return [...new Set(ids)].slice(0, 20);
 }
 
-exports.show = async (req, res) => {
+async function showEditor(req, res, currentOnly = false) {
   const leagues = await League.findAll({ where: { type: 'f1' }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
   const selectedLeague = leagues.find((league) => league.id === Number(req.query.league)) || leagues[0] || null;
   const seasons = selectedLeague ? await Season.findAll({
@@ -86,7 +86,9 @@ exports.show = async (req, res) => {
     include: [{ association: 'category' }],
     order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
   }) : [];
-  const selectedSeason = seasons.find((season) => season.id === Number(req.query.season)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
+  const selectedSeason = currentOnly
+    ? seasons.find((season) => season.status === 'active') || null
+    : seasons.find((season) => season.id === Number(req.query.season)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const races = selectedLeague && selectedSeason ? await getRaces(selectedLeague.id, selectedSeason.id) : [];
   const selectedRace = races.find((race) => race.id === Number(req.query.race)) || races[0] || null;
   const sprintRace = selectedRace ? await GrandPrixResult.findOne({
@@ -130,9 +132,12 @@ exports.show = async (req, res) => {
   }
   res.render('admin/race-editor', {
     title: 'Tabellarischer Saisonverlauf', leagues, selectedLeague, seasons, selectedSeason,
-    races, selectedRace, sprintRace, teams, rows, statuses, availableDrivers, historicalDriverIds, lineupManaged
+    races, selectedRace, sprintRace, teams, rows, statuses, availableDrivers, historicalDriverIds, lineupManaged, currentOnly
   });
-};
+}
+
+exports.show = (req, res) => showEditor(req, res, false);
+exports.showCurrent = (req, res) => showEditor(req, res, true);
 
 exports.save = async (req, res) => {
   const race = await GrandPrixResult.findByPk(req.params.raceId, { include: [{ model: League, as: 'league' }, { model: Season, as: 'seasonRecord' }] });
@@ -220,7 +225,8 @@ exports.save = async (req, res) => {
   });
   await recalculateDriverRaceCounts();
   req.session.flash = { type: 'success', message: `${race.title}: Ergebnis, Punkte und WM wurden automatisch aktualisiert.` };
-  res.redirect(`/admin/race-editor?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
+  const editorPath = req.body._return === 'current' ? '/admin/current-season-progress' : '/admin/race-editor';
+  res.redirect(`${editorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
 };
 
 function editorRedirect(values = {}) {

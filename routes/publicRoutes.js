@@ -8,10 +8,10 @@ const iconsController = require('../controllers/iconsController');
 
 const router = express.Router();
 router.get('/', asyncHandler(homeController.index));
-router.get('/f1/:slug(freitag|sonntag)/download/fahrer-wm.csv', asyncHandler(f1Controller.downloadDriverStandings));
-router.get('/f1/:slug(freitag|sonntag)/download/team-wm.csv', asyncHandler(f1Controller.downloadTeamStandings));
-router.get('/f1/:slug(freitag|sonntag)/download/gp-results.csv', asyncHandler(f1Controller.downloadGpResults));
-router.get('/f1/:slug(freitag|sonntag)', asyncHandler(f1Controller.show));
+router.get('/f1/:slug(freitag|samstag|sonntag)/download/fahrer-wm.csv', asyncHandler(f1Controller.downloadDriverStandings));
+router.get('/f1/:slug(freitag|samstag|sonntag)/download/team-wm.csv', asyncHandler(f1Controller.downloadTeamStandings));
+router.get('/f1/:slug(freitag|samstag|sonntag)/download/gp-results.csv', asyncHandler(f1Controller.downloadGpResults));
+router.get('/f1/:slug(freitag|samstag|sonntag)', asyncHandler(f1Controller.show));
 router.get('/lmu/download/wm.csv', asyncHandler(lmuController.downloadStandings));
 router.get('/lmu/download/results.csv', asyncHandler(lmuController.downloadResults));
 router.get('/lmu', asyncHandler(lmuController.show));

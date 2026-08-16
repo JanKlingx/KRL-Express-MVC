@@ -10,7 +10,7 @@
     </div>
   </section>
   <section class="season-switcher container"><form method="get"><label for="season-select">Saison auswählen</label><select id="season-select" name="season"><%- include('partials/season-options', { seasons, selectedSeason }) %></select><noscript><button class="button button-small" type="submit">Saison laden</button></noscript></form></section>
-  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/team-rosters/f1?league=<%= league.id %>">✎ Teamaufstellungen bearbeiten</a><a href="/admin/f1-race-lineup?league=<%= league.id %>">✎ Fahrereinteilung nächstes Rennen</a><a href="/admin/drivers">✎ Fahrer-Stammdaten bearbeiten</a><a href="/admin/race-editor?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Saisonverlauf bearbeiten</a><a href="/admin/f1CalendarRounds">✎ Rennkalender bearbeiten</a></div><% } %>
+  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/team-rosters/f1?league=<%= league.id %>">✎ Teamaufstellungen</a><a href="/admin/f1-race-lineup?league=<%= league.id %>">✎ Ersatzfahrer</a><a href="/admin/current-season-progress?league=<%= league.id %>">✎ Aktueller Saisonverlauf</a><a href="/admin/season-calendar?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Rennkalender</a></div><% } %>
 
   <% if (selectedSeason?.status === 'active') { %><section class="section container">
     <div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>TEAMS & FAHRER</h2></div>

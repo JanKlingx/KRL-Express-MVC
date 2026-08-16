@@ -90,11 +90,13 @@ exports.dashboard = async (req, res) => {
   const progressModules = [
     ['seasonSetup', { group: 'Saison & Tabellen', href: '/admin/season-setup', title: 'Saison-Assistent', description: 'Liga, Saisonfarbe, Rennkalender, Punktesystem und F1-Autoprofile Schritt für Schritt zusammenstellen.' }],
     ['tableHub', { group: 'Saison & Tabellen', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
+    ['seasonCalendar', { group: 'Saison & Tabellen', href: '/admin/season-calendar', title: 'Rennkalender bearbeiten', description: 'Liga und Saison auswählen und ausschließlich deren Termine bearbeiten.' }],
     ['f1Rosters', { group: 'Formel 1 Liga', href: '/admin/team-rosters/f1', title: 'F1-Fahrerfelder', description: 'Zentrale Teams je Liga einsetzen und pro Team mindestens zwei oder beliebig viele Fahrer zuordnen.' }],
     ['f1RaceLineup', { group: 'Formel 1 Liga', href: '/admin/f1-race-lineup', title: 'Fahrereinteilung nächstes Rennen', description: 'Stamm- und Ersatzfahrer je Rennen farbig markieren und Ersatzfahrer direkt einem Teamplatz zuordnen.' }],
-    ['f1SeasonProgress', { group: 'Formel 1 Liga', href: '/admin/race-editor', title: 'Saisonverlauf', description: 'Saison wählen, Rennen aus dem F1-Kalender übernehmen oder manuell anlegen und direkt tabellarisch pflegen.' }],
+    ['f1CurrentProgress', { group: 'Formel 1 Liga', href: '/admin/current-season-progress', title: 'Aktuellen Saisonverlauf pflegen', description: 'Liga und Rennen auswählen und wie in Google Sheets nur Plätze eintragen; Teams und Punkte kommen automatisch.' }],
+    ['f1SeasonProgress', { group: 'Formel 1 Liga', href: '/admin/race-editor', title: 'Beliebigen Saisonverlauf bearbeiten', description: 'Liga, Saison und Rennen auswählen und historische oder aktuelle Ergebnisse tabellarisch pflegen.' }],
     ['wdlSeasonProgress', { group: 'WDL', href: '/admin/season-progress/wdl', title: 'Saisonverlauf', description: 'WDL-Rennen importieren oder anlegen und Ergebnisse wahlweise über Plätze oder direkte Punkte erfassen.' }],
-    ['lmuRosters', { group: 'LMU', href: '/admin/team-rosters/lmu', title: 'LMU-Cockpits', description: 'Zentrale Teams übernehmen und je Cockpit mindestens drei oder beliebig viele Fahrer zuordnen.' }],
+    ['lmuRosters', { group: 'LMU', href: '/admin/team-rosters/lmu', title: 'LMU-Fahrerfeld', description: 'LMU-Team auswählen und anschließend die passenden Stammfahrer hinzufügen.' }],
     ['lmuCars', { group: 'LMU', href: '/admin/lmu-car-assignments', title: 'LMU-Autos zuordnen', description: 'Persönliche LMU-Autos zentral nur den Fahrern mit Rang LMU Stammfahrer zuordnen.' }],
     ['lmuRaceLineup', { group: 'LMU', href: '/admin/lmu-race-lineup', title: 'LMU-Fahrereinteilung', description: 'LMU-Stamm- und Ersatzfahrer mit eigenem Anzeigenamen und persönlichem Fahrzeug pro Rennen einteilen.' }],
     ['lmuSeasonProgress', { group: 'LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf', description: 'LMU-Rennen importieren oder anlegen und die vollständige Renntabelle auf einer Seite pflegen.' }]

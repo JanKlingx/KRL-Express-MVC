@@ -15,9 +15,9 @@
 
     <form method="post" action="/admin/f1-race-lineup/<%= selectedRace.id %>" class="lineup-board">
       <section class="lineup-section reserve-section">
-        <div class="lineup-section-heading"><div><span>PASSENDER LIGA-RANG</span><h2>ERSATZFAHRER</h2></div><p><%= selectedLeague.slug === 'freitag' ? 'Ersatz Freitag' : 'Ersatz Sonntag' %></p></div>
+        <% const reserveRankLabel = selectedLeague.slug === 'freitag' ? 'Ersatz Freitag' : selectedLeague.slug === 'samstag' ? 'Ersatz Samstag' : 'Ersatz Sonntag'; %><div class="lineup-section-heading"><div><span>PASSENDER LIGA-RANG</span><h2>ERSATZFAHRER</h2></div><p><%= reserveRankLabel %></p></div>
         <div class="status-legend"><% reserveStatuses.forEach((status) => { %><span class="status-<%= status.value %>"><%= status.label %></span><% }) %></div>
-        <% if (!reserveRows.length) { %><div class="empty-state">Noch keine Fahrer mit dem Rang „<%= selectedLeague.slug === 'freitag' ? 'Ersatz Freitag' : 'Ersatz Sonntag' %>“ angelegt.</div><% } else { %>
+        <% if (!reserveRows.length) { %><div class="empty-state">Noch keine Fahrer mit dem Rang „<%= reserveRankLabel %>“ angelegt.</div><% } else { %>
           <div class="reserve-driver-grid"><% reserveRows.forEach((row) => { %><article class="reserve-driver-card"><div><strong>#<%= row.driver.id %> · <%= row.driver.name %></strong><small><%= row.driver.platform %><%= row.driver.aliases?.length ? ` · ${row.driver.aliases.map((alias) => alias.alias).join(', ')}` : '' %></small></div><label>Status<select name="reserve[<%= row.driver.id %>][status]" class="lineup-status status-<%= row.status %>" data-lineup-status><% reserveStatuses.forEach((status) => { %><option value="<%= status.value %>" <%= row.status === status.value ? 'selected' : '' %>><%= status.label %></option><% }) %></select></label><p><span>Einteilung</span><strong><%= row.assignedTo ? `${row.assignedTo.team.name} · für ${row.assignedTo.driver.name}` : 'Noch nicht zugeteilt' %></strong></p></article><% }) %></div>
         <% } %>
       </section>

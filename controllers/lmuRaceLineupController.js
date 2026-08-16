@@ -13,7 +13,7 @@ async function loadRosterTeams(league) {
   const rosters = await TeamRoster.findAll({
     where: { LeagueId: league.id, discipline: 'lmu' },
     include: [
-      { association: 'team', include: [{ association: 'lmuCar' }] },
+      { association: 'team' },
       { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }, { association: 'lmuCar' }] }] }
     ],
     order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]

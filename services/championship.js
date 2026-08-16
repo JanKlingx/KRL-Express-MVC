@@ -150,7 +150,7 @@ async function recalculateAllPoints() {
 }
 
 function roleForLeague(league) {
-  return league.slug === 'freitag' ? 'roleF1Friday' : 'roleF1Sunday';
+  return require('./raceLineup').regularRoleField(league.slug);
 }
 
 function combineDateAndTime(date, time, fallback = '20:00') {
@@ -160,7 +160,7 @@ function combineDateAndTime(date, time, fallback = '20:00') {
 }
 
 async function syncF1CalendarRound(round) {
-  const leagues = await League.findAll({ where: { slug: { [Op.in]: ['freitag', 'sonntag'] }, type: 'f1' } });
+  const leagues = await League.findAll({ where: { slug: { [Op.in]: ['freitag', 'samstag', 'sonntag'] }, type: 'f1' } });
   for (const league of leagues) {
     const season = await Season.findOne({ where: { leagueType: 'f1', scopeSlug: league.slug, status: 'active' } });
     if (!season) continue;

@@ -8,7 +8,7 @@ const {
 } = require('../services/raceLineup');
 
 async function loadRosterTeams(league) {
-  const roleField = league.slug === 'freitag' ? 'roleF1Friday' : 'roleF1Sunday';
+  const roleField = require('../services/raceLineup').regularRoleField(league.slug);
   const rosters = await TeamRoster.findAll({
     where: { LeagueId: league.id, discipline: 'f1' },
     include: [
