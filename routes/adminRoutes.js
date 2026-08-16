@@ -37,6 +37,7 @@ router.get('/:resource/new', asyncHandler(adminController.createForm));
 router.post('/:resource', upload.single('image'), asyncHandler(adminController.create));
 router.get('/:resource/:id/edit', asyncHandler(adminController.editForm));
 router.put('/:resource/:id', upload.single('image'), asyncHandler(adminController.update));
+router.delete('/:resource/bulk', asyncHandler(adminController.bulkRemove));
 router.delete('/:resource/:id', asyncHandler(adminController.remove));
 
 module.exports = router;

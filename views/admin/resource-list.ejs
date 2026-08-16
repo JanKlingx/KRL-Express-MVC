@@ -1,6 +1,8 @@
 <%- include('../partials/header', { title }) %>
 <% const displayedFields = config.listFields ? config.listFields.map((name) => config.fields.find((field) => field.name === name)).filter(Boolean) : config.fields.slice(0, 5); %>
 <% const calendarDate = (value, withTime = false) => value ? new Intl.DateTimeFormat('de-DE', withTime ? { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' } : { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date(withTime ? value : `${value}T12:00:00Z`)) : 'Noch offen'; %>
+<% const bulkEnabled = entries.length && !config.cardView && config.bulkDelete !== false; %>
+<% const bulkIdsShown = new Set(); %>
 <section class="admin-shell">
   <div class="container">
     <div class="admin-heading">
@@ -36,6 +38,11 @@
       </form>
     <% } %>
 
+    <% if (bulkEnabled) { %>
+      <form id="bulk-delete-form" method="post" action="<%= adminBasePath %>/<%= resource %>/bulk?_method=DELETE" data-confirm="Die ausgewählten Einträge wirklich löschen? Verknüpfte Zuordnungen können dabei ebenfalls entfernt werden."></form>
+      <div class="bulk-actions" data-bulk-actions><label><input type="checkbox" data-bulk-select-all> Alle sichtbaren auswählen</label><span><strong data-bulk-count>0</strong> ausgewählt</span><button class="button button-small bulk-delete-button" type="submit" form="bulk-delete-form" disabled>Auswahl löschen</button></div>
+    <% } %>
+
     <% if (!entries.length) { %>
       <div class="empty-state"><%= selectedRank ? 'Für diesen Rang wurden keine Fahrer gefunden.' : 'Noch keine Einträge vorhanden. Starte mit „Neuer Eintrag“.' %></div>
     <% } else if (config.cardView === 'points-schemes') { %>
@@ -63,12 +70,12 @@
     <% } else if (typeof rankGroups !== 'undefined' && rankGroups.length) { %>
       <div class="driver-rank-sections">
         <% rankGroups.forEach((group) => { %><section class="driver-rank-group"><header><div><span>RANG</span><h2><%= group.label %></h2></div><strong><%= group.entries.length %> Fahrer</strong></header>
-          <div class="table-wrap admin-table"><table><thead><tr><th>Name</th><th>Aliase</th><th>Plattform</th><th>Nationalität</th><th>Aktionen</th></tr></thead><tbody><% group.entries.forEach((entry) => { const nationality = (fieldOptions.nationality || []).find((option) => option.value === String(entry.nationality)); %><tr><td><strong><%= entry.name %></strong></td><td><%= entry.aliasesText || '–' %></td><td><%= entry.platform || '–' %></td><td><%= nationality?.label || entry.nationality || '–' %></td><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Fahrer wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %></tbody></table></div>
+          <div class="table-wrap admin-table"><table><thead><tr><% if (bulkEnabled) { %><th class="bulk-cell">Auswahl</th><% } %><th>Name</th><th>Aliase</th><th>Plattform</th><th>Nationalität</th><th>Aktionen</th></tr></thead><tbody><% group.entries.forEach((entry) => { const nationality = (fieldOptions.nationality || []).find((option) => option.value === String(entry.nationality)); const showBulkItem = bulkEnabled && !bulkIdsShown.has(Number(entry.id)); if (showBulkItem) bulkIdsShown.add(Number(entry.id)); %><tr><% if (bulkEnabled) { %><td class="bulk-cell"><% if (showBulkItem) { %><input type="checkbox" name="ids" value="<%= entry.id %>" form="bulk-delete-form" data-bulk-item aria-label="<%= entry.name %> auswählen"><% } %></td><% } %><td><strong><%= entry.name %></strong></td><td><%= entry.aliasesText || '–' %></td><td><%= entry.platform || '–' %></td><td><%= nationality?.label || entry.nationality || '–' %></td><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Fahrer wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %></tbody></table></div>
         </section><% }) %>
       </div>
     <% } else { %>
-      <div class="table-wrap admin-table"><table><thead><tr><th>ID</th><% displayedFields.forEach((field) => { %><th><%= field.label %></th><% }) %><th>Aktionen</th></tr></thead><tbody>
-        <% entries.forEach((entry) => { %><tr><td><span class="id-badge">#<%= entry.id %></span></td><% displayedFields.forEach((field) => { const rawValue = entry[field.name]; const option = (fieldOptions[field.name] || []).find((candidate) => candidate.value === String(rawValue)); %><td><%= option ? option.label : (field.type === 'checkbox' ? (rawValue ? 'Ja' : 'Nein') : (rawValue ?? '–')) %></td><% }) %><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Eintrag wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %>
+      <div class="table-wrap admin-table"><table><thead><tr><% if (bulkEnabled) { %><th class="bulk-cell">Auswahl</th><% } %><th>ID</th><% displayedFields.forEach((field) => { %><th><%= field.label %></th><% }) %><th>Aktionen</th></tr></thead><tbody>
+        <% entries.forEach((entry) => { %><tr><% if (bulkEnabled) { %><td class="bulk-cell"><input type="checkbox" name="ids" value="<%= entry.id %>" form="bulk-delete-form" data-bulk-item aria-label="Eintrag #<%= entry.id %> auswählen"></td><% } %><td><span class="id-badge">#<%= entry.id %></span></td><% displayedFields.forEach((field) => { const rawValue = entry[field.name]; const option = (fieldOptions[field.name] || []).find((candidate) => candidate.value === String(rawValue)); %><td><%= option ? option.label : (field.type === 'checkbox' ? (rawValue ? 'Ja' : 'Nein') : (rawValue ?? '–')) %></td><% }) %><td class="actions"><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Diesen Eintrag wirklich löschen?"><button type="submit">Löschen</button></form></td></tr><% }) %>
       </tbody></table></div>
     <% } %>
   </div>

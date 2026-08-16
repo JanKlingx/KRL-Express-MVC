@@ -47,10 +47,13 @@ test('Öffentliche F1-Teamkarte verwendet Teamfarbe, Logo-Wasserzeichen und link
   const season = { id: 1, name: 'Saison 13', status: 'active', category: null };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'f1.ejs'), {
     ...layout, isAdmin: false, title: 'Freitagsliga', seasons: [season], selectedSeason: season,
-    league: { id: 1, slug: 'freitag', name: 'Freitagsliga', currentSeason: season.name, accentColor: '#6ef2f2', description: 'Testliga', raceDay: 'Freitag', raceTime: '20:00' },
+    league: { id: 1, slug: 'freitag', name: 'Freitagsliga', currentSeason: season.name, accentColor: '#6ef2f2', logoPath: '/uploads/freitag.png', description: 'Testliga', raceDay: 'Freitag', raceTime: '20:00' },
     teams: [{ id: 2, name: 'Racing Bulls', accentColor: '#3671c6', car: 'Mercedes', logoPath: '/uploads/racing-bulls.png', drivers: [{ name: 'Fahrer A', platform: 'PC' }, { name: 'Fahrer B', platform: 'PC' }] }],
-    calendar: [], driverStandings: [], teamStandings: [], gpResults: [], history: { seasons: [], warning: null }, selectedHistory: null
+    calendar: [{ title: 'Belgien GP', circuit: 'Spa', startsAt: new Date('2026-08-20T18:00:00Z') }], driverStandings: [], teamStandings: [], gpResults: [], history: { seasons: [], warning: null }, selectedHistory: null
   });
+  assert.match(html, /class="league-hero-logo" src="\/uploads\/freitag.png"/);
+  assert.match(html, /class="race-calendar-card"/);
+  assert.match(html, /class="race-calendar-watermark" src="\/uploads\/freitag.png"/);
   assert.match(html, /class="f1-team-grid"/);
   assert.match(html, /class="f1-team-card" style="--team-color:#3671c6"/);
   assert.match(html, /class="f1-team-watermark" aria-hidden="true"/);
@@ -58,6 +61,9 @@ test('Öffentliche F1-Teamkarte verwendet Teamfarbe, Logo-Wasserzeichen und link
   assert.match(html, /aria-label="Fahrer von Racing Bulls"/);
   assert.match(html, /Fahrer A/);
   assert.match(html, /Fahrer B/);
+  assert.doesNotMatch(html, /f1-driver-dot/);
+  assert.match(html, /data-png-title="Freitagsliga · Fahrer-WM"/);
+  assert.match(html, /data-png-title="Freitagsliga · GP-Results"/);
   assert.doesNotMatch(html, /Mercedes/);
   assert.doesNotMatch(html, /Fahrer 1:/);
   assert.doesNotMatch(html, /· PC/);
@@ -87,25 +93,42 @@ test('LMU-Kachel verwendet das zentrale Team und zeigt mehr als drei Fahrer', as
   const cockpitDrivers = ['LMU A', 'LMU B', 'LMU C', 'LMU D'].map((name) => ({ name, rosterRole: 'Stammfahrer' }));
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'lmu.ejs'), {
     ...layout, isAdmin: false, title: 'LMU', selectedSeason: season, seasons: [season],
-    league: { id: 3, name: 'LMU', currentSeason: season.name, description: 'Langstrecke', raceDay: 'Samstag', raceTime: '19:00' },
+    league: { id: 3, name: 'LMU', currentSeason: season.name, accentColor: '#ff343f', logoPath: '/uploads/lmu.png', description: 'Langstrecke', raceDay: 'Samstag', raceTime: '19:00' },
     drivers: [], calendar: [], driverStandings: [], teamStandings: [], gpResults: [],
-    cockpits: [{ carNumber: '7', vehicleClass: 'Hypercar', team: { name: 'Mercedes', car: 'Mercedes', logoPath: null }, drivers: cockpitDrivers }]
+    cockpits: [{ carNumber: '7', vehicleClass: 'Hypercar', team: { name: 'Mercedes', car: null, logoPath: null, lmuCar: { manufacturer: 'Porsche', name: '963', vehicleClass: 'Hypercar', logoPath: '/uploads/porsche.png' } }, drivers: cockpitDrivers }]
   });
   cockpitDrivers.forEach((driver) => assert.match(html, new RegExp(driver.name)));
   assert.match(html, /roster-logo-fallback">ME</);
+  assert.match(html, /Porsche 963/);
+  assert.match(html, /src="\/uploads\/porsche.png"/);
+  assert.match(html, /data-png-title="LMU · Fahrer-WM"/);
 });
 
 test('WDL-Kachel kombiniert Liga- und zentrales Teamlogo', async () => {
   const season = { id: 1, name: '2026', status: 'active', category: null };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'competition.ejs'), {
     ...layout, isAdmin: false, title: 'WDL', selectedSeason: season, seasons: [season],
-    pageLeague: { description: 'Wettkampf', raceTime: '19:30', logoPath: null },
+    pageLeague: { name: 'Wettkampf der Ligen', description: 'Wettkampf', raceTime: '19:30', accentColor: '#ff343f', logoPath: '/uploads/wdl.png' },
     leagues: [{ id: 1, name: 'KRL', abbreviation: 'KRL', logoPath: '/uploads/krl.png', websiteUrl: null, f1Team: { name: 'Mercedes', logoPath: '/uploads/mercedes.png' } }],
     races: [], calendar: [], standings: []
   });
   assert.match(html, /src="\/uploads\/krl\.png"/);
   assert.match(html, /src="\/uploads\/mercedes\.png"/);
   assert.match(html, /F1-Team: Mercedes/);
+  assert.match(html, /class="league-hero-logo" src="\/uploads\/wdl.png"/);
+  assert.match(html, /data-png-title="Wettkampf der Ligen · Liga-Standings"/);
+  assert.match(html, /data-png-title="Wettkampf der Ligen · Results"/);
+});
+
+test('KRL Icons besitzen eine eigene öffentliche Seite', async () => {
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'icons.ejs'), {
+    ...layout, isAdmin: false, title: 'KRL Icons',
+    icons: [{ id: 1, text: 'Für besondere Verdienste', appointedAt: '2026-08-16', driver: { name: 'KRL Legende' } }]
+  });
+  assert.match(html, /HALL OF FAME/);
+  assert.match(html, /UNSERE KRL ICONS/);
+  assert.match(html, /KRL Legende/);
+  assert.match(html, /Für besondere Verdienste/);
 });
 
 test('Teamaufstellungen sortieren MariaDB-Spalten über den richtigen Alias', () => {

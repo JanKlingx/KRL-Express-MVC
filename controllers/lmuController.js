@@ -10,7 +10,7 @@ async function loadData(requestedSeasonId) {
   const [rosters, historicalDrivers, gpResults, activeCalendar] = await Promise.all([
     TeamRoster.findAll({
       where: { LeagueId: league.id, discipline: 'lmu' },
-      include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
+      include: [{ association: 'team', include: [{ association: 'lmuCar' }] }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
       order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
     }),
     selectedSeason?.status === 'historical' ? Driver.findAll({ include: [{ association: 'aliases' }], order: [['name', 'ASC']] }) : [],
@@ -21,7 +21,7 @@ async function loadData(requestedSeasonId) {
   rosters.filter((roster) => roster.assignments.length >= 3).forEach((roster) => roster.assignments.forEach((assignment) => {
     if (!driverMap.has(assignment.DriverId)) driverMap.set(assignment.DriverId, {
       ...assignment.driver.toJSON(), rosterRole: assignment.roleName,
-      team: { id: roster.team.id, name: roster.team.name, logoPath: roster.team.logoPath }
+      team: { id: roster.team.id, name: roster.team.name, logoPath: roster.team.logoPath, lmuCar: roster.team.lmuCar }
     });
   }));
   const drivers = selectedSeason?.status === 'historical' ? historicalDrivers : [...driverMap.values()];

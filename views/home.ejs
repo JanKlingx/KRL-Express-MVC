@@ -24,7 +24,7 @@
     <div class="section-heading"><span>FÜR JEDEN RENNSTIL</span><h2>UNSERE LIGEN</h2></div>
     <div class="league-grid">
       <% leagues.forEach(league => { const href = league.slug === 'lmu' ? '/lmu' : league.type === 'f1' ? `/f1/${league.slug}` : league.slug === 'wettkampf' ? '/wettkampf-der-ligen' : '/endurance'; %>
-        <article class="league-card" style="--accent:<%= league.accentColor %>"><div class="league-badge"><%= league.type.toUpperCase() %></div><h3><%= league.name %></h3><p><%= league.description %></p><span><%= league.raceDay || 'Infos folgen' %> <%= league.raceTime || '' %></span><a href="<%= href %>">Liga entdecken →</a></article>
+        <article class="league-card" style="--accent:<%= league.accentColor %>"><% if (league.logoPath) { %><img class="league-card-logo" src="<%= league.logoPath %>" alt="Logo <%= league.name %>"><% } %><div class="league-badge"><%= league.type.toUpperCase() %></div><h3><%= league.name %></h3><p><%= league.description %></p><span><%= league.raceDay || 'Infos folgen' %> <%= league.raceTime || '' %></span><a href="<%= href %>">Liga entdecken →</a></article>
       <% }) %>
     </div>
   </div>
@@ -60,6 +60,6 @@
     </div>
   <% }) %>
 </section>
-<% if (krlIcons.length) { %><section class="section section-dark"><div class="container"><div class="section-heading"><span>AUSGEZEICHNET</span><h2>KRL ICONS</h2></div><div class="people-grid"><% krlIcons.forEach((icon) => { %><article class="person-card"><div class="avatar"><%= icon.driver.name.charAt(0) %></div><strong><%= icon.driver.name %></strong><span><%= icon.text %></span><small><%= icon.appointedAt ? `Ernennung: ${icon.appointedAt}` : '' %></small></article><% }) %></div></div></section><% } %>
+<% if (krlIcons.length) { %><section class="section section-dark"><div class="container"><div class="section-heading"><span>AUSGEZEICHNET</span><h2>KRL ICONS</h2><a class="download-link" href="/krl-icons">Alle KRL Icons ansehen →</a></div><div class="people-grid"><% krlIcons.slice(0, 4).forEach((icon) => { %><article class="person-card"><div class="avatar"><%= icon.driver.name.charAt(0) %></div><strong><%= icon.driver.name %></strong><span><%= icon.text %></span><small><%= icon.appointedAt ? `Ernennung: ${icon.appointedAt}` : '' %></small></article><% }) %></div></div></section><% } %>
 <section class="section cta"><div class="container"><span>BEREIT FÜR DIE STARTAUFSTELLUNG?</span><h2>WERDE TEIL DER KRL</h2><p>Besuche unseren Discord und finde die passende Liga für dich.</p><a class="button" href="https://discord.com" target="_blank" rel="noopener">Discord öffnen</a></div></section>
 <%- include('partials/footer') %>

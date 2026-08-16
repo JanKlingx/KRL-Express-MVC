@@ -44,6 +44,14 @@ const League = sequelize.define('League', {
   ...commonSort
 });
 
+const LmuCar = sequelize.define('LmuCar', {
+  manufacturer: { type: DataTypes.STRING, allowNull: false },
+  name: { type: DataTypes.STRING, allowNull: false, unique: true },
+  vehicleClass: DataTypes.STRING,
+  logoPath: DataTypes.STRING,
+  ...commonSort
+});
+
 const Team = sequelize.define('Team', {
   name: { type: DataTypes.STRING, allowNull: false },
   discipline: { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' },
@@ -288,6 +296,8 @@ const LeagueCompetitionStanding = sequelize.define('LeagueCompetitionStanding', 
 
 TeamCategory.hasMany(TeamMember, { as: 'members', foreignKey: { name: 'TeamCategoryId', allowNull: false }, onDelete: 'CASCADE' });
 TeamMember.belongsTo(TeamCategory, { as: 'category', foreignKey: { name: 'TeamCategoryId', allowNull: false } });
+LmuCar.hasMany(Team, { as: 'teams', foreignKey: { name: 'LmuCarId', allowNull: true }, onDelete: 'SET NULL' });
+Team.belongsTo(LmuCar, { as: 'lmuCar', foreignKey: { name: 'LmuCarId', allowNull: true }, onDelete: 'SET NULL' });
 League.hasMany(Team, { as: 'legacyTeams', foreignKey: { name: 'LeagueId', allowNull: true }, onDelete: 'SET NULL' });
 Team.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: true } });
 League.hasMany(TeamRoster, { as: 'teamRosters', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -379,6 +389,7 @@ module.exports = {
   TeamCategory,
   TeamMember,
   League,
+  LmuCar,
   Team,
   TeamRoster,
   TeamRosterDriver,

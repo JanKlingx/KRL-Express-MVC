@@ -68,6 +68,14 @@ function readValues(fields, body) {
   }, {});
 }
 
+async function destroyEntry(config, entry) {
+  const imagePath = config.upload ? entry[config.upload.field] : null;
+  if (config.beforeRemove) await config.beforeRemove(entry);
+  await entry.destroy();
+  if (config.afterRemove) await config.afterRemove(entry);
+  if (imagePath) await deleteUpload(imagePath);
+}
+
 exports.dashboard = async (req, res) => {
   const modules = Object.entries(resourceConfig).filter(([, config]) => !config.hidden);
   const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count({ where: config.getListWhere ? await config.getListWhere() : {} })])));
@@ -210,11 +218,22 @@ exports.remove = async (req, res, next) => {
   if (!config) return next();
   const entry = await config.model.findByPk(req.params.id);
   if (!entry) return next();
-  const imagePath = config.upload ? entry[config.upload.field] : null;
-  if (config.beforeRemove) await config.beforeRemove(entry);
-  await entry.destroy();
-  if (config.afterRemove) await config.afterRemove(entry);
-  if (imagePath) await deleteUpload(imagePath);
+  await destroyEntry(config, entry);
   req.session.flash = { type: 'success', message: 'Eintrag wurde gelöscht.' };
   res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
+};
+
+exports.bulkRemove = async (req, res, next) => {
+  const config = getConfig(req, req.params.resource);
+  if (!config || config.bulkDelete === false) return next();
+  const ids = [...new Set([].concat(req.body.ids || []).map(Number).filter((id) => Number.isInteger(id) && id > 0))];
+  const returnHref = config.returnHref || `${getBasePath(req)}/${req.params.resource}`;
+  if (!ids.length) {
+    req.session.flash = { type: 'error', message: 'Bitte mindestens einen Eintrag zum Löschen auswählen.' };
+    return res.redirect(returnHref);
+  }
+  const entries = await config.model.findAll({ where: { id: { [Op.in]: ids } }, order: [['id', 'ASC']] });
+  for (const entry of entries) await destroyEntry(config, entry);
+  req.session.flash = { type: 'success', message: `${entries.length} Einträge wurden gelöscht.` };
+  res.redirect(returnHref);
 };
