@@ -38,6 +38,7 @@ async function ensureSchema() {
   await addMissingColumn('teams', teamTable, 'driver1_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('teams', teamTable, 'driver2_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('teams', teamTable, 'discipline', { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' });
+  await addMissingColumn('teams', teamTable, 'accent_color', { type: DataTypes.STRING, allowNull: false, defaultValue: '#6ef2f2' });
 
   const resultTable = await queryInterface.describeTable('grand_prix_results');
   await addMissingColumn('grand_prix_results', resultTable, 'season_id', { type: DataTypes.INTEGER, allowNull: true });
@@ -74,7 +75,7 @@ async function ensureSchema() {
     for (const team of legacyTeams) {
       const [centralTeam] = await Team.findOrCreate({
         where: { LeagueId: null, name: team.name, discipline: 'f1' },
-        defaults: { LeagueId: null, name: team.name, discipline: 'f1', logoPath: team.logoPath, car: team.car, sortOrder: team.sortOrder }
+        defaults: { LeagueId: null, name: team.name, discipline: 'f1', accentColor: team.accentColor, logoPath: team.logoPath, car: team.car, sortOrder: team.sortOrder }
       });
       const centralChanges = {};
       if (!centralTeam.logoPath && team.logoPath) centralChanges.logoPath = team.logoPath;

@@ -68,6 +68,14 @@ test('Punkte je Platz erscheinen direkt im zugehörigen Punktesystem', async () 
   assert.match(html, /pointAllocations\/new\?scheme=2/);
 });
 
+test('Vorhandene F1-Teams erhalten einen verpflichtenden Farbcode', () => {
+  const accentColor = resourceConfig.teams.fields.find((field) => field.name === 'accentColor');
+  assert.equal(accentColor.type, 'color');
+  assert.equal(accentColor.required, true);
+  assert.equal(models.Team.rawAttributes.accentColor.field, 'accent_color');
+  assert.equal(models.Team.rawAttributes.accentColor.defaultValue, '#6ef2f2');
+});
+
 test('MariaDB-kompatibler Ersatzfahrerindex hat einen kurzen Namen', () => {
   const index = F1RaceLineupEntry.options.indexes.find((candidate) => candidate.fields.includes('replacement_for_driver_id'));
   assert.equal(index.name, 'uq_f1_lineup_replacement');

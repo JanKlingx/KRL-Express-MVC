@@ -545,11 +545,12 @@ module.exports = {
   },
   teams: {
     title: 'Formel-1-Teams', group: 'Zentrale Rennteams',
-    description: 'Formel-1-Team einmal zentral mit Name und Upload-Logo pflegen. Die Gesamtpunkte werden automatisch aus allen F1-Saisonverläufen addiert.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null, discipline: 'f1' }), prepareValues: prepareF1Team, prepareEntry: (entry) => prepareTeamForForm(entry, 'f1'), afterSave: syncF1Team, beforeRemove: removeF1Team,
+    description: 'Bestehende Formel-1-Teams zentral mit Name, Farbcode und Upload-Logo pflegen. Die Teamfarbe gestaltet die Karten in den Ligaseiten.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null, discipline: 'f1' }), prepareValues: prepareF1Team, prepareEntry: (entry) => prepareTeamForForm(entry, 'f1'), afterSave: syncF1Team, beforeRemove: removeF1Team,
     nextHref: '/admin/team-rosters/f1', nextLabel: 'Danach F1-Fahrerfelder zusammenstellen',
-    listFields: ['name', 'totalPoints'],
+    listFields: ['name', 'accentColor', 'totalPoints'],
     fields: [
       text('name', 'Teamname', true),
+      field('accentColor', 'Teamfarbe', 'color', true, { help: 'Färbt die Teamkarte in den F1-Ligaseiten. Der genaue Hex-Farbcode wird vom Farbwähler gespeichert.' }),
       number('totalPoints', 'Gesamte Punkte (automatisch)', false, { readonly: true, persist: false })
     ]
   },

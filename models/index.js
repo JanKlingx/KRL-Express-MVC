@@ -47,6 +47,7 @@ const League = sequelize.define('League', {
 const Team = sequelize.define('Team', {
   name: { type: DataTypes.STRING, allowNull: false },
   discipline: { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' },
+  accentColor: { type: DataTypes.STRING, allowNull: false, defaultValue: '#6ef2f2', validate: { is: /^#[0-9a-f]{6}$/i } },
   logoPath: DataTypes.STRING,
   car: DataTypes.STRING,
   ...commonSort
