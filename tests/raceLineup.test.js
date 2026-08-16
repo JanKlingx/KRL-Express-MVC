@@ -50,12 +50,14 @@ test('Rennkalender wird als grafische Karten statt einfacher Tabelle gerendert',
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'resource-list.ejs'), {
     ...layout, title: 'F1-Rennkalender', adminBasePath: '/admin', resource: 'f1CalendarRounds',
     config: { title: 'F1-Rennkalender', group: 'Formel 1 Liga', description: 'Kalender', cardView: 'calendar-f1', fields: [] },
-    entries: [{ id: 1, circuit: 'Spa', fridayDate: '2026-09-04', sundayDate: '2026-09-06', fridayTime: '20:00', sundayTime: '19:30', hasSprint: true, sortOrder: 1 }],
+    entries: [{ id: 1, circuit: 'Spa', fridayDate: '2026-09-04', sundayDate: '2026-09-06', fridayTime: '20:00', sundayTime: '19:30', hasSprint: true, isTestDay: true, sortOrder: 1 }],
     fieldOptions: {}, selectedLeague: '', leagueOptions: []
   });
   assert.match(html, /admin-calendar-grid/);
   assert.match(html, /Freitagsliga/);
   assert.match(html, /Sonntagsliga/);
   assert.match(html, /SPRINT/);
+  assert.match(html, /TESTTAG/);
+  assert.match(html, /admin-calendar-test/);
   assert.doesNotMatch(html, /class="table-wrap admin-table"/);
 });

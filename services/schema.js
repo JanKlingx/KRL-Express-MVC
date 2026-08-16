@@ -54,6 +54,7 @@ async function ensureSchema() {
 
   const f1RoundTable = await queryInterface.describeTable('f1_calendar_rounds');
   await addMissingColumn('f1_calendar_rounds', f1RoundTable, 'has_sprint', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('f1_calendar_rounds', f1RoundTable, 'is_test_day', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
 
   const wdlResultTable = await queryInterface.describeTable('wdl_result_entries');
   await addMissingColumn('wdl_result_entries', wdlResultTable, 'fastest_lap_one', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
@@ -179,6 +180,7 @@ async function ensureSchema() {
   const raceEventTable = await queryInterface.describeTable('race_events');
   await addMissingColumn('race_events', raceEventTable, 'grand_prix_result_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('race_events', raceEventTable, 'season_id', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('race_events', raceEventTable, 'is_test_day', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
 
   const standardPoints = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
   for (let index = 0; index < standardPoints.length; index += 1) {

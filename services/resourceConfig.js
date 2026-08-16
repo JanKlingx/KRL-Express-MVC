@@ -23,6 +23,7 @@ const number = (name, label, required = false, options = {}) => field(name, labe
 const text = (name, label, required = false, options = {}) => field(name, label, 'text', required, options);
 const textarea = (name, label, required = false, options = {}) => field(name, label, 'textarea', required, options);
 const date = (name, label, required = false, options = {}) => field(name, label, 'date', required, options);
+const month = (name, label, required = false, options = {}) => field(name, label, 'month', required, options);
 const dateTime = (name, label, required = false, options = {}) => field(name, label, 'datetime-local', required, options);
 const url = (name, label, required = false, options = {}) => field(name, label, 'url', required, options);
 const checkbox = (name, label, options = {}) => field(name, label, 'checkbox', false, options);
@@ -348,6 +349,19 @@ async function prepareF1Round(values) {
   if (!values.fridayDate && !values.sundayDate) throw new Error('Mindestens ein Freitag- oder Sonntagsdatum ist erforderlich.');
 }
 
+function prepareKrlIcon(values) {
+  if (values.appointedAt && /^\d{4}-\d{2}$/.test(String(values.appointedAt))) {
+    values.appointedAt = `${values.appointedAt}-01`;
+  }
+}
+
+function prepareKrlIconForForm(entry) {
+  if (!entry?.appointedAt) return entry;
+  const values = typeof entry.toJSON === 'function' ? entry.toJSON() : { ...entry };
+  values.appointedAt = String(values.appointedAt).slice(0, 7);
+  return values;
+}
+
 async function prepareSeasonRace(values) {
   const [season, league] = await Promise.all([
     models.Season.findByPk(values.SeasonId),
@@ -666,7 +680,7 @@ module.exports = {
     prepareValues: prepareF1Round, afterSave: syncF1CalendarRound, beforeRemove: removeF1CalendarRound, nextHref: '/admin/race-editor', nextLabel: 'Danach Saisonverlauf pflegen', cardView: 'calendar-f1',
     fields: [
       text('circuit', 'Strecke', true), date('sundayDate', 'Datum Sonntag'), date('fridayDate', 'Datum Freitag'),
-      checkbox('hasSprint', 'Sprint-Event'),
+      checkbox('hasSprint', 'Sprint-Event'), checkbox('isTestDay', 'Als Testtag markieren'),
       text('sundayTime', 'Startzeit Sonntag', false, { placeholder: '19:00' }), text('fridayTime', 'Startzeit Freitag', false, { placeholder: '19:30' }),
       number('sortOrder', 'Rennrunde', false, { min: 1, step: 1 })
     ]
@@ -691,7 +705,7 @@ module.exports = {
       relation('SeasonId', 'LMU-Saison', models.Season, (row) => row.name, true, { where: { leagueType: 'lmu' } }),
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
       text('title', 'Rennen', true), text('circuit', 'Strecke', true), dateTime('startsAt', 'Datum und Startzeit', true),
-      number('durationMinutes', 'Dauer in Minuten', false, { min: 1 }), checkbox('isPublished', 'Im Frontend anzeigen'),
+      number('durationMinutes', 'Dauer in Minuten', false, { min: 1 }), checkbox('isPublished', 'Im Frontend anzeigen'), checkbox('isTestDay', 'Als Testtag markieren'),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
@@ -703,7 +717,7 @@ module.exports = {
       relation('SeasonId', 'WDL-Saison', models.Season, (row) => row.name, true, { where: { leagueType: 'wdl' } }),
       relation('LeagueId', 'WDL-Seite', models.League, (row) => row.name, true, { where: { type: 'competition' } }),
       text('title', 'Rennen', true), text('circuit', 'Strecke', true), dateTime('startsAt', 'Datum und Startzeit', true),
-      checkbox('isPublished', 'Im Frontend anzeigen'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      checkbox('isPublished', 'Im Frontend anzeigen'), checkbox('isTestDay', 'Als Testtag markieren'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   lmuResultEntries: {
@@ -755,7 +769,7 @@ module.exports = {
     fields: [
       relation('LeagueId', 'F1-Liga', models.League, (row) => row.name, true, { where: { type: 'f1' } }),
       text('title', 'Rennen', true), text('circuit', 'Strecke'), dateTime('startsAt', 'Startdatum und Uhrzeit', true),
-      number('durationMinutes', 'Dauer in Minuten', false, { min: 1, step: 1 }), checkbox('isPublished', 'Auf Webseite anzeigen'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      number('durationMinutes', 'Dauer in Minuten', false, { min: 1, step: 1 }), checkbox('isPublished', 'Auf Webseite anzeigen'), checkbox('isTestDay', 'Als Testtag markieren'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   lmuCalendar: {
@@ -764,7 +778,7 @@ module.exports = {
     fields: [
       relation('LeagueId', 'LMU-Liga', models.League, (row) => row.name, true, { where: { type: 'lmu' } }),
       text('title', 'Rennen', true), text('circuit', 'Strecke'), dateTime('startsAt', 'Startdatum und Uhrzeit', true),
-      number('durationMinutes', 'Dauer in Minuten', false, { min: 1, step: 1 }), checkbox('isPublished', 'Auf Webseite anzeigen'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      number('durationMinutes', 'Dauer in Minuten', false, { min: 1, step: 1 }), checkbox('isPublished', 'Auf Webseite anzeigen'), checkbox('isTestDay', 'Als Testtag markieren'), number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
   lmuStandingImages: {
@@ -818,10 +832,11 @@ module.exports = {
   },
   krlIcons: {
     title: 'KRL Icons', group: 'KRL Icons',
-    description: 'KRL-Icon aus Fahrer, Beschreibung und Ernennungsdatum pflegen.', model: models.KrlIcon,
+    description: 'KRL-Icon aus Fahrer, Beschreibung und Ernennungsmonat pflegen.', model: models.KrlIcon,
+    prepareValues: prepareKrlIcon, prepareEntry: prepareKrlIconForForm,
     fields: [
       relation('DriverId', 'Fahrer', models.Driver, (row) => `#${row.id} · ${row.name}`, true),
-      textarea('text', 'Text / Beschreibung', true), date('appointedAt', 'Ernennung'),
+      textarea('text', 'Text / Beschreibung', true), month('appointedAt', 'Ernannt (Monat und Jahr)', false, { help: 'Auf der Webseite wird ausschließlich Monat und Jahr angezeigt.' }),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   }

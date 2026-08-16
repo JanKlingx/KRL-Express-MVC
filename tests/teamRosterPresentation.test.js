@@ -49,11 +49,12 @@ test('Öffentliche F1-Teamkarte verwendet Teamfarbe, Logo-Wasserzeichen und link
     ...layout, isAdmin: false, title: 'Freitagsliga', seasons: [season], selectedSeason: season,
     league: { id: 1, slug: 'freitag', name: 'Freitagsliga', currentSeason: season.name, accentColor: '#6ef2f2', logoPath: '/uploads/freitag.png', description: 'Testliga', raceDay: 'Freitag', raceTime: '20:00' },
     teams: [{ id: 2, name: 'Racing Bulls', accentColor: '#3671c6', car: 'Mercedes', logoPath: '/uploads/racing-bulls.png', drivers: [{ name: 'Fahrer A', platform: 'PC' }, { name: 'Fahrer B', platform: 'PC' }] }],
-    calendar: [{ title: 'Belgien GP', circuit: 'Spa', startsAt: new Date('2026-08-20T18:00:00Z') }], driverStandings: [], teamStandings: [], gpResults: [], history: { seasons: [], warning: null }, selectedHistory: null
+    calendar: [{ title: 'Belgien GP', circuit: 'Spa', startsAt: new Date('2026-08-20T18:00:00Z'), isTestDay: true }], driverStandings: [], teamStandings: [], gpResults: [], history: { seasons: [], warning: null }, selectedHistory: null
   });
   assert.match(html, /class="league-hero-logo" src="\/uploads\/freitag.png"/);
-  assert.match(html, /class="race-calendar-card"/);
+  assert.match(html, /class="race-calendar-card race-calendar-test"/);
   assert.match(html, /class="race-calendar-watermark" src="\/uploads\/freitag.png"/);
+  assert.match(html, />TESTTAG</);
   assert.match(html, /class="f1-team-grid"/);
   assert.match(html, /class="f1-team-card" style="--team-color:#3671c6"/);
   assert.match(html, /class="f1-team-watermark" aria-hidden="true"/);
@@ -129,6 +130,11 @@ test('KRL Icons besitzen eine eigene öffentliche Seite', async () => {
   assert.match(html, /UNSERE KRL ICONS/);
   assert.match(html, /KRL Legende/);
   assert.match(html, /Für besondere Verdienste/);
+  assert.match(html, /August 2026/);
+  assert.doesNotMatch(html, /16\. August 2026/);
+  assert.doesNotMatch(html, /icon-hall-initial/);
+  const css = require('node:fs').readFileSync(path.join(__dirname, '..', 'public', 'css', 'style.css'), 'utf8');
+  assert.match(css, /#e91e63/);
 });
 
 test('Teamaufstellungen sortieren MariaDB-Spalten über den richtigen Alias', () => {

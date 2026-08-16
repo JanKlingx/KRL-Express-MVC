@@ -188,10 +188,11 @@ async function syncF1CalendarRound(round) {
         startsAt,
         durationMinutes: 120,
         isPublished: season.status === 'active',
+        isTestDay: round.isTestDay,
         sortOrder: round.sortOrder
       }
     });
-    await event.update({ GrandPrixResultId: race.id, title: race.title, startsAt, isPublished: season.status === 'active', sortOrder: round.sortOrder });
+    await event.update({ GrandPrixResultId: race.id, title: race.title, startsAt, isPublished: season.status === 'active', isTestDay: round.isTestDay, sortOrder: round.sortOrder });
     if (round.hasSprint) {
       const [sprint] = await GrandPrixResult.findOrCreate({
         where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit, raceType: 'sprint' },
