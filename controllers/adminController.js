@@ -1,5 +1,6 @@
 const resourceConfig = require('../services/resourceConfig');
 const { saveImage, deleteUpload } = require('../services/imageStorage');
+const { Op } = require('sequelize');
 
 function getBasePath(req) {
   return req.adminBasePath || '/admin';
@@ -49,7 +50,8 @@ async function renderForm(req, res, config, entry, error, status = 200) {
     entry: preparedEntry,
     error,
     fieldOptions,
-    adminBasePath: getBasePath(req)
+    adminBasePath: getBasePath(req),
+    returnHref: config.returnHref || `${getBasePath(req)}/${resource}`
   });
 }
 
@@ -107,8 +109,22 @@ exports.list = async (req, res, next) => {
   if (!config) return next();
   const where = config.getListWhere ? await config.getListWhere() : {};
   if (config.filterByLeague && req.query.league) where.LeagueId = Number(req.query.league);
+  const selectedRank = config.rankFilters?.find((rank) => rank.value === req.query.rank);
+  if (selectedRank) {
+    const existingAnd = where[Op.and];
+    where[Op.and] = [...(Array.isArray(existingAnd) ? existingAnd : existingAnd ? [existingAnd] : []), selectedRank.where];
+  }
   let entries = await config.model.findAll({ where, order: [['sortOrder', 'ASC'], ['id', 'ASC']].filter(([field]) => config.model.rawAttributes[field]) });
   if (config.prepareEntry) entries = await Promise.all(entries.map((entry) => config.prepareEntry(entry)));
+  let rankGroups = [];
+  if (config.groupByRanks && config.rankFilters) {
+    const ranks = selectedRank ? [selectedRank] : config.rankFilters;
+    rankGroups = ranks.map((rank) => ({ ...rank, entries: entries.filter(rank.matches) })).filter((group) => group.entries.length);
+    if (!selectedRank) {
+      const unranked = entries.filter((entry) => !config.rankFilters.some((rank) => rank.matches(entry)));
+      if (unranked.length) rankGroups.push({ value: 'unranked', label: 'Ohne Rang', entries: unranked });
+    }
+  }
   const fieldOptions = await getFieldOptions(config);
   res.render('admin/resource-list', {
     title: config.title,
@@ -118,14 +134,17 @@ exports.list = async (req, res, next) => {
     fieldOptions,
     adminBasePath: getBasePath(req),
     selectedLeague: req.query.league || '',
-    leagueOptions: config.filterByLeague ? await getFieldOptions({ fields: [config.fields.find((field) => field.name === 'LeagueId')] }).then((options) => options.LeagueId) : []
+    leagueOptions: config.filterByLeague ? await getFieldOptions({ fields: [config.fields.find((field) => field.name === 'LeagueId')] }).then((options) => options.LeagueId) : [],
+    selectedRank: selectedRank?.value || '',
+    rankGroups
   });
 };
 
 exports.createForm = async (req, res, next) => {
   const config = getConfig(req, req.params.resource);
   if (!config) return next();
-  return renderForm(req, res, config, null, null);
+  const defaults = config.getCreateDefaults ? await config.getCreateDefaults(req) : null;
+  return renderForm(req, res, config, defaults, null);
 };
 
 exports.create = async (req, res, next) => {
@@ -146,7 +165,7 @@ exports.create = async (req, res, next) => {
     const entry = await config.model.create(values);
     if (config.afterSave) await config.afterSave(entry, req.body);
     req.session.flash = { type: 'success', message: 'Eintrag wurde gespeichert.' };
-    res.redirect(`${getBasePath(req)}/${req.params.resource}`);
+    res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
     if (uploadedPath) await deleteUpload(uploadedPath);
     return renderForm(req, res, config, req.body, error.message, 400);
@@ -179,7 +198,7 @@ exports.update = async (req, res, next) => {
     if (config.afterSave) await config.afterSave(entry, req.body);
     if (newPath && oldPath) await deleteUpload(oldPath);
     req.session.flash = { type: 'success', message: 'Änderungen wurden gespeichert.' };
-    res.redirect(`${getBasePath(req)}/${req.params.resource}`);
+    res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
     if (newPath) await deleteUpload(newPath);
     return renderForm(req, res, config, { ...entry.toJSON(), ...req.body }, error.message, 400);
@@ -197,5 +216,5 @@ exports.remove = async (req, res, next) => {
   if (config.afterRemove) await config.afterRemove(entry);
   if (imagePath) await deleteUpload(imagePath);
   req.session.flash = { type: 'success', message: 'Eintrag wurde gelöscht.' };
-  res.redirect(`${getBasePath(req)}/${req.params.resource}`);
+  res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
 };
