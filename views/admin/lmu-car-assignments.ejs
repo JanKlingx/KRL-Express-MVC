@@ -1,0 +1,8 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container">
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">LMU – STAMMFAHRER</span><h1>LMU-AUTOS ZUORDNEN</h1><p class="admin-intro">Nur Fahrer mit dem Rang „LMU Stammfahrer“ erscheinen hier. Die Auswahl wird bei der LMU-Fahrereinteilung angezeigt.</p></div><a class="button button-ghost" href="/admin/lmuCars">LMU-Autos pflegen</a></div>
+  <% if (!drivers.length) { %><div class="empty-state">Noch keine LMU-Stammfahrer vorhanden. Den Rang zuerst in der <a href="/admin/drivers?rank=lmu-regular">Fahrerpflege</a> vergeben.</div><% } else if (!cars.length) { %><div class="empty-state">Bitte zuerst mindestens ein <a href="/admin/lmuCars/new">LMU-Auto anlegen</a>.</div><% } else { %>
+    <form method="post" action="/admin/lmu-car-assignments" class="table-wrap admin-table"><table><thead><tr><th>Fahrer</th><th>LMU-Anzeigename</th><th>Persönliches LMU-Auto</th></tr></thead><tbody><% drivers.forEach((driver) => { %><tr><td><strong><%= driver.name %></strong></td><td><%= driver.lmuDisplayName || '–' %></td><td><select name="assignments[<%= driver.id %>][LmuCarId]"><option value="">Noch kein Auto zugeordnet</option><% cars.forEach((car) => { %><option value="<%= car.id %>" <%= Number(driver.LmuCarId) === car.id ? 'selected' : '' %>><%= car.manufacturer %> · <%= car.name %><%= car.vehicleClass ? ` · ${car.vehicleClass}` : '' %></option><% }) %></select></td></tr><% }) %></tbody></table><div class="form-actions"><button class="button" type="submit">Autozuordnungen speichern</button></div></form>
+  <% } %>
+</div></section>
+<%- include('../partials/footer') %>

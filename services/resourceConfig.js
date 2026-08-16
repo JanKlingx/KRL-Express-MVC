@@ -643,7 +643,7 @@ module.exports = {
     title: 'LMU-Autos & Marken', group: 'Zentrale Rennteams',
     description: 'LMU-Fahrzeuge einmalig als Stammdaten pflegen und anschließend den vorhandenen LMU-Teams zuordnen.', model: models.LmuCar,
     upload: { field: 'logoPath', label: 'Marken-/Fahrzeuglogo' }, beforeRemove: removeLmuCar,
-    nextResource: 'lmuTeams', nextLabel: 'Danach vorhandenen LMU-Teams ein Auto zuordnen',
+    nextHref: '/admin/lmu-car-assignments', nextLabel: 'Danach LMU-Stammfahrern Autos zuordnen',
     listFields: ['manufacturer', 'name', 'vehicleClass', 'additionalInfo'],
     fields: [
       text('manufacturer', 'Marke', true, { placeholder: 'Porsche' }),
@@ -654,11 +654,12 @@ module.exports = {
   },
   f1CarProfiles: {
     title: 'Formel-1-Autoprofile', group: 'Zentrale Rennteams',
-    description: 'Aktuelle und historische Formel-1-Fahrzeuge mit eigener Farbe und Upload-Logo pflegen. Die Zuweisung zu Teams erfolgt anschließend je Saison.', model: models.F1CarProfile,
+    description: 'Historische Formel-1-Autoprofile einem zentralen aktuellen F1-Team zuordnen und danach nur diesem Team in einer Saison zuweisen.', model: models.F1CarProfile,
     upload: { field: 'logoPath', label: 'Fahrzeug-/Teamlogo' },
     listFields: ['name', 'seasonLabel', 'accentColor'],
     nextHref: '/admin/season-setup', nextLabel: 'Danach einer Saison zuweisen',
     fields: [
+      relation('BaseTeamId', 'Aktuelles Formel-1-Team', models.Team, (row) => row.name, true, { where: { LeagueId: null, discipline: 'f1' } }),
       text('name', 'Profilname', true, { placeholder: 'Mercedes W11' }),
       text('seasonLabel', 'Historische Saison / Zeitraum', false, { placeholder: '2020 oder Saison 8' }),
       field('accentColor', 'Fahrzeugfarbe', 'color', true),

@@ -1,3 +1,4 @@
+<% const navPath = typeof currentPath === 'string' ? currentPath : ''; const signedIn = typeof isAdmin === 'boolean' ? isAdmin : false; const pageFlash = typeof flash === 'undefined' ? null : flash; %>
 <!doctype html>
 <html lang="de">
 <head>
@@ -17,19 +18,19 @@
       <a class="brand" href="/" aria-label="KRL Startseite"><span class="brand-mark">K</span><span>KATZES<br>RACING LEAGUE</span></a>
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Navigation öffnen">☰</button>
       <nav id="main-nav" class="main-nav" aria-label="Hauptnavigation">
-        <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">Start</a>
+        <a href="/" class="<%= navPath === '/' ? 'active' : '' %>">Start</a>
         <div class="nav-group">
           <button type="button" aria-expanded="false">F1 Liga ▾</button>
           <div class="dropdown"><a href="/f1/freitag">Freitagsliga</a><a href="/f1/sonntag">Sonntagsliga</a></div>
         </div>
         <a href="/lmu">LMU Liga</a>
         <a href="/wettkampf-der-ligen">Wettkampf</a>
-        <a href="/krl-icons" class="<%= currentPath === '/krl-icons' ? 'active' : '' %>">KRL Icons</a>
+        <a href="/krl-icons" class="<%= navPath === '/krl-icons' ? 'active' : '' %>">KRL Icons</a>
         <a href="/#team">Unser Team</a>
-        <a class="login-link" href="<%= isAdmin ? '/admin' : '/admin/login' %>"><%= isAdmin ? 'Admin & WDL' : 'Login' %></a>
+        <a class="login-link" href="<%= signedIn ? '/admin' : '/admin/login' %>"><%= signedIn ? 'Admin & WDL' : 'Login' %></a>
         <a class="button button-small" href="https://discord.com" target="_blank" rel="noopener">Jetzt beitreten</a>
       </nav>
     </div>
   </header>
   <main id="main">
-    <% if (flash) { %><div class="container flash flash-<%= flash.type %>" role="status"><%= flash.message %></div><% } %>
+    <% if (pageFlash) { %><div class="container flash flash-<%= pageFlash.type %>" role="status"><%= pageFlash.message %></div><% } %>

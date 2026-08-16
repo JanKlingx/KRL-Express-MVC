@@ -349,6 +349,8 @@ Season.hasMany(SeasonF1CarAssignment, { as: 'f1CarAssignments', foreignKey: { na
 SeasonF1CarAssignment.belongsTo(Season, { as: 'season', foreignKey: { name: 'SeasonId', allowNull: false } });
 Team.hasMany(SeasonF1CarAssignment, { as: 'seasonCarAssignments', foreignKey: { name: 'TeamId', allowNull: false }, onDelete: 'CASCADE' });
 SeasonF1CarAssignment.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: false } });
+Team.hasMany(F1CarProfile, { as: 'historicalCarProfiles', foreignKey: { name: 'BaseTeamId', allowNull: true }, onDelete: 'SET NULL' });
+F1CarProfile.belongsTo(Team, { as: 'baseTeam', foreignKey: { name: 'BaseTeamId', allowNull: true }, onDelete: 'SET NULL' });
 F1CarProfile.hasMany(SeasonF1CarAssignment, { as: 'seasonAssignments', foreignKey: { name: 'F1CarProfileId', allowNull: false }, onDelete: 'CASCADE' });
 SeasonF1CarAssignment.belongsTo(F1CarProfile, { as: 'carProfile', foreignKey: { name: 'F1CarProfileId', allowNull: false } });
 Driver.hasMany(DriverAlias, { as: 'aliases', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
