@@ -77,9 +77,14 @@ app.use(
   '/uploads',
   express.static(
     path.join(__dirname, 'public', 'uploads'),
-    { fallthrough: false }
+    { fallthrough: true }
   )
 );
+
+// Upload-Dateien werden absichtlich nicht versioniert. Alte Datenbankeinträge
+// dürfen deshalb nicht die allgemeine Fehlerseite auslösen, wenn die Datei
+// lokal nicht (mehr) vorhanden ist.
+app.use('/uploads', (req, res) => res.status(404).type('text/plain').send('Bild nicht gefunden.'));
 
 app.use(
   express.static(path.join(__dirname, 'public'))

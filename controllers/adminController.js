@@ -95,6 +95,7 @@ exports.dashboard = async (req, res) => {
     ['f1SeasonProgress', { group: 'Formel 1 Liga', href: '/admin/race-editor', title: 'Saisonverlauf', description: 'Saison wählen, Rennen aus dem F1-Kalender übernehmen oder manuell anlegen und direkt tabellarisch pflegen.' }],
     ['wdlSeasonProgress', { group: 'WDL', href: '/admin/season-progress/wdl', title: 'Saisonverlauf', description: 'WDL-Rennen importieren oder anlegen und Ergebnisse wahlweise über Plätze oder direkte Punkte erfassen.' }],
     ['lmuRosters', { group: 'LMU', href: '/admin/team-rosters/lmu', title: 'LMU-Cockpits', description: 'Zentrale Teams übernehmen und je Cockpit mindestens drei oder beliebig viele Fahrer zuordnen.' }],
+    ['lmuCars', { group: 'LMU', href: '/admin/lmu-car-assignments', title: 'LMU-Autos zuordnen', description: 'Persönliche LMU-Autos zentral nur den Fahrern mit Rang LMU Stammfahrer zuordnen.' }],
     ['lmuRaceLineup', { group: 'LMU', href: '/admin/lmu-race-lineup', title: 'LMU-Fahrereinteilung', description: 'LMU-Stamm- und Ersatzfahrer mit eigenem Anzeigenamen und persönlichem Fahrzeug pro Rennen einteilen.' }],
     ['lmuSeasonProgress', { group: 'LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf', description: 'LMU-Rennen importieren oder anlegen und die vollständige Renntabelle auf einer Seite pflegen.' }]
   ];

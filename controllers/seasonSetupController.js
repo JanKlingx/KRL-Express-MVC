@@ -41,7 +41,7 @@ async function loadData(query = {}) {
     discipline ? PointsScheme.findAll({ where: { discipline }, order: [['sortOrder', 'DESC'], ['id', 'DESC']] }) : [],
     selectedSeason ? RaceEvent.findAll({ where: { SeasonId: selectedSeason.id }, order: [['sortOrder', 'ASC'], ['startsAt', 'ASC'], ['id', 'ASC']] }) : [],
     selectedLeague?.type === 'f1' ? Team.findAll({ where: { LeagueId: null, discipline: 'f1' }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] }) : [],
-    selectedLeague?.type === 'f1' ? F1CarProfile.findAll({ order: [['seasonLabel', 'DESC'], ['sortOrder', 'ASC'], ['id', 'ASC']] }) : [],
+    selectedLeague?.type === 'f1' ? F1CarProfile.findAll({ include: [{ association: 'baseTeam', required: false }], order: [['seasonLabel', 'DESC'], ['sortOrder', 'ASC'], ['id', 'ASC']] }) : [],
     selectedSeason && selectedLeague?.type === 'f1' ? SeasonF1CarAssignment.findAll({ where: { SeasonId: selectedSeason.id } }) : []
   ]);
   return {
@@ -59,8 +59,9 @@ exports.show = async (req, res) => {
 };
 
 exports.createSeason = async (req, res) => {
-  const league = await League.findByPk(req.body.LeagueId);
+  let league;
   try {
+    league = await League.findByPk(req.body.LeagueId);
     if (!league || !['f1', 'lmu', 'competition'].includes(league.type)) throw new Error('Bitte eine gültige Liga auswählen.');
     const name = String(req.body.name || '').trim();
     if (!name) throw new Error('Bitte einen Saisonnamen eingeben.');
@@ -148,8 +149,12 @@ exports.assignF1Cars = async (req, res) => {
     const teamIds = [...new Set(assignments.map((entry) => entry.TeamId))];
     const profileIds = [...new Set(assignments.map((entry) => entry.F1CarProfileId))];
     const validTeamCount = teamIds.length ? await Team.count({ where: { id: teamIds, LeagueId: null, discipline: 'f1' } }) : 0;
-    const validProfileCount = profileIds.length ? await F1CarProfile.count({ where: { id: profileIds } }) : 0;
-    if (validTeamCount !== teamIds.length || validProfileCount !== profileIds.length) throw new Error('Mindestens eine Autozuweisung ist ungültig.');
+    const profiles = profileIds.length ? await F1CarProfile.findAll({ where: { id: profileIds } }) : [];
+    if (validTeamCount !== teamIds.length || profiles.length !== profileIds.length) throw new Error('Mindestens eine Autozuweisung ist ungültig.');
+    const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+    if (assignments.some((assignment) => Number(profileById.get(assignment.F1CarProfileId)?.BaseTeamId) !== assignment.TeamId)) {
+      throw new Error('Ein historisches Autoprofil darf nur seinem verknüpften aktuellen Formel-1-Team zugewiesen werden.');
+    }
     await sequelize.transaction(async (transaction) => {
       await SeasonF1CarAssignment.destroy({ where: { SeasonId: season.id }, transaction });
       if (assignments.length) await SeasonF1CarAssignment.bulkCreate(assignments, { transaction });
