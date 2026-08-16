@@ -2,6 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildSeasonData } = require('../services/standings');
 const { createCsv } = require('../services/csv');
+const { pointsForPosition } = require('../services/championship');
+const { Season, PointsScheme, PointAllocation } = require('../models');
 
 const league = { slug: 'freitag', currentSeason: 'Saison 12' };
 const drivers = [
@@ -56,4 +58,19 @@ test('Sprintpunkte zählen zur WM, aber ein Sprintsieg nicht als Grand-Prix-Sieg
   assert.equal(data.driverStandings[0].wins, 0);
   assert.equal(data.teamStandings[0].wins, 0);
   assert.equal(data.selectedHistory.races[0].title, 'Sprint · Spa');
+});
+
+test('LMU-Punktesystem addiert schnellste Runde und Poleposition saisonbezogen', async () => {
+  const originals = { season: Season.findByPk, scheme: PointsScheme.findOne, allocation: PointAllocation.findOne };
+  Season.findByPk = async () => ({ PointsSchemeId: 9 });
+  PointsScheme.findOne = async () => ({ id: 9, discipline: 'lmu', fastestLapEnabled: true, fastestLapPoints: 1, polePositionEnabled: true, polePositionPoints: 2 });
+  PointAllocation.findOne = async () => ({ points: 25 });
+  try {
+    const points = await pointsForPosition(1, { SeasonId: 3, discipline: 'lmu', fastestLap: true, polePosition: true });
+    assert.equal(points, 28);
+  } finally {
+    Season.findByPk = originals.season;
+    PointsScheme.findOne = originals.scheme;
+    PointAllocation.findOne = originals.allocation;
+  }
 });

@@ -48,7 +48,8 @@ async function renderForm(req, res, config, entry, error, status = 200) {
     resource,
     config,
     entry: preparedEntry,
-    error,
+    error: typeof error === 'string' ? error : error?.message || null,
+    duplicateDriver: typeof error === 'object' ? error?.duplicateDriver || null : null,
     fieldOptions,
     adminBasePath: getBasePath(req),
     returnHref: config.returnHref || `${getBasePath(req)}/${resource}`
@@ -87,11 +88,14 @@ exports.dashboard = async (req, res) => {
     return result;
   }, []);
   const progressModules = [
+    ['seasonSetup', { group: 'Saison & Tabellen', href: '/admin/season-setup', title: 'Saison-Assistent', description: 'Liga, Saisonfarbe, Rennkalender, Punktesystem und F1-Autoprofile Schritt für Schritt zusammenstellen.' }],
+    ['tableHub', { group: 'Saison & Tabellen', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
     ['f1Rosters', { group: 'Formel 1 Liga', href: '/admin/team-rosters/f1', title: 'F1-Fahrerfelder', description: 'Zentrale Teams je Liga einsetzen und pro Team mindestens zwei oder beliebig viele Fahrer zuordnen.' }],
     ['f1RaceLineup', { group: 'Formel 1 Liga', href: '/admin/f1-race-lineup', title: 'Fahrereinteilung nächstes Rennen', description: 'Stamm- und Ersatzfahrer je Rennen farbig markieren und Ersatzfahrer direkt einem Teamplatz zuordnen.' }],
     ['f1SeasonProgress', { group: 'Formel 1 Liga', href: '/admin/race-editor', title: 'Saisonverlauf', description: 'Saison wählen, Rennen aus dem F1-Kalender übernehmen oder manuell anlegen und direkt tabellarisch pflegen.' }],
     ['wdlSeasonProgress', { group: 'WDL', href: '/admin/season-progress/wdl', title: 'Saisonverlauf', description: 'WDL-Rennen importieren oder anlegen und Ergebnisse wahlweise über Plätze oder direkte Punkte erfassen.' }],
     ['lmuRosters', { group: 'LMU', href: '/admin/team-rosters/lmu', title: 'LMU-Cockpits', description: 'Zentrale Teams übernehmen und je Cockpit mindestens drei oder beliebig viele Fahrer zuordnen.' }],
+    ['lmuRaceLineup', { group: 'LMU', href: '/admin/lmu-race-lineup', title: 'LMU-Fahrereinteilung', description: 'LMU-Stamm- und Ersatzfahrer mit eigenem Anzeigenamen und persönlichem Fahrzeug pro Rennen einteilen.' }],
     ['lmuSeasonProgress', { group: 'LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf', description: 'LMU-Rennen importieren oder anlegen und die vollständige Renntabelle auf einer Seite pflegen.' }]
   ];
   progressModules.forEach(([key, config]) => {
@@ -99,7 +103,7 @@ exports.dashboard = async (req, res) => {
     if (group) group.modules.unshift([key, config]);
     else groups.push({ name: config.group, modules: [[key, config]] });
   });
-  const groupOrder = ['Stammdaten', 'Zentrale Rennteams', 'Formel 1 Liga', 'WDL', 'LMU', 'Startseite', 'Teams', 'KRL Icons'];
+  const groupOrder = ['Saison & Tabellen', 'Stammdaten', 'Zentrale Rennteams', 'Formel 1 Liga', 'WDL', 'LMU', 'Startseite', 'Teams', 'KRL Icons'];
   groups.sort((left, right) => groupOrder.indexOf(left.name) - groupOrder.indexOf(right.name));
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',
@@ -176,7 +180,7 @@ exports.create = async (req, res, next) => {
     res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
     if (uploadedPath) await deleteUpload(uploadedPath);
-    return renderForm(req, res, config, req.body, error.message, 400);
+    return renderForm(req, res, config, req.body, error, 400);
   }
 };
 
@@ -209,7 +213,7 @@ exports.update = async (req, res, next) => {
     res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
     if (newPath) await deleteUpload(newPath);
-    return renderForm(req, res, config, { ...entry.toJSON(), ...req.body }, error.message, 400);
+    return renderForm(req, res, config, { ...entry.toJSON(), ...req.body }, error, 400);
   }
 };
 

@@ -64,7 +64,11 @@ async function prepareDriver(values, body, existingDriver) {
       )
     }
   });
-  if (duplicateName) throw new Error(`Der Fahrername „${values.name}“ ist bereits vergeben. Verwende bei einer Namensänderung die Aliase im bestehenden Fahrerprofil.`);
+  if (duplicateName && body.confirmDuplicateName !== 'on') {
+    const warning = new Error(`Der Fahrername „${values.name}“ existiert bereits. Prüfe zuerst das vorhandene Profil oder bestätige, dass eine zweite Person mit demselben Namen angelegt werden soll.`);
+    warning.duplicateDriver = { id: duplicateName.id, name: duplicateName.name };
+    throw warning;
+  }
   if (['roleF1Friday', 'roleF1Sunday', 'roleF1ReserveFriday', 'roleF1ReserveSunday'].some((name) => Object.prototype.hasOwnProperty.call(values, name))) {
     if (values.roleF1Friday && values.roleF1ReserveFriday) throw new Error('Ein Fahrer kann in der Freitagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
     if (values.roleF1Sunday && values.roleF1ReserveSunday) throw new Error('Ein Fahrer kann in der Sonntagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.');
@@ -99,6 +103,7 @@ const f1DriverWhere = () => ({
   ]
 });
 const hasF1Rank = (entry) => Boolean(entry?.roleF1Friday || entry?.roleF1Sunday || entry?.roleF1ReserveFriday || entry?.roleF1ReserveSunday || entry?.roleFormerF1);
+const hasLmuRank = (entry) => Boolean(entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu);
 
 const platformField = () => select('platform', 'Plattform', [['PC', 'PC'], ['PlayStation', 'PlayStation'], ['Xbox', 'Xbox']], true);
 const nationalityField = () => select('nationality', 'Nationalität', NATIONALITY_CHOICES);
@@ -283,6 +288,13 @@ async function prepareSeason(values) {
     throw new Error('Der Bereich passt nicht zum ausgewählten Ligatyp.');
   }
   if (values.status === 'active') values.calendarMode = 'automatic';
+  const publicType = values.leagueType === 'wdl' ? 'competition' : values.leagueType;
+  const league = await models.League.findOne({ where: { slug: values.scopeSlug, type: publicType } });
+  if (!values.accentColor) values.accentColor = league?.accentColor || null;
+  if (values.PointsSchemeId) {
+    const scheme = await models.PointsScheme.findByPk(values.PointsSchemeId);
+    if (!scheme || scheme.discipline !== values.leagueType) throw new Error('Das ausgewählte Punktesystem gehört nicht zu dieser Ligaart.');
+  }
   if (values.SeasonCategoryId) {
     const category = await models.SeasonCategory.findByPk(values.SeasonCategoryId);
     if (!category || category.leagueType !== values.leagueType || category.scopeSlug !== values.scopeSlug) {
@@ -312,6 +324,10 @@ async function preparePointsScheme(values, body, existingEntry) {
   });
   if (overlaps) throw new Error(`Der Gültigkeitszeitraum überschneidet sich mit „${overlaps.name}“.`);
   if (!values.fastestLapEnabled) values.fastestLapPoints = 0;
+  if (values.discipline !== 'lmu') {
+    values.polePositionEnabled = false;
+    values.polePositionPoints = 0;
+  } else if (!values.polePositionEnabled) values.polePositionPoints = 0;
 }
 
 async function preparePointAllocation(values, body, existingEntry) {
@@ -404,7 +420,7 @@ async function prepareSeriesEntry(values, body, existingEntry) {
   if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Dieser Fahrer besitzt für das Rennen bereits ein Ergebnis.');
   values.driverName = driver.name;
   values.teamName = driver.team?.name || 'LMU-Team offen';
-  values.points = await pointsForPosition(values.position, { ...race.toJSON(), fastestLap: values.fastestLap });
+  values.points = await pointsForPosition(values.position, { ...race.toJSON(), fastestLap: values.fastestLap, polePosition: values.polePosition });
 }
 
 async function syncSeriesEntry() {
@@ -524,6 +540,8 @@ module.exports = {
       date('validFrom', 'Gültig von'), date('validUntil', 'Gültig bis'),
       checkbox('fastestLapEnabled', 'Punkte für schnellste Runde'),
       number('fastestLapPoints', 'Punkte für schnellste Runde', false, { min: 0, step: 0.5 }),
+      checkbox('polePositionEnabled', 'LMU: Punkte für Poleposition'),
+      number('polePositionPoints', 'LMU: Punkte für Poleposition', false, { min: 0, step: 0.5 }),
       number('sortOrder', 'Priorität', false, { min: 0, step: 1 })
     ]
   },
@@ -561,6 +579,8 @@ module.exports = {
       select('scopeSlug', 'Bereich / Ligenseite', [['freitag', 'F1 Freitag'], ['sonntag', 'F1 Sonntag'], ['lmu', 'LMU'], ['wettkampf', 'WDL']], true),
       select('status', 'Saisonstatus', [['active', 'Aktiv'], ['historical', 'Historisch']], true),
       select('calendarMode', 'Rennkalender-Modus', [['automatic', 'Automatisch aus Stammdaten'], ['manual', 'Manuell pflegen']], true),
+      field('accentColor', 'Saisonfarbe', 'color', false, { help: 'Ersetzt in dieser Saison die allgemeine Ligafarbe.' }),
+      relation('PointsSchemeId', 'Punktesystem', models.PointsScheme, (row) => `${row.name} · ${row.discipline.toUpperCase()}`),
       relation('SeasonCategoryId', 'Kategorie', models.SeasonCategory, (row) => `${row.name} · ${row.scopeSlug}`),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
@@ -578,19 +598,22 @@ module.exports = {
   },
   drivers: {
     title: 'Fahrer-Pflege', group: 'Stammdaten',
-    description: 'Zentrale Fahrer-Stammdaten. Namen sind eindeutig, Rollen sind kombinierbar und erzeugen automatisch die Rang-Kategorien in der Übersicht.', model: models.Driver,
+    description: 'Zentrale Fahrer-Stammdaten. Gleiche Namen sind nach einer Warnung zulässig, weil die Fahrer-ID die Personen eindeutig trennt.', model: models.Driver,
     listFields: ['name', 'aliasesText', 'platform', 'nationality'],
     prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncF1Driver, beforeRemove: removeF1Driver,
     rankFilters: DRIVER_RANKS, groupByRanks: true,
     fields: [
-      text('name', 'Name', true), aliasesField(), platformField(),
+      text('name', 'Name', true), checkbox('confirmDuplicateName', 'Namensgleichheit bestätigt', { persist: false, help: 'Nur aktivieren, wenn wirklich eine zweite Person mit demselben Namen angelegt wird.' }), aliasesField(), platformField(),
       number('racesF1', 'Gefahrene Rennen F1', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('racesLmu', 'Gefahrene Rennen LMU', false, { min: 0, step: 1, readonly: true, persist: false, visibleWhen: (entry) => entry?.roleLmuRegular || entry?.roleLmuReserve || entry?.roleFormerLmu }),
       checkbox('roleF1Friday', 'Rang: Stamm Freitag'), checkbox('roleF1Sunday', 'Rang: Stamm Sonntag'),
       checkbox('roleF1ReserveFriday', 'Rang: Ersatz Freitag'), checkbox('roleF1ReserveSunday', 'Rang: Ersatz Sonntag'),
       checkbox('roleFormerF1', 'Rang: Ehemaliger Formel-1-Fahrer'),
       checkbox('roleLmuRegular', 'Rang: LMU Stammfahrer'), checkbox('roleLmuReserve', 'Rang: LMU Ersatzfahrer'),
-      checkbox('roleFormerLmu', 'Rang: Ehemaliger LMU-Fahrer'), nationalityField(),
+      checkbox('roleFormerLmu', 'Rang: Ehemaliger LMU-Fahrer'),
+      text('lmuDisplayName', 'LMU-Anzeigename', false, { placeholder: 'z. B. Paul Schober | alaric01', help: 'Wird in der LMU-Fahrereinteilung und den LMU-Tabellen angezeigt.' }),
+      relation('LmuCarId', 'Persönliches LMU-Auto / Marke', models.LmuCar, (row) => `${row.manufacturer} · ${row.name}`, false),
+      nationalityField(),
       number('pointsF1', 'F1-Punkte', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('winsF1', 'Siege F1', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
       number('winRateF1', 'Siegesquote F1 (%)', false, { readonly: true, persist: false, visibleWhen: hasF1Rank }),
@@ -621,11 +644,24 @@ module.exports = {
     description: 'LMU-Fahrzeuge einmalig als Stammdaten pflegen und anschließend den vorhandenen LMU-Teams zuordnen.', model: models.LmuCar,
     upload: { field: 'logoPath', label: 'Marken-/Fahrzeuglogo' }, beforeRemove: removeLmuCar,
     nextResource: 'lmuTeams', nextLabel: 'Danach vorhandenen LMU-Teams ein Auto zuordnen',
-    listFields: ['manufacturer', 'name', 'vehicleClass'],
+    listFields: ['manufacturer', 'name', 'vehicleClass', 'additionalInfo'],
     fields: [
       text('manufacturer', 'Marke', true, { placeholder: 'Porsche' }),
       text('name', 'Auto / Modell', true, { placeholder: '963' }),
       text('vehicleClass', 'Klasse', false, { placeholder: 'Hypercar, LMP2 oder LMGT3' }),
+      text('additionalInfo', 'Zusatz', false, { placeholder: 'Optionaler Hinweis, Variante oder Baujahr' })
+    ]
+  },
+  f1CarProfiles: {
+    title: 'Formel-1-Autoprofile', group: 'Zentrale Rennteams',
+    description: 'Aktuelle und historische Formel-1-Fahrzeuge mit eigener Farbe und Upload-Logo pflegen. Die Zuweisung zu Teams erfolgt anschließend je Saison.', model: models.F1CarProfile,
+    upload: { field: 'logoPath', label: 'Fahrzeug-/Teamlogo' },
+    listFields: ['name', 'seasonLabel', 'accentColor'],
+    nextHref: '/admin/season-setup', nextLabel: 'Danach einer Saison zuweisen',
+    fields: [
+      text('name', 'Profilname', true, { placeholder: 'Mercedes W11' }),
+      text('seasonLabel', 'Historische Saison / Zeitraum', false, { placeholder: '2020 oder Saison 8' }),
+      field('accentColor', 'Fahrzeugfarbe', 'color', true),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
@@ -731,6 +767,7 @@ module.exports = {
       number('points', 'Punkte (automatisch)', false, { readonly: true, persist: false }),
       select('status', 'Status', [['', 'Gewertet'], ['DNF', 'DNF'], ['DNS', 'DNS'], ['DSQ', 'DSQ']], false),
       checkbox('fastestLap', 'Schnellste Runde'),
+      checkbox('polePosition', 'Poleposition'),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
@@ -823,7 +860,7 @@ module.exports = {
   krlTeamAssignments: {
     title: '+ Fahrer-Rollen', group: 'Teams',
     description: 'Einem KRL-Team per Plus-Zuordnung Fahrer und deren Funktion hinzufügen.', model: models.KrlTeamAssignment,
-    prepareValues: prepareKrlAssignment,
+    prepareValues: prepareKrlAssignment, upload: { field: 'imagePath', label: 'Positions-/Personenbild' },
     fields: [
       relation('KrlTeamId', 'KRL-Team', models.KrlTeam, (row) => row.name, true),
       relation('DriverId', 'Fahrer', models.Driver, (row) => `#${row.id} · ${row.name}`, true),

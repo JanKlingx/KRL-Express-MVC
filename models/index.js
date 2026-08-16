@@ -48,6 +48,15 @@ const LmuCar = sequelize.define('LmuCar', {
   manufacturer: { type: DataTypes.STRING, allowNull: false },
   name: { type: DataTypes.STRING, allowNull: false, unique: true },
   vehicleClass: DataTypes.STRING,
+  additionalInfo: DataTypes.STRING,
+  logoPath: DataTypes.STRING,
+  ...commonSort
+});
+
+const F1CarProfile = sequelize.define('F1CarProfile', {
+  name: { type: DataTypes.STRING, allowNull: false },
+  seasonLabel: DataTypes.STRING,
+  accentColor: { type: DataTypes.STRING, allowNull: false, defaultValue: '#6ef2f2', validate: { is: /^#[0-9a-f]{6}$/i } },
   logoPath: DataTypes.STRING,
   ...commonSort
 });
@@ -75,6 +84,7 @@ const TeamRosterDriver = sequelize.define('TeamRosterDriver', {
 
 const Driver = sequelize.define('Driver', {
   name: { type: DataTypes.STRING, allowNull: false },
+  lmuDisplayName: DataTypes.STRING,
   number: DataTypes.INTEGER,
   gamerTag: DataTypes.STRING,
   f1Role: DataTypes.STRING,
@@ -109,6 +119,8 @@ const PointsScheme = sequelize.define('PointsScheme', {
   validUntil: DataTypes.DATEONLY,
   fastestLapEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   fastestLapPoints: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 1 },
+  polePositionEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  polePositionPoints: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 },
   ...commonSort
 });
 
@@ -132,8 +144,13 @@ const Season = sequelize.define('Season', {
   scopeSlug: { type: DataTypes.STRING, allowNull: false },
   status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'active' },
   calendarMode: { type: DataTypes.STRING, allowNull: false, defaultValue: 'automatic' },
+  accentColor: { type: DataTypes.STRING, allowNull: true, validate: { is: /^#[0-9a-f]{6}$/i } },
   ...commonSort
 });
+
+const SeasonF1CarAssignment = sequelize.define('SeasonF1CarAssignment', {
+  ...commonSort
+}, { indexes: [{ unique: true, fields: ['season_id', 'team_id'] }] });
 
 const F1CalendarRound = sequelize.define('F1CalendarRound', {
   circuit: { type: DataTypes.STRING, allowNull: false },
@@ -192,6 +209,7 @@ const GrandPrixResultEntry = sequelize.define('GrandPrixResultEntry', {
   points: { type: DataTypes.DECIMAL(10, 1), allowNull: false, defaultValue: 0 },
   status: DataTypes.STRING,
   fastestLap: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  polePosition: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   ...commonSort
 });
 
@@ -277,6 +295,7 @@ const KrlTeam = sequelize.define('KrlTeam', {
 
 const KrlTeamAssignment = sequelize.define('KrlTeamAssignment', {
   roleName: { type: DataTypes.STRING, allowNull: false },
+  imagePath: DataTypes.STRING,
   ...commonSort
 });
 
@@ -300,6 +319,8 @@ TeamCategory.hasMany(TeamMember, { as: 'members', foreignKey: { name: 'TeamCateg
 TeamMember.belongsTo(TeamCategory, { as: 'category', foreignKey: { name: 'TeamCategoryId', allowNull: false } });
 LmuCar.hasMany(Team, { as: 'teams', foreignKey: { name: 'LmuCarId', allowNull: true }, onDelete: 'SET NULL' });
 Team.belongsTo(LmuCar, { as: 'lmuCar', foreignKey: { name: 'LmuCarId', allowNull: true }, onDelete: 'SET NULL' });
+LmuCar.hasMany(Driver, { as: 'drivers', foreignKey: { name: 'LmuCarId', allowNull: true }, onDelete: 'SET NULL' });
+Driver.belongsTo(LmuCar, { as: 'lmuCar', foreignKey: { name: 'LmuCarId', allowNull: true }, onDelete: 'SET NULL' });
 League.hasMany(Team, { as: 'legacyTeams', foreignKey: { name: 'LeagueId', allowNull: true }, onDelete: 'SET NULL' });
 Team.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: true } });
 League.hasMany(TeamRoster, { as: 'teamRosters', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -322,6 +343,14 @@ PointsScheme.hasMany(PointAllocation, { as: 'allocations', foreignKey: { name: '
 PointAllocation.belongsTo(PointsScheme, { as: 'scheme', foreignKey: { name: 'PointsSchemeId', allowNull: false } });
 SeasonCategory.hasMany(Season, { as: 'seasons', foreignKey: { name: 'SeasonCategoryId', allowNull: true }, onDelete: 'SET NULL' });
 Season.belongsTo(SeasonCategory, { as: 'category', foreignKey: { name: 'SeasonCategoryId', allowNull: true } });
+PointsScheme.hasMany(Season, { as: 'seasons', foreignKey: { name: 'PointsSchemeId', allowNull: true }, onDelete: 'SET NULL' });
+Season.belongsTo(PointsScheme, { as: 'pointsScheme', foreignKey: { name: 'PointsSchemeId', allowNull: true }, onDelete: 'SET NULL' });
+Season.hasMany(SeasonF1CarAssignment, { as: 'f1CarAssignments', foreignKey: { name: 'SeasonId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonF1CarAssignment.belongsTo(Season, { as: 'season', foreignKey: { name: 'SeasonId', allowNull: false } });
+Team.hasMany(SeasonF1CarAssignment, { as: 'seasonCarAssignments', foreignKey: { name: 'TeamId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonF1CarAssignment.belongsTo(Team, { as: 'team', foreignKey: { name: 'TeamId', allowNull: false } });
+F1CarProfile.hasMany(SeasonF1CarAssignment, { as: 'seasonAssignments', foreignKey: { name: 'F1CarProfileId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonF1CarAssignment.belongsTo(F1CarProfile, { as: 'carProfile', foreignKey: { name: 'F1CarProfileId', allowNull: false } });
 Driver.hasMany(DriverAlias, { as: 'aliases', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
 DriverAlias.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
 League.hasMany(DriverStanding, { as: 'driverStandings', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -392,6 +421,7 @@ module.exports = {
   TeamMember,
   League,
   LmuCar,
+  F1CarProfile,
   Team,
   TeamRoster,
   TeamRosterDriver,
@@ -402,6 +432,7 @@ module.exports = {
   PointAllocation,
   SeasonCategory,
   Season,
+  SeasonF1CarAssignment,
   F1CalendarRound,
   DriverStanding,
   TeamStanding,

@@ -1,4 +1,4 @@
-const { League, TeamRoster, TeamRosterDriver, Season, GrandPrixResult, GrandPrixResultEntry, RaceEvent } = require('../models');
+const { League, TeamRoster, TeamRosterDriver, Season, GrandPrixResult, GrandPrixResultEntry, RaceEvent, SeasonF1CarAssignment } = require('../models');
 const { buildSeasonData } = require('../services/standings');
 const { sendCsv } = require('../services/csv');
 
@@ -8,7 +8,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
   const seasons = await Season.findAll({ where: { leagueType: 'f1', scopeSlug: slug }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const where = selectedSeason ? { LeagueId: league.id, SeasonId: selectedSeason.id, discipline: 'f1' } : { LeagueId: league.id, season: league.currentSeason };
-  const [rosters, gpResults, activeCalendar] = await Promise.all([
+  const [rosters, gpResults, activeCalendar, seasonCarAssignments] = await Promise.all([
     TeamRoster.findAll({
       where: { LeagueId: league.id, discipline: 'f1' },
       include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
@@ -19,19 +19,25 @@ async function loadLeagueData(slug, requestedSeasonId) {
       include: [{ model: GrandPrixResultEntry, as: 'entries' }],
       order: [['sortOrder', 'ASC'], ['raceType', 'DESC'], ['raceDate', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'sortOrder', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'position', 'ASC']]
     }),
-    selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, isPublished: true }, order: [['startsAt', 'ASC']] }) : []
+    selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, isPublished: true }, order: [['startsAt', 'ASC']] }) : [],
+    selectedSeason ? SeasonF1CarAssignment.findAll({ where: { SeasonId: selectedSeason.id }, include: [{ association: 'carProfile' }] }) : []
   ]);
+  const carProfileByTeam = new Map(seasonCarAssignments.map((assignment) => [assignment.TeamId, assignment.carProfile]));
   const driverMap = new Map();
-  const teams = rosters.map((roster) => ({
-    id: roster.team.id,
-    name: roster.team.name,
-    accentColor: roster.team.accentColor,
-    logoPath: roster.team.logoPath,
-    rosterId: roster.id,
-    drivers: roster.assignments
+  const teams = rosters.map((roster) => {
+    const carProfile = carProfileByTeam.get(roster.team.id);
+    return {
+      id: roster.team.id,
+      name: roster.team.name,
+      accentColor: carProfile?.accentColor || roster.team.accentColor,
+      logoPath: carProfile?.logoPath || roster.team.logoPath,
+      carProfileName: carProfile?.name || null,
+      rosterId: roster.id,
+      drivers: roster.assignments
       .filter((assignment) => assignment.roleName !== 'Ersatzfahrer')
       .map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
-  })).filter((team) => team.drivers.length >= 2);
+    };
+  }).filter((team) => team.drivers.length >= 2);
   teams.forEach((team) => team.drivers.forEach((driver) => {
     if (!driverMap.has(driver.id)) driverMap.set(driver.id, { ...driver, team: { id: team.id, name: team.name, logoPath: team.logoPath } });
   }));
@@ -39,7 +45,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
   const calendar = activeCalendar.length ? activeCalendar : gpResults
     .filter((race) => race.raceDate)
     .map((race) => ({ id: `result-${race.id}`, title: race.title, circuit: race.circuit, startsAt: new Date(`${race.raceDate}T12:00:00Z`) }));
-  const leagueForSeason = { ...league.toJSON(), currentSeason: selectedSeason?.name || league.currentSeason };
+  const leagueForSeason = { ...league.toJSON(), currentSeason: selectedSeason?.name || league.currentSeason, accentColor: selectedSeason?.accentColor || league.accentColor };
   return { league: leagueForSeason, teams, drivers, gpResults, calendar, seasons, selectedSeason, ...buildSeasonData(leagueForSeason, gpResults, drivers) };
 }
 

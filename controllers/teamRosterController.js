@@ -23,11 +23,11 @@ async function loadRoster(id) {
 function driverWhere(discipline) {
   return discipline === 'f1'
     ? { [Op.or]: [{ roleF1Friday: true }, { roleF1Sunday: true }] }
-    : { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }] };
+    : { roleLmuRegular: true };
 }
 
 function driverFitsRoster(driver, roster) {
-  if (roster.discipline === 'lmu') return driver.roleLmuRegular || driver.roleLmuReserve;
+  if (roster.discipline === 'lmu') return driver.roleLmuRegular;
   return roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday;
 }
 
@@ -48,12 +48,12 @@ exports.show = async (req, res, next) => {
   const selectedLeague = leagues.find((league) => league.id === Number(req.query.league)) || leagues[0] || null;
   const [teams, drivers, rosters] = await Promise.all([
     Team.findAll({ where: { LeagueId: null, discipline }, include: discipline === 'lmu' ? [{ association: 'lmuCar' }] : [], order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] }),
-    Driver.findAll({ where: driverWhere(discipline), include: [{ association: 'aliases' }], order: [['name', 'ASC'], ['id', 'ASC']] }),
+    Driver.findAll({ where: driverWhere(discipline), include: [{ association: 'aliases' }, ...(discipline === 'lmu' ? [{ association: 'lmuCar' }] : [])], order: [['name', 'ASC'], ['id', 'ASC']] }),
     selectedLeague ? TeamRoster.findAll({
       where: { discipline, LeagueId: selectedLeague.id },
       include: [
         { association: 'team', include: discipline === 'lmu' ? [{ association: 'lmuCar' }] : [] }, { association: 'league' },
-        { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }
+        { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }, ...(discipline === 'lmu' ? [{ association: 'lmuCar' }] : [])] }] }
       ],
       order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
     }) : []
@@ -103,7 +103,7 @@ exports.addDriver = async (req, res, next) => {
     const isF1Regular = roster.league.slug === 'freitag' ? driver.roleF1Friday : driver.roleF1Sunday;
     const roleName = discipline === 'f1'
       ? (isF1Regular ? 'Stammfahrer' : 'Ersatzfahrer')
-      : (driver.roleLmuReserve && !driver.roleLmuRegular ? 'Ersatzfahrer' : 'Stammfahrer');
+      : 'Stammfahrer';
     await TeamRosterDriver.findOrCreate({
       where: { TeamRosterId: roster.id, DriverId: driver.id },
       defaults: { TeamRosterId: roster.id, DriverId: driver.id, roleName, sortOrder: count }

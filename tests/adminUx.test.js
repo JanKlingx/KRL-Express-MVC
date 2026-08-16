@@ -25,17 +25,80 @@ test('Fahrerpflege nutzt feste Nationalitäten und Rangfilter', () => {
   assert.equal(resourceConfig.drivers.rankFilters.some((rank) => rank.value === 'f1-friday'), true);
 });
 
-test('Fahrerpflege blockiert doppelte Namen unabhängig von Großschreibung', async () => {
+test('Fahrerpflege warnt bei Namensgleichheit und erlaubt eine bestätigte zweite Person', async () => {
   const originalFindOne = models.Driver.findOne;
   models.Driver.findOne = async () => ({ id: 4, name: 'Max Beispiel' });
   try {
-    await assert.rejects(
-      resourceConfig.drivers.prepareValues({ name: '  MAX BEISPIEL  ' }, {}, null),
-      /Fahrername „MAX BEISPIEL“ ist bereits vergeben/
-    );
+    let warning;
+    try {
+      await resourceConfig.drivers.prepareValues({ name: '  MAX BEISPIEL  ' }, {}, null);
+    } catch (error) {
+      warning = error;
+    }
+    assert.match(warning.message, /Fahrername „MAX BEISPIEL“ existiert bereits/);
+    assert.deepEqual(warning.duplicateDriver, { id: 4, name: 'Max Beispiel' });
+    const confirmed = { name: '  MAX BEISPIEL  ' };
+    await resourceConfig.drivers.prepareValues(confirmed, { confirmDuplicateName: 'on' }, null);
+    assert.equal(confirmed.name, 'MAX BEISPIEL');
   } finally {
     models.Driver.findOne = originalFindOne;
   }
+});
+
+test('Bildfelder unterstützen Drag-and-drop ohne externe URL', async () => {
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'resource-form.ejs'), {
+    ...layout, title: 'Teamlogo', adminBasePath: '/admin', returnHref: '/admin/teams', resource: 'teams',
+    config: { group: 'Stammdaten', description: 'Upload', fields: [], upload: { field: 'logoPath', label: 'Teamlogo' } },
+    entry: {}, error: null, duplicateDriver: null, fieldOptions: {}
+  });
+  assert.match(html, /data-upload-dropzone/);
+  assert.match(html, /Bild hierher ziehen/);
+  assert.match(html, /type="file"/);
+  assert.doesNotMatch(html, /name="imageUrl"/);
+});
+
+test('LMU-Stammdaten enthalten Anzeigename, persönliches Auto, Zusatz und Pole-Bonus', () => {
+  assert.ok(resourceConfig.drivers.fields.some((field) => field.name === 'lmuDisplayName'));
+  assert.equal(resourceConfig.drivers.fields.find((field) => field.name === 'LmuCarId').relation.model, models.LmuCar);
+  assert.ok(resourceConfig.lmuCars.fields.some((field) => field.name === 'additionalInfo'));
+  assert.equal(resourceConfig.lmuCars.fields.some((field) => field.name === 'sortOrder'), false);
+  assert.ok(resourceConfig.pointsSchemes.fields.some((field) => field.name === 'polePositionEnabled'));
+  assert.equal(models.GrandPrixResultEntry.rawAttributes.polePosition.defaultValue, false);
+});
+
+test('Saison-Assistent zeigt Liga, Farbprofil, Kalender, Punkte und F1-Autos als Klickprozess', async () => {
+  const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
+  const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2026' } };
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
+    ...layout, title: 'Saison-Assistent', leagues: [league], selectedLeague: league, discipline: 'f1',
+    seasons: [season], selectedSeason: season, pointsSchemes: [{ id: 3, name: 'F1 2026' }], calendar: [],
+    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be' }], carProfiles: [{ id: 5, name: 'Mercedes W11', seasonLabel: '2020' }],
+    carAssignmentMap: { 4: 5 }, defaultTime: '20:00', progressHref: '/admin/race-editor?league=1&season=2'
+  });
+  assert.match(html, /SAISON-ASSISTENT/);
+  assert.match(html, /LIGA AUSWÄHLEN/);
+  assert.match(html, /RENNKALENDER ERSTELLEN/);
+  assert.match(html, /PUNKTESYSTEM/);
+  assert.match(html, /FORMEL-1-AUTOS ZUWEISEN/);
+  assert.match(html, /value="20:00"/);
+  assert.match(html, /Mercedes W11/);
+});
+
+test('Tabellen-Hub bündelt Pflege, Frontend und Downloads pro Saison', async () => {
+  const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'table-hub.ejs'), {
+    ...layout, title: 'Tabellen-Hub', sections: [{
+      league: { id: 1, name: 'KRL Freitagsliga', type: 'f1', accentColor: '#00aaff', logoPath: null },
+      seasons: [{
+        season: { id: 2, name: 'Saison 13', status: 'active' }, races: 8,
+        editor: '/admin/race-editor?league=1&season=2', frontend: '/f1/freitag?season=2',
+        downloads: [['Fahrer-WM', '/f1/freitag/download/fahrer-wm.csv?season=2'], ['GP-Results', '/f1/freitag/download/gp-results.csv?season=2']]
+      }]
+    }]
+  });
+  assert.match(html, /TABELLEN-HUB/);
+  assert.match(html, /Tabelle pflegen/);
+  assert.match(html, /Fahrer-WM/);
+  assert.match(html, /GP-Results/);
 });
 
 test('Fahrerübersicht gruppiert Stammdaten automatisch nach Rang', async () => {

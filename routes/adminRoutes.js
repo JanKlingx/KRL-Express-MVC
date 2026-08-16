@@ -5,6 +5,9 @@ const raceEditorController = require('../controllers/raceEditorController');
 const seriesEditorController = require('../controllers/seriesEditorController');
 const teamRosterController = require('../controllers/teamRosterController');
 const f1RaceLineupController = require('../controllers/f1RaceLineupController');
+const lmuRaceLineupController = require('../controllers/lmuRaceLineupController');
+const seasonSetupController = require('../controllers/seasonSetupController');
+const tableHubController = require('../controllers/tableHubController');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -18,6 +21,14 @@ router.delete('/team-rosters/:discipline(f1|lmu)/assignments/:assignmentId', asy
 router.delete('/team-rosters/:discipline(f1|lmu)/:rosterId', asyncHandler(teamRosterController.removeRoster));
 router.get('/f1-race-lineup', asyncHandler(f1RaceLineupController.show));
 router.post('/f1-race-lineup/:raceId', asyncHandler(f1RaceLineupController.save));
+router.get('/lmu-race-lineup', asyncHandler(lmuRaceLineupController.show));
+router.post('/lmu-race-lineup/:raceId', asyncHandler(lmuRaceLineupController.save));
+router.get('/season-setup', asyncHandler(seasonSetupController.show));
+router.post('/season-setup/seasons', asyncHandler(seasonSetupController.createSeason));
+router.post('/season-setup/:seasonId/profile', asyncHandler(seasonSetupController.updateSeasonProfile));
+router.post('/season-setup/:seasonId/calendar', asyncHandler(seasonSetupController.addCalendarEvent));
+router.post('/season-setup/:seasonId/cars', asyncHandler(seasonSetupController.assignF1Cars));
+router.get('/table-hub', asyncHandler(tableHubController.show));
 router.get('/race-editor', asyncHandler(raceEditorController.show));
 router.post('/race-editor/seasons', asyncHandler(raceEditorController.createSeason));
 router.post('/race-editor/races', asyncHandler(raceEditorController.createRace));
