@@ -138,6 +138,7 @@ const Season = sequelize.define('Season', {
 const F1CalendarRound = sequelize.define('F1CalendarRound', {
   circuit: { type: DataTypes.STRING, allowNull: false },
   hasSprint: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  isTestDay: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   fridayDate: DataTypes.DATEONLY,
   sundayDate: DataTypes.DATEONLY,
   fridayTime: DataTypes.STRING,
@@ -220,6 +221,7 @@ const RaceEvent = sequelize.define('RaceEvent', {
   startsAt: { type: DataTypes.DATE, allowNull: false },
   durationMinutes: DataTypes.INTEGER,
   isPublished: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  isTestDay: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   ...commonSort
 });
 

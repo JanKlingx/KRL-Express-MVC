@@ -118,6 +118,24 @@ test('LMU-Autos sind eigene Stammdaten und werden vorhandenen LMU-Teams zugeordn
   assert.equal(models.Team.rawAttributes.LmuCarId.field, 'lmu_car_id');
 });
 
+test('KRL Icons werden nur mit Ernennungsmonat statt vollständigem Datum gepflegt', async () => {
+  const appointedAt = resourceConfig.krlIcons.fields.find((field) => field.name === 'appointedAt');
+  assert.equal(appointedAt.type, 'month');
+  const values = { appointedAt: '2026-08' };
+  await resourceConfig.krlIcons.prepareValues(values);
+  assert.equal(values.appointedAt, '2026-08-01');
+  const prepared = await resourceConfig.krlIcons.prepareEntry({ appointedAt: '2026-08-16' });
+  assert.equal(prepared.appointedAt, '2026-08');
+});
+
+test('Rennkalender können als Testtag markiert werden', () => {
+  assert.equal(models.F1CalendarRound.rawAttributes.isTestDay.defaultValue, false);
+  assert.equal(models.RaceEvent.rawAttributes.isTestDay.defaultValue, false);
+  assert.equal(resourceConfig.f1CalendarRounds.fields.some((field) => field.name === 'isTestDay'), true);
+  assert.equal(resourceConfig.lmuSeasonCalendar.fields.some((field) => field.name === 'isTestDay'), true);
+  assert.equal(resourceConfig.wdlSeasonCalendar.fields.some((field) => field.name === 'isTestDay'), true);
+});
+
 test('MariaDB-kompatibler Ersatzfahrerindex hat einen kurzen Namen', () => {
   const index = F1RaceLineupEntry.options.indexes.find((candidate) => candidate.fields.includes('replacement_for_driver_id'));
   assert.equal(index.name, 'uq_f1_lineup_replacement');
