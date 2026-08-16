@@ -13,7 +13,7 @@
 
   <% if (selectedSeason?.status === 'active') { %><section class="section container">
     <div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>TEAMS & FAHRER</h2></div>
-    <div class="cockpit-grid"><% teams.forEach((team) => { %><article class="cockpit-card"><% if (team.logoPath) { %><img class="cockpit-logo" src="<%= team.logoPath %>" alt="Logo <%= team.name %>"><% } else { %><div class="roster-logo-fallback"><%= team.name.slice(0, 2).toUpperCase() %></div><% } %><span><%= team.car || 'Formel 1' %></span><h3><%= team.name %></h3><ul><% team.drivers.forEach((driver, index) => { %><li><strong>Fahrer <%= index + 1 %>:</strong> <%= driver.name %> · <%= driver.platform %><% if (driver.rosterRole === 'Ersatzfahrer') { %> · Ersatz<% } %></li><% }) %><% if (team.drivers.length < 2) { %><li>Noch <%= 2 - team.drivers.length %> Fahrerplatz/-plätze offen</li><% } %></ul></article><% }) %></div>
+    <div class="f1-team-grid"><% teams.forEach((team) => { %><article class="f1-team-card" aria-label="<%= team.name %>"><div class="f1-team-logo-stage"><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt="<%= team.name %>"><% } else { %><strong><%= team.name %></strong><% } %></div><ul><% team.drivers.forEach((driver) => { %><li><span class="f1-driver-dot" aria-hidden="true"></span><strong><%= driver.name %></strong></li><% }) %></ul></article><% }) %></div>
     <% if (!teams.length) { %><div class="empty-state">Noch keine Teams für diese Liga angelegt.</div><% } %>
   </section><% } %>
 
