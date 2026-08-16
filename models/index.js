@@ -191,11 +191,20 @@ const F1RaceLineupEntry = sequelize.define('F1RaceLineupEntry', {
   ...commonSort
 }, {
   indexes: [
-    { unique: true, fields: ['grand_prix_result_id', 'driver_id'] },
-    { unique: true, fields: ['grand_prix_result_id', 'replacement_for_driver_id'] }
+    {
+      unique: true,
+      fields: ['grand_prix_result_id', 'driver_id']
+    },
+    {
+      name: 'uq_f1_lineup_replacement',
+      unique: true,
+      fields: [
+        'grand_prix_result_id',
+        'replacement_for_driver_id'
+      ]
+    }
   ]
 });
-
 const RaceEvent = sequelize.define('RaceEvent', {
   title: { type: DataTypes.STRING, allowNull: false },
   circuit: DataTypes.STRING,
