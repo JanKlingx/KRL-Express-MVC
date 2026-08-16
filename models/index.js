@@ -77,6 +77,7 @@ const Driver = sequelize.define('Driver', {
   name: { type: DataTypes.STRING, allowNull: false },
   number: DataTypes.INTEGER,
   gamerTag: DataTypes.STRING,
+  lmuDisplayName: DataTypes.STRING,
   f1Role: DataTypes.STRING,
   roleF1Friday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   roleF1Sunday: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
