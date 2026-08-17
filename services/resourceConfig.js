@@ -499,7 +499,7 @@ async function prepareKrlAssignment(values, body, existingEntry) {
 
 module.exports = {
   statistics: {
-    title: 'Startseiten-Statistiken', group: 'Startseite',
+    title: 'Startseiten-Statistiken', group: 'Frontend',
     description: 'Kennzahlen auf der Startseite verwalten.', model: models.SiteStatistic,
     fields: [
       text('key', 'Technischer Schlüssel', true, { help: 'Einmaliger kurzer Name, z. B. aktive-fahrer.' }),
@@ -522,7 +522,7 @@ module.exports = {
     ]
   },
   leagues: {
-    title: 'Ligen-Seiten', group: 'Stammdaten',
+    title: 'Ligen-Seiten', group: 'Frontend',
     description: 'Name, URL, Ligatyp und Darstellung der öffentlichen Ligenseiten pflegen.', model: models.League, upload: { field: 'logoPath', label: 'Liga-Logo' },
     fields: [
       text('name', 'Name', true), text('slug', 'URL-Kurzname', true, { help: 'Beispiel: freitag oder sonntag.' }),
@@ -597,7 +597,7 @@ module.exports = {
     ]
   },
   teams: {
-    title: 'Formel-1-Teams', group: 'Zentrale Rennteams',
+    title: 'Formel-1-Teams', group: 'Formel 1 Stammdaten',
     description: 'Aktuelle Formel-1-Teams zentral pflegen. Zugeordnete historische Teamprofile werden direkt mit angezeigt.', model: models.Team, upload: { field: 'logoPath', label: 'Teamlogo' }, getListWhere: async () => ({ LeagueId: null, discipline: 'f1' }), prepareValues: prepareF1Team, prepareEntry: prepareF1TeamWithHistory, afterSave: syncF1Team, beforeRemove: removeF1Team,
     nextHref: '/admin/f1CarProfiles', nextLabel: 'Historische Teams anlegen oder bearbeiten',
     listFields: ['name', 'accentColor', 'historicalProfilesText', 'totalPoints'],
@@ -641,7 +641,7 @@ module.exports = {
     ]
   },
   lmuTeams: {
-    title: 'LMU-Teams', group: 'Zentrale Rennteams',
+    title: 'LMU-Teams', group: 'LMU Stammdaten',
     description: '1. Team anlegen, 2. im LMU-Fahrerfeld Stammfahrer hinzufügen, fertig. Fahrzeuge werden ausschließlich direkt den Fahrern zugeordnet.', model: models.Team, getListWhere: async () => ({ LeagueId: null, discipline: 'lmu' }), prepareValues: prepareLmuTeam, prepareEntry: (entry) => prepareTeamForForm(entry, 'lmu'),
     nextHref: '/admin/team-rosters/lmu', nextLabel: 'Schritt 2: Fahrer zum Team hinzufügen',
     listFields: ['name', 'totalPoints'],
@@ -651,10 +651,10 @@ module.exports = {
     ]
   },
   lmuCars: {
-    title: 'LMU-Autos & Marken', group: 'Zentrale Rennteams',
+    title: 'LMU-Autos & Marken', group: 'LMU Stammdaten',
     description: 'LMU-Fahrzeuge einmalig als Stammdaten pflegen und anschließend direkt den LMU-Stammfahrern zuordnen.', model: models.LmuCar,
     upload: { field: 'logoPath', label: 'Marken-/Fahrzeuglogo' }, beforeRemove: removeLmuCar,
-    nextHref: '/admin/lmu-car-assignments', nextLabel: 'Danach LMU-Stammfahrern Autos zuordnen',
+    nextHref: '/admin/drivers?rank=lmu-regular', nextLabel: 'Danach ausschließlich in der Fahrer-Pflege zuordnen',
     listFields: ['manufacturer', 'name', 'vehicleClass', 'additionalInfo'],
     fields: [
       text('manufacturer', 'Marke', true, { placeholder: 'Porsche' }),
@@ -664,16 +664,36 @@ module.exports = {
     ]
   },
   f1CarProfiles: {
-    title: 'Historische Formel-1-Teams', group: 'Zentrale Rennteams',
+    title: 'Historische Formel-1-Teams', group: 'Formel 1 Stammdaten',
     description: 'Historischen Teamnamen, Farbe und Logo pflegen und dem heutigen Stammteam zuordnen, z. B. Renault → Alpine.', model: models.F1CarProfile,
     upload: { field: 'logoPath', label: 'Fahrzeug-/Teamlogo' },
-    listFields: ['name', 'seasonLabel', 'accentColor'],
+    listFields: ['name', 'accentColor'],
     nextHref: '/admin/season-setup', nextLabel: 'Danach einer Saison zuweisen',
     fields: [
       relation('BaseTeamId', 'Zugehöriges aktuelles Formel-1-Team', models.Team, (row) => row.name, true, { where: { LeagueId: null, discipline: 'f1' } }),
       text('name', 'Historischer Teamname', true, { placeholder: 'Renault' }),
-      text('seasonLabel', 'Historische Saison / Zeitraum', false, { placeholder: '2020 oder Saison 8' }),
       field('accentColor', 'Fahrzeugfarbe', 'color', true),
+      number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  f1Tracks: {
+    title: 'F1-Strecken', group: 'Formel 1 Stammdaten',
+    description: 'Länder und Streckennamen einmalig pflegen. Im Rennkalender werden sie anschließend einfach ausgewählt.', model: models.F1Track,
+    listFields: ['country', 'name'],
+    fields: [
+      text('country', 'Land', true, { placeholder: 'Belgien' }),
+      text('name', 'Streckenname', true, { placeholder: 'Spa-Francorchamps' }),
+      number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  penaltyRules: {
+    title: 'Strafpunktesystem', group: 'Rennleitungsstammdaten',
+    description: 'Automatische Strafpunkte je Status festlegen. Bei 12 Punkten gilt standardmäßig Rennsperre.', model: models.PenaltyRule,
+    fields: [
+      select('discipline', 'Bereich', [['f1', 'Formel 1'], ['lmu', 'LMU'], ['wdl', 'WDL']], true),
+      select('status', 'Auslöser', [['unabgemeldet', 'Unabgemeldet'], ['late-cancellation', 'Zu spät abgemeldet'], ['late-briefing', 'Zu spät Vorbesprechung'], ['manual', 'Manuelle Strafe']], true),
+      number('points', 'Strafpunkte', true, { min: 0, step: 1 }),
+      number('suspensionThreshold', 'Rennsperre ab', true, { min: 1, step: 1 }),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
@@ -864,7 +884,7 @@ module.exports = {
     ]
   },
   krlTeams: {
-    title: 'Teams erstellen', group: 'Teams',
+    title: 'Teams erstellen', group: 'Unser-Team-Stammdaten',
     description: 'Interne KRL-Teams anlegen; Fahrer-Rollen werden anschließend mit dem Plus-Bereich zugeordnet.', model: models.KrlTeam,
     nextResource: 'krlTeamAssignments', nextLabel: '+ Fahrer-Rolle hinzufügen',
     fields: [
@@ -872,7 +892,7 @@ module.exports = {
     ]
   },
   krlTeamAssignments: {
-    title: '+ Fahrer-Rollen', group: 'Teams',
+    title: '+ Fahrer-Rollen', group: 'Unser-Team-Stammdaten',
     description: 'Einem KRL-Team per Plus-Zuordnung Fahrer und deren Funktion hinzufügen.', model: models.KrlTeamAssignment,
     prepareValues: prepareKrlAssignment, upload: { field: 'imagePath', label: 'Positions-/Personenbild' },
     fields: [

@@ -78,6 +78,8 @@ async function ensureSchema() {
   await addMissingColumn('seasons', seasonTable, 'season_category_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('seasons', seasonTable, 'points_scheme_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('seasons', seasonTable, 'accent_color', { type: DataTypes.STRING, allowNull: true });
+  await addMissingColumn('seasons', seasonTable, 'game_name', { type: DataTypes.STRING, allowNull: true });
+  await addMissingColumn('seasons', seasonTable, 'is_published', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true });
 
   const f1CarProfileTable = await queryInterface.describeTable('f1_car_profiles');
   await addMissingColumn('f1_car_profiles', f1CarProfileTable, 'base_team_id', { type: DataTypes.INTEGER, allowNull: true });
@@ -215,6 +217,7 @@ async function ensureSchema() {
   await addMissingColumn('race_events', raceEventTable, 'grand_prix_result_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('race_events', raceEventTable, 'season_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('race_events', raceEventTable, 'is_test_day', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('race_events', raceEventTable, 'f1_track_id', { type: DataTypes.INTEGER, allowNull: true });
 
   const standardPoints = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
   for (let index = 0; index < standardPoints.length; index += 1) {

@@ -1,0 +1,54 @@
+const { Op } = require('sequelize');
+const { sequelize, League, Season, PointsScheme, RaceEvent, GrandPrixResult } = require('../models');
+
+const disciplineFor = (league) => league.type === 'competition' ? 'wdl' : league.type;
+
+async function data(query) {
+  const leagues = await League.findAll({ where: { type: { [Op.in]: ['f1', 'lmu', 'competition'] } }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
+  const league = leagues.find((row) => row.id === Number(query.league)) || leagues[0] || null;
+  const discipline = league ? disciplineFor(league) : 'f1';
+  const seasons = league ? await Season.findAll({
+    where: { leagueType: discipline, scopeSlug: league.slug },
+    include: [{ association: 'pointsScheme' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
+  }) : [];
+  const schemes = await PointsScheme.findAll({ where: { discipline }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
+  return { leagues, league, discipline, seasons, schemes };
+}
+
+exports.show = async (req, res) => res.render('admin/season-manager', { title: 'Saisons verwalten', ...(await data(req.query)) });
+
+exports.update = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  if (!season) return res.redirect('/admin/season-manager');
+  const league = await League.findOne({ where: { slug: season.scopeSlug } });
+  const fields = {
+    name: String(req.body.name || '').trim(), gameName: String(req.body.gameName || '').trim() || null,
+    status: req.body.status === 'historical' ? 'historical' : 'active',
+    isPublished: req.body.isPublished === 'on', accentColor: req.body.accentColor || null,
+    PointsSchemeId: req.body.PointsSchemeId ? Number(req.body.PointsSchemeId) : null
+  };
+  if (!fields.name) {
+    req.session.flash = { type: 'error', message: 'Ein Saisonname ist erforderlich.' };
+    return res.redirect(`/admin/season-manager?league=${league?.id || ''}`);
+  }
+  await sequelize.transaction(async (transaction) => {
+    if (fields.status === 'active') await Season.update({ status: 'historical' }, { where: { leagueType: season.leagueType, scopeSlug: season.scopeSlug, id: { [Op.ne]: season.id }, status: 'active' }, transaction });
+    await season.update(fields, { transaction });
+  });
+  req.session.flash = { type: 'success', message: 'Saisonattribute wurden gespeichert.' };
+  res.redirect(`/admin/season-manager?league=${league?.id || ''}`);
+};
+
+exports.remove = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  if (!season) return res.redirect('/admin/season-manager');
+  const league = await League.findOne({ where: { slug: season.scopeSlug } });
+  await sequelize.transaction(async (transaction) => {
+    const races = await GrandPrixResult.findAll({ where: { SeasonId: season.id }, attributes: ['id'], transaction });
+    await RaceEvent.destroy({ where: { SeasonId: season.id }, transaction });
+    if (races.length) await GrandPrixResult.destroy({ where: { id: races.map((race) => race.id) }, transaction });
+    await season.destroy({ transaction });
+  });
+  req.session.flash = { type: 'success', message: 'Saison, Kalender und zugehörige Ergebnisse wurden gelöscht.' };
+  res.redirect(`/admin/season-manager?league=${league?.id || ''}`);
+};
