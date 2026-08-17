@@ -141,3 +141,4 @@
 .lmu-driver-with-car img { width: 56px; height: 32px; object-fit: contain; }
 .season-calendar-editor article { display: grid; gap: .75rem; }
 .season-calendar-editor .setup-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); align-items: end; gap: .75rem; width: 100%; }
+.admin-inline-action,.admin-inline-form{display:inline-flex;vertical-align:middle;margin-left:.35rem}.admin-inline-action,.admin-inline-form button{border:1px solid var(--cyan);background:transparent;color:var(--cyan);width:1.6rem;height:1.6rem;align-items:center;justify-content:center;text-decoration:none;cursor:pointer}.admin-inline-form button{font-size:1.25rem;line-height:1}.row-danger{background:rgba(233,30,99,.15)}

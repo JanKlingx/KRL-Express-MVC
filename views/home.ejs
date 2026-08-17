@@ -44,7 +44,7 @@
 
   <% krlTeams.forEach(team => { %>
     <div class="team-group">
-      <h3><%= team.name %></h3>
+      <h3><%= team.name %> <% if (isAdmin) { %><a class="admin-inline-action" href="/admin/krlTeams/<%= team.id %>/edit" aria-label="<%= team.name %> bearbeiten">✎</a><form class="admin-inline-form" method="post" action="/admin/krlTeams/<%= team.id %>?_method=DELETE" data-confirm="Team wirklich löschen?"><button type="submit" aria-label="<%= team.name %> löschen">×</button></form><% } %></h3>
 
       <div class="people-grid">
         <% team.assignments.forEach(assignment => { const member = assignment.driver; %>
@@ -53,7 +53,7 @@
             <div class="avatar"><% if (assignment.imagePath) { %><img src="<%= assignment.imagePath %>" alt="<%= member.name %>"><% } else { %><%= member.name.charAt(0) %><% } %></div>
 
             <strong><%= member.name %></strong>
-            <span><%= assignment.roleName %></span>
+            <span><%= assignment.roleName %></span><% if (isAdmin) { %><a class="admin-inline-action" href="/admin/krlTeamAssignments/<%= assignment.id %>/edit" aria-label="<%= member.name %> bearbeiten">✎</a><form class="admin-inline-form" method="post" action="/admin/krlTeamAssignments/<%= assignment.id %>?_method=DELETE" data-confirm="Person aus dem Team entfernen?"><button type="submit" aria-label="<%= member.name %> entfernen">×</button></form><% } %>
           </article>
         <% }) %>
       </div>

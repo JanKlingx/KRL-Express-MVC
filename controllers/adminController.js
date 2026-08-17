@@ -88,25 +88,25 @@ exports.dashboard = async (req, res) => {
     return result;
   }, []);
   const progressModules = [
-    ['seasonSetup', { group: 'Saison & Tabellen', href: '/admin/season-setup', title: 'Saison-Assistent', description: 'Liga, Saisonfarbe, Rennkalender, Punktesystem und F1-Autoprofile Schritt für Schritt zusammenstellen.' }],
-    ['tableHub', { group: 'Saison & Tabellen', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
-    ['seasonCalendar', { group: 'Saison & Tabellen', href: '/admin/season-calendar', title: 'Rennkalender bearbeiten', description: 'Liga und Saison auswählen und ausschließlich deren Termine bearbeiten.' }],
-    ['f1Rosters', { group: 'Formel 1 Liga', href: '/admin/team-rosters/f1', title: 'F1-Fahrerfelder', description: 'Zentrale Teams je Liga einsetzen und pro Team mindestens zwei oder beliebig viele Fahrer zuordnen.' }],
-    ['f1RaceLineup', { group: 'Formel 1 Liga', href: '/admin/f1-race-lineup', title: 'Fahrereinteilung nächstes Rennen', description: 'Stamm- und Ersatzfahrer je Rennen farbig markieren und Ersatzfahrer direkt einem Teamplatz zuordnen.' }],
-    ['f1CurrentProgress', { group: 'Formel 1 Liga', href: '/admin/current-season-progress', title: 'Aktuellen Saisonverlauf pflegen', description: 'Liga und Rennen auswählen und wie in Google Sheets nur Plätze eintragen; Teams und Punkte kommen automatisch.' }],
-    ['f1SeasonProgress', { group: 'Formel 1 Liga', href: '/admin/race-editor', title: 'Beliebigen Saisonverlauf bearbeiten', description: 'Liga, Saison und Rennen auswählen und historische oder aktuelle Ergebnisse tabellarisch pflegen.' }],
-    ['wdlSeasonProgress', { group: 'WDL', href: '/admin/season-progress/wdl', title: 'Saisonverlauf', description: 'WDL-Rennen importieren oder anlegen und Ergebnisse wahlweise über Plätze oder direkte Punkte erfassen.' }],
-    ['lmuRosters', { group: 'LMU', href: '/admin/team-rosters/lmu', title: 'LMU-Fahrerfeld', description: 'LMU-Team auswählen und anschließend die passenden Stammfahrer hinzufügen.' }],
-    ['lmuCars', { group: 'LMU', href: '/admin/lmu-car-assignments', title: 'LMU-Autos zuordnen', description: 'Persönliche LMU-Autos zentral nur den Fahrern mit Rang LMU Stammfahrer zuordnen.' }],
-    ['lmuRaceLineup', { group: 'LMU', href: '/admin/lmu-race-lineup', title: 'LMU-Fahrereinteilung', description: 'LMU-Stamm- und Ersatzfahrer mit eigenem Anzeigenamen und persönlichem Fahrzeug pro Rennen einteilen.' }],
-    ['lmuSeasonProgress', { group: 'LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf', description: 'LMU-Rennen importieren oder anlegen und die vollständige Renntabelle auf einer Seite pflegen.' }]
+    ['seasonManager', { group: 'Stammdaten', href: '/admin/season-manager', title: 'Saisons verwalten / löschen', description: 'Liga wählen, Saison bearbeiten, im Frontend ausblenden oder sicher mit Kalender und Ergebnissen löschen.' }],
+    ['seasonCalendar', { group: 'Stammdaten', href: '/admin/season-calendar', title: 'Rennkalender bearbeiten / löschen', description: 'Erst Liga, dann Saison: Termine inklusive Sprint und Testtag klar bearbeiten.' }],
+    ['tableHub', { group: 'Frontend', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
+    ['f1Setup', { group: 'KRL F1 LIGA Stammdaten', href: '/admin/season-setup', title: 'Saison-Assistent F1', description: 'Spiel, Saison, Punktesystem, Kalender, Teams und Line-up schrittweise einrichten.' }],
+    ['f1Rosters', { group: 'KRL F1 LIGA Stammdaten', href: '/admin/team-rosters/f1', title: 'F1-Fahrerfeld', description: 'Teams der Liga wählen und ihre Fahrer grafisch zuordnen.' }],
+    ['lmuRosters', { group: 'LMU Stammdaten', href: '/admin/team-rosters/lmu', title: 'LMU-Fahrerfeld', description: 'Teams auswählen; die zugeordneten LMU-Fahrer erscheinen klar pro Team.' }],
+    ['f1Weekend', { group: 'Operative Prozesse · Formel 1', href: '/admin/race-weekend/f1', title: 'Rennwochenende F1', description: 'Schritt für Schritt: Aufstellung, Anwesenheit/Strafen und Ergebnisse.' }],
+    ['f1SeasonProgress', { group: 'Operative Prozesse · Formel 1', href: '/admin/race-editor', title: 'Saisonverlauf bearbeiten', description: 'Liga, Saison und Rennen wählen; historische Ergebnisse in Tabellenform pflegen.' }],
+    ['wdlWeekend', { group: 'Operative Prozesse · WDL', href: '/admin/race-weekend/wdl', title: 'Rennwochenende WDL', description: 'Ligen kontrollieren, Anwesenheit dokumentieren und Ergebnisse eintragen.' }],
+    ['lmuWeekend', { group: 'Operative Prozesse · LMU', href: '/admin/race-weekend/lmu', title: 'Rennwochenende LMU', description: 'Schritt für Schritt mit LMU-Fahrern, Autos und Ergebnissen.' }],
+    ['lmuSeasonProgress', { group: 'Operative Prozesse · LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf LMU', description: 'Rennen und Ergebnisse tabellarisch und saisonbezogen pflegen.' }],
+    ['penaltyLedger', { group: 'Rennleitungsstammdaten', href: '/admin/penalty-ledger', title: 'Rennleitungstabelle / Strafkartei', description: 'Strafpunkte, Ablauf nach einem Jahr und Rennsperren zentral kontrollieren.' }]
   ];
   progressModules.forEach(([key, config]) => {
     const group = groups.find((entry) => entry.name === config.group);
     if (group) group.modules.unshift([key, config]);
     else groups.push({ name: config.group, modules: [[key, config]] });
   });
-  const groupOrder = ['Saison & Tabellen', 'Stammdaten', 'Zentrale Rennteams', 'Formel 1 Liga', 'WDL', 'LMU', 'Startseite', 'Teams', 'KRL Icons'];
+  const groupOrder = ['Frontend', 'Unser-Team-Stammdaten', 'KRL Icons', 'Stammdaten', 'Formel 1 Stammdaten', 'KRL F1 LIGA Stammdaten', 'LMU Stammdaten', 'Rennleitungsstammdaten', 'Operative Prozesse · Formel 1', 'Operative Prozesse · WDL', 'Operative Prozesse · LMU', 'Startseite', 'Teams', 'KRL Icons'];
   groups.sort((left, right) => groupOrder.indexOf(left.name) - groupOrder.indexOf(right.name));
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',

@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { League, Season, RaceEvent, GrandPrixResult } = require('../models');
+const { League, Season, RaceEvent, GrandPrixResult, F1Track } = require('../models');
 const seasonProgress = require('../services/seasonProgress');
 
 const disciplineFor = (league) => league?.type === 'competition' ? 'wdl' : league?.type;
@@ -21,7 +21,8 @@ async function loadData(query = {}) {
   const events = rawEvents.map((event) => ({
     ...event.toJSON(), hasSprint: sprintKeys.has(`${event.circuit}::${event.sortOrder}`)
   }));
-  return { leagues, selectedLeague, discipline, seasons, selectedSeason, events, defaultTime: timeFromLeague(selectedLeague) };
+  const tracks = discipline === 'f1' ? await F1Track.findAll({ order: [['country', 'ASC'], ['name', 'ASC']] }) : [];
+  return { leagues, selectedLeague, discipline, seasons, selectedSeason, events, tracks, defaultTime: timeFromLeague(selectedLeague) };
 }
 
 exports.show = async (req, res) => res.render('admin/season-calendar', { title: 'Rennkalender bearbeiten', ...(await loadData(req.query)) });
@@ -36,13 +37,17 @@ exports.create = async (req, res) => {
     const time = String(req.body.time || timeFromLeague(league));
     const startsAt = new Date(`${date}T${time}:00`);
     if (Number.isNaN(startsAt.getTime())) throw new Error('Datum oder Startzeit ist ungültig.');
+    const track = season.leagueType === 'f1' && req.body.F1TrackId ? await F1Track.findByPk(req.body.F1TrackId) : null;
+    const circuit = track ? track.name : String(req.body.circuit || req.body.title || '').trim();
+    const title = String(req.body.title || circuit).trim();
+    if (!title || !circuit) throw new Error('Bitte eine Strecke auswählen oder Rennen und Strecke angeben.');
     const { main } = await seasonProgress.createManualRace(season.leagueType, {
-      ...req.body, raceDate: date, pointsMode: 'database', hasSprint: req.body.hasSprint
+      ...req.body, title, circuit, raceDate: date, pointsMode: 'database', hasSprint: req.body.hasSprint
     });
     await RaceEvent.create({
       LeagueId: league.id, SeasonId: season.id, GrandPrixResultId: main.id,
       title: main.title, circuit: main.circuit, startsAt,
-      durationMinutes: Number(req.body.durationMinutes || 120), isPublished: true,
+      F1TrackId: track?.id || null, durationMinutes: 120, isPublished: true,
       isTestDay: req.body.isTestDay === 'on', sortOrder: main.sortOrder
     });
     req.session.flash = { type: 'success', message: `${main.title} wurde im Saisonkalender angelegt.` };
@@ -65,7 +70,10 @@ exports.update = async (req, res, next) => {
     const circuit = String(req.body.circuit || title).trim();
     if (!title || !circuit) throw new Error('Rennen und Strecke sind erforderlich.');
     const sortOrder = Number(req.body.sortOrder || event.sortOrder || 0);
-    await event.update({ title, circuit, startsAt, sortOrder, durationMinutes: Number(req.body.durationMinutes || 120), isTestDay: req.body.isTestDay === 'on' });
+    const track = event.seasonRecord?.leagueType === 'f1' && req.body.F1TrackId ? await F1Track.findByPk(req.body.F1TrackId) : null;
+    const nextTitle = track ? (title || track.name) : title;
+    const nextCircuit = track ? track.name : circuit;
+    await event.update({ title: nextTitle, circuit: nextCircuit, F1TrackId: track?.id || null, startsAt, sortOrder, isTestDay: req.body.isTestDay === 'on' });
     if (event.grandPrixResult) {
       const main = event.grandPrixResult;
       const oldCircuit = main.circuit;
@@ -74,10 +82,10 @@ exports.update = async (req, res, next) => {
       const sprint = await GrandPrixResult.findOne({
         where: { SeasonId: main.SeasonId, LeagueId: main.LeagueId, circuit: oldCircuit, sortOrder: oldSortOrder, raceType: 'sprint' }
       });
-      await main.update({ title, circuit, raceDate: date, sortOrder });
-      if (sprint) await sprint.update({ title: `Sprint · ${circuit}`, circuit, raceDate: date, sortOrder });
+      await main.update({ title: nextTitle, circuit: nextCircuit, raceDate: date, sortOrder });
+      if (sprint) await sprint.update({ title: `Sprint · ${nextCircuit}`, circuit: nextCircuit, raceDate: date, sortOrder });
     }
-    req.session.flash = { type: 'success', message: `${title} wurde aktualisiert.` };
+    req.session.flash = { type: 'success', message: `${nextTitle} wurde aktualisiert.` };
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
   }

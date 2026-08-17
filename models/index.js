@@ -61,6 +61,12 @@ const F1CarProfile = sequelize.define('F1CarProfile', {
   ...commonSort
 });
 
+const F1Track = sequelize.define('F1Track', {
+  country: { type: DataTypes.STRING, allowNull: false },
+  name: { type: DataTypes.STRING, allowNull: false },
+  ...commonSort
+}, { indexes: [{ unique: true, fields: ['country', 'name'] }] });
+
 const Team = sequelize.define('Team', {
   name: { type: DataTypes.STRING, allowNull: false },
   discipline: { type: DataTypes.STRING, allowNull: false, defaultValue: 'f1' },
@@ -147,6 +153,26 @@ const Season = sequelize.define('Season', {
   status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'active' },
   calendarMode: { type: DataTypes.STRING, allowNull: false, defaultValue: 'automatic' },
   accentColor: { type: DataTypes.STRING, allowNull: true, validate: { is: /^#[0-9a-f]{6}$/i } },
+  gameName: DataTypes.STRING,
+  isPublished: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  ...commonSort
+});
+
+const PenaltyRule = sequelize.define('PenaltyRule', {
+  discipline: { type: DataTypes.STRING, allowNull: false },
+  status: { type: DataTypes.STRING, allowNull: false },
+  points: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  suspensionThreshold: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 12 },
+  ...commonSort
+}, { indexes: [{ unique: true, fields: ['discipline', 'status'] }] });
+
+const PenaltyEntry = sequelize.define('PenaltyEntry', {
+  points: { type: DataTypes.INTEGER, allowNull: false },
+  reason: { type: DataTypes.STRING, allowNull: false },
+  comment: DataTypes.TEXT,
+  awardedOn: { type: DataTypes.DATEONLY, allowNull: false },
+  expiresOn: DataTypes.DATEONLY,
+  isAutomatic: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   ...commonSort
 });
 
@@ -389,6 +415,14 @@ Season.hasMany(RaceEvent, { as: 'raceEvents', foreignKey: { name: 'SeasonId', al
 RaceEvent.belongsTo(Season, { as: 'seasonRecord', foreignKey: { name: 'SeasonId', allowNull: true } });
 GrandPrixResult.hasOne(RaceEvent, { as: 'calendarEvent', foreignKey: { name: 'GrandPrixResultId', allowNull: true }, onDelete: 'SET NULL' });
 RaceEvent.belongsTo(GrandPrixResult, { as: 'grandPrixResult', foreignKey: { name: 'GrandPrixResultId', allowNull: true } });
+F1Track.hasMany(RaceEvent, { as: 'calendarEvents', foreignKey: { name: 'F1TrackId', allowNull: true }, onDelete: 'SET NULL' });
+RaceEvent.belongsTo(F1Track, { as: 'track', foreignKey: { name: 'F1TrackId', allowNull: true } });
+Driver.hasMany(PenaltyEntry, { as: 'penalties', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
+PenaltyEntry.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
+League.hasMany(PenaltyEntry, { as: 'penalties', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
+PenaltyEntry.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
+GrandPrixResult.hasMany(PenaltyEntry, { as: 'penalties', foreignKey: { name: 'GrandPrixResultId', allowNull: true }, onDelete: 'SET NULL' });
+PenaltyEntry.belongsTo(GrandPrixResult, { as: 'race', foreignKey: { name: 'GrandPrixResultId', allowNull: true } });
 League.hasMany(LmuCockpit, { as: 'cockpits', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
 LmuCockpit.belongsTo(League, { as: 'league', foreignKey: { name: 'LeagueId', allowNull: false } });
 LmuCockpit.belongsTo(Driver, { as: 'driverOne', foreignKey: { name: 'Driver1Id', allowNull: true }, onDelete: 'SET NULL' });
@@ -426,6 +460,7 @@ module.exports = {
   League,
   LmuCar,
   F1CarProfile,
+  F1Track,
   Team,
   TeamRoster,
   TeamRosterDriver,
@@ -436,6 +471,8 @@ module.exports = {
   PointAllocation,
   SeasonCategory,
   Season,
+  PenaltyRule,
+  PenaltyEntry,
   SeasonF1CarAssignment,
   F1CalendarRound,
   DriverStanding,
