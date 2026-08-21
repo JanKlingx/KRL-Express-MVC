@@ -1,10 +1,11 @@
 const { Op } = require('sequelize');
 const {
-  sequelize, League, Team, TeamRoster, TeamRosterDriver, Driver, Season, GrandPrixResult, GrandPrixResultEntry, F1RaceLineupEntry
+  sequelize, League, Team, TeamRoster, TeamRosterDriver, Driver, Season, GrandPrixResult, GrandPrixResultEntry, F1RaceLineupEntry, F1CarProfile, PenaltyEntry
 } = require('../models');
 const { pointsForPosition, recalculateDriverRaceCounts } = require('../services/championship');
 const seasonProgress = require('../services/seasonProgress');
 const { regularStarts, reserveRoleField, reserveStarts } = require('../services/raceLineup');
+const { loadSeasonStructure } = require('../services/f1Season');
 
 const statuses = ['', 'DNF', 'DNS', 'DNQ', 'DSQ', 'DNA'];
 
@@ -21,7 +22,23 @@ function findDriverEntry(driver, entries) {
   return entries.find((entry) => entry.DriverId === driver.id || (!entry.DriverId && names.has(entry.driverName)));
 }
 
-async function loadTeams(leagueId) {
+async function loadTeams(leagueId, seasonId) {
+  const structure = await loadSeasonStructure(seasonId);
+  if (structure.teams.length) {
+    return Promise.all(structure.teams.map(async (seasonTeam) => {
+      let actualTeam = null;
+      if (seasonTeam.sourceType === 'current') actualTeam = await Team.findByPk(seasonTeam.sourceId);
+      else {
+        const profile = await F1CarProfile.findByPk(seasonTeam.sourceId);
+        if (profile?.BaseTeamId) actualTeam = await Team.findByPk(profile.BaseTeamId);
+      }
+      return {
+        id: actualTeam?.id || null, seasonTeamId: seasonTeam.id, name: seasonTeam.name,
+        accentColor: seasonTeam.accentColor, logoPath: seasonTeam.logoPath,
+        drivers: seasonTeam.drivers.map((driver) => ({ driver, roleName: 'Stammfahrer' }))
+      };
+    }));
+  }
   const rosters = await TeamRoster.findAll({
     where: { LeagueId: leagueId, discipline: 'f1' },
     include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
@@ -45,6 +62,22 @@ async function loadEligibleDrivers(teams, league, race) {
     include: [{ association: 'driver', include: [{ association: 'aliases' }] }]
   }) : [];
   if (planEntries.length) {
+    const attendanceManaged = planEntries.some((entry) => entry.attendanceStatus);
+    if (attendanceManaged) {
+      const rows = [];
+      planEntries.filter((entry) => entry.includeInResults && entry.driver).forEach((entry) => {
+        const direct = entry.roleType === 'regular' ? assigned.get(entry.DriverId) : assigned.get(entry.ReplacementForDriverId);
+        const targetEntry = entry.roleType === 'reserve' ? planEntries.find((candidate) => candidate.DriverId === entry.ReplacementForDriverId) : null;
+        const assignedTeam = direct?.assignedTeam || teams.find((team) => Number(team.id) === Number(entry.TeamId)) || null;
+        if (!assignedTeam) return;
+        rows.push({
+          driver: entry.driver, assignedTeam,
+          isReserve: entry.roleType === 'reserve', planned: true,
+          replacesDriver: entry.roleType === 'reserve' ? (direct?.driver || targetEntry?.driver || null) : null
+        });
+      });
+      return { rows, managed: true, attendanceManaged: true };
+    }
     const regularPlan = new Map(planEntries.filter((entry) => entry.roleType === 'regular').map((entry) => [entry.DriverId, entry]));
     const reserveField = reserveRoleField(league?.slug);
     const reservePlan = planEntries.filter((entry) => entry.roleType === 'reserve' && entry.ReplacementForDriverId && entry.driver?.[reserveField]);
@@ -82,13 +115,13 @@ async function showEditor(req, res, currentOnly = false) {
   const leagues = await League.findAll({ where: { type: 'f1' }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
   const selectedLeague = leagues.find((league) => league.id === Number(req.query.league)) || leagues[0] || null;
   const seasons = selectedLeague ? await Season.findAll({
-    where: { leagueType: 'f1', scopeSlug: selectedLeague.slug },
+    where: { leagueType: 'f1', scopeSlug: selectedLeague.slug, ...(currentOnly ? { status: 'active', isPublished: true } : { status: 'historical' }) },
     include: [{ association: 'category' }],
     order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
   }) : [];
   const selectedSeason = currentOnly
     ? seasons.find((season) => season.status === 'active') || null
-    : seasons.find((season) => season.id === Number(req.query.season)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
+    : seasons.find((season) => season.id === Number(req.query.season)) || seasons[0] || null;
   const races = selectedLeague && selectedSeason ? await getRaces(selectedLeague.id, selectedSeason.id) : [];
   const selectedRace = races.find((race) => race.id === Number(req.query.race)) || races[0] || null;
   const sprintRace = selectedRace ? await GrandPrixResult.findOne({
@@ -97,24 +130,24 @@ async function showEditor(req, res, currentOnly = false) {
       circuit: selectedRace.circuit, sortOrder: selectedRace.sortOrder, raceType: 'sprint'
     }
   }) : null;
-  const teams = selectedLeague
-    ? (selectedSeason?.status === 'historical'
-      ? await Team.findAll({ where: { LeagueId: null, discipline: 'f1' }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] })
-      : await loadTeams(selectedLeague.id))
-    : [];
+  const teams = selectedLeague && selectedSeason ? await loadTeams(selectedLeague.id, selectedSeason.id) : [];
   let rows = [];
   let availableDrivers = [];
   let historicalDriverIds = [];
   let lineupManaged = false;
   if (selectedRace && selectedSeason) {
-    const [entries, sprintEntries] = await Promise.all([
+    const [entries, sprintEntries, raceBans] = await Promise.all([
       GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: selectedRace.id }, order: [['sortOrder', 'ASC'], ['position', 'ASC']] }),
-      sprintRace ? GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: sprintRace.id }, order: [['sortOrder', 'ASC'], ['position', 'ASC']] }) : []
+      sprintRace ? GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: sprintRace.id }, order: [['sortOrder', 'ASC'], ['position', 'ASC']] }) : [],
+      PenaltyEntry.findAll({ where: { GrandPrixResultId: selectedRace.id, isRaceBan: true } })
     ]);
+    const bannedDriverIds = new Set(raceBans.map((entry) => entry.DriverId));
     let eligible;
     if (selectedSeason.status === 'historical') {
-      availableDrivers = await Driver.findAll({ include: [{ association: 'aliases' }], order: [['name', 'ASC'], ['id', 'ASC']] });
+      const structure = await loadSeasonStructure(selectedSeason.id);
+      availableDrivers = structure.allDrivers;
       historicalDriverIds = requestedDriverIds(req.query, entries, sprintEntries);
+      if (!Object.prototype.hasOwnProperty.call(req.query, 'drivers') && !historicalDriverIds.length) historicalDriverIds = structure.allDrivers.map((driver) => driver.id).slice(0, 20);
       eligible = availableDrivers.filter((driver) => historicalDriverIds.includes(driver.id));
     } else {
       const lineup = await loadEligibleDrivers(teams, selectedLeague, selectedRace);
@@ -126,8 +159,14 @@ async function showEditor(req, res, currentOnly = false) {
       return {
         ...wrapper,
         entry: findDriverEntry(wrapper.driver, entries) || null,
-        sprintEntry: findDriverEntry(wrapper.driver, sprintEntries) || null
+        sprintEntry: findDriverEntry(wrapper.driver, sprintEntries) || null,
+        raceBan: bannedDriverIds.has(wrapper.driver.id)
       };
+    });
+    rows.sort((left, right) => {
+      const leftPosition = Number(left.entry?.position || left.sprintEntry?.position || Number.MAX_SAFE_INTEGER);
+      const rightPosition = Number(right.entry?.position || right.sprintEntry?.position || Number.MAX_SAFE_INTEGER);
+      return leftPosition - rightPosition || left.driver.name.localeCompare(right.driver.name, 'de');
     });
   }
   res.render('admin/race-editor', {
@@ -142,9 +181,7 @@ exports.showCurrent = (req, res) => showEditor(req, res, true);
 exports.save = async (req, res) => {
   const race = await GrandPrixResult.findByPk(req.params.raceId, { include: [{ model: League, as: 'league' }, { model: Season, as: 'seasonRecord' }] });
   if (!race || race.discipline !== 'f1' || !race.seasonRecord) return res.status(404).render('errors/404', { title: 'Formel-1-Rennen nicht gefunden' });
-  const teams = race.seasonRecord.status === 'historical'
-    ? await Team.findAll({ where: { LeagueId: null, discipline: 'f1' }, order: [['sortOrder', 'ASC'], ['name', 'ASC'], ['id', 'ASC']] })
-    : await loadTeams(race.LeagueId);
+  const teams = await loadTeams(race.LeagueId, race.SeasonId);
   const submittedDriverIds = Object.keys(req.body.rows || {}).map(Number).filter(Number.isInteger).slice(0, 20);
   let lineupManaged = false;
   let eligible;
@@ -165,6 +202,7 @@ exports.save = async (req, res) => {
     sprintRace ? GrandPrixResultEntry.findAll({ where: { GrandPrixResultId: sprintRace.id } }) : []
   ]);
   const submittedRows = req.body.rows || {};
+  const requestedEditorPath = req.body._return === 'current' ? '/admin/current-season-progress' : '/admin/race-editor';
   for (const event of [{ race, field: 'position' }, ...(sprintRace ? [{ race: sprintRace, field: 'sprintPosition' }] : [])]) {
     if (event.race.pointsMode === 'manual') continue;
     const usedPositions = new Map();
@@ -172,15 +210,20 @@ exports.save = async (req, res) => {
       const submitted = submittedRows[String(driver.id)] || {};
       if (submitted.included !== 'on' || !submitted[event.field]) continue;
       const position = Number(submitted[event.field]);
+      if (!Number.isInteger(position) || position < 1) {
+        req.session.flash = { type: 'error', message: `${event.race.raceType === 'sprint' ? 'Sprint: ' : ''}${driver.name} benötigt einen gültigen Platz größer 0.` };
+        return res.redirect(`${requestedEditorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
+      }
       if (usedPositions.has(position)) {
         req.session.flash = { type: 'error', message: `${event.race.raceType === 'sprint' ? 'Sprint: ' : ''}Platz ${position} wurde doppelt vergeben (${usedPositions.get(position)} und ${driver.name}).` };
-        return res.redirect(`/admin/race-editor?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
+        return res.redirect(`${requestedEditorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
       }
       usedPositions.set(position, driver.name);
     }
   }
 
-  await sequelize.transaction(async (transaction) => {
+  try {
+    await sequelize.transaction(async (transaction) => {
     if (race.seasonRecord.status === 'historical' || lineupManaged) {
       const omittedWhere = driverIds.length
         ? { [Op.or]: [{ DriverId: { [Op.notIn]: driverIds } }, { DriverId: null }] }
@@ -195,9 +238,12 @@ exports.save = async (req, res) => {
       if (submitted.included !== 'on') {
         if (existing) await existing.destroy({ transaction });
         if (existingSprint) await existingSprint.destroy({ transaction });
+        await PenaltyEntry.destroy({
+          where: { GrandPrixResultId: race.id, DriverId: driver.id, isRaceBan: true, reason: 'Rennsperre (Ergebnispflege)' }, transaction
+        });
         continue;
       }
-      const selectedTeam = submitted.TeamId && await Team.findOne({ where: { id: submitted.TeamId, LeagueId: null, discipline: 'f1' }, transaction });
+      const selectedTeam = teams.find((candidate) => Number(candidate.id) === Number(submitted.TeamId)) || null;
       const team = race.seasonRecord.status === 'historical' || isReserve ? selectedTeam : assignedTeam;
       if (!team) throw new Error(`${driver.name}: Bitte ein Team für dieses Rennen auswählen.`);
       const status = statuses.includes(submitted.status) ? submitted.status : '';
@@ -221,8 +267,27 @@ exports.save = async (req, res) => {
       };
       await saveEvent(race, existing);
       await saveEvent(sprintRace, existingSprint, 'sprint');
+      const editorBan = await PenaltyEntry.findOne({
+        where: { GrandPrixResultId: race.id, DriverId: driver.id, isRaceBan: true, reason: 'Rennsperre (Ergebnispflege)' }, transaction
+      });
+      if (submitted.raceBan === 'on') {
+        if (!editorBan) {
+          const awardedOn = race.raceDate || new Date().toISOString().slice(0, 10);
+          const expires = new Date(`${awardedOn}T12:00:00Z`); expires.setUTCFullYear(expires.getUTCFullYear() + 1);
+          await PenaltyEntry.create({
+            LeagueId: race.LeagueId, DriverId: driver.id, GrandPrixResultId: race.id,
+            points: 0, reason: 'Rennsperre (Ergebnispflege)', comment: race.title,
+            awardedOn, expiresOn: expires.toISOString().slice(0, 10), isAutomatic: false, isRaceBan: true
+          }, { transaction });
+        }
+      } else if (editorBan) await editorBan.destroy({ transaction });
     }
-  });
+    });
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+    const editorPath = req.body._return === 'current' ? '/admin/current-season-progress' : '/admin/race-editor';
+    return res.redirect(`${editorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
+  }
   await recalculateDriverRaceCounts();
   req.session.flash = { type: 'success', message: `${race.title}: Ergebnis, Punkte und WM wurden automatisch aktualisiert.` };
   const editorPath = req.body._return === 'current' ? '/admin/current-season-progress' : '/admin/race-editor';

@@ -6,7 +6,7 @@ const { Op, col } = require('sequelize');
 exports.index = async (req, res) => {
   const [statistics, krlTeams, krlIcons, leagues, nextRace] = await Promise.all([
     SiteStatistic.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
-    KrlTeam.findAll({ include: [{ association: 'assignments', include: [{ association: 'driver' }] }], order: [[col('KrlTeam.sort_order'), 'ASC'], [col('assignments.sort_order'), 'ASC']] }),
+    KrlTeam.findAll({ where: { isVisible: true }, include: [{ association: 'assignments', include: [{ association: 'driver' }] }], order: [[col('KrlTeam.sort_order'), 'ASC'], [col('assignments.sort_order'), 'ASC']] }),
     KrlIcon.findAll({ include: [{ association: 'driver' }], order: [[col('KrlIcon.sort_order'), 'ASC'], [col('KrlIcon.id'), 'ASC']] }),
     League.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
     RaceEvent.findOne({

@@ -87,8 +87,14 @@ async function ensureSchema() {
     await queryInterface.changeColumn('f1_car_profiles', 'constructor_name', { type: DataTypes.STRING, allowNull: true });
   }
 
+  const f1TrackTable = await queryInterface.describeTable('f1_tracks');
+  await addMissingColumn('f1_tracks', f1TrackTable, 'country_id', { type: DataTypes.INTEGER, allowNull: true });
+
   const krlAssignmentTable = await queryInterface.describeTable('krl_team_assignments');
   await addMissingColumn('krl_team_assignments', krlAssignmentTable, 'image_path', { type: DataTypes.STRING, allowNull: true });
+  const krlTeamTable = await queryInterface.describeTable('krl_teams');
+  await addMissingColumn('krl_teams', krlTeamTable, 'accent_color', { type: DataTypes.STRING, allowNull: false, defaultValue: '#6ef2f2' });
+  await addMissingColumn('krl_teams', krlTeamTable, 'is_visible', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true });
 
   await League.findOrCreate({
     where: { slug: 'samstag' },
@@ -218,6 +224,16 @@ async function ensureSchema() {
   await addMissingColumn('race_events', raceEventTable, 'season_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('race_events', raceEventTable, 'is_test_day', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn('race_events', raceEventTable, 'f1_track_id', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('race_events', raceEventTable, 'previous_starts_at', { type: DataTypes.DATE, allowNull: true });
+  await addMissingColumn('race_events', raceEventTable, 'previous_sort_order', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('race_events', raceEventTable, 'calendar_changed', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+
+  const penaltyEntryTable = await queryInterface.describeTable('penalty_entries');
+  await addMissingColumn('penalty_entries', penaltyEntryTable, 'is_race_ban', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+
+  const lineupTable = await queryInterface.describeTable('f1_race_lineup_entries');
+  await addMissingColumn('f1_race_lineup_entries', lineupTable, 'attendance_status', { type: DataTypes.STRING, allowNull: true });
+  await addMissingColumn('f1_race_lineup_entries', lineupTable, 'include_in_results', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
 
   const standardPoints = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
   for (let index = 0; index < standardPoints.length; index += 1) {

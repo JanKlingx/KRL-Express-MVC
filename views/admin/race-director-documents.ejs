@@ -1,0 +1,12 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container">
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">FORMEL 1 LIGA-STAMM</span><h1>RACE-DIRECTOR NOTES</h1><p class="admin-intro">PDF hochladen. Die neueste Ausgabe wird öffentlich als Vorschau gezeigt; ältere bleiben als Download erhalten.</p></div><a class="button button-ghost" href="/formel-1/race-director-notes" target="_blank">Frontend öffnen</a></div>
+  <form class="resource-form pdf-upload-form" method="post" action="/admin/race-director-notes" enctype="multipart/form-data">
+    <label><span>Titel *</span><input name="title" required placeholder="Race-Director Notes · Australien"></label>
+    <label><span>Veröffentlicht am *</span><input type="date" name="publishedAt" required value="<%= new Date().toISOString().slice(0,10) %>"></label>
+    <label class="upload-field"><span>PDF *</span><span class="upload-dropzone" data-upload-dropzone><input type="file" name="document" accept="application/pdf,.pdf" required><strong>PDF hierher ziehen</strong><span data-upload-name>oder zum Auswählen klicken</span><img data-upload-local-preview alt="" hidden></span><small>Nur PDF, maximal 20 MB.</small></label>
+    <button class="button" type="submit">PDF veröffentlichen</button>
+  </form>
+  <div class="document-admin-list"><% documents.forEach((document, index) => { %><article><div><span><%= index === 0 ? 'NEUESTES DOKUMENT' : 'ARCHIV' %></span><h2><%= document.title %></h2><small><%= new Intl.DateTimeFormat('de-DE').format(new Date(`${document.publishedAt}T12:00:00Z`)) %></small></div><a href="<%= document.documentPath %>" target="_blank">Öffnen</a><form method="post" action="/admin/race-director-notes/<%= document.id %>?_method=DELETE" data-confirm="PDF wirklich löschen?"><button type="submit">Löschen</button></form></article><% }) %></div>
+</div></section>
+<%- include('../partials/footer') %>

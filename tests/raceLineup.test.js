@@ -3,15 +3,18 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const ejs = require('ejs');
 const {
-  REGULAR_STATUSES, RESERVE_STATUSES, regularStarts, regularRoleField, reserveRoleField, reserveStarts
+  REGULAR_STATUSES, RESERVE_STATUSES, ATTENDANCE_STATUSES,
+  regularStarts, regularRoleField, reserveRoleField, reserveStarts
 } = require('../services/raceLineup');
 
 const layout = { currentPath: '/admin/f1-race-lineup', isAdmin: true, flash: null };
 
 test('Statuslogik übernimmt nur bestätigte Fahrer in den aktuellen Saisonverlauf', () => {
-  assert.equal(REGULAR_STATUSES.some((status) => status.value === 'unabgemeldet'), true);
+  assert.equal(REGULAR_STATUSES.some((status) => status.value === 'unabgemeldet'), false);
+  assert.equal(ATTENDANCE_STATUSES.some((status) => status.value === 'unabgemeldet'), true);
+  assert.equal(ATTENDANCE_STATUSES.some((status) => status.value === 'zu_spaet_vorbesprechung'), true);
   assert.equal(regularStarts('anwesend'), true);
-  assert.equal(regularStarts('zu_spaet_vorbesprechung'), true);
+  assert.equal(regularStarts('zu_spaet_vorbesprechung'), false);
   assert.equal(regularStarts('unsicher'), false);
   assert.equal(regularStarts('abgemeldet'), false);
   assert.equal(reserveStarts('anwesend'), true);

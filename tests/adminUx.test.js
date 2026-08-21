@@ -68,38 +68,47 @@ test('LMU-Stammdaten enthalten Anzeigename, persönliches Auto, Zusatz und Pole-
   assert.equal(models.GrandPrixResultEntry.rawAttributes.polePosition.defaultValue, false);
 });
 
-test('Saison-Assistent endet für aktuelle Saisons nach dem einmaligen Punkteschritt', async () => {
+test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', async () => {
   const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
-  const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2026' } };
+  const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2026' }, isPublished: false };
+  const driver = { id: 7, name: 'Max Beispiel', roleF1Friday: true };
+  const seasonTeam = { id: 8, sourceType: 'current', sourceId: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null, drivers: [driver] };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
     ...layout, title: 'Saison-Assistent', leagues: [league], selectedLeague: league, discipline: 'f1',
     seasons: [season], selectedSeason: season, pointsSchemes: [{ id: 3, name: 'F1 2026' }], calendar: [],
-    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be' }], carProfiles: [{ id: 5, name: 'Mercedes W11', seasonLabel: '2020' }],
-    carAssignmentMap: { 4: 5 }, defaultTime: '20:00', progressHref: '/admin/race-editor?league=1&season=2'
+    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null }], carProfiles: [],
+    defaultTime: '20:00', tracks: [], eligibleDrivers: [driver],
+    structure: { allDrivers: [driver], teams: [seasonTeam], unassignedDrivers: [] }, finishReady: false
   });
-  assert.match(html, /SAISON-ASSISTENT/);
+  assert.match(html, /F1-SAISON ERSTELLEN/);
+  assert.match(html, /setup-steps-eight/);
   assert.match(html, /LIGA AUSWÄHLEN/);
   assert.match(html, /RENNKALENDER ERSTELLEN/);
   assert.match(html, /PUNKTESYSTEM/);
+  assert.match(html, /FAHRER AUSWÄHLEN/);
+  assert.match(html, /AKTUELLE ODER HISTORISCHE TEAMS/);
+  assert.match(html, /LINE-UP ERSTELLEN/);
+  assert.match(html, /ABSCHLUSS/);
   assert.match(html, /value="20:00"/);
-  assert.doesNotMatch(html, /TEAMPROFILE DER SAISON ZUWEISEN/);
   assert.equal((html.match(/name="PointsSchemeId"/g) || []).length, 1);
-  assert.match(html, /Aktuellen Saisonverlauf pflegen/);
+  assert.match(html, /Nicht zugeordnete Fahrer bleiben automatisch als Ersatzfahrer/);
 });
 
-test('Historische F1-Saison erhält im fünften Schritt verknüpfte Teamprofile', async () => {
+test('Historische F1-Teams können im sechsten Schritt ausgewählt werden', async () => {
   const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
-  const season = { id: 2, name: 'Saison 2020', status: 'historical', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2020' } };
+  const season = { id: 2, name: 'Saison 2020', status: 'historical', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2020' }, isPublished: false };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
     ...layout, title: 'Saison-Assistent', leagues: [league], selectedLeague: league, discipline: 'f1',
     seasons: [season], selectedSeason: season, pointsSchemes: [{ id: 3, name: 'F1 2020' }], calendar: [],
-    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be' }],
-    carProfiles: [{ id: 5, BaseTeamId: 4, name: 'Mercedes W11', seasonLabel: '2020' }],
-    carAssignmentMap: { 4: 5 }, defaultTime: '20:00', progressHref: '/admin/race-editor?league=1&season=2'
+    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null }],
+    carProfiles: [{ id: 5, BaseTeamId: 4, name: 'Mercedes W11', seasonLabel: '2020', accentColor: '#00d2be', logoPath: null, baseTeam: { name: 'Mercedes' } }],
+    defaultTime: '20:00', tracks: [], eligibleDrivers: [],
+    structure: { allDrivers: [], teams: [], unassignedDrivers: [] }, finishReady: false
   });
-  assert.match(html, /TEAMPROFILE DER SAISON ZUWEISEN/);
+  assert.match(html, /Historische Teams/);
   assert.match(html, /Mercedes W11/);
-  assert.match(html, /Cockpit-\/Teamprofile speichern/);
+  assert.match(html, /gehört zu Mercedes/);
+  assert.match(html, /value="historical:5"/);
 });
 
 test('Tabellen-Hub bündelt Pflege, Frontend und Downloads pro Saison', async () => {

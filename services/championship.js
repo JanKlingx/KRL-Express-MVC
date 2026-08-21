@@ -82,7 +82,7 @@ async function activateSeason(season) {
   for (const related of relatedSeasons) {
     const active = related.status === 'active';
     await GrandPrixResult.update({ isHistorical: !active }, { where: { SeasonId: related.id } });
-    await RaceEvent.update({ isPublished: active }, { where: { SeasonId: related.id } });
+    await RaceEvent.update({ isPublished: active && related.isPublished !== false }, { where: { SeasonId: related.id } });
   }
   if (season.status === 'active' && season.leagueType === 'f1' && season.calendarMode === 'automatic') {
     const rounds = await F1CalendarRound.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] });

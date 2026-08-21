@@ -1,9 +1,11 @@
 const { Op } = require('sequelize');
 const {
   sequelize, League, Season, PointsScheme, RaceEvent, Team,
-  F1CarProfile, SeasonF1CarAssignment, GrandPrixResult
+  F1CarProfile, SeasonF1CarAssignment, GrandPrixResult, F1Track,
+  SeasonDriver, SeasonTeam, SeasonLineupEntry, Driver
 } = require('../models');
 const { activateSeason, syncSeriesCalendarEvent } = require('../services/championship');
+const { loadEligibleSeasonDrivers, loadSeasonStructure, resolveTeamToken } = require('../services/f1Season');
 
 function disciplineForLeague(league) {
   return league?.type === 'competition' ? 'wdl' : league?.type;
@@ -27,7 +29,7 @@ function progressHref(league, season) {
 
 async function loadData(query = {}) {
   const leagues = await League.findAll({
-    where: { type: { [Op.in]: ['f1', 'lmu', 'competition'] } },
+    where: { type: 'f1', slug: { [Op.in]: ['freitag', 'samstag', 'sonntag'] } },
     order: [['type', 'ASC'], ['sortOrder', 'ASC'], ['id', 'ASC']]
   });
   const selectedLeague = leagues.find((league) => league.id === Number(query.league)) || leagues[0] || null;
@@ -38,19 +40,23 @@ async function loadData(query = {}) {
     order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
   }) : [];
   const selectedSeason = seasons.find((season) => season.id === Number(query.season)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
-  const [pointsSchemes, calendar, f1Teams, carProfiles, carAssignments] = await Promise.all([
-    discipline ? PointsScheme.findAll({ where: { discipline }, order: [['sortOrder', 'DESC'], ['id', 'DESC']] }) : [],
-    selectedSeason ? RaceEvent.findAll({ where: { SeasonId: selectedSeason.id }, order: [['sortOrder', 'ASC'], ['startsAt', 'ASC'], ['id', 'ASC']] }) : [],
-    selectedLeague?.type === 'f1' ? Team.findAll({ where: { LeagueId: null, discipline: 'f1' }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] }) : [],
-    selectedLeague?.type === 'f1' ? F1CarProfile.findAll({ include: [{ association: 'baseTeam', required: false }], order: [['seasonLabel', 'DESC'], ['sortOrder', 'ASC'], ['id', 'ASC']] }) : [],
-    selectedSeason && selectedLeague?.type === 'f1' ? SeasonF1CarAssignment.findAll({ where: { SeasonId: selectedSeason.id } }) : []
+  const [pointsSchemes, calendar, f1Teams, carProfiles, carAssignments, tracks, eligibleDrivers, structure] = await Promise.all([
+    PointsScheme.findAll({ where: { discipline: 'f1' }, order: [['sortOrder', 'DESC'], ['id', 'DESC']] }),
+    selectedSeason ? RaceEvent.findAll({ where: { SeasonId: selectedSeason.id }, include: [{ association: 'track', include: [{ association: 'countryRecord' }] }], order: [['sortOrder', 'ASC'], ['startsAt', 'ASC'], ['id', 'ASC']] }) : [],
+    Team.findAll({ where: { LeagueId: null, discipline: 'f1' }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
+    F1CarProfile.findAll({ where: { BaseTeamId: { [Op.ne]: null } }, include: [{ association: 'baseTeam', required: true }], order: [['name', 'ASC'], ['id', 'ASC']] }),
+    selectedSeason ? SeasonF1CarAssignment.findAll({ where: { SeasonId: selectedSeason.id } }) : [],
+    F1Track.findAll({ include: [{ association: 'countryRecord' }], order: [['country', 'ASC'], ['name', 'ASC']] }),
+    loadEligibleSeasonDrivers(),
+    loadSeasonStructure(selectedSeason?.id)
   ]);
   return {
     leagues, selectedLeague, discipline, seasons, selectedSeason, pointsSchemes,
-    calendar, f1Teams, carProfiles,
+    calendar, f1Teams, carProfiles, tracks, eligibleDrivers, structure,
     carAssignmentMap: Object.fromEntries(carAssignments.map((assignment) => [assignment.TeamId, assignment.F1CarProfileId])),
     defaultTime: extractTime(selectedLeague?.raceTime),
-    progressHref: progressHref(selectedLeague, selectedSeason)
+    progressHref: progressHref(selectedLeague, selectedSeason),
+    finishReady: Boolean(selectedSeason && calendar.length && selectedSeason.PointsSchemeId && structure.allDrivers.length && structure.teams.length && structure.teams.some((team) => team.drivers.length))
   };
 }
 
@@ -63,23 +69,31 @@ exports.createSeason = async (req, res) => {
   let league;
   try {
     league = await League.findByPk(req.body.LeagueId);
-    if (!league || !['f1', 'lmu', 'competition'].includes(league.type)) throw new Error('Bitte eine gültige Liga auswählen.');
+    if (!league || league.type !== 'f1') throw new Error('Bitte eine gültige Formel-1-Liga auswählen.');
     const name = String(req.body.name || '').trim();
     if (!name) throw new Error('Bitte einen Saisonnamen eingeben.');
     const discipline = disciplineForLeague(league);
     const duplicate = await Season.findOne({ where: { leagueType: discipline, scopeSlug: league.slug, name } });
-    if (duplicate) throw new Error(`Die Saison „${name}“ existiert für ${league.name} bereits.`);
-    const accentColor = /^#[0-9a-f]{6}$/i.test(req.body.accentColor || '') ? req.body.accentColor : league.accentColor;
+    if (duplicate) {
+      const error = new Error(`Die Saison „${name}“ existiert für ${league.name} bereits.`);
+      error.seasonManagerHref = `/admin/season-manager?league=${league.id}`;
+      throw error;
+    }
+    if (!['active', 'historical'].includes(req.body.status)) throw new Error('Bitte den Saisonstatus aktuell oder historisch auswählen.');
+    if (!/^#[0-9a-f]{6}$/i.test(req.body.accentColor || '')) throw new Error('Bitte eine gültige Saisonfarbe auswählen.');
+    const accentColor = req.body.accentColor;
     const season = await Season.create({
       name, leagueType: discipline, scopeSlug: league.slug,
-      status: req.body.status === 'historical' ? 'historical' : 'active',
-      calendarMode: 'manual', accentColor, PointsSchemeId: null
+      status: req.body.status,
+      calendarMode: 'manual', accentColor, PointsSchemeId: null, isPublished: false
     });
-    await activateSeason(season);
     req.session.flash = { type: 'success', message: `${season.name} wurde für ${league.name} angelegt. Als Nächstes kann der Rennkalender gepflegt werden.` };
     res.redirect(setupRedirect({ league: league.id, season: season.id }));
   } catch (error) {
-    req.session.flash = { type: 'error', message: error.message };
+    req.session.flash = {
+      type: 'error', message: error.message,
+      ...(error.seasonManagerHref ? { href: error.seasonManagerHref, linkLabel: 'Vorhandene Saison bearbeiten →' } : {})
+    };
     res.redirect(setupRedirect({ league: league?.id || req.body.LeagueId }));
   }
 };
@@ -90,9 +104,9 @@ exports.updateSeasonProfile = async (req, res) => {
   try {
     if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
     const pointsScheme = req.body.PointsSchemeId ? await PointsScheme.findByPk(req.body.PointsSchemeId) : null;
-    if (pointsScheme && pointsScheme.discipline !== season.leagueType) throw new Error('Das Punktesystem gehört nicht zu dieser Liga.');
+    if (!pointsScheme || pointsScheme.discipline !== 'f1') throw new Error('Bitte ein Formel-1-Punktesystem auswählen.');
     const accentColor = /^#[0-9a-f]{6}$/i.test(req.body.accentColor || '') ? req.body.accentColor : season.accentColor || league.accentColor;
-    await season.update({ PointsSchemeId: pointsScheme?.id || null, accentColor });
+    await season.update({ PointsSchemeId: pointsScheme.id, accentColor });
     req.session.flash = { type: 'success', message: `Farbprofil und Punktesystem von ${season.name} wurden gespeichert.` };
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
@@ -105,18 +119,24 @@ exports.addCalendarEvent = async (req, res) => {
   const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: season.leagueType === 'wdl' ? 'competition' : season.leagueType } }) : null;
   try {
     if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
-    const title = String(req.body.title || '').trim();
-    const circuit = String(req.body.circuit || title).trim();
+    const track = await F1Track.findByPk(req.body.F1TrackId, { include: [{ association: 'countryRecord' }] });
+    if (!track) throw new Error('Bitte eine Strecke aus dem F1-Streckenstamm auswählen.');
+    const title = `Großer Preis von ${track.countryRecord?.name || track.country}`;
+    const circuit = track.name;
     const date = String(req.body.date || '').trim();
-    if (!title || !date) throw new Error('Rennen und Datum sind Pflichtfelder.');
-    const time = extractTime(req.body.time, extractTime(league.raceTime));
+    if (!date) throw new Error('Datum ist ein Pflichtfeld.');
+    const sortOrder = Number(req.body.sortOrder);
+    if (!Number.isInteger(sortOrder) || sortOrder < 1) throw new Error('Die Rennen-Nr. muss größer als 0 sein.');
+    const duplicateRound = await RaceEvent.findOne({ where: { SeasonId: season.id, sortOrder } });
+    if (duplicateRound) throw new Error(`Rennen Nr. ${sortOrder} ist in dieser Saison bereits vergeben.`);
+    const time = extractTime(league.raceTime);
     const startsAt = new Date(`${date}T${time}:00`);
     if (Number.isNaN(startsAt.getTime())) throw new Error('Datum oder Startzeit ist ungültig.');
     const event = await RaceEvent.create({
-      SeasonId: season.id, LeagueId: league.id, title, circuit, startsAt,
-      durationMinutes: Number(req.body.durationMinutes || 120),
-      isPublished: season.status === 'active', isTestDay: req.body.isTestDay === 'on',
-      sortOrder: Number(req.body.sortOrder || 0)
+      SeasonId: season.id, LeagueId: league.id, F1TrackId: track.id, title, circuit, startsAt,
+      durationMinutes: null,
+      isPublished: season.status === 'active' && season.isPublished, isTestDay: req.body.isTestDay === 'on',
+      sortOrder
     });
     await syncSeriesCalendarEvent(event);
     if (season.leagueType === 'f1' && req.body.hasSprint === 'on') {
@@ -163,6 +183,112 @@ exports.assignF1Cars = async (req, res) => {
     req.session.flash = { type: 'error', message: error.message };
   }
   res.redirect(setupRedirect({ league: league?.id, season: season?.id }));
+};
+
+exports.assignDrivers = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: 'f1' } }) : null;
+  try {
+    if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
+    const ids = [...new Set([].concat(req.body.driverIds || []).map(Number).filter(Number.isInteger))].slice(0, 40);
+    if (!ids.length) throw new Error('Bitte mindestens einen Fahrer auswählen.');
+    const validDrivers = await Driver.findAll({ where: { id: { [Op.in]: ids } } });
+    const eligible = validDrivers.filter((driver) => driver.roleF1Friday || driver.roleF1Saturday || driver.roleF1Sunday || driver.roleFormerF1);
+    if (eligible.length !== ids.length) throw new Error('Mindestens ein Fahrer besitzt keinen zulässigen Formel-1-Rang.');
+    await sequelize.transaction(async (transaction) => {
+      await SeasonLineupEntry.destroy({ where: { SeasonId: season.id, DriverId: { [Op.notIn]: ids } }, transaction });
+      await SeasonDriver.destroy({ where: { SeasonId: season.id }, transaction });
+      await SeasonDriver.bulkCreate(ids.map((DriverId, index) => ({ SeasonId: season.id, DriverId, sortOrder: index })), { transaction });
+    });
+    req.session.flash = { type: 'success', message: `${ids.length} Fahrer wurden für ${season.name} übernommen.` };
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+  }
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id }));
+};
+
+exports.assignTeams = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: 'f1' } }) : null;
+  try {
+    if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
+    const tokens = [...new Set([].concat(req.body.teamTokens || []).filter(Boolean))];
+    if (!tokens.length || tokens.length > 11) throw new Error('Bitte zwischen 1 und maximal 11 Teams auswählen.');
+    const sources = (await Promise.all(tokens.map(resolveTeamToken))).filter(Boolean);
+    if (sources.length !== tokens.length) throw new Error('Mindestens ein ausgewähltes Team ist ungültig.');
+    await sequelize.transaction(async (transaction) => {
+      await SeasonLineupEntry.update({ SeasonTeamId: null, roleType: 'reserve' }, { where: { SeasonId: season.id }, transaction });
+      await SeasonTeam.destroy({ where: { SeasonId: season.id }, transaction });
+      await SeasonTeam.bulkCreate(sources.map((source, index) => ({
+        SeasonId: season.id, sourceType: source.sourceType, sourceId: source.sourceId,
+        name: source.name, accentColor: source.accentColor || '#6ef2f2', logoPath: source.logoPath || null, sortOrder: index
+      })), { transaction });
+    });
+    req.session.flash = { type: 'success', message: `${sources.length} Saisonteams wurden gespeichert.` };
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+  }
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id }));
+};
+
+exports.assignLineup = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: 'f1' } }) : null;
+  try {
+    if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
+    const [memberships, teams] = await Promise.all([
+      SeasonDriver.findAll({ where: { SeasonId: season.id } }),
+      SeasonTeam.findAll({ where: { SeasonId: season.id } })
+    ]);
+    const allowedDrivers = new Set(memberships.map((row) => row.DriverId));
+    const allowedTeams = new Set(teams.map((row) => row.id));
+    const assignments = [];
+    const usedDrivers = new Set();
+    const duplicateDrivers = new Set();
+    Object.entries(req.body.lineup || {}).forEach(([teamId, rawIds]) => {
+      const SeasonTeamId = Number(teamId);
+      if (!allowedTeams.has(SeasonTeamId)) return;
+      [].concat(rawIds || []).map(Number).filter(Number.isInteger).forEach((DriverId) => {
+        if (!allowedDrivers.has(DriverId)) return;
+        if (usedDrivers.has(DriverId)) { duplicateDrivers.add(DriverId); return; }
+        usedDrivers.add(DriverId);
+        assignments.push({ SeasonId: season.id, SeasonTeamId, DriverId, roleType: 'regular', sortOrder: assignments.length });
+      });
+    });
+    if (duplicateDrivers.size) throw new Error('Ein Fahrer darf im Line-up nur einem Team zugeordnet werden. Bitte doppelte Auswahl entfernen.');
+    if (!assignments.length) throw new Error('Bitte mindestens einen Fahrer einem Team zuordnen.');
+    const reserves = [...allowedDrivers].filter((DriverId) => !usedDrivers.has(DriverId)).map((DriverId, index) => ({
+      SeasonId: season.id, SeasonTeamId: null, DriverId, roleType: 'reserve', sortOrder: assignments.length + index
+    }));
+    await sequelize.transaction(async (transaction) => {
+      await SeasonLineupEntry.destroy({ where: { SeasonId: season.id }, transaction });
+      await SeasonLineupEntry.bulkCreate([...assignments, ...reserves], { transaction });
+    });
+    req.session.flash = { type: 'success', message: `Line-up gespeichert: ${assignments.length} Stammfahrer und ${reserves.length} verfügbare Ersatzfahrer.` };
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+  }
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id }));
+};
+
+exports.finish = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: 'f1' } }) : null;
+  try {
+    if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
+    const [calendar, drivers, teams, lineup] = await Promise.all([
+      RaceEvent.count({ where: { SeasonId: season.id } }), SeasonDriver.count({ where: { SeasonId: season.id } }),
+      SeasonTeam.count({ where: { SeasonId: season.id } }), SeasonLineupEntry.count({ where: { SeasonId: season.id, roleType: 'regular' } })
+    ]);
+    if (!calendar || !season.PointsSchemeId || !drivers || !teams || !lineup) throw new Error('Der Assistent ist noch nicht vollständig. Bitte alle acht Schritte abschließen.');
+    await season.update({ isPublished: true });
+    if (season.status === 'active') await activateSeason(season);
+    req.session.flash = { type: 'success', message: `${season.name} ist vollständig eingerichtet und im Frontend verfügbar.` };
+    return res.redirect(`/admin/season-manager?league=${league.id}`);
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+    return res.redirect(setupRedirect({ league: league?.id, season: season?.id }));
+  }
 };
 
 module.exports.loadData = loadData;
