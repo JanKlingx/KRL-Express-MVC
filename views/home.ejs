@@ -24,7 +24,7 @@
     <div class="section-heading"><span>FÜR JEDEN RENNSTIL</span><h2>UNSERE LIGEN</h2></div>
     <div class="league-grid">
       <% leagues.forEach(league => { const href = league.slug === 'lmu' ? '/lmu' : league.type === 'f1' ? `/f1/${league.slug}` : league.slug === 'wettkampf' ? '/wettkampf-der-ligen' : '/endurance'; %>
-        <article class="league-card" style="--accent:<%= league.accentColor %>"><% if (league.logoPath) { %><img class="league-card-logo" src="<%= league.logoPath %>" alt="Logo <%= league.name %>"><% } %><div class="league-badge"><%= league.type.toUpperCase() %></div><h3><%= league.name %></h3><p><%= league.description %></p><span><%= league.raceDay || 'Infos folgen' %> <%= league.raceTime || '' %></span><a href="<%= href %>">Liga entdecken →</a></article>
+        <article class="league-card" style="--accent:<%= league.accentColor %>"><% if (league.logoPath) { %><img class="league-card-logo" src="<%= league.logoPath %>" alt="Logo <%= league.name %>"><% } %><div class="league-badge"><%= league.type.toUpperCase() %></div><h3><%= league.name %> <% if (isAdmin) { %><a class="admin-inline-action" href="/admin/leagues/<%= league.id %>/edit" aria-label="<%= league.name %> bearbeiten">✎</a><% } %></h3><p><%= league.description %></p><span><%= league.raceDay || 'Infos folgen' %> <%= league.raceTime || '' %></span><a href="<%= href %>">Liga entdecken →</a></article>
       <% }) %>
     </div>
   </div>
@@ -32,7 +32,7 @@
 
 <section class="section stats-section">
   <div class="container stats-grid">
-    <% statistics.forEach(stat => { %><article><span><%= stat.icon %></span><strong><%= stat.value %></strong><small><%= stat.label %></small></article><% }) %>
+    <% statistics.forEach(stat => { %><article><span><%= stat.icon %></span><strong><%= stat.value %></strong><small><%= stat.label %></small><% if (isAdmin) { %><a class="admin-inline-action" href="/admin/statistics/<%= stat.id %>/edit" aria-label="<%= stat.label %> bearbeiten">✎</a><% } %></article><% }) %>
   </div>
 </section>
 
@@ -43,7 +43,7 @@
   </div>
 
   <% krlTeams.forEach(team => { %>
-    <div class="team-group">
+    <div class="team-group" style="--team-color:<%= team.accentColor %>">
       <h3><%= team.name %> <% if (isAdmin) { %><a class="admin-inline-action" href="/admin/krlTeams/<%= team.id %>/edit" aria-label="<%= team.name %> bearbeiten">✎</a><form class="admin-inline-form" method="post" action="/admin/krlTeams/<%= team.id %>?_method=DELETE" data-confirm="Team wirklich löschen?"><button type="submit" aria-label="<%= team.name %> löschen">×</button></form><% } %></h3>
 
       <div class="people-grid">

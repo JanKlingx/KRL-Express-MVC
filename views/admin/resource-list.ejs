@@ -38,6 +38,15 @@
       </form>
     <% } %>
 
+    <% if (config.filters?.length) { %>
+      <form class="admin-filter" method="get">
+        <% config.filters.forEach((filter) => { %><label><%= filter.label %>
+          <select name="<%= filter.name %>" data-auto-submit><option value="">Alle</option><% filter.choices.forEach(([value, label]) => { %><option value="<%= value %>" <%= selectedFilters?.[filter.name] === String(value) ? 'selected' : '' %>><%= label %></option><% }) %></select>
+        </label><% }) %>
+        <button class="button button-small" type="submit">Filtern</button>
+      </form>
+    <% } %>
+
     <% if (bulkEnabled) { %>
       <form id="bulk-delete-form" method="post" action="<%= adminBasePath %>/<%= resource %>/bulk?_method=DELETE" data-confirm="Die ausgewählten Einträge wirklich löschen? Verknüpfte Zuordnungen können dabei ebenfalls entfernt werden."></form>
       <div class="bulk-actions" data-bulk-actions><label><input type="checkbox" data-bulk-select-all> Alle sichtbaren auswählen</label><span><strong data-bulk-count>0</strong> ausgewählt</span><button class="button button-small bulk-delete-button" type="submit" form="bulk-delete-form" disabled>Auswahl löschen</button></div>
@@ -57,6 +66,16 @@
               <% if (entry.discipline === 'f1') { %><section><h3>Sprintrennen</h3><% if (!sprintPoints.length) { %><p>Noch keine Sprintpunkte.</p><% } else { %><ol><% sprintPoints.forEach((allocation) => { %><li><span>Platz <%= allocation.position %></span><strong><%= allocation.points %> P</strong><a href="<%= adminBasePath %>/pointAllocations/<%= allocation.id %>/edit" aria-label="Sprintplatz <%= allocation.position %> bearbeiten">✎</a><form method="post" action="<%= adminBasePath %>/pointAllocations/<%= allocation.id %>?_method=DELETE" data-confirm="Diesen Sprint-Punktewert löschen?"><button type="submit" aria-label="Sprintplatz <%= allocation.position %> löschen">×</button></form></li><% }) %></ol><% } %></section><% } %>
             </div>
             <footer><a class="button button-small" href="<%= adminBasePath %>/pointAllocations/new?scheme=<%= entry.id %>">+ Punkte je Platz</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Dieses Punktesystem mit allen zugehörigen Werten wirklich löschen?"><button type="submit">System löschen</button></form></footer>
+          </article>
+        <% }) %>
+      </div>
+    <% } else if (config.cardView === 'historic-f1-teams') { %>
+      <div class="historic-team-grid">
+        <% entries.forEach((entry) => { const baseTeam = (fieldOptions.BaseTeamId || []).find((option) => option.value === String(entry.BaseTeamId)); %>
+          <article class="historic-team-card" style="--team-color:<%= entry.accentColor %>">
+            <% if (entry.logoPath) { %><img src="<%= entry.logoPath %>" alt="Logo <%= entry.name %>"><% } %>
+            <div><span>HISTORISCHES TEAM</span><h2><%= entry.name %></h2><p>Verknüpft mit <strong><%= baseTeam?.label || 'aktuellem Team' %></strong></p></div>
+            <footer><a href="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>/edit">Bearbeiten</a><form method="post" action="<%= adminBasePath %>/<%= resource %>/<%= entry.id %>?_method=DELETE" data-confirm="Historisches Team wirklich löschen?"><button type="submit">Löschen</button></form></footer>
           </article>
         <% }) %>
       </div>

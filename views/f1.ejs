@@ -7,12 +7,13 @@
       <h1><%= league.name %></h1>
       <p><%= league.description %></p>
       <div class="facts"><span>Renntag <strong><%= league.raceDay %></strong></span><span>Start <strong><%= league.raceTime %></strong></span><span>Saison <strong><%= league.currentSeason %></strong></span></div>
+      <div class="league-resource-links"><a href="/formel-1/regelwerk">Regelwerk</a><a href="/formel-1/race-director-notes">Race-Director Notes</a></div>
     </div>
   </section>
   <section class="season-switcher container"><form method="get"><label for="season-select">Saison auswählen</label><select id="season-select" name="season"><%- include('partials/season-options', { seasons, selectedSeason }) %></select><noscript><button class="button button-small" type="submit">Saison laden</button></noscript></form></section>
-  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/team-rosters/f1?league=<%= league.id %>">✎ Teamaufstellungen</a><a href="/admin/f1-race-lineup?league=<%= league.id %>">✎ Ersatzfahrer</a><a href="/admin/current-season-progress?league=<%= league.id %>">✎ Aktueller Saisonverlauf</a><a href="/admin/season-calendar?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Rennkalender</a></div><% } %>
+  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/season-setup?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Teams & Fahrer</a><a href="/admin/race-weekend/f1?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Rennwochenende</a><a href="/admin/season-manager?league=<%= league.id %>">✎ Saison</a><a href="/admin/season-calendar?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Rennkalender</a></div><% } %>
 
-  <% if (selectedSeason?.status === 'active') { %><section class="section container">
+  <% if (selectedSeason) { %><section class="section container">
     <div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>TEAMS & FAHRER</h2></div>
     <div class="f1-team-grid"><% teams.forEach((team) => { %><article class="f1-team-card" style="--team-color:<%= team.accentColor || '#6ef2f2' %>" aria-label="<%= team.name %>"><div class="f1-team-watermark" aria-hidden="true"><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt=""><% } else { %><strong><%= team.name %></strong><% } %></div><ul aria-label="Fahrer von <%= team.name %>"><% team.drivers.forEach((driver) => { %><li><strong><%= driver.name %></strong></li><% }) %></ul></article><% }) %></div>
     <% if (!teams.length) { %><div class="empty-state">Noch keine Teams für diese Liga angelegt.</div><% } %>

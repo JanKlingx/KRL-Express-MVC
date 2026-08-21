@@ -1,0 +1,31 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container">
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">UNSER TEAM · PLANUNGSGRUPPEN</span><h1>MITGLIEDER ZUORDNEN</h1><p class="admin-intro">Mitglieder suchen, sammeln oder direkt per Drag-and-Drop in eine Planungsgruppe ziehen.</p></div><a class="button" href="/admin/krlTeams/new">+ Team anlegen</a></div>
+
+  <div class="fiori-stepbar"><span class="active">1 · Mitglieder wählen</span><span>2 · Team zuordnen</span><span>3 · Rolle bestätigen</span></div>
+  <div class="team-planning-layout" data-team-planning>
+    <aside class="team-member-pool">
+      <label>Person suchen<input type="search" placeholder="Name eingeben …" data-member-search></label>
+      <form method="post" action="/admin/krl-team-planning/assign" data-bulk-team-form>
+        <div class="planning-toolbar"><strong data-selection-count>0 ausgewählt</strong><button type="button" class="button-link" data-clear-selection>Auswahl leeren</button></div>
+        <div class="member-choice-list">
+          <% drivers.forEach((driver) => { %><label class="member-choice" draggable="true" data-driver-card data-driver-id="<%= driver.id %>" data-search="<%= driver.name.toLowerCase() %>"><input type="checkbox" name="driverIds" value="<%= driver.id %>"><span><strong><%= driver.name %></strong><small>#<%= driver.id %> · <%= driver.platform %></small></span></label><% }) %>
+        </div>
+        <label>Zielteam<select name="KrlTeamId" required><option value="">Team auswählen …</option><% teams.forEach((team) => { %><option value="<%= team.id %>" <%= selectedTeamId === team.id ? 'selected' : '' %>><%= team.name %></option><% }) %></select></label>
+        <label>Rolle / Funktion<input name="roleName" value="Teammitglied" required></label>
+        <button class="button" type="submit">Gesammelt hinzufügen</button>
+      </form>
+    </aside>
+
+    <div class="planning-team-grid">
+      <% teams.forEach((team) => { %><article class="planning-team-card" style="--team-color:<%= team.accentColor %>" data-team-dropzone data-team-id="<%= team.id %>">
+        <header><div><span><%= team.isVisible ? 'IM FRONTEND SICHTBAR' : 'AUSGEBLENDET' %></span><h2><%= team.name %></h2></div><a href="/admin/krlTeams/<%= team.id %>/edit" aria-label="<%= team.name %> bearbeiten">✎</a></header>
+        <p class="drop-hint">Mitglied hier ablegen</p>
+        <div class="planning-assignment-list"><% team.assignments.forEach((assignment) => { %><div class="planning-assignment" draggable="true" data-assignment-id="<%= assignment.id %>"><span><strong><%= assignment.driver.name %></strong><small><%= assignment.roleName %></small></span><div><a href="/admin/krlTeamAssignments/<%= assignment.id %>/edit" aria-label="Bearbeiten">✎</a><form method="post" action="/admin/krl-team-planning/<%= assignment.id %>?_method=DELETE" data-confirm="Mitglied aus dem Team entfernen?"><button type="submit">×</button></form></div></div><% }) %></div>
+        <form method="post" action="/admin/krl-team-planning/assign" class="drop-submit-form" hidden><input name="KrlTeamId" value="<%= team.id %>"><input name="DriverId"><input name="roleName" value="Teammitglied"></form>
+        <form method="post" action="/admin/krl-team-planning/move/0" class="move-submit-form" hidden><input name="KrlTeamId" value="<%= team.id %>"></form>
+      </article><% }) %>
+    </div>
+  </div>
+</div></section>
+<%- include('../partials/footer') %>

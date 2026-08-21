@@ -497,6 +497,36 @@ async function prepareKrlAssignment(values, body, existingEntry) {
   if (duplicate && duplicate.id !== existingEntry?.id) throw new Error('Diese Fahrer-Rolle ist im Team bereits vorhanden.');
 }
 
+async function prepareKrlTeam(values, body, existingEntry) {
+  values.name = String(values.name || '').trim();
+  if (!values.name) throw new Error('Der Teamname ist erforderlich.');
+  if (!/^#[0-9a-f]{6}$/i.test(values.accentColor || '')) throw new Error('Bitte eine gültige Teamfarbe auswählen.');
+  if (existingEntry?.slug) values.slug = existingEntry.slug;
+  else {
+    const base = values.name.toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'team';
+    let slug = base;
+    let suffix = 2;
+    while (await models.KrlTeam.findOne({ where: { slug } })) { slug = `${base}-${suffix}`; suffix += 1; }
+    values.slug = slug;
+  }
+}
+
+async function prepareF1Track(values) {
+  const country = await models.Country.findByPk(values.CountryId);
+  if (!country) throw new Error('Bitte ein Land aus dem Länderstamm auswählen.');
+  values.country = country.name;
+  values.name = String(values.name || '').trim();
+  if (!values.name) throw new Error('Die Strecke ist ein Pflichtfeld.');
+}
+
+async function prepareHistoricF1Team(values) {
+  const baseTeam = await models.Team.findOne({ where: { id: Number(values.BaseTeamId), LeagueId: null, discipline: 'f1' } });
+  if (!baseTeam) throw new Error('Bitte ein aktuelles Formel-1-Team als Verknüpfung auswählen.');
+  values.name = String(values.name || '').trim();
+  if (!values.name) throw new Error('Der historische Teamname ist ein Pflichtfeld.');
+  if (!/^#[0-9a-f]{6}$/i.test(values.accentColor || '')) throw new Error('Bitte eine gültige Fahrzeugfarbe auswählen.');
+}
+
 module.exports = {
   statistics: {
     title: 'Startseiten-Statistiken', group: 'Frontend',
@@ -532,6 +562,17 @@ module.exports = {
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
     ]
   },
+  countries: {
+    title: 'Länderstamm', group: 'Liga-Stammdaten',
+    description: 'Länder mit Kontinent und Flagge pflegen. Die Flagge wird automatisch in Strecken und Rennkalender übernommen.',
+    model: models.Country, upload: { field: 'flagPath', label: 'Flagge', required: true },
+    filters: [{ name: 'continent', label: 'Nach Kontinent filtern', choices: [['Europa', 'Europa'], ['Asien', 'Asien'], ['Afrika', 'Afrika'], ['Nordamerika', 'Nordamerika'], ['Südamerika', 'Südamerika'], ['Ozeanien', 'Ozeanien']] }],
+    listFields: ['name', 'continent'],
+    fields: [
+      text('name', 'Name', true, { placeholder: 'Belgien' }),
+      select('continent', 'Kontinent', [['Europa', 'Europa'], ['Asien', 'Asien'], ['Afrika', 'Afrika'], ['Nordamerika', 'Nordamerika'], ['Südamerika', 'Südamerika'], ['Ozeanien', 'Ozeanien']], true)
+    ]
+  },
   pointsRules: {
     title: 'Punktetabelle', group: 'Stammdaten',
     description: 'Legacy-Punktetabelle für bestehende Installationen.', model: models.PointsRule, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints, hidden: true,
@@ -541,7 +582,7 @@ module.exports = {
     ]
   },
   pointsSchemes: {
-    title: 'Punktesysteme', group: 'Stammdaten',
+    title: 'Punktesysteme', group: 'Liga-Stammdaten',
     description: 'Punktesystem und zugehörige Punkte je Platz gemeinsam verwalten. Hauptrennen und F1-Sprints sind direkt am jeweiligen System aufgelistet.', model: models.PointsScheme,
     prepareValues: preparePointsScheme, prepareEntry: preparePointsSchemeForList, afterSave: recalculateAllPoints, afterRemove: recalculateAllPoints,
     cardView: 'points-schemes',
@@ -609,7 +650,7 @@ module.exports = {
     ]
   },
   drivers: {
-    title: 'Fahrer-Pflege', group: 'Stammdaten',
+    title: 'Fahrer-Pflege', group: 'Liga-Stammdaten',
     description: 'Zentrale Fahrer-Stammdaten. Gleiche Namen sind nach einer Warnung zulässig, weil die Fahrer-ID die Personen eindeutig trennt.', model: models.Driver,
     listFields: ['name', 'aliasesText', 'platform', 'nationality'],
     prepareValues: prepareDriver, prepareEntry: prepareDriverForForm, afterSave: syncF1Driver, beforeRemove: removeF1Driver,
@@ -666,24 +707,41 @@ module.exports = {
   f1CarProfiles: {
     title: 'Historische Formel-1-Teams', group: 'Formel 1 Stammdaten',
     description: 'Historischen Teamnamen, Farbe und Logo pflegen und dem heutigen Stammteam zuordnen, z. B. Renault → Alpine.', model: models.F1CarProfile,
-    upload: { field: 'logoPath', label: 'Fahrzeug-/Teamlogo' },
-    listFields: ['name', 'accentColor'],
+    upload: { field: 'logoPath', label: 'Fahrzeug-/Teamlogo' }, prepareValues: prepareHistoricF1Team,
+    listFields: ['BaseTeamId', 'name', 'accentColor'], cardView: 'historic-f1-teams',
     nextHref: '/admin/season-setup', nextLabel: 'Danach einer Saison zuweisen',
     fields: [
       relation('BaseTeamId', 'Zugehöriges aktuelles Formel-1-Team', models.Team, (row) => row.name, true, { where: { LeagueId: null, discipline: 'f1' } }),
       text('name', 'Historischer Teamname', true, { placeholder: 'Renault' }),
-      field('accentColor', 'Fahrzeugfarbe', 'color', true),
-      number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      field('accentColor', 'Fahrzeugfarbe', 'color', true)
     ]
   },
   f1Tracks: {
     title: 'F1-Strecken', group: 'Formel 1 Stammdaten',
-    description: 'Länder und Streckennamen einmalig pflegen. Im Rennkalender werden sie anschließend einfach ausgewählt.', model: models.F1Track,
-    listFields: ['country', 'name'],
+    description: 'Strecken einmalig pflegen. Land und Flagge kommen automatisch aus dem Länderstamm.', model: models.F1Track,
+    prepareValues: prepareF1Track, listFields: ['CountryId', 'name'],
     fields: [
-      text('country', 'Land', true, { placeholder: 'Belgien' }),
-      text('name', 'Streckenname', true, { placeholder: 'Spa-Francorchamps' }),
+      relation('CountryId', 'Land', models.Country, (row) => row.name, true),
+      text('name', 'Strecke', true, { placeholder: 'Spa-Francorchamps' })
+    ]
+  },
+  f1RuleSections: {
+    title: 'Formel-1-Regelwerk', group: 'Formel 1 Stammdaten',
+    description: 'Regelwerk und Strafenkatalog für Freitag, Samstag und Sonntag strukturiert veröffentlichen.', model: models.F1RuleSection,
+    listFields: ['sectionType', 'title', 'isPublished'],
+    fields: [
+      select('sectionType', 'Abschnitt', [['rule', 'Regelwerk'], ['penalty', 'Strafenkatalog']], true),
+      text('title', 'Überschrift', true), textarea('content', 'Inhalt', true), checkbox('isPublished', 'Im Frontend anzeigen'),
       number('sortOrder', 'Reihenfolge', false, { min: 0 })
+    ]
+  },
+  f1PenaltySettings: {
+    title: 'F1 Rennleitungs-Stammdaten', group: 'Formel 1 Stammdaten',
+    description: 'Strafpunktelimit für jede Formel-1-Liga festlegen.', model: models.F1PenaltySetting,
+    listFields: ['LeagueId', 'pointsLimit'],
+    fields: [
+      relation('LeagueId', 'Formel-1-Liga', models.League, (row) => row.name, true, { where: { type: 'f1' } }),
+      number('pointsLimit', 'Rennsperre ab Strafpunkten', true, { min: 1, step: 1 })
     ]
   },
   penaltyRules: {
@@ -884,11 +942,11 @@ module.exports = {
     ]
   },
   krlTeams: {
-    title: 'Teams erstellen', group: 'Unser-Team-Stammdaten',
-    description: 'Interne KRL-Teams anlegen; Fahrer-Rollen werden anschließend mit dem Plus-Bereich zugeordnet.', model: models.KrlTeam,
-    nextResource: 'krlTeamAssignments', nextLabel: '+ Fahrer-Rolle hinzufügen',
+    title: 'Teamstamm pflegen', group: 'Unser-Team-Stammdaten',
+    description: 'Planungsgruppen für „Unser Team“ mit Farbe und Frontend-Sichtbarkeit pflegen.', model: models.KrlTeam, prepareValues: prepareKrlTeam,
+    nextHref: '/admin/krl-team-planning', nextLabel: 'Mitglieder grafisch zuordnen',
     fields: [
-      text('name', 'Name', true), text('slug', 'Kurzname für URL', true), number('sortOrder', 'Reihenfolge', false, { min: 0 })
+      text('name', 'Name', true), field('accentColor', 'Farbe', 'color', true), checkbox('isVisible', 'Auf der Startseite anzeigen')
     ]
   },
   krlTeamAssignments: {

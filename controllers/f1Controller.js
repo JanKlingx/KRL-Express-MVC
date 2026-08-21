@@ -1,14 +1,15 @@
 const { League, TeamRoster, TeamRosterDriver, Season, GrandPrixResult, GrandPrixResultEntry, RaceEvent, SeasonF1CarAssignment } = require('../models');
 const { buildSeasonData } = require('../services/standings');
 const { sendCsv } = require('../services/csv');
+const { loadSeasonStructure } = require('../services/f1Season');
 
 async function loadLeagueData(slug, requestedSeasonId) {
   const league = await League.findOne({ where: { slug, type: 'f1' } });
   if (!league) return null;
-  const seasons = await Season.findAll({ where: { leagueType: 'f1', scopeSlug: slug }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
+  const seasons = await Season.findAll({ where: { leagueType: 'f1', scopeSlug: slug, isPublished: true }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const where = selectedSeason ? { LeagueId: league.id, SeasonId: selectedSeason.id, discipline: 'f1' } : { LeagueId: league.id, season: league.currentSeason };
-  const [rosters, gpResults, activeCalendar, seasonCarAssignments] = await Promise.all([
+  const [rosters, gpResults, activeCalendar, seasonCarAssignments, seasonStructure] = await Promise.all([
     TeamRoster.findAll({
       where: { LeagueId: league.id, discipline: 'f1' },
       include: [{ association: 'team' }, { association: 'assignments', include: [{ association: 'driver', include: [{ association: 'aliases' }] }] }],
@@ -19,12 +20,13 @@ async function loadLeagueData(slug, requestedSeasonId) {
       include: [{ model: GrandPrixResultEntry, as: 'entries' }],
       order: [['sortOrder', 'ASC'], ['raceType', 'DESC'], ['raceDate', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'sortOrder', 'ASC'], [{ model: GrandPrixResultEntry, as: 'entries' }, 'position', 'ASC']]
     }),
-    selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id, isPublished: true }, order: [['startsAt', 'ASC']] }) : [],
-    selectedSeason ? SeasonF1CarAssignment.findAll({ where: { SeasonId: selectedSeason.id }, include: [{ association: 'carProfile' }] }) : []
+    selectedSeason ? RaceEvent.findAll({ where: { LeagueId: league.id, SeasonId: selectedSeason.id }, include: [{ association: 'track', include: [{ association: 'countryRecord' }] }], order: [['sortOrder', 'ASC'], ['startsAt', 'ASC']] }) : [],
+    selectedSeason ? SeasonF1CarAssignment.findAll({ where: { SeasonId: selectedSeason.id }, include: [{ association: 'carProfile' }] }) : [],
+    loadSeasonStructure(selectedSeason?.id)
   ]);
   const carProfileByTeam = new Map(seasonCarAssignments.map((assignment) => [assignment.TeamId, assignment.carProfile]));
   const driverMap = new Map();
-  const teams = rosters.map((roster) => {
+  const legacyTeams = rosters.map((roster) => {
     const carProfile = carProfileByTeam.get(roster.team.id);
     return {
       id: roster.team.id,
@@ -38,6 +40,10 @@ async function loadLeagueData(slug, requestedSeasonId) {
       .map((assignment) => ({ ...assignment.driver.toJSON(), rosterRole: assignment.roleName }))
     };
   }).filter((team) => team.drivers.length >= 2);
+  const teams = seasonStructure.teams.length ? seasonStructure.teams.map((team) => ({
+    id: team.id, name: team.name, accentColor: team.accentColor, logoPath: team.logoPath,
+    drivers: team.drivers.filter((driver) => driver.roleType === 'regular')
+  })) : legacyTeams;
   teams.forEach((team) => team.drivers.forEach((driver) => {
     if (!driverMap.has(driver.id)) driverMap.set(driver.id, { ...driver, team: { id: team.id, name: team.name, logoPath: team.logoPath } });
   }));

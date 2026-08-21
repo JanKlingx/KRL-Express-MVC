@@ -41,6 +41,7 @@ const contentSecurityDirectives = {
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
   imgSrc: ["'self'", 'data:'],
   connectSrc: ["'self'"],
+  frameSrc: ["'self'"],
   objectSrc: ["'none'"],
   baseUri: ["'self'"],
   frameAncestors: ["'none'"],
@@ -84,7 +85,7 @@ app.use(
 // Upload-Dateien werden absichtlich nicht versioniert. Alte Datenbankeinträge
 // dürfen deshalb nicht die allgemeine Fehlerseite auslösen, wenn die Datei
 // lokal nicht (mehr) vorhanden ist.
-app.use('/uploads', (req, res) => res.status(404).type('text/plain').send('Bild nicht gefunden.'));
+app.use('/uploads', (req, res) => res.status(404).type('text/plain').send('Upload-Datei nicht gefunden.'));
 
 app.use(
   express.static(path.join(__dirname, 'public'))

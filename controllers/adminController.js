@@ -88,25 +88,28 @@ exports.dashboard = async (req, res) => {
     return result;
   }, []);
   const progressModules = [
-    ['seasonManager', { group: 'Stammdaten', href: '/admin/season-manager', title: 'Saisons verwalten / löschen', description: 'Liga wählen, Saison bearbeiten, im Frontend ausblenden oder sicher mit Kalender und Ergebnissen löschen.' }],
-    ['seasonCalendar', { group: 'Stammdaten', href: '/admin/season-calendar', title: 'Rennkalender bearbeiten / löschen', description: 'Erst Liga, dann Saison: Termine inklusive Sprint und Testtag klar bearbeiten.' }],
+    ['krlTeamPlanning', { group: 'Unser-Team-Stammdaten', href: '/admin/krl-team-planning', title: 'Mitglieder in Teams pflegen', description: 'Mitgliedersuche, Sammelauswahl und Drag-and-Drop-Zuordnung zu Planungsgruppen.' }],
+    ['seasonManager', { group: 'Formel 1 Operativer Bereich', href: '/admin/season-manager', title: 'Saison bearbeiten / löschen', description: 'F1-Liga wählen, Saison bearbeiten, im Frontend ausblenden oder vollständig löschen.' }],
+    ['seasonCalendar', { group: 'Formel 1 Operativer Bereich', href: '/admin/season-calendar', title: 'F1 Rennkalender bearbeiten / löschen', description: 'Erst Liga, dann Saison: Termine aus dem Streckenstamm grafisch bearbeiten.' }],
     ['tableHub', { group: 'Frontend', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
-    ['f1Setup', { group: 'KRL F1 LIGA Stammdaten', href: '/admin/season-setup', title: 'Saison-Assistent F1', description: 'Spiel, Saison, Punktesystem, Kalender, Teams und Line-up schrittweise einrichten.' }],
-    ['f1Rosters', { group: 'KRL F1 LIGA Stammdaten', href: '/admin/team-rosters/f1', title: 'F1-Fahrerfeld', description: 'Teams der Liga wählen und ihre Fahrer grafisch zuordnen.' }],
+    ['f1Setup', { group: 'Formel 1 Operativer Bereich', href: '/admin/season-setup', title: 'Saison erstellen', description: 'Acht Schritte: Liga, Saison, Kalender, Punkte, Fahrer, Teams, Line-up und Abschluss.' }],
+    ['f1Rules', { group: 'Formel 1 Stammdaten', href: '/admin/f1RuleSections', title: 'Regelwerk & Strafenkatalog', description: 'Strukturierte Regeln für die Freitags-, Samstags- und Sonntagsliga.' }],
+    ['f1Notes', { group: 'Formel 1 Stammdaten', href: '/admin/race-director-notes', title: 'Race-Director Notes', description: 'PDFs hochladen, neueste Ausgabe hervorheben und das Archiv verwalten.' }],
+    ['f1Rosters', { group: 'Formel 1 Operativer Bereich', href: '/admin/team-rosters/f1', title: 'F1-Fahrerfeld', description: 'Bestehende Liga-Fahrerfelder unverändert verwalten.' }],
     ['lmuRosters', { group: 'LMU Stammdaten', href: '/admin/team-rosters/lmu', title: 'LMU-Fahrerfeld', description: 'Teams auswählen; die zugeordneten LMU-Fahrer erscheinen klar pro Team.' }],
-    ['f1Weekend', { group: 'Operative Prozesse · Formel 1', href: '/admin/race-weekend/f1', title: 'Rennwochenende F1', description: 'Schritt für Schritt: Aufstellung, Anwesenheit/Strafen und Ergebnisse.' }],
-    ['f1SeasonProgress', { group: 'Operative Prozesse · Formel 1', href: '/admin/race-editor', title: 'Saisonverlauf bearbeiten', description: 'Liga, Saison und Rennen wählen; historische Ergebnisse in Tabellenform pflegen.' }],
+    ['f1Weekend', { group: 'Formel 1 Operativer Bereich', href: '/admin/race-weekend/f1', title: 'Rennwochenende Formel 1', description: 'Schritt für Schritt: Aufstellung, Anwesenheit/Strafen und Ergebnisse.' }],
+    ['f1SeasonProgress', { group: 'Formel 1 Operativer Bereich', href: '/admin/race-editor', title: 'Historischen Saisonverlauf pflegen', description: 'Liga, historische Saison und Rennen wählen; Ergebnisse tabellarisch pflegen.' }],
     ['wdlWeekend', { group: 'Operative Prozesse · WDL', href: '/admin/race-weekend/wdl', title: 'Rennwochenende WDL', description: 'Ligen kontrollieren, Anwesenheit dokumentieren und Ergebnisse eintragen.' }],
     ['lmuWeekend', { group: 'Operative Prozesse · LMU', href: '/admin/race-weekend/lmu', title: 'Rennwochenende LMU', description: 'Schritt für Schritt mit LMU-Fahrern, Autos und Ergebnissen.' }],
     ['lmuSeasonProgress', { group: 'Operative Prozesse · LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf LMU', description: 'Rennen und Ergebnisse tabellarisch und saisonbezogen pflegen.' }],
-    ['penaltyLedger', { group: 'Rennleitungsstammdaten', href: '/admin/penalty-ledger', title: 'Rennleitungstabelle / Strafkartei', description: 'Strafpunkte, Ablauf nach einem Jahr und Rennsperren zentral kontrollieren.' }]
+    ['penaltyLedger', { group: 'Formel 1 Operativer Bereich', href: '/admin/penalty-ledger', title: 'Formel 1 Strafkartei', description: 'Alle drei Ligen, Strafpunkte, Jahresablauf und rennbezogene Sperren.' }]
   ];
   progressModules.forEach(([key, config]) => {
     const group = groups.find((entry) => entry.name === config.group);
     if (group) group.modules.unshift([key, config]);
     else groups.push({ name: config.group, modules: [[key, config]] });
   });
-  const groupOrder = ['Frontend', 'Unser-Team-Stammdaten', 'KRL Icons', 'Stammdaten', 'Formel 1 Stammdaten', 'KRL F1 LIGA Stammdaten', 'LMU Stammdaten', 'Rennleitungsstammdaten', 'Operative Prozesse · Formel 1', 'Operative Prozesse · WDL', 'Operative Prozesse · LMU', 'Startseite', 'Teams', 'KRL Icons'];
+  const groupOrder = ['Frontend', 'Unser-Team-Stammdaten', 'KRL Icons', 'Liga-Stammdaten', 'Stammdaten', 'Formel 1 Stammdaten', 'Formel 1 Operativer Bereich', 'LMU Stammdaten', 'Rennleitungsstammdaten', 'Operative Prozesse · WDL', 'Operative Prozesse · LMU', 'Startseite', 'Teams'];
   groups.sort((left, right) => groupOrder.indexOf(left.name) - groupOrder.indexOf(right.name));
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',
@@ -124,6 +127,14 @@ exports.list = async (req, res, next) => {
   if (!config) return next();
   const where = config.getListWhere ? await config.getListWhere() : {};
   if (config.filterByLeague && req.query.league) where.LeagueId = Number(req.query.league);
+  const selectedFilters = {};
+  for (const filter of config.filters || []) {
+    const allowed = new Set(filter.choices.map(([value]) => String(value)));
+    if (allowed.has(String(req.query[filter.name] || ''))) {
+      where[filter.name] = req.query[filter.name];
+      selectedFilters[filter.name] = String(req.query[filter.name]);
+    }
+  }
   const selectedRank = config.rankFilters?.find((rank) => rank.value === req.query.rank);
   if (selectedRank) {
     const existingAnd = where[Op.and];
@@ -151,6 +162,7 @@ exports.list = async (req, res, next) => {
     selectedLeague: req.query.league || '',
     leagueOptions: config.filterByLeague ? await getFieldOptions({ fields: [config.fields.find((field) => field.name === 'LeagueId')] }).then((options) => options.LeagueId) : [],
     selectedRank: selectedRank?.value || '',
+    selectedFilters,
     rankGroups
   });
 };

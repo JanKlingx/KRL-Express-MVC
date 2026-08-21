@@ -157,15 +157,18 @@
   const raceSelector = document.querySelector('.race-selector');
   if (raceSelector) {
     raceSelector.querySelector('[name="league"]')?.addEventListener('change', () => {
-      raceSelector.elements.season.value = '';
-      raceSelector.elements.race.value = '';
+      if (raceSelector.elements.season) raceSelector.elements.season.value = '';
+      if (raceSelector.elements.race) raceSelector.elements.race.value = '';
+      if (raceSelector.elements.event) raceSelector.elements.event.value = '';
       raceSelector.requestSubmit();
     });
     raceSelector.querySelector('[name="season"]')?.addEventListener('change', () => {
-      raceSelector.elements.race.value = '';
+      if (raceSelector.elements.race) raceSelector.elements.race.value = '';
+      if (raceSelector.elements.event) raceSelector.elements.event.value = '';
       raceSelector.requestSubmit();
     });
     raceSelector.querySelector('[name="race"]')?.addEventListener('change', () => raceSelector.requestSubmit());
+    raceSelector.querySelector('[name="event"]')?.addEventListener('change', () => raceSelector.requestSubmit());
   }
 
   const svgNamespace = 'http://www.w3.org/2000/svg';
@@ -378,4 +381,86 @@
     update();
     setInterval(update, 60000);
   }
+
+  document.querySelectorAll('[data-team-planning]').forEach((planning) => {
+    const search = planning.querySelector('[data-member-search]');
+    const driverCards = [...planning.querySelectorAll('[data-driver-card]')];
+    const selectedCount = planning.querySelector('[data-selection-count]');
+    const updateSelected = () => {
+      selectedCount.textContent = `${driverCards.filter((card) => card.querySelector('input').checked).length} ausgewählt`;
+    };
+    search?.addEventListener('input', () => {
+      const term = search.value.trim().toLocaleLowerCase('de-DE');
+      driverCards.forEach((card) => { card.hidden = !card.dataset.search.includes(term); });
+    });
+    driverCards.forEach((card) => {
+      card.querySelector('input').addEventListener('change', updateSelected);
+      card.addEventListener('dragstart', (event) => {
+        event.dataTransfer.setData('application/x-krl-driver', card.dataset.driverId);
+        event.dataTransfer.effectAllowed = 'move';
+      });
+    });
+    planning.querySelector('[data-clear-selection]')?.addEventListener('click', () => {
+      driverCards.forEach((card) => { card.querySelector('input').checked = false; });
+      updateSelected();
+    });
+    planning.querySelectorAll('[data-assignment-id]').forEach((assignment) => assignment.addEventListener('dragstart', (event) => {
+      event.dataTransfer.setData('application/x-krl-assignment', assignment.dataset.assignmentId);
+      event.dataTransfer.effectAllowed = 'move';
+    }));
+    planning.querySelectorAll('[data-team-dropzone]').forEach((team) => {
+      team.addEventListener('dragover', (event) => { event.preventDefault(); team.classList.add('is-dragging'); });
+      team.addEventListener('dragleave', () => team.classList.remove('is-dragging'));
+      team.addEventListener('drop', (event) => {
+        event.preventDefault();
+        team.classList.remove('is-dragging');
+        const assignmentId = event.dataTransfer.getData('application/x-krl-assignment');
+        const driverId = event.dataTransfer.getData('application/x-krl-driver');
+        if (assignmentId) {
+          const form = team.querySelector('.move-submit-form');
+          form.action = `/admin/krl-team-planning/move/${assignmentId}`;
+          form.requestSubmit();
+        } else if (driverId) {
+          const form = team.querySelector('.drop-submit-form');
+          form.elements.DriverId.value = driverId;
+          form.requestSubmit();
+        }
+      });
+    });
+    updateSelected();
+  });
+
+  document.querySelectorAll('[data-sortable-calendar]').forEach((calendar) => {
+    let dragged = null;
+    const sync = () => {
+      const form = document.querySelector('[data-calendar-reorder-form]');
+      const target = form?.querySelector('[data-calendar-order-inputs]');
+      if (!target) return;
+      target.replaceChildren(...[...calendar.querySelectorAll('[data-calendar-event]')].map((card, index) => {
+        card.querySelector('.calendar-drag-handle').textContent = `↕ R${index + 1}`;
+        const input = document.createElement('input');
+        input.type = 'hidden'; input.name = 'eventIds'; input.value = card.dataset.calendarEvent;
+        return input;
+      }));
+    };
+    calendar.querySelectorAll('[data-calendar-event]').forEach((card) => {
+      card.addEventListener('dragstart', () => { dragged = card; card.classList.add('is-dragging'); });
+      card.addEventListener('dragend', () => { card.classList.remove('is-dragging'); dragged = null; sync(); });
+      card.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        if (!dragged || dragged === card) return;
+        const box = card.getBoundingClientRect();
+        card.parentElement.insertBefore(dragged, event.clientY < box.top + box.height / 2 ? card : card.nextSibling);
+      });
+    });
+  });
+
+  document.querySelectorAll('.season-lineup-grid').forEach((grid) => {
+    grid.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => checkbox.addEventListener('change', () => {
+      if (!checkbox.checked) return;
+      grid.querySelectorAll(`input[type="checkbox"][value="${CSS.escape(checkbox.value)}"]`).forEach((candidate) => {
+        if (candidate !== checkbox) candidate.checked = false;
+      });
+    }));
+  });
 })();
