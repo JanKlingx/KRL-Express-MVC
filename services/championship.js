@@ -251,8 +251,8 @@ async function syncSeriesCalendarEvent(event) {
       sortOrder: event.sortOrder
     }
   });
-  await race.update({ title: event.title, raceDate: event.startsAt, discipline, raceType: 'main', isHistorical: season.status === 'historical', sortOrder: event.sortOrder });
-  await event.update({ GrandPrixResultId: race.id, isPublished: season.status === 'active' });
+  await race.update({ title: event.title, circuit: event.circuit, raceDate: event.startsAt, discipline, raceType: 'main', isHistorical: season.status === 'historical', sortOrder: event.sortOrder });
+  await event.update({ GrandPrixResultId: race.id, isPublished: season.status === 'active' && season.isPublished });
   if (discipline === 'wdl') await ensureWdlEntries(race);
   if (discipline === 'lmu') await ensureLmuEntries(race);
 }

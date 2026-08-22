@@ -6,14 +6,15 @@ const {
 } = require('../models');
 const { activateSeason, syncSeriesCalendarEvent } = require('../services/championship');
 const { loadEligibleSeasonDrivers, loadSeasonStructure, resolveTeamToken } = require('../services/f1Season');
+const seasonProgress = require('../services/seasonProgress');
 
 function disciplineForLeague(league) {
   return league?.type === 'competition' ? 'wdl' : league?.type;
 }
 
-function setupRedirect(values = {}) {
+function setupRedirect(values = {}, anchor = '') {
   const query = new URLSearchParams(Object.entries(values).filter(([, value]) => value));
-  return `/admin/season-setup${query.size ? `?${query}` : ''}`;
+  return `/admin/season-setup${query.size ? `?${query}` : ''}${anchor ? `#${anchor}` : ''}`;
 }
 
 function extractTime(value, fallback = '20:00') {
@@ -40,16 +41,25 @@ async function loadData(query = {}) {
     order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
   }) : [];
   const selectedSeason = seasons.find((season) => season.id === Number(query.season)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
-  const [pointsSchemes, calendar, f1Teams, carProfiles, carAssignments, tracks, eligibleDrivers, structure] = await Promise.all([
+  const [pointsSchemes, rawCalendar, f1Teams, carProfiles, carAssignments, tracks, eligibleDrivers, structure, sprintRaces] = await Promise.all([
     PointsScheme.findAll({ where: { discipline: 'f1' }, order: [['sortOrder', 'DESC'], ['id', 'DESC']] }),
-    selectedSeason ? RaceEvent.findAll({ where: { SeasonId: selectedSeason.id }, include: [{ association: 'track', include: [{ association: 'countryRecord' }] }], order: [['sortOrder', 'ASC'], ['startsAt', 'ASC'], ['id', 'ASC']] }) : [],
+    selectedSeason ? RaceEvent.findAll({ where: { SeasonId: selectedSeason.id, LeagueId: selectedLeague.id }, include: [{ association: 'track', include: [{ association: 'countryRecord' }] }], order: [['sortOrder', 'ASC'], ['startsAt', 'ASC'], ['id', 'ASC']] }) : [],
     Team.findAll({ where: { LeagueId: null, discipline: 'f1' }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
     F1CarProfile.findAll({ where: { BaseTeamId: { [Op.ne]: null } }, include: [{ association: 'baseTeam', required: true }], order: [['name', 'ASC'], ['id', 'ASC']] }),
     selectedSeason ? SeasonF1CarAssignment.findAll({ where: { SeasonId: selectedSeason.id } }) : [],
     F1Track.findAll({ include: [{ association: 'countryRecord' }], order: [['country', 'ASC'], ['name', 'ASC']] }),
     loadEligibleSeasonDrivers(),
-    loadSeasonStructure(selectedSeason?.id)
+    loadSeasonStructure(selectedSeason?.id),
+    selectedSeason ? GrandPrixResult.findAll({
+      where: { SeasonId: selectedSeason.id, LeagueId: selectedLeague.id, discipline: 'f1', raceType: 'sprint' },
+      attributes: ['circuit', 'sortOrder']
+    }) : []
   ]);
+  const sprintKeys = new Set(sprintRaces.map((race) => `${race.circuit}::${race.sortOrder}`));
+  const calendar = rawCalendar.map((event) => ({
+    ...event.toJSON(),
+    hasSprint: sprintKeys.has(`${event.circuit}::${event.sortOrder}`)
+  }));
   return {
     leagues, selectedLeague, discipline, seasons, selectedSeason, pointsSchemes,
     calendar, f1Teams, carProfiles, tracks, eligibleDrivers, structure,
@@ -62,7 +72,12 @@ async function loadData(query = {}) {
 
 exports.show = async (req, res) => {
   const data = await loadData(req.query);
-  res.render('admin/season-setup', { title: 'Saison-Assistent', ...data });
+  const storedDraft = req.session.seasonSetupDraft;
+  const calendarDraft = storedDraft && Number(storedDraft.seasonId) === Number(data.selectedSeason?.id)
+    ? storedDraft.values
+    : null;
+  delete req.session.seasonSetupDraft;
+  res.render('admin/season-setup', { title: 'Saison-Assistent', ...data, calendarDraft });
 };
 
 exports.createSeason = async (req, res) => {
@@ -140,7 +155,7 @@ exports.addCalendarEvent = async (req, res) => {
     });
     await syncSeriesCalendarEvent(event);
     if (season.leagueType === 'f1' && req.body.hasSprint === 'on') {
-      await GrandPrixResult.findOrCreate({
+      const [sprint] = await GrandPrixResult.findOrCreate({
         where: { SeasonId: season.id, LeagueId: league.id, circuit, raceType: 'sprint' },
         defaults: {
           SeasonId: season.id, LeagueId: league.id, season: season.name,
@@ -149,12 +164,156 @@ exports.addCalendarEvent = async (req, res) => {
           isHistorical: season.status === 'historical', sortOrder: Number(req.body.sortOrder || 0)
         }
       });
+      await sprint.update({
+        season: season.name,
+        title: `Sprint · ${circuit}`,
+        circuit,
+        raceDate: date,
+        discipline: 'f1',
+        raceType: 'sprint',
+        isHistorical: season.status === 'historical',
+        sortOrder
+      });
     }
+    delete req.session.seasonSetupDraft;
     req.session.flash = { type: 'success', message: `${title} wurde in den Kalender von ${season.name} übernommen.` };
+  } catch (error) {
+    req.session.seasonSetupDraft = {
+      seasonId: req.params.seasonId,
+      values: {
+        F1TrackId: req.body.F1TrackId,
+        date: req.body.date,
+        sortOrder: req.body.sortOrder,
+        isTestDay: req.body.isTestDay === 'on',
+        hasSprint: req.body.hasSprint === 'on'
+      }
+    };
+    req.session.flash = { type: 'error', message: error.message };
+  }
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id }, 'setup-calendar'));
+};
+
+exports.updateCalendarEvent = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: 'f1' } }) : null;
+  try {
+    if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
+    const event = await RaceEvent.findOne({
+      where: { id: req.params.eventId, SeasonId: season.id, LeagueId: league.id },
+      include: [{ association: 'grandPrixResult' }]
+    });
+    if (!event) throw new Error('Der Kalendereintrag gehört nicht zu dieser Saison.');
+    const track = await F1Track.findByPk(req.body.F1TrackId, { include: [{ association: 'countryRecord' }] });
+    if (!track) throw new Error('Bitte eine Strecke aus dem F1-Streckenstamm auswählen.');
+    const date = String(req.body.date || '').trim();
+    const time = extractTime(league.raceTime);
+    const startsAt = new Date(`${date}T${time}:00`);
+    if (Number.isNaN(startsAt.getTime())) throw new Error('Datum oder Startzeit ist ungültig.');
+    const sortOrder = Number(req.body.sortOrder || event.sortOrder);
+    if (!Number.isInteger(sortOrder) || sortOrder < 1) throw new Error('Die Rennen-Nr. muss größer als 0 sein.');
+    const duplicateRound = await RaceEvent.findOne({
+      where: { id: { [Op.ne]: event.id }, SeasonId: season.id, LeagueId: league.id, sortOrder }
+    });
+    if (duplicateRound) throw new Error(`Rennen Nr. ${sortOrder} ist in dieser Saison bereits vergeben.`);
+
+    const previousCircuit = event.circuit;
+    const previousOrder = event.sortOrder;
+    const title = `Großer Preis von ${track.countryRecord?.name || track.country}`;
+    const changed = Number(event.F1TrackId) !== Number(track.id)
+      || new Date(event.startsAt).getTime() !== startsAt.getTime()
+      || Number(previousOrder) !== sortOrder;
+    await event.update({
+      F1TrackId: track.id,
+      title,
+      circuit: track.name,
+      startsAt,
+      sortOrder,
+      durationMinutes: null,
+      isTestDay: req.body.isTestDay === 'on',
+      isPublished: season.status === 'active' && season.isPublished,
+      previousStartsAt: changed ? event.startsAt : event.previousStartsAt,
+      previousSortOrder: changed ? previousOrder : event.previousSortOrder,
+      calendarChanged: changed || event.calendarChanged
+    });
+
+    if (!event.grandPrixResult) {
+      await syncSeriesCalendarEvent(event);
+      await event.reload({ include: [{ association: 'grandPrixResult' }] });
+    }
+    const main = event.grandPrixResult;
+    const { sprint } = await seasonProgress.updateRaceSettings('f1', main.id, {
+      pointsMode: main.pointsMode,
+      hasSprint: req.body.hasSprint
+    });
+    await main.update({ title, circuit: track.name, raceDate: date, sortOrder });
+    if (sprint) await sprint.update({ title: `Sprint · ${track.name}`, circuit: track.name, raceDate: date, sortOrder });
+    if (previousCircuit !== track.name || Number(previousOrder) !== sortOrder) {
+      await GrandPrixResult.destroy({
+        where: {
+          SeasonId: season.id,
+          LeagueId: league.id,
+          circuit: previousCircuit,
+          sortOrder: previousOrder,
+          raceType: 'sprint',
+          id: { [Op.ne]: sprint?.id || 0 }
+        }
+      });
+    }
+    req.session.flash = { type: 'success', message: `${title} wurde gespeichert. Sprint und Testtag wurden übernommen.` };
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
   }
-  res.redirect(setupRedirect({ league: league?.id, season: season?.id }));
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id }, 'setup-calendar'));
+};
+
+exports.reorderCalendar = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: 'f1' } }) : null;
+  try {
+    if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
+    const ids = [...new Set([].concat(req.body.eventIds || []).map(Number).filter(Number.isInteger))];
+    const events = await RaceEvent.findAll({ where: { SeasonId: season.id, LeagueId: league.id }, order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
+    if (!ids.length || ids.length !== events.length || events.some((event) => !ids.includes(event.id))) {
+      throw new Error('Die Kalenderreihenfolge ist unvollständig. Bitte die Seite neu laden.');
+    }
+    await sequelize.transaction(async (transaction) => {
+      for (let index = 0; index < ids.length; index += 1) {
+        const event = events.find((entry) => entry.id === ids[index]);
+        const nextOrder = index + 1;
+        const oldOrder = event.sortOrder;
+        await event.update({
+          sortOrder: nextOrder,
+          previousSortOrder: Number(oldOrder) !== nextOrder ? oldOrder : event.previousSortOrder,
+          calendarChanged: event.calendarChanged || Number(oldOrder) !== nextOrder
+        }, { transaction });
+        if (event.GrandPrixResultId) await GrandPrixResult.update({ sortOrder: nextOrder }, { where: { id: event.GrandPrixResultId }, transaction });
+        await GrandPrixResult.update({ sortOrder: nextOrder }, {
+          where: { SeasonId: season.id, LeagueId: league.id, circuit: event.circuit, raceType: 'sprint' }, transaction
+        });
+      }
+    });
+    req.session.flash = { type: 'success', message: 'Die Rennreihenfolge wurde gespeichert.' };
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+  }
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id }, 'setup-calendar'));
+};
+
+exports.removeCalendarEvent = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { slug: season.scopeSlug, type: 'f1' } }) : null;
+  try {
+    if (!season || !league) throw new Error('Saison oder Liga wurde nicht gefunden.');
+    const event = await RaceEvent.findOne({ where: { id: req.params.eventId, SeasonId: season.id, LeagueId: league.id } });
+    if (!event) throw new Error('Der Kalendereintrag gehört nicht zu dieser Saison.');
+    const raceId = event.GrandPrixResultId;
+    await event.destroy();
+    if (raceId) await seasonProgress.removeRaceEvent('f1', raceId);
+    req.session.flash = { type: 'success', message: 'Termin, Sprint und zugehörige Ergebnisdaten wurden entfernt.' };
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+  }
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id }, 'setup-calendar'));
 };
 
 exports.assignF1Cars = async (req, res) => {

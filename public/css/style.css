@@ -5454,3 +5454,78 @@ td strong {
         grid-template-columns: 1fr;
     }
 }
+
+/* F1 season assistant: compact, stateful Fiori-style steps */
+.setup-calendar-create { padding: 1rem; background: rgba(255,255,255,.025); border: 1px solid rgba(110,242,242,.18); }
+.calendar-event-badges { display: flex; flex-wrap: wrap; gap: .4rem; padding: .65rem .8rem 0; }
+.calendar-option-badge { display: inline-flex; align-items: center; min-height: 1.65rem; padding: .2rem .55rem; border: 1px solid #34434b; color: #aeb9be; font-size: .68rem; font-weight: 800; letter-spacing: .06em; }
+.calendar-option-badge.is-test { border-color: #ff9f1c; color: #ffb347; background: rgba(255,159,28,.09); }
+.calendar-option-badge.is-sprint { border-color: #e91e63; color: #ff5b91; background: rgba(233,30,99,.1); }
+.setup-calendar-review { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem 1.2rem; margin-top: 1rem; padding: 1rem; border-left: 3px solid var(--accent, #6ef2f2); background: #0d1519; }
+.setup-calendar-review strong { color: #fff; }
+.setup-calendar-review span { color: #6ef2f2; font-weight: 700; }
+.setup-calendar-review small { flex-basis: 100%; color: #8f9ba1; }
+.setup-filter-toolbar,.setup-team-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem; margin: 1rem 0; padding: .9rem; background: #0d1519; border: 1px solid #24333a; }
+.setup-filter-buttons { display: flex; flex-wrap: wrap; gap: .4rem; }
+.setup-filter-buttons button { border: 1px solid #33434a; background: transparent; color: #aab6bb; padding: .55rem .7rem; cursor: pointer; font: inherit; font-weight: 700; }
+.setup-filter-buttons button:hover,.setup-filter-buttons button.is-active { color: #061012; background: #6ef2f2; border-color: #6ef2f2; }
+.setup-inline-search { display: grid; gap: .3rem; min-width: min(100%, 16rem); color: #9da9ae; font-size: .75rem; font-weight: 700; }
+.setup-inline-search input { min-height: 2.7rem; }
+.setup-sticky-action { position: sticky; bottom: .75rem; z-index: 6; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; padding: .8rem 1rem; border: 1px solid rgba(110,242,242,.3); background: rgba(7,14,17,.96); box-shadow: 0 12px 28px rgba(0,0,0,.3); }
+.setup-sticky-action span { color: #9ca8ad; font-size: .8rem; }
+.setup-team-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+.setup-team-source { margin: 0; padding: 1rem; border: 1px solid #26353c; background: #0a1115; }
+.setup-team-source > header { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: .9rem; }
+.setup-team-source > header span { color: #6ef2f2; font-size: .65rem; font-weight: 800; letter-spacing: .11em; }
+.setup-team-source > header h3 { margin: .2rem 0 0; color: #fff; }
+.setup-team-source > header small { color: #839198; }
+.setup-season-team-card { position: relative; display: grid !important; grid-template-columns: 3rem 1fr 1.25rem; align-items: center; gap: .75rem; min-height: 4.5rem; padding: .75rem !important; overflow: hidden; border-left: 4px solid var(--team-accent,#6ef2f2) !important; opacity: .66; transition: .18s ease; }
+.setup-season-team-card:hover,.setup-season-team-card.is-selected { opacity: 1; transform: translateY(-1px); background: color-mix(in srgb,var(--team-accent,#6ef2f2) 12%,#10191d); }
+.setup-season-team-card > input { position: absolute; opacity: 0; pointer-events: none; }
+.setup-season-team-card img,.setup-team-fallback { width: 3rem; height: 3rem; object-fit: contain; display: grid; place-items: center; color: #fff; font-weight: 900; }
+.setup-team-card-copy { display: grid; gap: .2rem; min-width: 0; }
+.setup-team-card-copy small { color: #849198; font-size: .62rem; font-weight: 800; }
+.setup-team-card-copy strong { color: #fff; overflow: hidden; text-overflow: ellipsis; }
+.setup-team-check { display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border: 1px solid #3c4a50; color: transparent; }
+.setup-season-team-card.is-selected .setup-team-check { color: #071012; background: #6ef2f2; border-color: #6ef2f2; }
+.setup-finish-panel { border-color: rgba(110,242,242,.35); background: linear-gradient(145deg,rgba(110,242,242,.035),transparent 42%); }
+.setup-finish-hero { display: flex; justify-content: space-between; gap: 1.5rem; align-items: center; padding: 1.4rem; border-left: 5px solid var(--season-accent); background: linear-gradient(105deg,color-mix(in srgb,var(--season-accent) 18%,#0a1215),#0a1114); }
+.setup-finish-hero span,.setup-finish-checklist > span,.setup-finish-preview > span { color: var(--season-accent,#6ef2f2); font-size: .68rem; font-weight: 900; letter-spacing: .12em; }
+.setup-finish-hero h2 { margin: .3rem 0; color: #fff; font-size: clamp(1.6rem,4vw,3rem); }
+.setup-finish-hero p { margin: 0; color: #a7b2b7; }
+.setup-finish-hero img { width: 6rem; height: 6rem; object-fit: contain; opacity: .82; }
+.setup-finish-layout { display: grid; grid-template-columns: 1.15fr .85fr; gap: 1rem; margin: 1rem 0; }
+.setup-finish-checklist,.setup-finish-preview { padding: 1.15rem; border: 1px solid #27363d; background: #0a1115; }
+.setup-finish-checklist h3,.setup-finish-preview h3 { margin: .3rem 0 1rem; color: #fff; }
+.setup-finish-checklist ul { display: grid; gap: .55rem; margin: 0; padding: 0; list-style: none; }
+.setup-finish-checklist li { display: grid; grid-template-columns: 1.35rem 1fr; gap: .05rem .6rem; color: #fff; }
+.setup-finish-checklist li::before { content: '!'; grid-row: span 2; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border: 1px solid #e91e63; color: #e91e63; font-weight: 900; }
+.setup-finish-checklist li.is-complete::before { content: '✓'; color: #061012; border-color: #6ef2f2; background: #6ef2f2; }
+.setup-finish-checklist small { color: #8f9ba1; }
+.setup-finish-team-strip { display: flex; flex-wrap: wrap; gap: .5rem; }
+.setup-finish-team-strip > div { display: grid; place-items: center; width: 3.1rem; height: 3.1rem; border-bottom: 3px solid var(--team-accent); background: #111b20; }
+.setup-finish-team-strip img { width: 2.45rem; height: 2.45rem; object-fit: contain; }
+.setup-finish-preview p { margin-bottom: 0; color: #98a5ab; }
+.setup-publish-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.2rem; border: 1px solid #563040; background: rgba(233,30,99,.06); }
+.setup-publish-box.is-ready { border-color: rgba(110,242,242,.45); background: rgba(110,242,242,.06); }
+.setup-publish-box > div { display: grid; gap: .2rem; }
+.setup-publish-box span { color: #9ea9ae; font-size: .65rem; font-weight: 900; letter-spacing: .08em; }
+.setup-publish-box strong { color: #fff; }
+.setup-finish-warning { margin-top: .8rem; color: #ff9ab9; }
+@media (max-width: 850px) { .setup-team-columns,.setup-finish-layout { grid-template-columns: 1fr; } .setup-sticky-action,.setup-publish-box { align-items: stretch; flex-direction: column; } }
+
+.season-progress-context { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: 1rem 0; padding: 1rem 1.2rem; border-left: 4px solid #6ef2f2; background: #0c1519; }
+.season-progress-context > div:first-child { display: grid; gap: .25rem; }
+.season-progress-context span { color: #6ef2f2; font-size: .65rem; font-weight: 900; letter-spacing: .1em; }
+.season-progress-context strong { color: #fff; }
+.season-progress-context small { color: #93a0a6; }
+.season-progress-count { min-width: 7rem; padding-left: 1rem; border-left: 1px solid #304047; text-align: center; }
+.season-progress-count strong { display: block; font-size: 2rem; }
+.season-race-tabs { display: grid; grid-template-columns: repeat(auto-fit,minmax(9rem,1fr)); gap: .45rem; margin: 1rem 0 1.25rem; }
+.season-race-tabs a { display: grid; gap: .15rem; padding: .7rem .8rem; border: 1px solid #28373e; border-top: 3px solid #405057; background: #0b1317; color: #96a3a9; text-decoration: none; }
+.season-race-tabs a:hover,.season-race-tabs a.is-active { border-top-color: #6ef2f2; background: rgba(110,242,242,.08); color: #fff; }
+.season-race-tabs a > span,.season-race-tabs a > small { color: #6ef2f2; font-size: .63rem; font-weight: 800; text-transform: uppercase; }
+.race-sheet-heading small { display: block; margin-top: .25rem; color: #9aa6ac; }
+.race-sheet th:first-child,.race-sheet td:first-child { position: sticky; left: 0; z-index: 2; background: #0b1317; }
+.race-sheet th:nth-child(2),.race-sheet td:nth-child(2) { position: sticky; left: 3.5rem; z-index: 2; background: #0b1317; box-shadow: 8px 0 12px rgba(0,0,0,.16); }
+@media (max-width: 720px) { .season-progress-context { align-items: stretch; flex-direction: column; } .season-progress-count { border-left: 0; border-top: 1px solid #304047; padding: .7rem 0 0; text-align: left; } }

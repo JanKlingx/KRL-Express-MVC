@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const {
-  sequelize, League, Team, TeamRoster, TeamRosterDriver, Driver, Season, GrandPrixResult, GrandPrixResultEntry, F1RaceLineupEntry, F1CarProfile, PenaltyEntry
+  sequelize, League, Team, TeamRoster, TeamRosterDriver, Driver, Season, RaceEvent, GrandPrixResult, GrandPrixResultEntry, F1RaceLineupEntry, F1CarProfile, PenaltyEntry
 } = require('../models');
 const { pointsForPosition, recalculateDriverRaceCounts } = require('../services/championship');
 const seasonProgress = require('../services/seasonProgress');
@@ -12,8 +12,17 @@ const statuses = ['', 'DNF', 'DNS', 'DNQ', 'DSQ', 'DNA'];
 async function getRaces(leagueId, seasonId) {
   return GrandPrixResult.findAll({
     where: { LeagueId: leagueId, SeasonId: seasonId, discipline: 'f1', raceType: 'main' },
-    include: [{ model: League, as: 'league', where: { type: 'f1' } }],
-    order: [['sortOrder', 'ASC'], ['raceType', 'DESC'], ['raceDate', 'ASC']]
+    include: [
+      { model: League, as: 'league', where: { type: 'f1' } },
+      {
+        model: RaceEvent,
+        as: 'calendarEvent',
+        required: true,
+        where: { LeagueId: leagueId, SeasonId: seasonId },
+        attributes: ['id', 'title', 'circuit', 'startsAt', 'isTestDay', 'sortOrder']
+      }
+    ],
+    order: [[{ model: RaceEvent, as: 'calendarEvent' }, 'sortOrder', 'ASC'], ['raceDate', 'ASC']]
   });
 }
 
