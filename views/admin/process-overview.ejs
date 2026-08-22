@@ -1,0 +1,49 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell">
+  <div class="container">
+    <div class="admin-heading">
+      <div>
+        <span class="eyebrow"><%= dashboardEyebrow %></span>
+        <h1>OPERATIVE PROZESSE</h1>
+        <p class="admin-intro">Schritt-für-Schritt Arbeitsabläufe für jeden Wochenende und Saisonverlauf.</p>
+      </div>
+      <form method="post" action="<%= adminBasePath %>/logout"><button class="button button-ghost" type="submit">Abmelden</button></form>
+    </div>
+
+    <nav class="dashboard-tabs" aria-label="Admin-Bereiche">
+      <a href="<%= adminBasePath %>/master-data">Stammdaten</a>
+      <a class="active" href="<%= adminBasePath %>/processes">Prozesse</a>
+    </nav>
+
+    <div class="admin-grid">
+      <% workflows.forEach((workflow) => { %>
+        <a class="admin-card admin-card-featured" href="#" style="pointer-events: none; background: linear-gradient(135deg, <%= workflow.accent %> 0%, <%= workflow.accent %>dd 100%);">
+          <span>Arbeitsablauf</span>
+          <h3><%= workflow.label %></h3>
+          <p><%= workflow.steps.length %> Schritte · Step-by-Step Prozess</p>
+          <small>Weitere Informationen →</small>
+        </a>
+      <% }) %>
+    </div>
+
+    <% workflows.forEach((workflow) => { %>
+      <section class="admin-group">
+        <div class="admin-group-heading">
+          <h2><%= workflow.label %> Rennwochenende</h2>
+          <span><%= workflow.steps.length %> Schritte</span>
+        </div>
+        <div class="admin-grid">
+          <% workflow.steps.forEach((step, index) => { %>
+            <a class="admin-card admin-card-featured" href="<%= step.href %>">
+              <span>Schritt <%= step.number ?? index + 1 %></span>
+              <h3><%= step.label %></h3>
+              <p><%= step.description || '' %></p>
+              <small>Öffnen →</small>
+            </a>
+          <% }) %>
+        </div>
+      </section>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/footer') %>

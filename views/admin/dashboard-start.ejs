@@ -1,0 +1,29 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell">
+  <div class="container">
+    <div class="admin-heading">
+      <div>
+        <span class="eyebrow"><%= dashboardEyebrow %></span>
+        <h1><%= dashboardTitle %></h1>
+        <p class="admin-intro"><%= dashboardDescription %></p>
+      </div>
+      <form method="post" action="<%= adminBasePath %>/logout"><button class="button button-ghost" type="submit">Abmelden</button></form>
+    </div>
+
+    <div class="admin-grid">
+      <a class="admin-card admin-card-featured" href="<%= adminBasePath %>/master-data">
+        <span>Verwaltung</span>
+        <h3>Stammdaten</h3>
+        <p>Fahrer, Teams, Ligas und Saisonkalender zentral verwalten.</p>
+        <small>Öffnen und bearbeiten →</small>
+      </a>
+      <a class="admin-card admin-card-featured" href="<%= adminBasePath %>/processes">
+        <span>Arbeitsabläufe</span>
+        <h3>Prozesse</h3>
+        <p>Rennwochenenden, Ergebnisse und Saisonverlauf in Workflows durchführen.</p>
+        <small>Öffnen und bearbeiten →</small>
+      </a>
+    </div>
+  </div>
+</section>
+<%- include('../partials/footer') %>

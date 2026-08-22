@@ -3,7 +3,7 @@ const { savePdf, deletePdf } = require('../services/documentStorage');
 
 exports.rules = async (req, res) => {
   const sections = await F1RuleSection.findAll({ where: { isPublished: true }, order: [['sectionType', 'ASC'], ['sortOrder', 'ASC'], ['id', 'ASC']] });
-  res.render('f1-rules', { title: 'Formel-1-Regelwerk', sections });
+  res.render('f1-rules', { title: 'Formel 1 Regelwerk', sections });
 };
 
 exports.documents = async (req, res) => {

@@ -1,4 +1,154 @@
 <%- include('partials/header', { title }) %>
-<section class="league-hero rules-hero"><div class="container"><span class="eyebrow">FREITAG · SAMSTAG · SONNTAG</span><h1>FORMEL-1-<span>REGELWERK</span></h1><p>Verbindliche Regeln und transparenter Strafenkatalog der KRL Formel-1-Ligen.</p></div></section>
-<section class="section container"><div class="rulebook-layout"><nav><strong>INHALT</strong><% sections.forEach((section) => { %><a href="#regel-<%= section.id %>"><%= section.title %></a><% }) %></nav><main><% if (!sections.length) { %><div class="empty-state">Das Regelwerk wird aktuell vorbereitet.</div><% } %><% sections.forEach((section, index) => { %><article id="regel-<%= section.id %>" class="rulebook-section <%= section.sectionType === 'penalty' ? 'penalty' : '' %>"><span><%= section.sectionType === 'penalty' ? 'STRAFENKATALOG' : `REGEL ${String(index + 1).padStart(2,'0')}` %></span><h2><%= section.title %></h2><p><%= section.content %></p><% if (isAdmin) { %><a class="admin-inline-action" href="/admin/f1RuleSections/<%= section.id %>/edit">✎</a><% } %></article><% }) %></main></div></section>
+
+<%
+    const ruleSections = sections.filter(
+        (section) => section.sectionType !== 'penalty'
+    );
+
+    const penaltySections = sections.filter(
+        (section) => section.sectionType === 'penalty'
+    );
+%>
+
+<section class="league-hero rules-hero">
+    <div class="container">
+        <h1>
+            FORMEL 1 <span>REGELWERK</span>
+        </h1>
+    </div>
+</section>
+
+<section class="section container">
+    <div class="rulebook-layout">
+
+<nav>
+    <strong>INHALT</strong>
+
+    <a
+        href="#regelwerk"
+        style="color:#fff; font-family:var(--display); font-size:1rem; font-weight:800;"
+    >
+        Regelwerk
+    </a>
+
+    <% ruleSections.forEach((section) => { %>
+        <a
+            href="#regel-<%= section.id %>"
+            style="color:#fff; font-family:var(--display); font-size:1.05rem;"
+        >
+            <%= section.title %>
+        </a>
+    <% }) %>
+
+    <% if (penaltySections.length) { %>
+
+        <a
+            href="#strafenkatalog"
+            style="color:#fff; font-family:var(--display); font-size:1.35rem; font-weight:800; margin-top:.7rem;"
+        >
+            Strafenkatalog
+        </a>
+
+        <% penaltySections.forEach((section) => { %>
+            <a
+                href="#strafe-<%= section.id %>"
+                style="color:#fff; font-family:var(--display); font-size:1.05rem; font-weight:700;"
+            >
+                <%= section.title %>
+            </a>
+        <% }) %>
+
+    <% } %>
+</nav>
+
+        <main>
+
+            <% if (!sections.length) { %>
+                <div class="empty-state">
+                    Das Regelwerk wird aktuell vorbereitet.
+                </div>
+            <% } %>
+
+
+            <!-- REGELWERK -->
+            <% if (ruleSections.length) { %>
+
+                <div
+                    id="regelwerk"
+                    class="section-heading left"
+                >
+                    <h2>REGELWERK</h2>
+                </div>
+
+                <% ruleSections.forEach((section) => { %>
+
+                    <article
+                        id="regel-<%= section.id %>"
+                        class="rulebook-section"
+                    >
+                        <h2>
+                            <%= section.title %>
+                        </h2>
+
+                        <p>
+                            <%= section.content %>
+                        </p>
+
+                        <% if (isAdmin) { %>
+                            <a
+                                class="admin-inline-action"
+                                href="/admin/f1RuleSections/<%= section.id %>/edit"
+                            >
+                                ✎
+                            </a>
+                        <% } %>
+                    </article>
+
+                <% }) %>
+
+            <% } %>
+
+
+            <!-- STRAFENKATALOG -->
+            <% if (penaltySections.length) { %>
+
+                <div
+                    id="strafenkatalog"
+                    class="section-heading left"
+                >
+                    <h2>STRAFENKATALOG</h2>
+                </div>
+
+                <% penaltySections.forEach((section) => { %>
+
+                    <article
+                        id="strafe-<%= section.id %>"
+                        class="rulebook-section penalty"
+                    >
+                        <h2>
+                            <%= section.title %>
+                        </h2>
+
+                        <p>
+                            <%= section.content %>
+                        </p>
+
+                        <% if (isAdmin) { %>
+                            <a
+                                class="admin-inline-action"
+                                href="/admin/f1RuleSections/<%= section.id %>/edit"
+                            >
+                                ✎
+                            </a>
+                        <% } %>
+                    </article>
+
+                <% }) %>
+
+            <% } %>
+
+        </main>
+    </div>
+</section>
+
 <%- include('partials/footer') %>

@@ -1,0 +1,38 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell">
+  <div class="container">
+    <div class="admin-heading">
+      <div>
+        <span class="eyebrow"><%= dashboardEyebrow %></span>
+        <h1><%= dashboardTitle %></h1>
+        <p class="admin-intro"><%= dashboardDescription %></p>
+      </div>
+      <form method="post" action="<%= adminBasePath %>/logout"><button class="button button-ghost" type="submit">Abmelden</button></form>
+    </div>
+
+    <nav class="dashboard-tabs" aria-label="Admin-Bereiche">
+      <a class="active" href="<%= adminBasePath %>/master-data">Stammdaten</a>
+      <a href="<%= adminBasePath %>/processes">Prozesse</a>
+    </nav>
+
+    <% groups.forEach((group) => { %>
+      <section class="admin-group">
+        <div class="admin-group-heading">
+          <h2><%= group.name %></h2>
+          <span><%= group.modules.length %> Bereiche</span>
+        </div>
+        <div class="admin-grid">
+          <% group.modules.forEach(([key, config]) => { %>
+            <a class="admin-card <%= config.href ? 'admin-card-featured' : '' %>" href="<%= config.href || `${adminBasePath}/${key}` %>">
+              <span><%= config.href ? 'Direkte Tabellenpflege' : `${counts[key]} Einträge` %></span>
+              <h3><%= config.title %></h3>
+              <p><%= config.description %></p>
+              <small>Öffnen und bearbeiten →</small>
+            </a>
+          <% }) %>
+        </div>
+      </section>
+    <% }) %>
+  </div>
+</section>
+<%- include('../partials/footer') %>

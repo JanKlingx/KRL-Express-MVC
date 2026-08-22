@@ -3,7 +3,27 @@
 <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/krlIcons">✎ KRL Icons pflegen</a><a href="/admin/krlIcons/new">+ Icon hinzufügen</a></div><% } %>
 <section class="section container">
   <div class="section-heading"><span>AUSGEZEICHNET</span><h2>UNSERE KRL ICONS</h2></div>
-  <% if (icons.length) { %><div class="icon-hall-grid"><% icons.forEach((icon, index) => { const appointed = icon.appointedAt ? new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date(`${icon.appointedAt}T12:00:00Z`)) : null; %><article class="icon-hall-card"><span class="icon-hall-number"><%= String(index + 1).padStart(2, '0') %></span><header><span>KRL ICON · <%= String(index + 1).padStart(2, '0') %></span><h2><%= icon.driver.name %> <% if (isAdmin) { %><a class="admin-inline-action" href="/admin/krlIcons/<%= icon.id %>/edit" aria-label="Icon bearbeiten">✎</a><% } %></h2><small>FÜR BESONDERE VERDIENSTE</small><% if (appointed) { %><time datetime="<%= String(icon.appointedAt).slice(0, 7) %>"><span>ERNANNT</span><strong><%= appointed %></strong></time><% } %></header><div class="icon-hall-story"><span aria-hidden="true">“</span><p><%= icon.text %></p></div></article><% }) %></div>
+  <% if (icons.length) { %><div class="icon-hall-grid"><% icons.forEach((icon, index) => { const appointed = icon.appointedAt ? new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date(`${icon.appointedAt}T12:00:00Z`)) : null; %><article class="icon-hall-card"><span class="icon-hall-number"><%= String(index + 1).padStart(2, '0') %></span><header></span>
+    
+    
+<div style="display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; width:100%;">
+    <h2><%= icon.driver.name %></h2>
+
+    <% if (isAdmin) { %>
+        <a
+            class="admin-inline-action"
+            href="/admin/krlIcons/<%= icon.id %>/edit"
+            aria-label="<%= icon.driver.name %> bearbeiten"
+            title="Icon bearbeiten"
+            style="flex:0 0 auto; margin-left:0;"
+        >
+            ✎
+        </a>
+    <% } %>
+</div>    
+    
+    
+    <small>FÜR BESONDERE VERDIENSTE</small><% if (appointed) { %><time datetime="<%= String(icon.appointedAt).slice(0, 7) %>"><span>ERNANNT</span><strong><%= appointed %></strong></time><% } %></header><div class="icon-hall-story"><span aria-hidden="true">“</span><p><%= icon.text %></p></div></article><% }) %></div>
   <% } else { %><div class="empty-state">Noch wurden keine KRL Icons ernannt.</div><% } %>
 </section>
 <%- include('partials/footer') %>
