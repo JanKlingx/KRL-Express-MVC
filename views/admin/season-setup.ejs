@@ -21,6 +21,11 @@
       ? false
       : finishReady;
 
+  const setupCalendarDraft =
+    typeof calendarDraft === 'undefined' || !calendarDraft
+      ? {}
+      : calendarDraft;
+
   const selectedDriverIds = new Set(
     (setupStructure.allDrivers || []).map(
       (driver) => Number(driver.id)
@@ -376,7 +381,7 @@
 
   <div class="setup-panel-content">
 
-    <span>Nur aus F1-Streckenstamm</span>
+    <span>Kalender ist die verbindliche Quelle dieser Saison</span>
     <h2>RENNKALENDER ERSTELLEN</h2>
 
     <%
@@ -424,16 +429,17 @@
         <form
           method="post"
           action="/admin/season-setup/<%= selectedSeason.id %>/calendar"
-          class="setup-form setup-calendar-form"
+          class="setup-form setup-calendar-form setup-calendar-create"
         >
 
-          <%- trackSelect(null) %>
+          <%- trackSelect(setupCalendarDraft) %>
 
           <label>
             Datum *
             <input
               type="date"
               name="date"
+              value="<%= setupCalendarDraft.date || '' %>"
               required
             >
           </label>
@@ -453,7 +459,7 @@
               type="number"
               name="sortOrder"
               min="1"
-              value="<%= events.length + 1 %>"
+              value="<%= setupCalendarDraft.sortOrder || events.length + 1 %>"
               required
             >
           </label>
@@ -462,6 +468,7 @@
             <input
               type="checkbox"
               name="isTestDay"
+              <%= setupCalendarDraft.isTestDay ? 'checked' : '' %>
             >
             <span>Testtag</span>
           </label>
@@ -470,6 +477,7 @@
             <input
               type="checkbox"
               name="hasSprint"
+              <%= setupCalendarDraft.hasSprint ? 'checked' : '' %>
             >
             <span>Sprint</span>
           </label>
@@ -547,6 +555,11 @@
           draggable="true"
           data-calendar-event="<%= event.id %>"
         >
+
+          <div class="calendar-event-badges">
+            <% if (event.isTestDay) { %><span class="calendar-option-badge is-test">TESTTAG</span><% } %>
+            <% if (event.hasSprint) { %><span class="calendar-option-badge is-sprint">SPRINT + HAUPTRENNEN</span><% } else { %><span class="calendar-option-badge">HAUPTRENNEN</span><% } %>
+          </div>
 
           <form
             method="post"
@@ -677,6 +690,15 @@
 
     </div>
 
+    <% if (events.length) { %>
+      <div class="setup-calendar-review">
+        <strong><%= events.length %> Termine aus <%= selectedSeason.name %></strong>
+        <span><%= events.filter((event) => event.hasSprint).length %> Sprint-Events</span>
+        <span><%= events.filter((event) => event.isTestDay).length %> Testtage</span>
+        <small>Nur diese Termine werden später im Saisonverlauf angezeigt.</small>
+      </div>
+    <% } %>
+
   </div>
 
 </section>
@@ -780,6 +802,21 @@
             FAHRER AUSWÄHLEN
           </h2>
 
+          <div class="setup-filter-toolbar" data-driver-filter-toolbar>
+            <div class="setup-filter-buttons" role="group" aria-label="Fahrer nach Rang filtern">
+              <button type="button" class="is-active" data-driver-filter="all">Alle</button>
+              <button type="button" data-driver-filter="friday">Stamm Freitag</button>
+              <button type="button" data-driver-filter="saturday">Stamm Samstag</button>
+              <button type="button" data-driver-filter="sunday">Stamm Sonntag</button>
+              <button type="button" data-driver-filter="former">Ehemalige F1</button>
+            </div>
+            <label class="setup-inline-search">
+              <span>Fahrer suchen</span>
+              <input type="search" placeholder="Name eingeben …" data-driver-search>
+            </label>
+            <strong data-driver-selected-count><%= selectedDriverIds.size %> ausgewählt</strong>
+          </div>
+
           <form
             method="post"
             action="/admin/season-setup/<%= selectedSeason.id %>/drivers"
@@ -790,26 +827,31 @@
               <% setupEligibleDrivers.forEach((driver) => {
 
                 const roles = [];
+                const roleKeys = [];
 
                 if (driver.roleF1Friday) {
-                  roles.push('Freitag');
+                  roles.push('Stamm Freitag');
+                  roleKeys.push('friday');
                 }
 
                 if (driver.roleF1Saturday) {
-                  roles.push('Samstag');
+                  roles.push('Stamm Samstag');
+                  roleKeys.push('saturday');
                 }
 
                 if (driver.roleF1Sunday) {
-                  roles.push('Sonntag');
+                  roles.push('Stamm Sonntag');
+                  roleKeys.push('sunday');
                 }
 
                 if (driver.roleFormerF1) {
                   roles.push('Ehemaliger F1-Fahrer');
+                  roleKeys.push('former');
                 }
 
               %>
 
-                <label class="setup-driver-card">
+                <label class="setup-driver-card" data-driver-card data-driver-roles="<%= roleKeys.join(' ') %>" data-driver-name="<%= driver.name.toLowerCase() %>">
 
                   <input
                     type="checkbox"
@@ -841,12 +883,10 @@
 
             </div>
 
-            <button
-              type="submit"
-              class="button setup-save-step"
-            >
-              Fahrerauswahl speichern
-            </button>
+            <div class="setup-sticky-action">
+              <span>Nur angehakte Fahrer werden für Line-up und Ersatzpool übernommen.</span>
+              <button type="submit" class="button setup-save-step">Fahrerauswahl speichern</button>
+            </div>
 
           </form>
 
@@ -878,19 +918,28 @@
             AKTUELLE ODER HISTORISCHE TEAMS
           </h2>
 
+          <div class="setup-team-toolbar">
+            <label class="setup-inline-search">
+              <span>Teams durchsuchen</span>
+              <input type="search" placeholder="Teamname eingeben …" data-team-search>
+            </label>
+            <strong data-team-selected-count><%= selectedTeamTokens.size %> / 11 ausgewählt</strong>
+          </div>
+
           <form
             method="post"
             action="/admin/season-setup/<%= selectedSeason.id %>/teams"
+            data-team-selection-form
           >
+
+            <div class="setup-team-columns">
 
 
             <!-- AKTUELLE TEAMS -->
 
-            <div class="setup-team-source">
+            <section class="setup-team-source">
 
-              <h3>
-                Aktuelle Teams
-              </h3>
+              <header><div><span>TEAMSTAMM</span><h3>Aktuelle Teams</h3></div><small><%= f1Teams.length %> verfügbar</small></header>
 
               <div class="team-choice-grid">
 
@@ -900,7 +949,7 @@
 
                 %>
 
-                  <label class="team-choice-card">
+                  <label class="team-choice-card setup-season-team-card <%= selectedTeamTokens.has(token) ? 'is-selected' : '' %>" data-team-card data-team-name="<%= team.name.toLowerCase() %>" style="--team-accent:<%= team.accentColor || '#6ef2f2' %>">
 
                     <input
                       type="checkbox"
@@ -921,9 +970,10 @@
 
                     <% } %>
 
-                    <strong>
-                      <%= team.name %>
-                    </strong>
+                    <% if (!team.logoPath) { %><span class="setup-team-fallback"><%= team.name.slice(0, 2).toUpperCase() %></span><% } %>
+
+                    <span class="setup-team-card-copy"><small>AKTUELL</small><strong><%= team.name %></strong></span>
+                    <span class="setup-team-check">✓</span>
 
                   </label>
 
@@ -931,16 +981,14 @@
 
               </div>
 
-            </div>
+            </section>
 
 
             <!-- HISTORISCHE TEAMS -->
 
-            <div class="setup-team-source">
+            <section class="setup-team-source">
 
-              <h3>
-                Historische Teams
-              </h3>
+              <header><div><span>SAISON-PROFILE</span><h3>Historische Teams</h3></div><small><%= carProfiles.length %> verfügbar</small></header>
 
               <div class="team-choice-grid">
 
@@ -950,7 +998,7 @@
 
                 %>
 
-                  <label class="team-choice-card">
+                  <label class="team-choice-card setup-season-team-card <%= selectedTeamTokens.has(token) ? 'is-selected' : '' %>" data-team-card data-team-name="<%= `${team.name} ${team.baseTeam?.name || ''}`.toLowerCase() %>" style="--team-accent:<%= team.accentColor || '#6ef2f2' %>">
 
                     <input
                       type="checkbox"
@@ -971,14 +1019,10 @@
 
                     <% } %>
 
-                    <strong>
-                      <%= team.name %>
-                    </strong>
+                    <% if (!team.logoPath) { %><span class="setup-team-fallback"><%= team.name.slice(0, 2).toUpperCase() %></span><% } %>
 
-                    <small>
-                      gehört zu
-                      <%= team.baseTeam?.name || '–' %>
-                    </small>
+                    <span class="setup-team-card-copy"><small>HISTORISCH · gehört zu <%= team.baseTeam?.name || 'keinem Basis-Team' %></small><strong><%= team.name %></strong></span>
+                    <span class="setup-team-check">✓</span>
 
                   </label>
 
@@ -986,15 +1030,15 @@
 
               </div>
 
+            </section>
+
             </div>
 
 
-            <button
-              type="submit"
-              class="button setup-save-step"
-            >
-              Teams speichern
-            </button>
+            <div class="setup-sticky-action">
+              <span>Maximal 11 Teams. Die Auswahl bestimmt die Karten in Schritt 7.</span>
+              <button type="submit" class="button setup-save-step">Teams speichern</button>
+            </div>
 
           </form>
 
@@ -1028,7 +1072,7 @@
 
           <p class="setup-note">
             Ordne jedem Team maximal zwei Stammfahrer zu.
-            Nicht zugeordnete Fahrer bleiben automatisch Ersatzfahrer.
+            Nicht zugeordnete Fahrer bleiben automatisch als Ersatzfahrer.
             Ein Fahrer kann nur einem Team zugeordnet werden.
           </p>
 
@@ -1201,7 +1245,7 @@
 
       <section
         id="setup-finish"
-        class="setup-panel"
+        class="setup-panel setup-finish-panel"
       >
 
         <div class="setup-panel-number">
@@ -1210,13 +1254,14 @@
 
         <div class="setup-panel-content">
 
-          <span>
-            Kontrolle vor Veröffentlichung
-          </span>
-
-          <h2>
-            ABSCHLUSS
-          </h2>
+          <div class="setup-finish-hero" style="--season-accent:<%= selectedSeason.accentColor || selectedLeague.accentColor || '#6ef2f2' %>">
+            <div>
+              <span>SCHRITT 08 · KONTROLLE</span>
+              <h2><%= selectedSeason.name %> ist <%= setupFinishReady ? 'bereit' : 'fast bereit' %></h2>
+              <p><%= selectedLeague.name %> · Prüfe die Bausteine und veröffentliche die Saison anschließend mit einem Klick.</p>
+            </div>
+            <% if (selectedLeague.logoPath) { %><img src="<%= selectedLeague.logoPath %>" alt="Logo <%= selectedLeague.name %>"><% } %>
+          </div>
 
 
           <div class="setup-final-summary">
@@ -1316,11 +1361,41 @@
 
           </div>
 
+          <div class="setup-finish-layout">
+            <article class="setup-finish-checklist">
+              <span>VOLLSTÄNDIGKEIT</span>
+              <h3>Bereit für die Ligaseite</h3>
+              <ul>
+                <li class="<%= calendar.length ? 'is-complete' : '' %>"><strong>Rennkalender</strong><small><%= calendar.length ? `${calendar.length} Termine gespeichert` : 'Mindestens einen Termin anlegen' %></small></li>
+                <li class="<%= selectedSeason.PointsSchemeId ? 'is-complete' : '' %>"><strong>Punktesystem</strong><small><%= selectedSeason.pointsScheme?.name || 'Noch nicht ausgewählt' %></small></li>
+                <li class="<%= setupStructure.allDrivers.length ? 'is-complete' : '' %>"><strong>Fahrerpool</strong><small><%= setupStructure.allDrivers.length %> Fahrer ausgewählt</small></li>
+                <li class="<%= setupStructure.teams.length ? 'is-complete' : '' %>"><strong>Teams</strong><small><%= setupStructure.teams.length %> von maximal 11 Teams</small></li>
+                <li class="<%= setupStructure.teams.some((team) => (team.drivers || []).length) ? 'is-complete' : '' %>"><strong>Line-up</strong><small>Fahrer den Cockpits zugeordnet</small></li>
+              </ul>
+            </article>
+
+            <article class="setup-finish-preview">
+              <span>VORSCHAU</span>
+              <h3><%= selectedLeague.name %></h3>
+              <div class="setup-finish-team-strip">
+                <% setupStructure.teams.slice(0, 11).forEach((team) => { const finishTeamName = team.displayName || team.name || 'Team'; %>
+                  <div title="<%= finishTeamName %>" style="--team-accent:<%= team.accentColor || '#6ef2f2' %>">
+                    <% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt=""><% } else { %><strong><%= finishTeamName.slice(0, 2).toUpperCase() %></strong><% } %>
+                  </div>
+                <% }) %>
+              </div>
+              <p><strong><%= calendar.filter((event) => event.hasSprint).length %></strong> Sprint-Events · <strong><%= setupStructure.unassignedDrivers.length %></strong> verfügbare Ersatzfahrer</p>
+            </article>
+          </div>
+
 
           <form
             method="post"
             action="/admin/season-setup/<%= selectedSeason.id %>/finish"
+            class="setup-publish-box <%= setupFinishReady ? 'is-ready' : '' %>"
           >
+
+            <div><span><%= setupFinishReady ? '✓ ALLE PFLICHTSCHRITTE ERLEDIGT' : 'NOCH NICHT VOLLSTÄNDIG' %></span><strong><%= setupFinishReady ? 'Saison veröffentlichen' : 'Fehlende Schritte ergänzen' %></strong></div>
 
             <button
               class="button"
@@ -1329,7 +1404,7 @@
                 : 'disabled'
               %>
             >
-              Saison abschließen & veröffentlichen
+              <%= setupFinishReady ? 'Saison abschließen & veröffentlichen' : 'Noch nicht bereit' %>
             </button>
 
           </form>
@@ -1337,7 +1412,7 @@
 
           <% if (!setupFinishReady) { %>
 
-            <p class="setup-note">
+            <p class="setup-note setup-finish-warning">
               Noch nicht vollständig: Kalender, Punktesystem,
               Fahrer, Teams und mindestens eine
               Line-up-Zuordnung sind erforderlich.
@@ -1407,6 +1482,64 @@ document.addEventListener('DOMContentLoaded', function () {
 
     updateTrackCountry();
   }
+
+  const driverCards = Array.from(document.querySelectorAll('[data-driver-card]'));
+  const driverSearch = document.querySelector('[data-driver-search]');
+  const driverFilterButtons = Array.from(document.querySelectorAll('[data-driver-filter]'));
+  const driverSelectedCount = document.querySelector('[data-driver-selected-count]');
+  let activeDriverFilter = 'all';
+
+  function refreshDriverCards() {
+    const query = (driverSearch?.value || '').trim().toLowerCase();
+    driverCards.forEach(function (card) {
+      const roles = (card.dataset.driverRoles || '').split(' ');
+      const rankMatches = activeDriverFilter === 'all' || roles.includes(activeDriverFilter);
+      const searchMatches = !query || (card.dataset.driverName || '').includes(query);
+      card.hidden = !(rankMatches && searchMatches);
+    });
+    if (driverSelectedCount) {
+      const count = driverCards.filter((card) => card.querySelector('input[type="checkbox"]')?.checked).length;
+      driverSelectedCount.textContent = count + ' ausgewählt';
+    }
+  }
+
+  driverFilterButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      activeDriverFilter = button.dataset.driverFilter || 'all';
+      driverFilterButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+      refreshDriverCards();
+    });
+  });
+  driverSearch?.addEventListener('input', refreshDriverCards);
+  driverCards.forEach((card) => card.querySelector('input[type="checkbox"]')?.addEventListener('change', refreshDriverCards));
+  refreshDriverCards();
+
+  const teamCards = Array.from(document.querySelectorAll('[data-team-card]'));
+  const teamSearch = document.querySelector('[data-team-search]');
+  const teamSelectedCount = document.querySelector('[data-team-selected-count]');
+
+  function refreshTeamCards(changedInput) {
+    const checked = teamCards.filter((card) => card.querySelector('input[type="checkbox"]')?.checked);
+    if (checked.length > 11 && changedInput) {
+      changedInput.checked = false;
+      window.alert('Es können maximal 11 Teams ausgewählt werden.');
+    }
+    const currentCount = teamCards.filter((card) => card.querySelector('input[type="checkbox"]')?.checked).length;
+    if (teamSelectedCount) teamSelectedCount.textContent = currentCount + ' / 11 ausgewählt';
+    teamCards.forEach(function (card) {
+      const input = card.querySelector('input[type="checkbox"]');
+      card.classList.toggle('is-selected', Boolean(input?.checked));
+      const query = (teamSearch?.value || '').trim().toLowerCase();
+      card.hidden = Boolean(query && !(card.dataset.teamName || '').includes(query));
+    });
+  }
+
+  teamCards.forEach(function (card) {
+    const input = card.querySelector('input[type="checkbox"]');
+    input?.addEventListener('change', function () { refreshTeamCards(input); });
+  });
+  teamSearch?.addEventListener('input', function () { refreshTeamCards(); });
+  refreshTeamCards();
 
 
   /*
