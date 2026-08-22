@@ -12,6 +12,15 @@
 
   <div class="workflow-hint"><strong>Rennen fehlen oder sind falsch?</strong> <a href="/admin/season-calendar?league=<%= selectedLeague?.id || '' %>&season=<%= selectedSeason?.id || '' %>">Rennkalender dieser Saison bearbeiten →</a></div>
 
+  <% if (selectedSeason) { %><div class="season-progress-context">
+    <div><span>VERBINDLICHE DATENQUELLE</span><strong><%= selectedLeague.name %> · <%= selectedSeason.name %></strong><small>Es werden ausschließlich Rennen aus dem Rennkalender dieser Saison geladen. Verwaiste oder fremde Ergebnisse bleiben ausgeblendet.</small></div>
+    <div class="season-progress-count"><strong><%= races.length %></strong><span>Kalender-Rennen</span></div>
+  </div><% } %>
+
+  <% if (races.length) { %><nav class="season-race-tabs" aria-label="Rennen dieser Saison">
+    <% races.forEach((race) => { const calendarRace = race.calendarEvent; %><a class="<%= selectedRace?.id === race.id ? 'is-active' : '' %>" href="<%= currentMode ? '/admin/current-season-progress' : '/admin/race-editor' %>?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&race=<%= race.id %>"><span>R<%= calendarRace?.sortOrder || race.sortOrder %></span><strong><%= calendarRace?.circuit || race.circuit || race.title %></strong><small><%= calendarRace?.isTestDay ? 'Testtag' : 'Rennen' %></small></a><% }) %>
+  </nav><% } %>
+
   <% if (!selectedRace) { %><div class="empty-state">Für diese Saison gibt es noch kein Rennen. Lege die Termine im Saison-Assistenten oder in der Rennkalender-Pflege an.</div><% } else { %>
     <% if (!currentMode) { %><div class="race-settings-bar">
       <form method="post" action="/admin/race-editor/<%= selectedRace.id %>/settings" class="compact-admin-form"><label>Eingabemodus<select name="pointsMode"><option value="database" <%= selectedRace.pointsMode === 'database' ? 'selected' : '' %>>Plätze → Punkte aus Datenbank</option><option value="manual" <%= selectedRace.pointsMode === 'manual' ? 'selected' : '' %>>Punkte direkt eingeben</option></select></label><label class="checkbox-control"><input type="checkbox" name="hasSprint" <%= sprintRace ? 'checked' : '' %>><span>Sprint-Spalte</span></label><button class="button button-small" type="submit">Rennen aktualisieren</button></form>
@@ -23,7 +32,7 @@
     <form method="post" action="/admin/race-editor/<%= selectedRace.id %>" class="race-sheet-form">
       <input type="hidden" name="_return" value="<%= currentMode ? 'current' : 'all' %>">
       <% const hasSavedEntries = rows.some(({ entry, sprintEntry }) => entry || sprintEntry); %>
-      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedSeason.name %> · R<%= selectedRace.sortOrder %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
+      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedSeason.name %> · R<%= selectedRace.calendarEvent?.sortOrder || selectedRace.sortOrder %></span><h2><%= selectedRace.calendarEvent?.title || selectedRace.title %></h2><small><%= sprintRace ? 'Sprint und Hauptrennen · zwei Ergebnis-Spalten aktiv' : 'Hauptrennen' %></small></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
       <div class="table-wrap race-sheet"><table><thead><tr><th>Dabei</th><th>Fahrer / Aliase</th><th>Team</th><% if (selectedRace.pointsMode === 'manual') { %><th>GP-Punkte</th><% } else { %><th>GP-Platz</th><th>SR</th><% } %><% if (sprintRace) { if (sprintRace.pointsMode === 'manual') { %><th>Sprint-Punkte</th><% } else { %><th>Sprint-Platz</th><th>Sprint-SR</th><% } } %><th>Status</th><th>Rennsperre</th></tr></thead><tbody>
         <% rows.forEach(({ driver, entry, sprintEntry, assignedTeam, isReserve, planned, replacesDriver, raceBan }) => { const activeEntry = entry || sprintEntry; const includedByDefault = !hasSavedEntries && selectedSeason.status === 'active' && (planned || (assignedTeam && !isReserve)); %><tr class="<%= activeEntry ? 'sheet-row-active' : '' %>" style="--row-team-color:<%= assignedTeam?.accentColor || '#6ef2f2' %>">
           <td><% if (selectedSeason.status === 'historical') { %><input type="hidden" name="rows[<%= driver.id %>][included]" value="on"><span class="id-badge">Dabei</span><% } else { %><input type="checkbox" name="rows[<%= driver.id %>][included]" <%= activeEntry || includedByDefault ? 'checked' : '' %> aria-label="<%= driver.name %> berücksichtigen"><% } %></td>
