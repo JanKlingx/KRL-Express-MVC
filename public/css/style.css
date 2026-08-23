@@ -5397,60 +5397,762 @@ td strong {
   }
 }
 
-
 /* Saison-Assistent Schritt 3 – Kalenderkarten */
 
 .season-calendar-editor .setup-calendar-form {
-    display: grid;
-    grid-template-columns:
-        120px
-        minmax(160px, 1.4fr)
-        120px
-        130px
-        120px
-        120px
-        120px;
-    gap: .65rem;
-    align-items: end;
+  display: grid;
+  grid-template-columns:
+    120px
+    minmax(160px, 1.4fr)
+    120px
+    130px
+    120px
+    120px
+    120px;
+  gap: 0.65rem;
+  align-items: end;
 }
 
 .season-calendar-editor .calendar-drag-handle {
-    align-self: center;
+  align-self: center;
 }
 
 .season-calendar-editor .checkbox-control {
-    min-height: 58px;
-    margin: 0;
+  min-height: 58px;
+  margin: 0;
 }
 
 .season-calendar-editor .setup-calendar-form > .button {
-    min-height: 44px;
+  min-height: 44px;
 }
 
 @media (max-width: 1150px) {
-    .season-calendar-editor .setup-calendar-form {
-        grid-template-columns:
-            100px
-            minmax(170px, 1fr)
-            120px
-            130px
-            120px
-            120px;
-    }
+  .season-calendar-editor .setup-calendar-form {
+    grid-template-columns:
+      100px
+      minmax(170px, 1fr)
+      120px
+      130px
+      120px
+      120px;
+  }
 
-    .season-calendar-editor .setup-calendar-form > .button {
-        grid-column: auto;
-    }
+  .season-calendar-editor .setup-calendar-form > .button {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 850px) {
-    .season-calendar-editor .setup-calendar-form {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+  .season-calendar-editor .setup-calendar-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 550px) {
-    .season-calendar-editor .setup-calendar-form {
-        grid-template-columns: 1fr;
-    }
+  .season-calendar-editor .setup-calendar-form {
+    grid-template-columns: 1fr;
+  }
+}
+/* Kalenderkarten – Land sauber darstellen */
+
+.season-calendar-editor .readonly-master-field {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+
+  padding: 0.5rem 0.65rem;
+
+  background: #10181d;
+  border: 1px solid #34434b;
+
+  overflow: hidden;
+}
+
+.season-calendar-editor .readonly-master-field img {
+  width: 34px;
+  height: 22px;
+  min-width: 34px;
+  max-width: 34px;
+
+  object-fit: cover;
+  display: block;
+}
+
+.season-calendar-editor .readonly-master-field strong {
+  min-width: 0;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  color: #fff;
+  font-weight: 800;
+}
+
+.setup-driver-filter-hidden {
+  display: none !important;
+}
+
+/* =====================================================
+   SAISON-ASSISTENT · ABSCHLUSS
+   ===================================================== */
+
+.setup-finish-panel .setup-panel-content {
+  min-width: 0;
+}
+
+.setup-final-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.25rem 0 1.5rem;
+}
+
+.setup-final-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 95px;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.setup-final-card > span {
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+}
+
+.setup-final-card > strong {
+  font-size: 1.35rem;
+  color: #fff;
+}
+
+.setup-final-card > small {
+  margin-top: 0.2rem;
+  color: #91a3ad;
+}
+
+.setup-finish-lineup,
+.setup-finish-reserves {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.setup-finish-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.setup-finish-section-heading span {
+  font-size: 0.72rem;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.setup-finish-section-heading h3 {
+  margin: 0.2rem 0 0;
+  color: #fff;
+}
+
+.setup-finish-section-heading > strong {
+  color: var(--cyan);
+}
+
+.setup-finish-team-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.setup-finish-team {
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--team-color);
+  background: var(--surface);
+}
+
+.setup-finish-team-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.setup-finish-team-head img {
+  width: 42px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.setup-finish-team-head span {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--team-color);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.setup-finish-team-head strong {
+  color: #fff;
+}
+
+.setup-finish-team-drivers {
+  padding: 0.65rem 0.8rem;
+}
+
+.setup-finish-driver {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 34px;
+}
+
+.setup-finish-driver > span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line);
+  color: var(--cyan);
+  font-size: 0.7rem;
+}
+
+.setup-finish-driver strong {
+  color: #fff;
+}
+
+.setup-finish-driver.is-empty {
+  color: #74858e;
+}
+
+.setup-reserve-driver-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.setup-reserve-driver {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.setup-reserve-driver-number {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  height: 34px;
+  padding: 0 0.4rem;
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-weight: 800;
+}
+
+.setup-reserve-driver strong {
+  display: block;
+  color: #fff;
+}
+
+.setup-reserve-driver small {
+  color: #84969f;
+}
+
+.setup-finish-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+
+  margin-top: 1.5rem;
+  padding: 1rem;
+
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.setup-finish-action strong {
+  color: #fff;
+}
+
+.setup-finish-action p {
+  margin: 0.3rem 0 0;
+  color: #91a3ad;
+}
+
+@media (max-width: 850px) {
+  .setup-final-summary,
+  .setup-finish-team-grid,
+  .setup-reserve-driver-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-finish-action {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .setup-finish-action .button {
+    width: 100%;
+  }
+}
+
+/* Anwesenheitskontrolle in den vorhandenen Teamkarten */
+
+.attendance-driver-head {
+  margin-bottom: 0.7rem;
+}
+
+.attendance-control {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.attendance-control > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.attendance-control select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0.55rem;
+  background: #111a1f;
+  color: #fff;
+  border: 1px solid #34434b;
+}
+
+/* =====================================================
+   Rennwochenende · Anwesenheitskontrolle
+   nutzt bestehende lineup-team-card / lineup-team-grid
+   ===================================================== */
+
+.attendance-board {
+  display: grid;
+  gap: 1rem;
+}
+
+.attendance-team-row {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  background: #0d1418;
+  border-bottom: 1px solid var(--line);
+}
+
+.attendance-team-row:last-child {
+  border-bottom: 0;
+}
+
+/* Ersatzfahrer innerhalb des Teams leicht hervorheben */
+
+.attendance-team-row.is-replacement {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--team-color) 7%, #0d1418),
+    #0d1418 55%
+  );
+
+  box-shadow: inset 3px 0 0 var(--team-color);
+}
+
+/* Fahrername */
+
+.attendance-driver-head {
+  min-width: 0;
+}
+
+.attendance-driver-head .lineup-driver-name {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.attendance-driver-head .lineup-driver-name strong {
+  color: #fff;
+}
+
+.attendance-driver-head .lineup-driver-name small {
+  color: var(--muted);
+}
+
+/* Hauptbedienung */
+
+.attendance-main-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px);
+  gap: 0.75rem;
+}
+
+/* Einheitliches Formularfeld */
+
+.attendance-control {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.attendance-control > span {
+  color: var(--muted);
+
+  font-size: 0.68rem;
+  font-weight: 900;
+
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.attendance-control select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+
+  padding: 0.6rem 0.7rem;
+
+  background: #10181d;
+  color: #fff;
+
+  border: 1px solid #34434b;
+
+  font-weight: 700;
+}
+
+.attendance-control select:focus {
+  outline: 2px solid var(--cyan);
+  border-color: transparent;
+}
+
+/* Weiterer Ersatz */
+
+.attendance-replacement-panel {
+  display: grid;
+
+  grid-template-columns:
+    minmax(180px, 320px)
+    minmax(0, 1fr);
+
+  gap: 0.75rem;
+
+  align-items: end;
+
+  padding-top: 0.85rem;
+
+  border-top: 1px solid var(--line);
+}
+
+.attendance-replacement-panel[hidden] {
+  display: none;
+}
+
+.attendance-replacement-hint {
+  align-self: center;
+
+  color: var(--muted);
+
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+/* Button unten */
+
+.attendance-submit {
+  justify-self: end;
+  min-width: 240px;
+}
+
+/* Responsive */
+
+@media (max-width: 750px) {
+  .attendance-main-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-replacement-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .attendance-submit {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+.uncertain-seat-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  padding: 0.8rem;
+
+  background: rgba(255, 242, 0, 0.04);
+  border: 1px solid rgba(255, 242, 0, 0.24);
+}
+
+.uncertain-seat-choice > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.uncertain-seat-choice > div > span {
+  color: #fff200;
+  font-family: var(--body);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.uncertain-seat-choice > div > strong {
+  color: #fff;
+  font-family: var(--body);
+}
+
+.uncertain-seat-choice small {
+  color: var(--muted);
+}
+
+.uncertain-seat-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+
+  padding: 0.65rem 0.8rem;
+
+  background: #10181d;
+  border: 1px solid #34434b;
+
+  font-family: var(--body);
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.uncertain-seat-toggle input {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--cyan);
+}
+
+.attendance-active-driver {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.attendance-active-driver[hidden] {
+  display: none;
+}
+
+.attendance-active-driver.is-replacement {
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--team-color);
+}
+
+@media (max-width: 650px) {
+  .uncertain-seat-choice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+/* =====================================================
+   AKTUELLE F1 ERGEBNISEINGABE
+   Teamkarten wie Anwesenheitskontrolle
+   ===================================================== */
+
+.result-driver-row {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  background: #0d1418;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--body);
+}
+
+.result-driver-row:last-child {
+  border-bottom: 0;
+}
+
+.result-driver-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.result-driver-head .lineup-driver-name {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.result-driver-head .lineup-driver-name strong {
+  color: #fff;
+  font-family: var(--body);
+  font-weight: 800;
+}
+
+.result-driver-head .lineup-driver-name small {
+  color: var(--muted);
+}
+
+
+/* Platz + Status + Schnellste Runde */
+
+.result-driver-controls {
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 0.7fr)
+    minmax(150px, 1fr)
+    minmax(170px, 1fr);
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.result-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.result-field > span {
+  color: var(--muted);
+  font-family: var(--body);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.result-field input,
+.result-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0.6rem 0.7rem;
+  background: #10181d;
+  color: #fff;
+  border: 1px solid #34434b;
+  font-family: var(--body);
+  font-weight: 700;
+}
+
+.result-field input:focus,
+.result-field select:focus {
+  outline: 2px solid var(--cyan);
+  border-color: transparent;
+}
+
+
+/* Schnellste Runde */
+
+.result-fastest {
+  min-height: 42px;
+  padding: 0.6rem 0.75rem;
+  background: #10181d;
+  border: 1px solid #34434b;
+  font-family: var(--body);
+}
+
+.result-fastest span {
+  color: #fff;
+  font-family: var(--body);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+
+/* DNF / DSQ Hinweis */
+
+.result-driver-note {
+  color: var(--muted);
+  font-family: var(--body);
+  font-size: 0.72rem;
+}
+
+
+/* Sprint innerhalb Fahrer */
+
+.result-sprint-block {
+  display: grid;
+  gap: 0.7rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.result-sprint-block > span {
+  color: var(--cyan);
+  font-family: var(--body);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+
+/* Unterer Speichern-Bereich */
+
+.result-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #0d1418;
+  border: 1px solid var(--line);
+}
+
+.result-save-bar > div {
+  display: grid;
+}
+
+.result-save-bar strong {
+  color: #fff;
+}
+
+.result-save-bar small {
+  color: var(--muted);
+}
+
+
+/* Responsive */
+
+@media (max-width: 800px) {
+  .result-driver-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .result-fastest {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 550px) {
+  .result-driver-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .result-fastest {
+    grid-column: auto;
+  }
+
+  .result-save-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .result-save-bar .button {
+    width: 100%;
+  }
 }

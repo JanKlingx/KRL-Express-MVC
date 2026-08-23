@@ -1,42 +1,413 @@
 <% if (history.seasons.length && selectedHistory) { %>
+
   <div class="season-history-toolbar">
     <strong><%= selectedHistory.name %></strong>
-    <span class="history-source">Aus den eingetragenen Rennergebnissen automatisch erzeugt</span>
   </div>
 
-  <% if (history.warning && isAdmin) { %><div class="history-notice" role="status"><%= history.warning %></div><% } %>
+  <% if (history.warning && isAdmin) { %>
+    <div class="history-notice" role="status">
+      <%= history.warning %>
+    </div>
+  <% } %>
+
 
   <div class="season-chart-card">
+
     <div class="season-chart-heading">
-      <div><span>PUNKTEENTWICKLUNG</span><h3><%= selectedHistory.name %></h3></div>
-      <p>Die acht bestplatzierten Fahrer im Verlauf der Saison.</p>
+
+      <div>
+        <span>PUNKTEENTWICKLUNG</span>
+        <h3><%= selectedHistory.name %></h3>
+      </div>
+
+      <p>
+        Die acht bestplatzierten Fahrer im Verlauf der Saison.
+      </p>
+
     </div>
+
+
     <div class="season-chart-scroll">
-      <div class="season-chart" data-season-chart aria-label="Punkteverlauf <%= selectedHistory.name %>"></div>
+
+      <div
+        class="season-chart"
+        data-season-chart
+        aria-label="Punkteverlauf <%= selectedHistory.name %>"
+      ></div>
+
     </div>
-    <div class="season-chart-legend" data-season-legend></div>
-    <% const chartPayload = JSON.stringify({ races: selectedHistory.races, drivers: selectedHistory.drivers.slice(0, 8) }).replace(/</g, '\\u003c'); %>
-    <script type="application/json" data-season-chart-data><%- chartPayload %></script>
+
+
+    <div
+      class="season-chart-legend"
+      data-season-legend
+    ></div>
+
+
+    <%
+      const chartPayload = JSON.stringify({
+        races: selectedHistory.races,
+        drivers: selectedHistory.drivers.slice(0, 8)
+      }).replace(/</g, "\\u003c");
+    %>
+
+    <script
+      type="application/json"
+      data-season-chart-data
+    ><%- chartPayload %></script>
+
   </div>
 
-  <div class="table-wrap season-history-table">
-    <table>
-      <thead>
-        <tr><th>Pos.</th><th>Fahrer</th><th>Team</th>
-          <% selectedHistory.races.forEach((race) => { %><th title="Runde <%= race.round %>"><%= race.code %><small><%= race.round %></small></th><% }) %>
-          <th>∑ Punkte</th><th>Δ Punkte</th><th>Ø Punkte</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% selectedHistory.drivers.forEach((driver) => { %>
-          <tr class="season-position-<%= driver.position %>"><td><strong class="position-badge position-<%= driver.position %>">P<%= driver.position %></strong></td><td><%= driver.name %></td><td><%= driver.team || '–' %></td>
-            <% driver.results.forEach((result) => { %><td class="<%= result.fastestLap ? 'has-fastest-lap' : '' %> <%= result.status ? 'has-race-status' : '' %> <%= result.position >= 1 && result.position <= 3 ? `season-race-position-${result.position}` : '' %>"><% if (result.status) { %><span class="status-badge status-<%= result.status.toLowerCase() %>"><%= result.status %></span><% } else if (result.position) { %><span class="position-badge position-<%= result.position %>">P<%= result.position %></span><% } else { %>–<% } %></td><% }) %>
-            <td class="season-total"><strong><%= driver.total %></strong></td><td><%= driver.gap > 0 ? `+${driver.gap}` : driver.gap %></td><td><%= Number(driver.average).toFixed(1).replace('.', ',') %></td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+
+  <div class="season-history-switch">
+
+    <button
+      type="button"
+      class="button button-small is-active"
+      data-history-tab="regular"
+    >
+      Stammfahrerwertung
+    </button>
+
+
+    <button
+      type="button"
+      class="button button-small"
+      data-history-tab="reserve"
+    >
+      Ersatzfahrerwertung
+    </button>
+
   </div>
+
+
+  <!-- ============================================== -->
+  <!-- STAMMFAHRER -->
+  <!-- ============================================== -->
+
+  <div data-history-panel="regular">
+
+    <div class="table-wrap season-history-table">
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>Pos.</th>
+
+            <th>Fahrer</th>
+
+            <th>Team</th>
+
+
+            <% selectedHistory.races.forEach((race) => { %>
+
+              <th title="Runde <%= race.round %>">
+
+                <%= race.code %>
+
+                <small>
+                  <%= race.round %>
+                </small>
+
+              </th>
+
+            <% }) %>
+
+
+            <th>
+              ∑ Punkte
+            </th>
+
+            <th>
+              Δ Punkte
+            </th>
+
+            <th>
+              Ø Punkte
+            </th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          <% selectedHistory.drivers.forEach((driver) => { %>
+
+            <tr class="season-position-<%= driver.position %>">
+
+              <td>
+
+                <strong
+                  class="position-badge position-<%= driver.position %>"
+                >
+                  P<%= driver.position %>
+                </strong>
+
+              </td>
+
+
+              <td>
+                <%= driver.name %>
+              </td>
+
+
+              <td>
+                <%= driver.team || "–" %>
+              </td>
+
+
+              <% driver.results.forEach((result) => { %>
+
+                <td
+                  class="
+                    <%= result.fastestLap ? 'has-fastest-lap' : '' %>
+                    <%= result.status ? 'has-race-status' : '' %>
+                    <%= result.position >= 1 && result.position <= 3
+                      ? `season-race-position-${result.position}`
+                      : ''
+                    %>
+                  "
+                >
+
+                  <% if (result.status) { %>
+
+                    <span
+                      class="status-badge status-<%= result.status.toLowerCase() %>"
+                    >
+                      <%= result.status %>
+                    </span>
+
+                  <% } else if (result.position) { %>
+
+                    <span
+                      class="position-badge position-<%= result.position %>"
+                    >
+                      P<%= result.position %>
+                    </span>
+
+                  <% } else { %>
+
+                    –
+
+                  <% } %>
+
+                </td>
+
+              <% }) %>
+
+
+              <td class="season-total">
+
+                <strong>
+                  <%= driver.total %>
+                </strong>
+
+              </td>
+
+
+              <td>
+
+                <%= driver.gap > 0
+                  ? `+${driver.gap}`
+                  : driver.gap
+                %>
+
+              </td>
+
+
+              <td>
+
+                <%= Number(driver.average)
+                  .toFixed(1)
+                  .replace(".", ",")
+                %>
+
+              </td>
+
+            </tr>
+
+          <% }) %>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+
+  <!-- ============================================== -->
+  <!-- ERSATZFAHRER -->
+  <!-- ============================================== -->
+
+  <div
+    data-history-panel="reserve"
+    hidden
+  >
+
+    <% if ((selectedHistory.reserveDrivers || []).length) { %>
+
+      <div class="table-wrap season-history-table">
+
+        <table>
+
+          <thead>
+
+            <tr>
+
+              <th>Pos.</th>
+
+              <th>Ersatzfahrer</th>
+
+
+              <% selectedHistory.races.forEach((race) => { %>
+
+                <th title="Runde <%= race.round %>">
+
+                  <%= race.code %>
+
+                  <small>
+                    <%= race.round %>
+                  </small>
+
+                </th>
+
+              <% }) %>
+
+
+              <th>
+                ∑ Punkte
+              </th>
+
+              <th>
+                Δ Punkte
+              </th>
+
+              <th>
+                Ø Punkte
+              </th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            <% (selectedHistory.reserveDrivers || []).forEach((driver) => { %>
+
+              <tr>
+
+                <td>
+
+                  <strong
+                    class="position-badge position-<%= driver.position %>"
+                  >
+                    P<%= driver.position %>
+                  </strong>
+
+                </td>
+
+
+                <td>
+                  <%= driver.name %>
+                </td>
+
+
+                <% driver.results.forEach((result) => { %>
+
+                  <td
+                    class="
+                      <%= result.fastestLap ? 'has-fastest-lap' : '' %>
+                      <%= result.status ? 'has-race-status' : '' %>
+                      <%= result.position >= 1 && result.position <= 3
+                        ? `season-race-position-${result.position}`
+                        : ''
+                      %>
+                    "
+                  >
+
+                    <% if (result.status) { %>
+
+                      <span
+                        class="status-badge status-<%= result.status.toLowerCase() %>"
+                      >
+                        <%= result.status %>
+                      </span>
+
+                    <% } else { %>
+
+                      <strong>
+                        <%= result.points %>
+                      </strong>
+
+                    <% } %>
+
+                  </td>
+
+                <% }) %>
+
+
+                <td class="season-total">
+
+                  <strong>
+                    <%= driver.total %>
+                  </strong>
+
+                </td>
+
+
+                <td>
+
+                  <%= driver.gap > 0
+                    ? `+${driver.gap}`
+                    : driver.gap
+                  %>
+
+                </td>
+
+
+                <td>
+
+                  <%= Number(driver.average)
+                    .toFixed(1)
+                    .replace(".", ",")
+                  %>
+
+                </td>
+
+              </tr>
+
+            <% }) %>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    <% } else { %>
+
+      <div class="empty-state">
+        In dieser Saison wurde bisher kein Ersatzfahrer eingesetzt.
+      </div>
+
+    <% } %>
+
+  </div>
+
+
 <% } else { %>
-  <div class="empty-state">Noch keine Ergebnisse eingetragen. Im Adminbereich zuerst einen Grand Prix und anschließend dessen Saisonverlauf erfassen.</div>
+
+  <div class="empty-state">
+    Noch keine Ergebnisse eingetragen.
+    Im Adminbereich zuerst einen Grand Prix und anschließend dessen Saisonverlauf erfassen.
+  </div>
+
 <% } %>

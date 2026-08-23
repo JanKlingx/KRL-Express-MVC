@@ -44,6 +44,23 @@ router.get('/season-setup', asyncHandler(seasonSetupController.show));
 router.post('/season-setup/seasons', asyncHandler(seasonSetupController.createSeason));
 router.post('/season-setup/:seasonId/profile', asyncHandler(seasonSetupController.updateSeasonProfile));
 router.post('/season-setup/:seasonId/calendar', asyncHandler(seasonSetupController.addCalendarEvent));
+
+router.post(
+  '/season-setup/:seasonId/calendar/reorder',
+  asyncHandler(seasonCalendarController.reorder)
+);
+
+router.post(
+  '/season-setup/:seasonId/calendar/:eventId/update',
+  asyncHandler(seasonCalendarController.update)
+);
+
+router.post(
+  '/season-setup/:seasonId/calendar/:eventId/delete',
+  asyncHandler(seasonCalendarController.remove)
+);
+
+
 router.post('/season-setup/:seasonId/drivers', asyncHandler(seasonSetupController.assignDrivers));
 router.post('/season-setup/:seasonId/teams', asyncHandler(seasonSetupController.assignTeams));
 router.post('/season-setup/:seasonId/lineup', asyncHandler(seasonSetupController.assignLineup));

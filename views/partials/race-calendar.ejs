@@ -1,12 +1,306 @@
 <% if (calendar.length) { %>
+
   <div class="race-calendar-grid">
-    <% calendar.forEach((race, index) => { const startsAt = new Date(race.startsAt); const hasValidDate = Boolean(race.startsAt) && !Number.isNaN(startsAt.getTime()); const month = hasValidDate ? new Intl.DateTimeFormat('de-DE', { month: 'short', timeZone: 'Europe/Berlin' }).format(startsAt).replace('.', '').toUpperCase() : 'OFFEN'; const cardClasses = ['race-calendar-card', race.isTestDay && 'race-calendar-test', !hasValidDate && 'race-calendar-invalid'].filter(Boolean).join(' '); %>
-      <article class="<%= cardClasses %>" style="--calendar-accent:<%= league.accentColor || '#6ef2f2' %>">
-        <% if (league.logoPath) { %><img class="race-calendar-watermark" src="<%= league.logoPath %>" alt="" aria-hidden="true"><% } %>
-        <div class="race-calendar-round"><span><%= race.isTestDay ? 'TEST' : 'RUNDE' %></span><strong><%= String(race.sortOrder || index + 1).padStart(2, '0') %></strong></div>
-        <time<% if (hasValidDate) { %> datetime="<%= startsAt.toISOString() %>"<% } %>><strong><%= hasValidDate ? new Intl.DateTimeFormat('de-DE', { day: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt) : '–' %></strong><span><%= month %></span><small><%= hasValidDate ? new Intl.DateTimeFormat('de-DE', { year: 'numeric', timeZone: 'Europe/Berlin' }).format(startsAt) : 'DATUM' %></small></time>
-        <div class="race-calendar-info"><div class="race-calendar-tags"><span><%= hasValidDate ? `${new Intl.DateTimeFormat('de-DE', { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(startsAt)} Uhr` : 'TERMIN IM ADMIN PRÜFEN' %></span><% if (race.isTestDay) { %><strong>TESTTAG</strong><% } %><% if (race.calendarChanged) { %><strong class="calendar-change-badge">GEÄNDERT</strong><% } %></div><div class="race-calendar-title"><% if (race.track?.countryRecord?.flagPath) { %><img src="<%= race.track.countryRecord.flagPath %>" alt="Flagge <%= race.track.countryRecord.name %>"><% } %><h3><%= race.title %></h3></div><p><%= race.track?.countryRecord?.name ? `${race.track.countryRecord.name} · ` : '' %><%= race.circuit || league.name %></p><% if (race.calendarChanged && race.previousStartsAt) { const oldDate = new Date(race.previousStartsAt); %><small class="calendar-old-date">Alter Termin: <%= Number.isNaN(oldDate.getTime()) ? 'unbekannt' : new Intl.DateTimeFormat('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'Europe/Berlin' }).format(oldDate) %> Uhr</small><% } %></div>
+
+    <% calendar.forEach((race, index) => {
+
+      const startsAt =
+        new Date(race.startsAt);
+
+      const hasValidDate =
+        Boolean(race.startsAt) &&
+        !Number.isNaN(
+          startsAt.getTime()
+        );
+
+      const month =
+        hasValidDate
+          ? new Intl.DateTimeFormat(
+              "de-DE",
+              {
+                month: "short",
+                timeZone:
+                  "Europe/Berlin",
+              }
+            )
+              .format(startsAt)
+              .replace(".", "")
+              .toUpperCase()
+          : "OFFEN";
+
+      const cardClasses = [
+        "race-calendar-card",
+
+        race.isTestDay &&
+          "race-calendar-test",
+
+        !hasValidDate &&
+          "race-calendar-invalid",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+    %>
+
+      <article
+        class="<%= cardClasses %>"
+        style="--calendar-accent:<%= league.accentColor || '#6ef2f2' %>"
+      >
+
+        <% if (league.logoPath) { %>
+
+          <img
+            class="race-calendar-watermark"
+            src="<%= league.logoPath %>"
+            alt=""
+            aria-hidden="true"
+          >
+
+        <% } %>
+
+
+        <div class="race-calendar-round">
+
+          <span>
+            <%= race.isTestDay
+              ? "TEST"
+              : "RUNDE"
+            %>
+          </span>
+
+          <strong>
+            <%= race.isTestDay
+              ? "00"
+              : String(
+                  race.sortOrder
+                ).padStart(
+                  2,
+                  "0"
+                )
+            %>
+          </strong>
+
+        </div>
+
+
+        <time
+          <% if (hasValidDate) { %>
+            datetime="<%= startsAt.toISOString() %>"
+          <% } %>
+        >
+
+          <strong>
+
+            <%= hasValidDate
+              ? new Intl.DateTimeFormat(
+                  "de-DE",
+                  {
+                    day:
+                      "2-digit",
+
+                    timeZone:
+                      "Europe/Berlin",
+                  }
+                ).format(
+                  startsAt
+                )
+              : "–"
+            %>
+
+          </strong>
+
+
+          <span>
+            <%= month %>
+          </span>
+
+
+          <small>
+
+            <%= hasValidDate
+              ? new Intl.DateTimeFormat(
+                  "de-DE",
+                  {
+                    year:
+                      "numeric",
+
+                    timeZone:
+                      "Europe/Berlin",
+                  }
+                ).format(
+                  startsAt
+                )
+              : "DATUM"
+            %>
+
+          </small>
+
+        </time>
+
+
+        <div class="race-calendar-info">
+
+
+          <div class="race-calendar-tags">
+
+            <span>
+
+              <%= hasValidDate
+                ? `${new Intl.DateTimeFormat(
+                    "de-DE",
+                    {
+                      weekday:
+                        "long",
+
+                      hour:
+                        "2-digit",
+
+                      minute:
+                        "2-digit",
+
+                      timeZone:
+                        "Europe/Berlin",
+                    }
+                  ).format(
+                    startsAt
+                  )} Uhr`
+                : "TERMIN IM ADMIN PRÜFEN"
+              %>
+
+            </span>
+
+
+            <% if (race.isTestDay) { %>
+
+              <strong>
+                TESTTAG
+              </strong>
+
+            <% } %>
+
+
+            <% if (
+              race.hasSprint &&
+              !race.isTestDay
+            ) { %>
+
+              <strong
+                class="calendar-sprint-badge"
+              >
+                SPRINT
+              </strong>
+
+            <% } %>
+
+
+            <% if (race.calendarChanged) { %>
+
+              <strong
+                class="calendar-change-badge"
+              >
+                GEÄNDERT
+              </strong>
+
+            <% } %>
+
+          </div>
+
+
+          <div class="race-calendar-title">
+
+            <% if (
+              race.track
+                ?.countryRecord
+                ?.flagPath
+            ) { %>
+
+              <img
+                src="<%= race.track.countryRecord.flagPath %>"
+                alt="Flagge <%= race.track.countryRecord.name %>"
+              >
+
+            <% } %>
+
+
+            <h3>
+              <%= race.title %>
+            </h3>
+
+          </div>
+
+
+         
+
+
+          <% if (
+            race.calendarChanged &&
+            race.previousStartsAt
+          ) {
+
+            const oldDate =
+              new Date(
+                race.previousStartsAt
+              );
+
+          %>
+
+            <small
+              class="calendar-old-date"
+            >
+
+              Alter Termin:
+
+              <%= Number.isNaN(
+                oldDate.getTime()
+              )
+                ? "unbekannt"
+                : new Intl.DateTimeFormat(
+                    "de-DE",
+                    {
+                      day:
+                        "2-digit",
+
+                      month:
+                        "2-digit",
+
+                      year:
+                        "numeric",
+
+                      hour:
+                        "2-digit",
+
+                      minute:
+                        "2-digit",
+
+                      timeZone:
+                        "Europe/Berlin",
+                    }
+                  ).format(
+                    oldDate
+                  )
+              %>
+
+              Uhr
+
+            </small>
+
+          <% } %>
+
+
+        </div>
+
       </article>
+
     <% }) %>
+
   </div>
-<% } else { %><div class="empty-state"><%= emptyMessage %></div><% } %>
+
+<% } else { %>
+
+  <div class="empty-state">
+
+    <%= emptyMessage %>
+
+  </div>
+
+<% } %>

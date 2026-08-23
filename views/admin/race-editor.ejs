@@ -1,42 +1,1447 @@
 <%- include('../partials/header', { title }) %>
-<% const currentMode = typeof currentOnly === 'boolean' ? currentOnly : false; %>
-<section class="admin-shell"><div class="container">
-  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">Formel 1 · Tabellenpflege</span><h1><%= currentMode ? 'ERGEBNISSE EINTRAGEN' : 'HISTORISCHEN SAISONVERLAUF PFLEGEN' %></h1><p class="admin-intro"><%= currentMode ? 'Aus der Anwesenheitskontrolle werden nur bestätigte Fahrer geladen. Danach wie in einem Google Sheet Plätze eintragen; Punkte und Teams folgen automatisch.' : 'Liga, historische Saison und Rennen auswählen. Line-Up und Ersatzfahrer kommen aus dem Saison-Assistenten.' %></p></div><% if (selectedSeason?.status === 'active') { %><a class="button button-ghost" href="/admin/race-weekend/f1?league=<%= selectedLeague?.id || '' %>&season=<%= selectedSeason.id %>&race=<%= selectedRace?.id || '' %>">Zurück zum Rennwochenende</a><% } %></div>
 
-  <form class="race-selector" method="get" action="<%= currentMode ? '/admin/current-season-progress' : '/admin/race-editor' %>">
-    <label for="league">Liga</label><select id="league" name="league"><% leagues.forEach((league) => { %><option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= league.name %></option><% }) %></select>
-    <% if (currentMode) { %><label>Aktuelle Saison</label><strong><%= selectedSeason?.name || 'Noch keine aktive Saison' %></strong><% } else { %><label for="season">Saison</label><select id="season" name="season"><%- include('../partials/season-options', { seasons, selectedSeason }) %></select><% } %>
-    <label for="race">Rennen</label><select id="race" name="race"><% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>>R<%= race.sortOrder %> · <%= race.title %></option><% }) %></select>
-    <noscript><button class="button button-small" type="submit">Öffnen</button></noscript>
-  </form>
+<%
+  const currentMode =
+    typeof currentOnly === 'boolean'
+      ? currentOnly
+      : false;
+%>
 
-  <div class="workflow-hint"><strong>Rennen fehlen oder sind falsch?</strong> <a href="/admin/season-calendar?league=<%= selectedLeague?.id || '' %>&season=<%= selectedSeason?.id || '' %>">Rennkalender dieser Saison bearbeiten →</a></div>
+<section class="admin-shell">
 
-  <% if (!selectedRace) { %><div class="empty-state">Für diese Saison gibt es noch kein Rennen. Lege die Termine im Saison-Assistenten oder in der Rennkalender-Pflege an.</div><% } else { %>
-    <% if (!currentMode) { %><div class="race-settings-bar">
-      <form method="post" action="/admin/race-editor/<%= selectedRace.id %>/settings" class="compact-admin-form"><label>Eingabemodus<select name="pointsMode"><option value="database" <%= selectedRace.pointsMode === 'database' ? 'selected' : '' %>>Plätze → Punkte aus Datenbank</option><option value="manual" <%= selectedRace.pointsMode === 'manual' ? 'selected' : '' %>>Punkte direkt eingeben</option></select></label><label class="checkbox-control"><input type="checkbox" name="hasSprint" <%= sprintRace ? 'checked' : '' %>><span>Sprint-Spalte</span></label><button class="button button-small" type="submit">Rennen aktualisieren</button></form>
-      <form method="post" action="/admin/race-editor/<%= selectedRace.id %>?_method=DELETE" data-confirm="Rennen einschließlich Sprint und Ergebnissen wirklich löschen?"><button class="button button-ghost button-small" type="submit">Rennen löschen</button></form>
-    </div><% } %>
+  <div class="container">
 
-    <% if (selectedSeason.status === 'historical') { %><div class="historical-driver-picker"><div><strong>Historisches Fahrerfeld</strong><span><%= historicalDriverIds.length %> von maximal 20 Fahrern hinzugefügt</span></div><form method="get" action="/admin/race-editor"><input type="hidden" name="league" value="<%= selectedLeague.id %>"><input type="hidden" name="season" value="<%= selectedSeason.id %>"><input type="hidden" name="race" value="<%= selectedRace.id %>"><input type="hidden" name="drivers" value="<%= historicalDriverIds.join(',') %>"><label for="historical-driver-search">Fahrer suchen</label><input id="historical-driver-search" type="search" list="historical-driver-options" name="addDriver" <%= historicalDriverIds.length >= 20 ? 'disabled' : 'required' %> placeholder="Name oder ID eingeben"><datalist id="historical-driver-options"><% availableDrivers.filter((driver) => !historicalDriverIds.includes(driver.id)).forEach((driver) => { %><option value="<%= driver.id %>" label="#<%= driver.id %> · <%= driver.name %><%= driver.aliases.length ? ` · ${driver.aliases.map((alias) => alias.alias).join(', ')}` : '' %>"></option><% }) %></datalist><button class="button button-small" type="submit" <%= historicalDriverIds.length >= 20 ? 'disabled' : '' %>>+ Fahrer hinzufügen</button></form><div class="historical-driver-chips"><% rows.forEach(({ driver }) => { const remaining = historicalDriverIds.filter((id) => id !== driver.id).join(','); %><a href="/admin/race-editor?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&race=<%= selectedRace.id %>&drivers=<%= remaining %>"><%= driver.name %> ×</a><% }) %></div></div><% } %>
 
-    <form method="post" action="/admin/race-editor/<%= selectedRace.id %>" class="race-sheet-form">
-      <input type="hidden" name="_return" value="<%= currentMode ? 'current' : 'all' %>">
-      <% const hasSavedEntries = rows.some(({ entry, sprintEntry }) => entry || sprintEntry); %>
-      <div class="race-sheet-heading"><div><span><%= selectedRace.league.name %> · <%= selectedSeason.name %> · R<%= selectedRace.sortOrder %></span><h2><%= selectedRace.title %></h2></div><button class="button" type="submit">Gesamte Tabelle speichern</button></div>
-      <div class="table-wrap race-sheet"><table><thead><tr><th>Dabei</th><th>Fahrer / Aliase</th><th>Team</th><% if (selectedRace.pointsMode === 'manual') { %><th>GP-Punkte</th><% } else { %><th>GP-Platz</th><th>SR</th><% } %><% if (sprintRace) { if (sprintRace.pointsMode === 'manual') { %><th>Sprint-Punkte</th><% } else { %><th>Sprint-Platz</th><th>Sprint-SR</th><% } } %><th>Status</th><th>Rennsperre</th></tr></thead><tbody>
-        <% rows.forEach(({ driver, entry, sprintEntry, assignedTeam, isReserve, planned, replacesDriver, raceBan }) => { const activeEntry = entry || sprintEntry; const includedByDefault = !hasSavedEntries && selectedSeason.status === 'active' && (planned || (assignedTeam && !isReserve)); %><tr class="<%= activeEntry ? 'sheet-row-active' : '' %>" style="--row-team-color:<%= assignedTeam?.accentColor || '#6ef2f2' %>">
-          <td><% if (selectedSeason.status === 'historical') { %><input type="hidden" name="rows[<%= driver.id %>][included]" value="on"><span class="id-badge">Dabei</span><% } else { %><input type="checkbox" name="rows[<%= driver.id %>][included]" <%= activeEntry || includedByDefault ? 'checked' : '' %> aria-label="<%= driver.name %> berücksichtigen"><% } %></td>
-          <td><div class="sheet-driver-identity"><% if (isReserve) { %><img src="/images/krl-placeholder.svg" alt="KRL"><% } else if (assignedTeam?.logoPath) { %><img src="<%= assignedTeam.logoPath %>" alt="Logo <%= assignedTeam.name %>"><% } %><span><strong>#<%= driver.id %> · <%= driver.name %></strong><% if (driver.aliases.length) { %><small><%= driver.aliases.map((alias) => alias.alias).join(' · ') %></small><% } %></span></div></td>
-          <td><% if (selectedSeason.status === 'active' && assignedTeam) { %><input type="hidden" name="rows[<%= driver.id %>][TeamId]" value="<%= assignedTeam.id %>"><strong><%= assignedTeam.name %></strong><% if (replacesDriver) { %><small>Ersatz für <%= replacesDriver.name %></small><% } %><% } else { %><select name="rows[<%= driver.id %>][TeamId]"><option value="">Team wählen …</option><% teams.forEach((team) => { %><option value="<%= team.id %>" <%= activeEntry?.teamName === team.name ? 'selected' : '' %>><%= team.name %></option><% }) %></select><% } %></td>
-          <% if (selectedRace.pointsMode === 'manual') { %><td><input type="number" min="0" step="0.5" name="rows[<%= driver.id %>][points]" value="<%= entry ? Number(entry.points) : '' %>"></td><% } else { %><td><input type="number" min="1" name="rows[<%= driver.id %>][position]" value="<%= entry?.position || '' %>"></td><td><input type="checkbox" name="rows[<%= driver.id %>][fastestLap]" <%= entry?.fastestLap ? 'checked' : '' %>></td><% } %>
-          <% if (sprintRace) { if (sprintRace.pointsMode === 'manual') { %><td><input type="number" min="0" step="0.5" name="rows[<%= driver.id %>][sprintPoints]" value="<%= sprintEntry ? Number(sprintEntry.points) : '' %>"></td><% } else { %><td><input type="number" min="1" name="rows[<%= driver.id %>][sprintPosition]" value="<%= sprintEntry?.position || '' %>"></td><td><input type="checkbox" name="rows[<%= driver.id %>][sprintFastestLap]" <%= sprintEntry?.fastestLap ? 'checked' : '' %>></td><% } } %>
-          <td><select name="rows[<%= driver.id %>][status]"><% statuses.forEach((status) => { %><option value="<%= status %>" <%= String(entry?.status || sprintEntry?.status || '') === status ? 'selected' : '' %>><%= status || 'Gewertet' %></option><% }) %></select></td><td><label class="result-checkbox"><input type="checkbox" name="rows[<%= driver.id %>][raceBan]" <%= raceBan ? 'checked' : '' %>><span>In Strafkartei</span></label></td>
-        </tr><% }) %>
-      </tbody></table></div>
-      <div class="sheet-help"><strong><%= selectedRace.pointsMode === 'manual' ? 'Direkte Punkteeingabe:' : 'Automatische Wertung:' %></strong> <%= selectedRace.pointsMode === 'manual' ? 'Für frühere Punktesysteme werden die eingetragenen Punkte unverändert gespeichert.' : 'Du trägst nur Plätze ein; die gültige Punktetabelle berechnet GP- und WM-Punkte.' %> Bei einem Sprint erscheinen die Sprintfelder direkt als zusätzliche Spalten.</div>
-      <button class="button" type="submit">Gesamte Tabelle speichern</button>
+    <!-- ================================================= -->
+    <!-- HEADER -->
+    <!-- ================================================= -->
+
+    <div class="admin-heading">
+
+      <div>
+
+        <a
+          class="back-link"
+          href="/admin"
+        >
+          ← Dashboard
+        </a>
+
+        <span class="form-kicker">
+          Formel 1 · Tabellenpflege
+        </span>
+
+        <h1>
+          <%= currentMode
+            ? 'ERGEBNISSE EINTRAGEN'
+            : 'HISTORISCHEN SAISONVERLAUF PFLEGEN'
+          %>
+        </h1>
+
+        <p class="admin-intro">
+          <%= currentMode
+            ? 'Es werden ausschließlich die in der Anwesenheitskontrolle bestätigten Starter geladen. Ergebnisstatus und Platzierung werden anschließend gepflegt.'
+            : 'Liga, historische Saison und Rennen auswählen. Line-Up und Ersatzfahrer kommen aus dem Saison-Assistenten.'
+          %>
+        </p>
+
+      </div>
+
+
+      <% if (selectedSeason?.status === 'active') { %>
+
+        <a
+          class="button button-ghost"
+          href="/admin/race-weekend/f1?league=<%= selectedLeague?.id || '' %>&season=<%= selectedSeason.id %>&race=<%= selectedRace?.id || '' %>"
+        >
+          Zurück zum Rennwochenende
+        </a>
+
+      <% } %>
+
+    </div>
+
+
+    <!-- ================================================= -->
+    <!-- AUSWAHL -->
+    <!-- ================================================= -->
+
+    <form
+      class="race-selector"
+      method="get"
+      action="<%= currentMode
+        ? '/admin/current-season-progress'
+        : '/admin/race-editor'
+      %>"
+    >
+
+      <label for="league">
+        Liga
+      </label>
+
+      <select
+        id="league"
+        name="league"
+      >
+
+        <% leagues.forEach((league) => { %>
+
+          <option
+            value="<%= league.id %>"
+            <%= selectedLeague?.id === league.id
+              ? 'selected'
+              : ''
+            %>
+          >
+            <%= league.name %>
+          </option>
+
+        <% }) %>
+
+      </select>
+
+
+      <% if (currentMode) { %>
+
+        <label>
+          Aktuelle Saison
+        </label>
+
+        <strong>
+          <%= selectedSeason?.name || 'Noch keine aktive Saison' %>
+        </strong>
+
+      <% } else { %>
+
+        <label for="season">
+          Saison
+        </label>
+
+        <select
+          id="season"
+          name="season"
+        >
+
+          <%- include(
+            '../partials/season-options',
+            {
+              seasons,
+              selectedSeason
+            }
+          ) %>
+
+        </select>
+
+      <% } %>
+
+
+      <label for="race">
+        Rennen
+      </label>
+
+      <select
+        id="race"
+        name="race"
+      >
+
+        <% races.forEach((race) => { %>
+
+          <option
+            value="<%= race.id %>"
+            <%= selectedRace?.id === race.id
+              ? 'selected'
+              : ''
+            %>
+          >
+            R<%= race.calendarEvent?.sortOrder || race.sortOrder %>
+            ·
+            <%= race.calendarEvent?.title || race.title %>
+          </option>
+
+        <% }) %>
+
+      </select>
+
+
+      <noscript>
+
+        <button
+          class="button button-small"
+          type="submit"
+        >
+          Öffnen
+        </button>
+
+      </noscript>
+
     </form>
-  <% } %>
-</div></section>
+
+
+    <!-- ================================================= -->
+    <!-- KALENDER -->
+    <!-- ================================================= -->
+
+    <div class="workflow-hint">
+
+      <strong>
+        Rennen fehlen oder sind falsch?
+      </strong>
+
+      <a
+        href="/admin/season-calendar?league=<%= selectedLeague?.id || '' %>&season=<%= selectedSeason?.id || '' %>"
+      >
+        Rennkalender dieser Saison bearbeiten →
+      </a>
+
+    </div>
+
+
+    <% if (!selectedRace) { %>
+
+      <div class="empty-state">
+        Für diese Saison gibt es noch kein Rennen.
+        Lege die Termine im Saison-Assistenten oder
+        in der Rennkalender-Pflege an.
+      </div>
+
+    <% } else { %>
+
+
+      <!-- ================================================= -->
+      <!-- HISTORISCHE EINSTELLUNGEN -->
+      <!-- ================================================= -->
+
+      <% if (!currentMode) { %>
+
+        <div class="race-settings-bar">
+
+          <form
+            method="post"
+            action="/admin/race-editor/<%= selectedRace.id %>/settings"
+            class="compact-admin-form"
+          >
+
+            <label>
+
+              Eingabemodus
+
+              <select name="pointsMode">
+
+                <option
+                  value="database"
+                  <%= selectedRace.pointsMode === 'database'
+                    ? 'selected'
+                    : ''
+                  %>
+                >
+                  Plätze → Punkte aus Datenbank
+                </option>
+
+                <option
+                  value="manual"
+                  <%= selectedRace.pointsMode === 'manual'
+                    ? 'selected'
+                    : ''
+                  %>
+                >
+                  Punkte direkt eingeben
+                </option>
+
+              </select>
+
+            </label>
+
+
+            <label class="checkbox-control">
+
+              <input
+                type="checkbox"
+                name="hasSprint"
+                <%= sprintRace ? 'checked' : '' %>
+              >
+
+              <span>
+                Sprint-Spalte
+              </span>
+
+            </label>
+
+
+            <button
+              class="button button-small"
+              type="submit"
+            >
+              Rennen aktualisieren
+            </button>
+
+          </form>
+
+
+          <form
+            method="post"
+            action="/admin/race-editor/<%= selectedRace.id %>?_method=DELETE"
+            data-confirm="Rennen einschließlich Sprint und Ergebnissen wirklich löschen?"
+          >
+
+            <button
+              class="button button-ghost button-small"
+              type="submit"
+            >
+              Rennen löschen
+            </button>
+
+          </form>
+
+        </div>
+
+      <% } %>
+
+
+      <!-- ================================================= -->
+      <!-- HISTORISCHE FAHRERWAHL -->
+      <!-- ================================================= -->
+
+      <% if (selectedSeason.status === 'historical') { %>
+
+        <div class="historical-driver-picker">
+
+          <div>
+
+            <strong>
+              Historisches Fahrerfeld
+            </strong>
+
+            <span>
+              <%= historicalDriverIds.length %>
+              von maximal 20 Fahrern hinzugefügt
+            </span>
+
+          </div>
+
+
+          <form
+            method="get"
+            action="/admin/race-editor"
+          >
+
+            <input
+              type="hidden"
+              name="league"
+              value="<%= selectedLeague.id %>"
+            >
+
+            <input
+              type="hidden"
+              name="season"
+              value="<%= selectedSeason.id %>"
+            >
+
+            <input
+              type="hidden"
+              name="race"
+              value="<%= selectedRace.id %>"
+            >
+
+            <input
+              type="hidden"
+              name="drivers"
+              value="<%= historicalDriverIds.join(',') %>"
+            >
+
+
+            <label for="historical-driver-search">
+              Fahrer suchen
+            </label>
+
+            <input
+              id="historical-driver-search"
+              type="search"
+              list="historical-driver-options"
+              name="addDriver"
+              <%= historicalDriverIds.length >= 20
+                ? 'disabled'
+                : 'required'
+              %>
+              placeholder="Name oder ID eingeben"
+            >
+
+
+            <datalist id="historical-driver-options">
+
+              <% availableDrivers
+                .filter(
+                  (driver) =>
+                    !historicalDriverIds.includes(driver.id)
+                )
+                .forEach((driver) => {
+              %>
+
+                <option
+                  value="<%= driver.id %>"
+                  label="#<%= driver.id %> · <%= driver.name %><%= driver.aliases.length
+                    ? ` · ${driver.aliases
+                        .map((alias) => alias.alias)
+                        .join(', ')}`
+                    : ''
+                  %>"
+                >
+                </option>
+
+              <% }) %>
+
+            </datalist>
+
+
+            <button
+              class="button button-small"
+              type="submit"
+              <%= historicalDriverIds.length >= 20
+                ? 'disabled'
+                : ''
+              %>
+            >
+              + Fahrer hinzufügen
+            </button>
+
+          </form>
+
+
+          <div class="historical-driver-chips">
+
+            <% rows.forEach(({ driver }) => {
+
+              const remaining =
+                historicalDriverIds
+                  .filter(
+                    (id) =>
+                      id !== driver.id
+                  )
+                  .join(',');
+
+            %>
+
+              <a
+                href="/admin/race-editor?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&race=<%= selectedRace.id %>&drivers=<%= remaining %>"
+              >
+                <%= driver.name %> ×
+              </a>
+
+            <% }) %>
+
+          </div>
+
+        </div>
+
+      <% } %>
+
+
+      <!-- ================================================= -->
+      <!-- ERGEBNIS FORM -->
+      <!-- ================================================= -->
+
+      <form
+        method="post"
+        action="/admin/race-editor/<%= selectedRace.id %>"
+        class="race-sheet-form"
+      >
+
+        <input
+          type="hidden"
+          name="_return"
+          value="<%= currentMode ? 'current' : 'all' %>"
+        >
+
+
+        <!-- ================================================= -->
+        <!-- RENNEN HEADER -->
+        <!-- ================================================= -->
+
+        <div class="race-sheet-heading">
+
+          <div>
+
+            <span>
+              <%= selectedRace.league.name %>
+              ·
+              <%= selectedSeason.name %>
+              ·
+              R<%= selectedRace.calendarEvent?.sortOrder || selectedRace.sortOrder %>
+            </span>
+
+            <h2>
+              <%= selectedRace.calendarEvent?.title || selectedRace.title %>
+            </h2>
+
+            <small>
+              <%= sprintRace
+                ? 'Sprint und Hauptrennen'
+                : 'Hauptrennen'
+              %>
+            </small>
+
+          </div>
+
+
+          <button
+            class="button"
+            type="submit"
+          >
+            Ergebnis speichern
+          </button>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- AKTUELLE SAISON -->
+        <!-- ================================================= -->
+
+        <% if (currentMode) { %>
+
+          <%
+            const resultTeams =
+              new Map();
+
+
+            rows.forEach((row) => {
+
+              if (!row.assignedTeam) {
+                return;
+              }
+
+
+              const teamKey =
+                row.assignedTeam.seasonTeamId ||
+                row.assignedTeam.id ||
+                row.assignedTeam.name;
+
+
+              if (!resultTeams.has(teamKey)) {
+
+                resultTeams.set(
+                  teamKey,
+                  {
+                    team:
+                      row.assignedTeam,
+
+                    rows:
+                      []
+                  }
+                );
+              }
+
+
+              resultTeams
+                .get(teamKey)
+                .rows
+                .push(row);
+
+            });
+
+
+            /*
+             * DNS wird NICHT manuell
+             * in der Ergebnisansicht gesetzt.
+             */
+            const currentResultStatuses = [
+              {
+                value: "",
+                label: "Gewertet"
+              },
+              {
+                value: "DNF",
+                label: "DNF"
+              },
+              {
+                value: "DSQ",
+                label: "DSQ"
+              }
+            ];
+          %>
+
+
+          <% if (!rows.length) { %>
+
+            <div class="empty-state">
+              Es wurden keine Fahrer aus der Anwesenheitskontrolle
+              für dieses Rennen übernommen.
+            </div>
+
+          <% } else { %>
+
+
+            <div class="lineup-team-grid">
+
+              <% resultTeams.forEach(({ team, rows: teamRows }) => { %>
+
+
+                <article
+                  class="lineup-team-card"
+                  style="--team-color:<%= team?.accentColor || '#6ef2f2' %>"
+                >
+
+
+                  <!-- ===================================== -->
+                  <!-- TEAM HEADER -->
+                  <!-- ===================================== -->
+
+                  <header>
+
+                    <% if (team?.logoPath) { %>
+
+                      <img
+                        src="<%= team.logoPath %>"
+                        alt="Logo <%= team.name %>"
+                      >
+
+                    <% } else { %>
+
+                      <div class="roster-logo-fallback">
+
+                        <%= (team?.name || 'TEAM')
+                          .slice(0, 2)
+                          .toUpperCase()
+                        %>
+
+                      </div>
+
+                    <% } %>
+
+
+                    <div>
+
+                      <span>
+                        TEAM
+                      </span>
+
+                      <h3>
+                        <%= team?.name || 'Saisonteam' %>
+                      </h3>
+
+                    </div>
+
+                  </header>
+
+
+                  <!-- ===================================== -->
+                  <!-- FAHRER -->
+                  <!-- ===================================== -->
+
+                  <div class="lineup-regular-list">
+
+
+                    <% teamRows.forEach(({
+                      driver,
+                      entry,
+                      sprintEntry,
+                      assignedTeam,
+                      isReserve,
+                      replacesDriver
+                    }) => { %>
+
+
+                      <%
+                        const selectedStatus =
+                          String(
+                            entry?.status ||
+                            sprintEntry?.status ||
+                            ''
+                          );
+
+
+                        const teamId =
+                          assignedTeam?.id || '';
+                      %>
+
+
+                      <div
+                        class="result-driver-row"
+                        style="--team-color:<%= assignedTeam?.accentColor || '#6ef2f2' %>"
+                      >
+
+
+                        <!-- ================================= -->
+                        <!-- WICHTIG:
+                             d-PREFIX VERHINDERT EXPRESS
+                             ARRAY-PARSING
+                             ================================= -->
+
+                        <input
+                          type="hidden"
+                          name="rows[d<%= driver.id %>][included]"
+                          value="on"
+                        >
+
+
+                        <input
+                          type="hidden"
+                          name="rows[d<%= driver.id %>][TeamId]"
+                          value="<%= teamId %>"
+                        >
+
+
+                        <!-- ================================= -->
+                        <!-- FAHRER -->
+                        <!-- ================================= -->
+
+                        <div class="result-driver-head">
+
+                          <div class="lineup-driver-name">
+
+                            <strong>
+                              #<%= driver.id %>
+                              ·
+                              <%= driver.name %>
+                            </strong>
+
+
+                            <% if (replacesDriver) { %>
+
+                              <small>
+                                Ersatz für <%= replacesDriver.name %>
+                              </small>
+
+                            <% } else { %>
+
+                              <small>
+                                Stammfahrer
+                              </small>
+
+                            <% } %>
+
+                          </div>
+
+
+                          <% if (entry?.position) { %>
+
+                            <span class="id-badge">
+                              P<%= entry.position %>
+                            </span>
+
+                          <% } %>
+
+                        </div>
+
+
+                        <!-- ================================= -->
+                        <!-- HAUPTRENNEN -->
+                        <!-- ================================= -->
+
+                        <div class="result-driver-controls">
+
+
+                          <% if (selectedRace.pointsMode === 'manual') { %>
+
+                            <label class="result-field">
+
+                              <span>
+                                GP-Punkte
+                              </span>
+
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                name="rows[d<%= driver.id %>][points]"
+                                value="<%= entry
+                                  ? Number(entry.points)
+                                  : ''
+                                %>"
+                                placeholder="0"
+                              >
+
+                            </label>
+
+
+                          <% } else { %>
+
+                            <label class="result-field">
+
+                              <span>
+                                GP-Platz
+                              </span>
+
+                              <input
+                                type="number"
+                                min="1"
+                                max="99"
+                                name="rows[d<%= driver.id %>][position]"
+                                value="<%= entry?.position || '' %>"
+                                placeholder="Platz"
+                              >
+
+                            </label>
+
+                          <% } %>
+
+
+                          <!-- STATUS -->
+
+                          <label class="result-field">
+
+                            <span>
+                              Status
+                            </span>
+
+                            <select
+                              name="rows[d<%= driver.id %>][status]"
+                              data-result-status
+                            >
+
+                              <% currentResultStatuses.forEach((status) => { %>
+
+                                <option
+                                  value="<%= status.value %>"
+                                  <%= selectedStatus === status.value
+                                    ? 'selected'
+                                    : ''
+                                  %>
+                                >
+                                  <%= status.label %>
+                                </option>
+
+                              <% }) %>
+
+                            </select>
+
+                          </label>
+
+
+                          <!-- SCHNELLSTE RUNDE -->
+
+                          <% if (selectedRace.pointsMode === 'database') { %>
+
+                            <label class="result-checkbox result-fastest">
+
+                              <input
+                                type="checkbox"
+                                name="rows[d<%= driver.id %>][fastestLap]"
+                                <%= entry?.fastestLap
+                                  ? 'checked'
+                                  : ''
+                                %>
+                              >
+
+                              <span>
+                                Schnellste Runde
+                              </span>
+
+                            </label>
+
+                          <% } %>
+
+                        </div>
+
+
+                        <!-- ================================= -->
+                        <!-- STATUS INFO -->
+                        <!-- ================================= -->
+
+                        <% if (selectedStatus === 'DNF') { %>
+
+                          <small class="result-driver-note">
+                            DNF · Eine Platzierung kann trotzdem eingetragen werden.
+                          </small>
+
+                        <% } %>
+
+
+                        <% if (selectedStatus === 'DSQ') { %>
+
+                          <small class="result-driver-note">
+                            DSQ · Der Fahrer erhält keine Punkte.
+                          </small>
+
+                        <% } %>
+
+
+                        <!-- ================================= -->
+                        <!-- SPRINT -->
+                        <!-- ================================= -->
+
+                        <% if (sprintRace) { %>
+
+                          <div class="result-sprint-block">
+
+                            <span>
+                              SPRINT
+                            </span>
+
+
+                            <div class="result-driver-controls">
+
+
+                              <% if (sprintRace.pointsMode === 'manual') { %>
+
+                                <label class="result-field">
+
+                                  <span>
+                                    Sprint-Punkte
+                                  </span>
+
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    name="rows[d<%= driver.id %>][sprintPoints]"
+                                    value="<%= sprintEntry
+                                      ? Number(sprintEntry.points)
+                                      : ''
+                                    %>"
+                                    placeholder="0"
+                                  >
+
+                                </label>
+
+
+                              <% } else { %>
+
+                                <label class="result-field">
+
+                                  <span>
+                                    Sprint-Platz
+                                  </span>
+
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="99"
+                                    name="rows[d<%= driver.id %>][sprintPosition]"
+                                    value="<%= sprintEntry?.position || '' %>"
+                                    placeholder="Platz"
+                                  >
+
+                                </label>
+
+
+                                <label class="result-checkbox result-fastest">
+
+                                  <input
+                                    type="checkbox"
+                                    name="rows[d<%= driver.id %>][sprintFastestLap]"
+                                    <%= sprintEntry?.fastestLap
+                                      ? 'checked'
+                                      : ''
+                                    %>
+                                  >
+
+                                  <span>
+                                    Schnellste Runde
+                                  </span>
+
+                                </label>
+
+                              <% } %>
+
+                            </div>
+
+                          </div>
+
+                        <% } %>
+
+
+                      </div>
+
+                    <% }) %>
+
+                  </div>
+
+                </article>
+
+              <% }) %>
+
+            </div>
+
+
+            <!-- ================================================= -->
+            <!-- INFO -->
+            <!-- ================================================= -->
+
+            <div class="sheet-help">
+
+              <strong>
+                Automatische Wertung:
+              </strong>
+
+              DNS wird bereits über die Anwesenheitskontrolle geregelt.
+
+              Hier erscheinen ausschließlich Fahrer,
+              die tatsächlich am Rennen teilnehmen.
+
+              Bei DNF kann weiterhin eine Platzierung eingetragen werden.
+
+              DSQ erhält keine Punkte.
+
+            </div>
+
+
+            <!-- ================================================= -->
+            <!-- SPEICHERN -->
+            <!-- ================================================= -->
+
+            <div class="result-save-bar">
+
+              <div>
+
+                <strong>
+                  Ergebnis vollständig?
+                </strong>
+
+                <small>
+                  Plätze und Status prüfen und anschließend speichern.
+                </small>
+
+              </div>
+
+
+              <button
+                class="button"
+                type="submit"
+              >
+                Ergebnis speichern
+              </button>
+
+            </div>
+
+          <% } %>
+
+
+        <% } else { %>
+
+
+          <!-- ================================================= -->
+          <!-- HISTORISCHE SAISON -->
+          <!-- ================================================= -->
+
+          <%
+            const hasSavedEntries =
+              rows.some(
+                ({ entry, sprintEntry }) =>
+                  entry || sprintEntry
+              );
+          %>
+
+
+          <div class="table-wrap race-sheet">
+
+            <table>
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    Dabei
+                  </th>
+
+                  <th>
+                    Fahrer / Aliase
+                  </th>
+
+                  <th>
+                    Team
+                  </th>
+
+
+                  <% if (selectedRace.pointsMode === 'manual') { %>
+
+                    <th>
+                      GP-Punkte
+                    </th>
+
+                  <% } else { %>
+
+                    <th>
+                      GP-Platz
+                    </th>
+
+                    <th>
+                      SR
+                    </th>
+
+                  <% } %>
+
+
+                  <% if (sprintRace) { %>
+
+                    <% if (sprintRace.pointsMode === 'manual') { %>
+
+                      <th>
+                        Sprint-Punkte
+                      </th>
+
+                    <% } else { %>
+
+                      <th>
+                        Sprint-Platz
+                      </th>
+
+                      <th>
+                        Sprint-SR
+                      </th>
+
+                    <% } %>
+
+                  <% } %>
+
+
+                  <th>
+                    Status
+                  </th>
+
+                  <th>
+                    Rennsperre
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                <% rows.forEach(({
+                  driver,
+                  entry,
+                  sprintEntry,
+                  assignedTeam,
+                  isReserve,
+                  planned,
+                  replacesDriver,
+                  raceBan
+                }) => { %>
+
+
+                  <%
+                    const activeEntry =
+                      entry || sprintEntry;
+
+
+                    const includedByDefault =
+                      !hasSavedEntries &&
+                      selectedSeason.status === 'active' &&
+                      (
+                        planned ||
+                        (
+                          assignedTeam &&
+                          !isReserve
+                        )
+                      );
+                  %>
+
+
+                  <tr
+                    class="<%= activeEntry
+                      ? 'sheet-row-active'
+                      : ''
+                    %>"
+                    style="--row-team-color:<%= assignedTeam?.accentColor || '#6ef2f2' %>"
+                  >
+
+
+                    <!-- DABEI -->
+
+                    <td>
+
+                      <input
+                        type="hidden"
+                        name="rows[<%= driver.id %>][included]"
+                        value="on"
+                      >
+
+                      <span class="id-badge">
+                        Dabei
+                      </span>
+
+                    </td>
+
+
+                    <!-- FAHRER -->
+
+                    <td>
+
+                      <div class="sheet-driver-identity">
+
+                        <% if (isReserve) { %>
+
+                          <img
+                            src="/images/krl-placeholder.svg"
+                            alt="KRL"
+                          >
+
+                        <% } else if (assignedTeam?.logoPath) { %>
+
+                          <img
+                            src="<%= assignedTeam.logoPath %>"
+                            alt="Logo <%= assignedTeam.name %>"
+                          >
+
+                        <% } %>
+
+
+                        <span>
+
+                          <strong>
+                            #<%= driver.id %>
+                            ·
+                            <%= driver.name %>
+                          </strong>
+
+
+                          <% if (driver.aliases.length) { %>
+
+                            <small>
+                              <%= driver.aliases
+                                .map(
+                                  (alias) =>
+                                    alias.alias
+                                )
+                                .join(' · ')
+                              %>
+                            </small>
+
+                          <% } %>
+
+                        </span>
+
+                      </div>
+
+                    </td>
+
+
+                    <!-- TEAM -->
+
+                    <td>
+
+                      <select
+                        name="rows[<%= driver.id %>][TeamId]"
+                      >
+
+                        <option value="">
+                          Team wählen …
+                        </option>
+
+
+                        <% teams.forEach((team) => { %>
+
+                          <option
+                            value="<%= team.id %>"
+                            <%= activeEntry?.teamName === team.name
+                              ? 'selected'
+                              : ''
+                            %>
+                          >
+                            <%= team.name %>
+                          </option>
+
+                        <% }) %>
+
+                      </select>
+
+                    </td>
+
+
+                    <!-- GP -->
+
+                    <% if (selectedRace.pointsMode === 'manual') { %>
+
+                      <td>
+
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          name="rows[<%= driver.id %>][points]"
+                          value="<%= entry
+                            ? Number(entry.points)
+                            : ''
+                          %>"
+                        >
+
+                      </td>
+
+                    <% } else { %>
+
+                      <td>
+
+                        <input
+                          type="number"
+                          min="1"
+                          name="rows[<%= driver.id %>][position]"
+                          value="<%= entry?.position || '' %>"
+                        >
+
+                      </td>
+
+
+                      <td>
+
+                        <input
+                          type="checkbox"
+                          name="rows[<%= driver.id %>][fastestLap]"
+                          <%= entry?.fastestLap
+                            ? 'checked'
+                            : ''
+                          %>
+                        >
+
+                      </td>
+
+                    <% } %>
+
+
+                    <!-- SPRINT -->
+
+                    <% if (sprintRace) { %>
+
+                      <% if (sprintRace.pointsMode === 'manual') { %>
+
+                        <td>
+
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            name="rows[<%= driver.id %>][sprintPoints]"
+                            value="<%= sprintEntry
+                              ? Number(sprintEntry.points)
+                              : ''
+                            %>"
+                          >
+
+                        </td>
+
+                      <% } else { %>
+
+                        <td>
+
+                          <input
+                            type="number"
+                            min="1"
+                            name="rows[<%= driver.id %>][sprintPosition]"
+                            value="<%= sprintEntry?.position || '' %>"
+                          >
+
+                        </td>
+
+
+                        <td>
+
+                          <input
+                            type="checkbox"
+                            name="rows[<%= driver.id %>][sprintFastestLap]"
+                            <%= sprintEntry?.fastestLap
+                              ? 'checked'
+                              : ''
+                            %>
+                          >
+
+                        </td>
+
+                      <% } %>
+
+                    <% } %>
+
+
+                    <!-- STATUS -->
+
+                    <td>
+
+                      <select
+                        name="rows[<%= driver.id %>][status]"
+                      >
+
+                        <% statuses.forEach((status) => { %>
+
+                          <option
+                            value="<%= status %>"
+                            <%= String(
+                              entry?.status ||
+                              sprintEntry?.status ||
+                              ''
+                            ) === status
+                              ? 'selected'
+                              : ''
+                            %>
+                          >
+                            <%= status || 'Gewertet' %>
+                          </option>
+
+                        <% }) %>
+
+                      </select>
+
+                    </td>
+
+
+                    <!-- RENNSPERRE NUR HISTORISCH -->
+
+                    <td>
+
+                      <label class="result-checkbox">
+
+                        <input
+                          type="checkbox"
+                          name="rows[<%= driver.id %>][raceBan]"
+                          <%= raceBan
+                            ? 'checked'
+                            : ''
+                          %>
+                        >
+
+                        <span>
+                          In Strafkartei
+                        </span>
+
+                      </label>
+
+                    </td>
+
+                  </tr>
+
+                <% }) %>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+
+          <div class="sheet-help">
+
+            <strong>
+              <%= selectedRace.pointsMode === 'manual'
+                ? 'Direkte Punkteeingabe:'
+                : 'Automatische Wertung:'
+              %>
+            </strong>
+
+            <%= selectedRace.pointsMode === 'manual'
+              ? 'Für frühere Punktesysteme werden die eingetragenen Punkte unverändert gespeichert.'
+              : 'Du trägst nur Plätze ein; die gültige Punktetabelle berechnet GP- und WM-Punkte.'
+            %>
+
+            Bei einem Sprint erscheinen die Sprintfelder direkt als zusätzliche Spalten.
+
+          </div>
+
+
+          <button
+            class="button"
+            type="submit"
+          >
+            Gesamte Tabelle speichern
+          </button>
+
+        <% } %>
+
+      </form>
+
+    <% } %>
+
+  </div>
+
+</section>
+
 <%- include('../partials/footer') %>

@@ -29,7 +29,7 @@
   </section>
 
   <section class="section container gp-results-section" id="f1-gp-results">
-    <div class="section-heading"><span>AUTOMATISCH AUS DEM SAISONVERLAUF</span><h2>GP-ERGEBNISSE</h2><div class="export-actions"><a class="download-link" href="/f1/<%= league.slug %>/download/gp-results.csv?season=<%= selectedSeason?.id || '' %>" download>CSV ↓</a><button class="button button-small" type="button" data-png-export data-png-target="#f1-gp-results" data-png-title="<%= league.name %> · GP-Results" data-png-subtitle="<%= selectedSeason?.name || league.currentSeason %>" data-png-filename="<%= league.slug %>-gp-results" data-png-logo="<%= league.logoPath || '/images/krl-placeholder.svg' %>" data-png-accent="<%= league.accentColor %>">PNG ↓</button></div></div>
+    <div class="section-heading"><h2>GP-ERGEBNISSE</h2><div class="export-actions"><a class="download-link" href="/f1/<%= league.slug %>/download/gp-results.csv?season=<%= selectedSeason?.id || '' %>" download>CSV ↓</a><button class="button button-small" type="button" data-png-export data-png-target="#f1-gp-results" data-png-title="<%= league.name %> · GP-Results" data-png-subtitle="<%= selectedSeason?.name || league.currentSeason %>" data-png-filename="<%= league.slug %>-gp-results" data-png-logo="<%= league.logoPath || '/images/krl-placeholder.svg' %>" data-png-accent="<%= league.accentColor %>">PNG ↓</button></div></div>
     <%- include('partials/gp-results', { items: gpResults, label: 'Grand-Prix-Ergebnisse' }) %>
   </section>
 
@@ -40,4 +40,7 @@
     </div>
   </section>
 </div>
+
+<script src="/js/season-history-tabs.js" defer></script>
+
 <%- include('partials/footer') %>

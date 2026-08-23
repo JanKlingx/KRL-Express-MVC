@@ -21,6 +21,11 @@
       ? false
       : finishReady;
 
+const setupDriverRankFilter =
+  typeof driverRankFilter === 'undefined'
+    ? 'all'
+    : driverRankFilter;
+
   const selectedDriverIds = new Set(
     (setupStructure.allDrivers || []).map(
       (driver) => Number(driver.id)
@@ -380,9 +385,12 @@
     <h2>RENNKALENDER ERSTELLEN</h2>
 
     <%
-      const events = calendar;
+  const events = calendar;
 
-      const trackSelect = (event) => `
+  const nextRaceNumber =
+    events.filter((event) => !event.isTestDay).length + 1;
+
+  const trackSelect = (event) => `
         <label>
           Strecke *
           <select name="F1TrackId" required>
@@ -447,24 +455,32 @@
             >
           </label>
 
-          <label>
-            Rennen Nr. *
-            <input
-              type="number"
-              name="sortOrder"
-              min="1"
-              value="<%= events.length + 1 %>"
-              required
-            >
-          </label>
 
-          <label class="checkbox-control">
-            <input
-              type="checkbox"
-              name="isTestDay"
-            >
-            <span>Testtag</span>
-          </label>
+
+
+
+ <label>
+  Rennen Nr.
+
+  <input
+    type="number"
+    name="sortOrder"
+    min="1"
+    value="<%= nextRaceNumber %>"
+  >
+</label>
+
+<label class="checkbox-control">
+  <input
+    type="checkbox"
+    name="isTestDay"
+  >
+  <span>Testtag</span>
+</label>
+
+
+
+
 
           <label class="checkbox-control">
             <input
@@ -491,41 +507,53 @@
 
     <% if (events.length) { %>
 
-      <form
-        method="post"
-        action="/admin/season-setup/<%= selectedSeason.id %>/calendar/reorder"
-        class="calendar-reorder-bar"
-        data-calendar-reorder-form
-      >
+  <form
+    method="post"
+    action="/admin/season-setup/<%= selectedSeason.id %>/calendar/reorder"
+    class="calendar-reorder-bar"
+    data-calendar-reorder-form
+  >
 
-        <div data-calendar-order-inputs>
+    <input
+      type="hidden"
+      name="LeagueId"
+      value="<%= selectedLeague.id %>"
+    >
 
-          <% events.forEach((event) => { %>
+    <input
+      type="hidden"
+      name="SeasonId"
+      value="<%= selectedSeason.id %>"
+    >
 
-            <input
-              type="hidden"
-              name="eventIds"
-              value="<%= event.id %>"
-            >
+    <div data-calendar-order-inputs>
 
-          <% }) %>
+      <% events.forEach((event) => { %>
 
-        </div>
-
-        <span>
-          ↕ Karten ziehen, um Rennen neu zu nummerieren.
-        </span>
-
-        <button
-          type="submit"
-          class="button button-small"
+        <input
+          type="hidden"
+          name="eventIds"
+          value="<%= event.id %>"
         >
-          Reihenfolge speichern
-        </button>
 
-      </form>
+      <% }) %>
 
-    <% } %>
+    </div>
+
+    <span>
+      ↕ Karten ziehen, um Rennen neu zu nummerieren.
+    </span>
+
+    <button
+      type="submit"
+      class="button button-small"
+    >
+      Reihenfolge speichern
+    </button>
+
+  </form>
+
+<% } %>
 
 
     <!-- BESTEHENDE TERMINE -->
@@ -554,9 +582,13 @@
             class="setup-form setup-calendar-form"
           >
 
-            <span class="calendar-drag-handle">
-              ↕ R<%= event.sortOrder || index + 1 %>
-            </span>
+          <span class="calendar-drag-handle">
+  <% if (event.isTestDay) { %>
+    ↕ TEST
+  <% } else { %>
+    ↕ R<%= event.sortOrder %>
+  <% } %>
+</span>
 
             <%- trackSelect(event) %>
 
@@ -610,11 +642,11 @@
             </label>
 
 
-            <input
-              type="hidden"
-              name="sortOrder"
-              value="<%= event.sortOrder || index + 1 %>"
-            >
+          <input
+  type="hidden"
+  name="sortOrder"
+  value="<%= event.isTestDay ? 0 : event.sortOrder %>"
+>
 
 
             <label class="checkbox-control">
@@ -757,102 +789,170 @@
       </section>
 
 
-      <!-- ================================================= -->
-      <!-- 05 FAHRER -->
-      <!-- ================================================= -->
+    <!-- ================================================= -->
+<!-- 05 FAHRER -->
+<!-- ================================================= -->
 
-      <section
-        id="setup-drivers"
-        class="setup-panel"
-      >
+<section
+  id="setup-drivers"
+  class="setup-panel"
+>
 
-        <div class="setup-panel-number">
-          05
-        </div>
+  <div class="setup-panel-number">
+    05
+  </div>
 
-        <div class="setup-panel-content">
+  <div class="setup-panel-content">
 
-          <span>
-            Stammfahrer oder ehemaliger F1-Fahrer
-          </span>
+    <span>
+      Stammfahrer oder ehemaliger F1-Fahrer
+    </span>
 
-          <h2>
-            FAHRER AUSWÄHLEN
-          </h2>
+    <h2>
+      FAHRER AUSWÄHLEN
+    </h2>
 
-          <form
-            method="post"
-            action="/admin/season-setup/<%= selectedSeason.id %>/drivers"
-          >
+    <form
+      method="post"
+      action="/admin/season-setup/<%= selectedSeason.id %>/drivers"
+    >
 
-            <div class="setup-driver-grid">
+      <!-- FILTER -->
 
-              <% setupEligibleDrivers.forEach((driver) => {
+<div class="setup-driver-filter">
 
-                const roles = [];
+  <a
+    class="button button-small <%= setupDriverRankFilter === 'all' ? '' : 'button-ghost' %>"
+    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=all#setup-drivers"
+  >
+    Alle
+  </a>
 
-                if (driver.roleF1Friday) {
-                  roles.push('Freitag');
-                }
+  <a
+    class="button button-small <%= setupDriverRankFilter === 'friday' ? '' : 'button-ghost' %>"
+    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=friday#setup-drivers"
+  >
+    Freitag
+  </a>
 
-                if (driver.roleF1Saturday) {
-                  roles.push('Samstag');
-                }
+  <a
+    class="button button-small <%= setupDriverRankFilter === 'saturday' ? '' : 'button-ghost' %>"
+    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=saturday#setup-drivers"
+  >
+    Samstag
+  </a>
 
-                if (driver.roleF1Sunday) {
-                  roles.push('Sonntag');
-                }
+  <a
+    class="button button-small <%= setupDriverRankFilter === 'sunday' ? '' : 'button-ghost' %>"
+    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=sunday#setup-drivers"
+  >
+    Sonntag
+  </a>
 
-                if (driver.roleFormerF1) {
-                  roles.push('Ehemaliger F1-Fahrer');
-                }
+  <a
+    class="button button-small <%= setupDriverRankFilter === 'former' ? '' : 'button-ghost' %>"
+    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=former#setup-drivers"
+  >
+    Ehemalige F1
+  </a>
 
+</div>
+
+
+      <!-- FAHRER -->
+
+      <div class="setup-driver-grid">
+
+        <% setupEligibleDrivers.forEach((driver) => {
+
+  const roles = [];
+
+  if (driver.roleF1Friday) {
+    roles.push('Freitag');
+  }
+
+  if (driver.roleF1Saturday) {
+    roles.push('Samstag');
+  }
+
+  if (driver.roleF1Sunday) {
+    roles.push('Sonntag');
+  }
+
+  if (driver.roleFormerF1) {
+    roles.push('Ehemaliger F1-Fahrer');
+  }
+
+  let driverMatchesFilter = true;
+
+  if (setupDriverRankFilter === 'friday') {
+    driverMatchesFilter =
+      Boolean(driver.roleF1Friday);
+  }
+
+  if (setupDriverRankFilter === 'saturday') {
+    driverMatchesFilter =
+      Boolean(driver.roleF1Saturday);
+  }
+
+  if (setupDriverRankFilter === 'sunday') {
+    driverMatchesFilter =
+      Boolean(driver.roleF1Sunday);
+  }
+
+  if (setupDriverRankFilter === 'former') {
+    driverMatchesFilter =
+      Boolean(driver.roleFormerF1);
+  }
+
+%>
+<label
+  class="setup-driver-card <%= driverMatchesFilter ? '' : 'setup-driver-filter-hidden' %>"
+>
+
+            <input
+              type="checkbox"
+              name="driverIds"
+              value="<%= driver.id %>"
+              <%= selectedDriverIds.has(Number(driver.id))
+                ? 'checked'
+                : ''
               %>
-
-                <label class="setup-driver-card">
-
-                  <input
-                    type="checkbox"
-                    name="driverIds"
-                    value="<%= driver.id %>"
-                    <%= selectedDriverIds.has(Number(driver.id))
-                      ? 'checked'
-                      : ''
-                    %>
-                  >
-
-                  <span class="setup-driver-info">
-
-                    <strong>
-                      <%= driver.name %>
-                    </strong>
-
-                    <small>
-                      #<%= driver.id %>
-                      ·
-                      <%= roles.join(' · ') || 'F1 Fahrer' %>
-                    </small>
-
-                  </span>
-
-                </label>
-
-              <% }) %>
-
-            </div>
-
-            <button
-              type="submit"
-              class="button setup-save-step"
             >
-              Fahrerauswahl speichern
-            </button>
 
-          </form>
+            <span class="setup-driver-info">
 
-        </div>
+              <strong>
+                <%= driver.name %>
+              </strong>
 
-      </section>
+              <small>
+                #<%= driver.id %>
+                ·
+                <%= roles.join(' · ') || 'F1 Fahrer' %>
+              </small>
+
+            </span>
+
+          </label>
+
+        <% }) %>
+
+      </div>
+
+
+      <button
+        type="submit"
+        class="button setup-save-step"
+      >
+        Fahrerauswahl speichern
+      </button>
+
+    </form>
+
+  </div>
+
+</section>
 
 
       <!-- ================================================= -->
@@ -1130,12 +1230,12 @@
                             <%= slot + 1 %>
                           </span>
 
-                          <select
-                            class="season-lineup-driver-select"
-                            name="lineup[<%= team.id %>]"
-                            data-team-id="<%= team.id %>"
-                            data-slot="<%= slot + 1 %>"
-                          >
+                        <select
+  class="season-lineup-driver-select"
+  name="lineup[<%= team.id %>][]"
+  data-team-id="<%= team.id %>"
+  data-slot="<%= slot + 1 %>"
+>
 
                             <option value="">
                               — Fahrer auswählen —
@@ -1199,155 +1299,324 @@
       <!-- 08 ABSCHLUSS -->
       <!-- ================================================= -->
 
-      <section
-        id="setup-finish"
-        class="setup-panel"
-      >
+ <!-- ================================================= -->
+<!-- 08 ABSCHLUSS -->
+<!-- ================================================= -->
 
-        <div class="setup-panel-number">
-          08
-        </div>
+<section
+  id="setup-finish"
+  class="setup-panel setup-finish-panel"
+>
 
-        <div class="setup-panel-content">
+  <div class="setup-panel-number">
+    08
+  </div>
 
+  <div class="setup-panel-content">
+
+    <span>
+      Kontrolle vor Veröffentlichung
+    </span>
+
+    <h2>
+      ABSCHLUSS
+    </h2>
+
+
+    <!-- =============================== -->
+    <!-- STATUS ÜBERSICHT -->
+    <!-- =============================== -->
+
+    <div class="setup-final-summary">
+
+      <article class="setup-final-card">
+        <span>Liga</span>
+
+        <strong>
+          <%= selectedLeague.name %>
+        </strong>
+      </article>
+
+
+      <article class="setup-final-card">
+        <span>Saison</span>
+
+        <strong>
+          <%= selectedSeason.name %>
+        </strong>
+      </article>
+
+
+      <article class="setup-final-card">
+        <span>Kalender</span>
+
+        <strong>
+          <%= calendar.length %>
+        </strong>
+
+        <small>
+          Termine
+        </small>
+      </article>
+
+
+      <article class="setup-final-card">
+        <span>Fahrer</span>
+
+        <strong>
+          <%= setupStructure.allDrivers.length %>
+        </strong>
+
+        <small>
+          ausgewählt
+        </small>
+      </article>
+
+
+      <article class="setup-final-card">
+        <span>Teams</span>
+
+        <strong>
+          <%= setupStructure.teams.length %>
+        </strong>
+
+        <small>
+          ausgewählt
+        </small>
+      </article>
+
+
+      <article class="setup-final-card">
+        <span>Ersatzfahrer</span>
+
+        <strong>
+          <%= setupStructure.unassignedDrivers.length %>
+        </strong>
+
+        <small>
+          verfügbar
+        </small>
+      </article>
+
+    </div>
+
+
+    <!-- =============================== -->
+    <!-- LINE-UP KONTROLLE -->
+    <!-- =============================== -->
+
+    <div class="setup-finish-lineup">
+
+      <div class="setup-finish-section-heading">
+
+        <div>
           <span>
-            Kontrolle vor Veröffentlichung
+            Saison-Line-up
           </span>
 
-          <h2>
-            ABSCHLUSS
-          </h2>
+          <h3>
+            STAMMFAHRER
+          </h3>
+        </div>
+
+        <strong>
+          <%= setupStructure.allDrivers.length - setupStructure.unassignedDrivers.length %>
+          zugeordnet
+        </strong>
+
+      </div>
 
 
-          <div class="setup-final-summary">
+      <div class="setup-finish-team-grid">
 
-            <article class="setup-final-card">
+        <% setupStructure.teams.forEach((team) => { %>
 
-              <span>
-                Liga
-              </span>
-
-              <strong>
-                <%= selectedLeague.name %>
-              </strong>
-
-            </article>
-
-
-            <article class="setup-final-card">
-
-              <span>
-                Saison
-              </span>
-
-              <strong>
-                <%= selectedSeason.name %>
-              </strong>
-
-            </article>
-
-
-            <article class="setup-final-card">
-
-              <span>
-                Kalender
-              </span>
-
-              <strong>
-                <%= calendar.length %>
-              </strong>
-
-              <small>
-                Termine
-              </small>
-
-            </article>
-
-
-            <article class="setup-final-card">
-
-              <span>
-                Fahrer
-              </span>
-
-              <strong>
-                <%= setupStructure.allDrivers.length %>
-              </strong>
-
-              <small>
-                ausgewählt
-              </small>
-
-            </article>
-
-
-            <article class="setup-final-card">
-
-              <span>
-                Teams
-              </span>
-
-              <strong>
-                <%= setupStructure.teams.length %>
-              </strong>
-
-              <small>
-                ausgewählt
-              </small>
-
-            </article>
-
-
-            <article class="setup-final-card">
-
-              <span>
-                Ersatzfahrer
-              </span>
-
-              <strong>
-                <%= setupStructure.unassignedDrivers.length %>
-              </strong>
-
-              <small>
-                verfügbar
-              </small>
-
-            </article>
-
-          </div>
-
-
-          <form
-            method="post"
-            action="/admin/season-setup/<%= selectedSeason.id %>/finish"
+          <article
+            class="setup-finish-team"
+            style="--team-color:<%= team.accentColor || '#6ef2f2' %>"
           >
 
-            <button
-              class="button"
-              <%= setupFinishReady
-                ? ''
-                : 'disabled'
-              %>
-            >
-              Saison abschließen & veröffentlichen
-            </button>
+            <div class="setup-finish-team-head">
 
-          </form>
+              <% if (team.logoPath) { %>
+
+                <img
+                  src="<%= team.logoPath %>"
+                  alt=""
+                >
+
+              <% } %>
+
+              <div>
+                <span>
+                  Saisonteam
+                </span>
+
+                <strong>
+                  <%= team.name %>
+                </strong>
+              </div>
+
+            </div>
 
 
-          <% if (!setupFinishReady) { %>
+            <div class="setup-finish-team-drivers">
 
-            <p class="setup-note">
-              Noch nicht vollständig: Kalender, Punktesystem,
-              Fahrer, Teams und mindestens eine
-              Line-up-Zuordnung sind erforderlich.
-            </p>
+              <% if ((team.drivers || []).length) { %>
 
-          <% } %>
+                <% team.drivers.forEach((driver, index) => { %>
+
+                  <div class="setup-finish-driver">
+
+                    <span>
+                      <%= index + 1 %>
+                    </span>
+
+                    <strong>
+                      <%= driver.name %>
+                    </strong>
+
+                  </div>
+
+                <% }) %>
+
+              <% } else { %>
+
+                <div class="setup-finish-driver is-empty">
+                  Kein Stammfahrer zugeordnet
+                </div>
+
+              <% } %>
+
+            </div>
+
+          </article>
+
+        <% }) %>
+
+      </div>
+
+    </div>
+
+
+    <!-- =============================== -->
+    <!-- ERSATZFAHRER -->
+    <!-- =============================== -->
+
+    <div class="setup-finish-reserves">
+
+      <div class="setup-finish-section-heading">
+
+        <div>
+          <span>
+            Nicht einem Team zugeordnet
+          </span>
+
+          <h3>
+            ERSATZFAHRER
+          </h3>
+        </div>
+
+        <strong>
+          <%= setupStructure.unassignedDrivers.length %>
+        </strong>
+
+      </div>
+
+
+      <% if (setupStructure.unassignedDrivers.length) { %>
+
+        <div class="setup-reserve-driver-grid">
+
+          <% setupStructure.unassignedDrivers.forEach((driver) => { %>
+
+            <div class="setup-reserve-driver">
+
+              <div class="setup-reserve-driver-number">
+                <%= driver.number ? `#${driver.number}` : 'RES' %>
+              </div>
+
+              <div>
+                <strong>
+                  <%= driver.name %>
+                </strong>
+
+                <small>
+                  Ersatzfahrer
+                </small>
+              </div>
+
+            </div>
+
+          <% }) %>
 
         </div>
 
-      </section>
+      <% } else { %>
+
+        <div class="empty-state">
+          Aktuell gibt es keine Ersatzfahrer.
+        </div>
+
+      <% } %>
+
+    </div>
+
+
+    <!-- =============================== -->
+    <!-- ABSCHLIESSEN -->
+    <!-- =============================== -->
+
+    <div class="setup-finish-action">
+
+      <div>
+
+        <% if (setupFinishReady) { %>
+
+          <strong>
+            Saison ist vollständig eingerichtet.
+          </strong>
+
+          <p>
+            Kalender, Punktesystem, Fahrer, Teams und Line-up
+            sind vorhanden.
+          </p>
+
+        <% } else { %>
+
+          <strong>
+            Saison ist noch nicht vollständig.
+          </strong>
+
+          <p>
+            Kalender, Punktesystem, Fahrer, Teams und mindestens
+            eine Line-up-Zuordnung sind erforderlich.
+          </p>
+
+        <% } %>
+
+      </div>
+
+
+      <form
+        method="post"
+        action="/admin/season-setup/<%= selectedSeason.id %>/finish"
+      >
+
+        <button
+          class="button"
+          <%= setupFinishReady ? '' : 'disabled' %>
+        >
+          Saison abschließen & veröffentlichen
+        </button>
+
+      </form>
+
+    </div>
+
+  </div>
+
+</section>
 
 
     <% } %>
@@ -1362,7 +1631,12 @@
 <!-- ===================================================== -->
 
 <script>
+
+
+
+
 document.addEventListener('DOMContentLoaded', function () {
+
 
   /*
    * =====================================================
@@ -1425,67 +1699,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function updateLineupDriverOptions() {
 
-    const selectedDrivers = new Set();
+  const selectedDrivers = new Set();
 
+  lineupSelects.forEach(function (select) {
+    if (select.value) {
+      selectedDrivers.add(select.value);
+    }
+  });
 
-    /*
-     * Alle belegten Fahrer sammeln
-     */
+  lineupSelects.forEach(function (select) {
 
-    lineupSelects.forEach(function (select) {
+    Array.from(select.options).forEach(function (option) {
 
-      if (select.value) {
-        selectedDrivers.add(select.value);
+      if (!option.value) {
+        option.disabled = false;
+        option.hidden = false;
+        return;
       }
 
+      if (option.value === select.value) {
+        option.disabled = false;
+        option.hidden = false;
+        return;
+      }
+
+      const used =
+        selectedDrivers.has(option.value);
+
+      option.disabled = used;
+      option.hidden = used;
     });
 
+  });
 
-    /*
-     * Bereits belegte Fahrer in anderen
-     * Dropdowns deaktivieren.
-     */
-
-    lineupSelects.forEach(function (select) {
-
-      Array.from(
-        select.options
-      ).forEach(function (option) {
-
-        /*
-         * Leerwert immer erlauben
-         */
-
-        if (!option.value) {
-          option.disabled = false;
-          return;
-        }
-
-
-        /*
-         * Aktuell ausgewählter Fahrer
-         * dieses Dropdowns bleibt aktiv
-         */
-
-        if (
-          option.value === select.value
-        ) {
-          option.disabled = false;
-          return;
-        }
-
-
-        option.disabled =
-          selectedDrivers.has(
-            option.value
-          );
-
-      });
-
-    });
-
-  }
-
+}
 
   lineupSelects.forEach(function (select) {
 
