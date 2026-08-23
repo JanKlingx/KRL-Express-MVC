@@ -313,6 +313,18 @@ const setupDriverRankFilter =
                 >
               </label>
 
+              <label class="checkbox-control setup-option-card">
+                <input
+                  type="checkbox"
+                  name="reservePointsForConstructors"
+                  checked
+                >
+                <span>
+                  <strong>Ersatzfahrer-Punkte in Team-WM berücksichtigen</strong>
+                  <small>Aktiv: Ersatzfahrer sammeln Punkte für das eingesetzte Team. Deaktiviert: Ersatzfahrer erhalten ihre Fahrer-Punkte, diese werden jedoch nicht zur Team-WM addiert.</small>
+                </span>
+              </label>
+
               <button class="button">
                 Saison anlegen
               </button>
@@ -776,6 +788,21 @@ const setupDriverRankFilter =
                 <% }) %>
 
               </select>
+            </label>
+
+            <label class="checkbox-control setup-option-card">
+              <input
+                type="checkbox"
+                name="reservePointsForConstructors"
+                <%= selectedSeason.reservePointsForConstructors !== false
+                  ? 'checked'
+                  : ''
+                %>
+              >
+              <span>
+                <strong>Ersatzfahrer-Punkte in Team-WM berücksichtigen</strong>
+                <small>Aktiv: Ersatzfahrer sammeln Punkte für das eingesetzte Team. Deaktiviert: Ersatzfahrer erhalten ihre Fahrer-Punkte, diese werden jedoch nicht zur Team-WM addiert.</small>
+              </span>
             </label>
 
             <button class="button">

@@ -479,7 +479,13 @@ async function loadLeagueData(slug, requestedSeasonId) {
      * Ersatzfahrerwertung +
      * Saisonentwicklung
      */
-    ...buildSeasonData(leagueForSeason, gpResults, drivers, raceLineupEntries),
+    ...buildSeasonData(
+      leagueForSeason,
+      gpResults,
+      drivers,
+      raceLineupEntries,
+      selectedSeason,
+    ),
   };
 }
 

@@ -162,6 +162,12 @@ const Season = sequelize.define('Season', {
   accentColor: { type: DataTypes.STRING, allowNull: true, validate: { is: /^#[0-9a-f]{6}$/i } },
   gameName: DataTypes.STRING,
   isPublished: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  reservePointsForConstructors: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+    field: 'reserve_points_for_constructors'
+  },
   ...commonSort
 });
 

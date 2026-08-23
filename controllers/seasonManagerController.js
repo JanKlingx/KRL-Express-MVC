@@ -26,7 +26,8 @@ exports.update = async (req, res) => {
     name: String(req.body.name || '').trim(), gameName: String(req.body.gameName || '').trim() || null,
     status: req.body.status === 'historical' ? 'historical' : 'active',
     isPublished: req.body.isPublished === 'on', accentColor: req.body.accentColor || null,
-    PointsSchemeId: req.body.PointsSchemeId ? Number(req.body.PointsSchemeId) : null
+    PointsSchemeId: req.body.PointsSchemeId ? Number(req.body.PointsSchemeId) : null,
+    reservePointsForConstructors: req.body.reservePointsForConstructors === 'on'
   };
   if (!fields.name) {
     req.session.flash = { type: 'error', message: 'Ein Saisonname ist erforderlich.' };

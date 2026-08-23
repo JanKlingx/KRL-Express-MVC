@@ -70,7 +70,7 @@ test('LMU-Stammdaten enthalten Anzeigename, persönliches Auto, Zusatz und Pole-
 
 test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', async () => {
   const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
-  const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2026' }, isPublished: false };
+  const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2026' }, isPublished: false, reservePointsForConstructors: true };
   const driver = { id: 7, name: 'Max Beispiel', roleF1Friday: true };
   const seasonTeam = { id: 8, sourceType: 'current', sourceId: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null, drivers: [driver] };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
@@ -91,6 +91,8 @@ test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', a
   assert.match(html, /ABSCHLUSS/);
   assert.match(html, /value="20:00"/);
   assert.equal((html.match(/name="PointsSchemeId"/g) || []).length, 1);
+  assert.equal((html.match(/name="reservePointsForConstructors"/g) || []).length, 2);
+  assert.match(html, /Ersatzfahrer-Punkte in Team-WM berücksichtigen/);
   assert.match(html, /Nicht zugeordnete Fahrer bleiben automatisch als Ersatzfahrer/);
 });
 

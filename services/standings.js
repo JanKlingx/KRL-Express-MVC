@@ -21,8 +21,12 @@ function buildSeasonData(
   resultValues,
   driverValues = [],
   lineupValues = [],
+  seasonValue = null,
 ) {
   const league = plain(leagueValue);
+  const seasonSettings = plain(seasonValue) || {};
+  const reservePointsForConstructors =
+    seasonSettings.reservePointsForConstructors !== false;
 
   /*
    * =====================================================
@@ -47,6 +51,35 @@ function buildSeasonData(
    */
 
   const lineups = lineupValues.map(plain);
+
+  const mainRaceByWeekend = new Map(
+    races
+      .filter((race) => race.raceType === "main")
+      .map((race) => [
+        `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
+        race,
+      ]),
+  );
+
+  function lineupEntryForResult(race, entry) {
+    const directRaceId = Number(entry.GrandPrixResultId || race.id);
+    const direct = lineups.find(
+      (row) =>
+        Number(row.GrandPrixResultId) === directRaceId &&
+        Number(row.DriverId) === Number(entry.DriverId),
+    );
+    if (direct || race.raceType !== "sprint") return direct || null;
+
+    const mainRace = mainRaceByWeekend.get(
+      `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
+    );
+    if (!mainRace) return null;
+    return lineups.find(
+      (row) =>
+        Number(row.GrandPrixResultId) === Number(mainRace.id) &&
+        Number(row.DriverId) === Number(entry.DriverId),
+    ) || null;
+  }
 
   /*
    * Welche Stammfahrer wurden bei welchem
@@ -488,6 +521,17 @@ function buildSeasonData(
   races.forEach((race) => {
     (race.entries || []).map(plain).forEach((entry) => {
       const driverId = Number(entry.DriverId || 0);
+      const concreteLineupEntry = lineupEntryForResult(race, entry);
+      const isReserve = concreteLineupEntry?.roleType === "reserve";
+      const isRegular = regularDriverTeamMap.has(driverId);
+
+      if (!isRegular && !isReserve) {
+        return;
+      }
+
+      if (isReserve && !reservePointsForConstructors) {
+        return;
+      }
 
       /*
        * =================================================
@@ -495,7 +539,7 @@ function buildSeasonData(
        * =================================================
        */
 
-      let teamName = regularDriverTeamMap.get(driverId) || null;
+      let teamName = entry.teamName || regularDriverTeamMap.get(driverId) || null;
 
       /*
        * =================================================
@@ -507,20 +551,14 @@ function buildSeasonData(
        * eingesetzt wurde.
        */
 
-      if (!teamName) {
-        const reserveLineup = usedReserveEntries.find(
-          (lineupEntry) =>
-            Number(lineupEntry.GrandPrixResultId) === Number(race.id) &&
-            Number(lineupEntry.DriverId) === driverId,
-        );
-
-        if (reserveLineup?.ReplacementForDriverId) {
+      if (!teamName && isReserve) {
+        if (concreteLineupEntry?.ReplacementForDriverId) {
           /*
            * Team des ersetzten Stammfahrers verwenden.
            */
           teamName =
             regularDriverTeamMap.get(
-              Number(reserveLineup.ReplacementForDriverId),
+              Number(concreteLineupEntry.ReplacementForDriverId),
             ) || null;
         }
       }
