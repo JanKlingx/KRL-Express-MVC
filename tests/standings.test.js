@@ -7,19 +7,19 @@ const { Season, PointsScheme, PointAllocation } = require('../models');
 
 const league = { slug: 'freitag', currentSeason: 'Saison 12' };
 const drivers = [
-  { name: 'Fahrer A', team: { name: 'Team Rot' } },
-  { name: 'Fahrer B', team: { name: 'Team Blau' } },
-  { name: 'Fahrer C', team: { name: 'Team Rot' } }
+  { id: 1, name: 'Fahrer A', team: { name: 'Team Rot' } },
+  { id: 2, name: 'Fahrer B', team: { name: 'Team Blau' } },
+  { id: 3, name: 'Fahrer C', team: { name: 'Team Rot' } }
 ];
 const races = [
   { title: 'Großer Preis von Bahrain', sortOrder: 1, entries: [
-    { driverName: 'Fahrer A', teamName: 'Team Rot', position: 1, points: 25 },
-    { driverName: 'Fahrer B', teamName: 'Team Blau', position: 2, points: 18 },
-    { driverName: 'Fahrer C', teamName: 'Team Rot', position: 3, points: 15 }
+    { DriverId: 1, driverName: 'Fahrer A', teamName: 'Team Rot', position: 1, points: 25 },
+    { DriverId: 2, driverName: 'Fahrer B', teamName: 'Team Blau', position: 2, points: 18 },
+    { DriverId: 3, driverName: 'Fahrer C', teamName: 'Team Rot', position: 3, points: 15 }
   ] },
   { title: 'Großer Preis von Australien', sortOrder: 2, entries: [
-    { driverName: 'Fahrer B', teamName: 'Team Blau', position: 1, points: 25 },
-    { driverName: 'Fahrer A', teamName: 'Team Rot', position: null, status: 'DNF', points: 0 }
+    { DriverId: 2, driverName: 'Fahrer B', teamName: 'Team Blau', position: 1, points: 25 },
+    { DriverId: 1, driverName: 'Fahrer A', teamName: 'Team Rot', position: null, status: 'DNF', points: 0 }
   ] }
 ];
 
@@ -58,6 +58,42 @@ test('Sprintpunkte zählen zur WM, aber ein Sprintsieg nicht als Grand-Prix-Sieg
   assert.equal(data.driverStandings[0].wins, 0);
   assert.equal(data.teamStandings[0].wins, 0);
   assert.equal(data.selectedHistory.races[0].title, 'Sprint · Spa');
+});
+
+test('Ersatzfahrer-Punkte bleiben im Ergebnis, zählen aber konfigurierbar zur Team-WM', () => {
+  const seasonDrivers = [
+    { id: 1, name: 'Fahrer A', team: { name: 'Mercedes' } }
+  ];
+  const weekend = [
+    {
+      id: 10, SeasonId: 5, LeagueId: 1, title: 'Großer Preis von Spa', circuit: 'Spa',
+      raceType: 'main', sortOrder: 1, entries: [
+        { GrandPrixResultId: 10, DriverId: 1, TeamId: 44, driverName: 'Fahrer A', teamName: 'Mercedes', position: 5, points: 10 },
+        { GrandPrixResultId: 10, DriverId: 99, TeamId: 44, driverName: 'Tobi', teamName: 'Mercedes', position: 3, points: 15 }
+      ]
+    },
+    {
+      id: 11, SeasonId: 5, LeagueId: 1, title: 'Sprint · Spa', circuit: 'Spa',
+      raceType: 'sprint', sortOrder: 1, entries: [
+        { GrandPrixResultId: 11, DriverId: 99, TeamId: 44, driverName: 'Tobi', teamName: 'Mercedes', position: 1, points: 8 }
+      ]
+    }
+  ];
+  const lineups = [
+    { GrandPrixResultId: 10, DriverId: 1, roleType: 'regular' },
+    { GrandPrixResultId: 10, DriverId: 99, ReplacementForDriverId: 1, roleType: 'reserve', driver: { id: 99, name: 'Tobi' } }
+  ];
+
+  const excluded = buildSeasonData(league, weekend, seasonDrivers, lineups, { reservePointsForConstructors: false });
+  const included = buildSeasonData(league, weekend, seasonDrivers, lineups, { reservePointsForConstructors: true });
+  const legacyDefault = buildSeasonData(league, weekend, seasonDrivers, lineups, {});
+
+  assert.equal(excluded.teamStandings.find((row) => row.team.name === 'Mercedes').points, 10);
+  assert.equal(included.teamStandings.find((row) => row.team.name === 'Mercedes').points, 33);
+  assert.equal(legacyDefault.teamStandings.find((row) => row.team.name === 'Mercedes').points, 33);
+  assert.equal(weekend[0].entries[1].TeamId, 44);
+  assert.equal(weekend[0].entries[1].teamName, 'Mercedes');
+  assert.equal(weekend[0].entries[1].points, 15);
 });
 
 test('LMU-Punktesystem addiert schnellste Runde und Poleposition saisonbezogen', async () => {

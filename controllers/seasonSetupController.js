@@ -309,6 +309,8 @@ exports.createSeason = async (req, res) => {
       accentColor,
       PointsSchemeId: null,
       isPublished: false,
+      reservePointsForConstructors:
+        req.body.reservePointsForConstructors === "on",
     });
     req.session.flash = {
       type: "success",
@@ -351,7 +353,12 @@ exports.updateSeasonProfile = async (req, res) => {
     const accentColor = /^#[0-9a-f]{6}$/i.test(req.body.accentColor || "")
       ? req.body.accentColor
       : season.accentColor || league.accentColor;
-    await season.update({ PointsSchemeId: pointsScheme.id, accentColor });
+    await season.update({
+      PointsSchemeId: pointsScheme.id,
+      accentColor,
+      reservePointsForConstructors:
+        req.body.reservePointsForConstructors === "on",
+    });
     req.session.flash = {
       type: "success",
       message: `Farbprofil und Punktesystem von ${season.name} wurden gespeichert.`,
