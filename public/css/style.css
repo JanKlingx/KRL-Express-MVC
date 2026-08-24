@@ -10701,3 +10701,265 @@ button.is-active {
   }
 
 }
+/* =========================================================
+   SAISONVERLAUF · KOMPAKTERE LINKE SPALTEN
+   ========================================================= */
+
+.season-history-points-table
+.history-position-column,
+.season-history-points-table
+.history-position-cell {
+  position: sticky;
+  left: 0;
+  z-index: 6;
+
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+}
+
+
+.season-history-points-table
+.history-driver-column,
+.season-history-points-table
+.history-driver-cell {
+  position: sticky;
+  left: 38px;
+  z-index: 5;
+
+  width: 125px;
+  min-width: 125px;
+}
+
+
+.season-history-points-table
+.history-team-column,
+.season-history-points-table
+.history-team-cell {
+  position: sticky;
+  left: 163px;
+  z-index: 5;
+
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+}
+
+
+/* Fahrername etwas größer/lesbarer */
+.season-history-points-table
+.history-driver-cell > strong {
+  display: block;
+
+  overflow: hidden;
+
+  color: #fff !important;
+
+  font-size: 0.82rem;
+
+  font-weight: 850;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+
+/* Teamlogo deutlich kleiner */
+.season-history-points-table
+.team-logo-history {
+  width: 32px;
+  height: 20px;
+
+  margin: auto;
+
+  object-fit: contain;
+}
+
+
+/* =========================================================
+   RENNSPALTEN BREITER
+   ========================================================= */
+
+.season-history-points-table
+.history-race-head {
+  width: 58px;
+  min-width: 58px;
+
+  padding: 0.35rem 0.2rem;
+
+  text-align: center !important;
+}
+
+
+.season-history-points-table
+.history-weekend-cell {
+  width: 58px;
+  min-width: 58px;
+
+  padding: 0.2rem;
+
+  text-align: center;
+}
+
+
+/* Sprint-Wochenende etwas breiter */
+.season-history-points-table
+.history-race-head.has-sprint {
+  width: 72px;
+  min-width: 72px;
+}
+
+
+.season-history-points-table
+.history-weekend-cell.has-sprint-weekend {
+  width: 72px;
+  min-width: 72px;
+}
+
+
+/* =========================================================
+   FLAGGE + RUNDE LESBARER
+   ========================================================= */
+
+.history-race-flag {
+  width: 32px;
+  height: 21px;
+
+  display: grid;
+  place-items: center;
+
+  margin: 0 auto 3px;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.18);
+
+  background: #090e12;
+}
+
+
+.history-race-flag img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+}
+
+
+.season-history-points-table
+.history-race-head > small {
+  display: block;
+
+  margin-top: 2px;
+
+  color: #95a5ad;
+
+  font-size: 0.58rem;
+
+  font-weight: 800;
+
+  line-height: 1;
+}
+
+
+/* =========================================================
+   PUNKTE DEUTLICH GRÖSSER
+   ========================================================= */
+
+.history-result-points {
+  min-height: 36px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 3px;
+}
+
+
+.history-result-points > strong {
+  color: #fff !important;
+
+  font-family: var(--display);
+
+  font-size: 1.15rem;
+
+  font-weight: 950;
+
+  line-height: 1;
+}
+
+
+.history-result-points > small {
+  color: var(--accent);
+
+  font-size: 0.42rem;
+
+  font-weight: 950;
+
+  letter-spacing: 0.04em;
+}
+
+
+/* DNS etwas besser sichtbar */
+.history-dns {
+  min-width: 34px;
+
+  height: 22px;
+
+  font-size: 0.62rem;
+
+  font-weight: 950;
+}
+
+
+/* =========================================================
+   SPRINT / GP
+   ========================================================= */
+
+.history-weekend-stack {
+  display: grid;
+
+  gap: 3px;
+
+  min-width: 66px;
+}
+
+
+.history-weekend-result {
+  display: grid;
+
+  grid-template-columns:
+    22px
+    minmax(0, 1fr);
+
+  align-items: center;
+
+  min-height: 29px;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.08);
+
+  background: #0e1519;
+}
+
+
+.history-result-type {
+  height: 100%;
+
+  display: grid;
+
+  place-items: center;
+
+  font-size: 0.5rem;
+
+  font-weight: 950;
+}

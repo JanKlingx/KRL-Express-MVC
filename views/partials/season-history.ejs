@@ -1,33 +1,103 @@
 <%
   /*
-   * Kleine Hilfsfunktionen nur für die Darstellung.
+   * =====================================================
+   * HILFSFUNKTIONEN
+   * =====================================================
    */
 
-  const resultClass = (result) => {
+  const normalizeStatus = (result) =>
+    String(result?.status || '')
+      .trim()
+      .toUpperCase();
+
+
+  const isDns = (result) =>
+    normalizeStatus(result) === 'DNS';
+
+
+  const displayPoints = (result) => {
     if (!result) {
-      return '';
+      return 0;
     }
 
-    const classes = [];
+    const points =
+      Number(result.points);
 
-    if (result.fastestLap) {
-      classes.push('has-fastest-lap');
+    return Number.isFinite(points)
+      ? points
+      : 0;
+  };
+
+
+  const hasRealResult = (result) => {
+    if (!result) {
+      return false;
     }
 
-    if (result.status) {
-      classes.push('has-race-status');
+    return Boolean(
+      result.position ||
+      result.fastestLap ||
+      (
+        result.status &&
+        normalizeStatus(result) !== 'DNS'
+      ) ||
+      Number(result.points)
+    );
+  };
+
+
+  /*
+   * Stammfahrer:
+   *
+   * DNS wird nur angezeigt, wenn die Logik
+   * tatsächlich DNS geliefert hat.
+   *
+   * Noch nicht gefahrene Rennen bleiben "-".
+   */
+  const regularDisplayState = (
+    result,
+    race
+  ) => {
+
+    if (!race?.isCompleted) {
+      return 'future';
+    }
+
+    if (isDns(result)) {
+      return 'dns';
+    }
+
+    if (hasRealResult(result)) {
+      return 'result';
+    }
+
+    return 'empty';
+  };
+
+
+  /*
+   * Ersatzfahrer:
+   *
+   * Vergangenes Rennen ohne Einsatz = DNS
+   * Zukünftiges Rennen = -
+   */
+  const reserveDisplayState = (
+    result,
+    race
+  ) => {
+
+    if (!race?.isCompleted) {
+      return 'future';
     }
 
     if (
-      Number(result.position) >= 1 &&
-      Number(result.position) <= 3
+      isDns(result) ||
+      !hasRealResult(result)
     ) {
-      classes.push(
-        `season-race-position-${result.position}`
-      );
+      return 'dns';
     }
 
-    return classes.join(' ');
+    return 'result';
   };
 %>
 
@@ -87,7 +157,6 @@
         </h3>
 
       </div>
-
 
       <p>
         Die acht bestplatzierten Stammfahrer im Saisonverlauf.
@@ -213,16 +282,14 @@
 
       </div>
 
-
       <small>
-        Sprint und Hauptrennen werden bei Sprintwochenenden
-        innerhalb einer Runde getrennt dargestellt.
+        Angezeigt werden die erzielten Punkte pro Rennwochenende.
       </small>
 
     </div>
 
 
-    <div class="table-wrap season-history-table">
+    <div class="table-wrap season-history-table season-history-points-table">
 
       <table>
 
@@ -230,15 +297,15 @@
 
           <tr>
 
-            <th>
+            <th class="history-position-column">
               Pos.
             </th>
 
-            <th>
+            <th class="history-driver-column">
               Fahrer
             </th>
 
-            <th>
+            <th class="history-team-column">
               Team
             </th>
 
@@ -246,13 +313,34 @@
             <% selectedHistory.races.forEach((race) => { %>
 
               <th
-                class="<%= race.hasSprint ? 'history-race-head has-sprint' : 'history-race-head' %>"
+                class="
+                  history-race-head
+                  <%= race.hasSprint ? 'has-sprint' : '' %>
+                  <%= race.isCompleted ? 'is-completed' : 'is-upcoming' %>
+                "
                 title="Runde <%= race.round %> · <%= race.title %>"
               >
 
-                <strong>
-                  <%= race.code %>
-                </strong>
+                <div class="history-race-flag">
+
+                  <% if (race.countryFlagPath) { %>
+
+                    <img
+                      src="<%= race.countryFlagPath %>"
+                      alt="<%= race.countryName || race.title || '' %>"
+                      title="<%= race.countryName || race.title || '' %>"
+                    >
+
+                  <% } else { %>
+
+                    <span>
+                      <%= race.code %>
+                    </span>
+
+                  <% } %>
+
+                </div>
+
 
                 <small>
                   R<%= race.round %>
@@ -272,15 +360,15 @@
             <% }) %>
 
 
-            <th>
+            <th class="history-stat-head">
               ∑
             </th>
 
-            <th>
+            <th class="history-stat-head">
               Δ
             </th>
 
-            <th>
+            <th class="history-stat-head">
               Ø
             </th>
 
@@ -291,20 +379,22 @@
 
         <tbody>
 
-
           <% selectedHistory.drivers.forEach((driver) => { %>
 
-            <tr class="season-position-<%= driver.position %> <%= driver.isFormerDriver ? 'is-former-driver' : '' %>">
+            <tr
+              class="
+                season-position-<%= driver.position %>
+                <%= driver.isFormerDriver ? 'is-former-driver' : '' %>
+              "
+            >
 
 
               <!-- POSITION -->
 
-              <td>
+              <td class="history-position-cell">
 
-                <strong
-                  class="position-badge position-<%= driver.position %>"
-                >
-                  P<%= driver.position %>
+                <strong class="history-standing-position">
+                  <%= driver.position %>
                 </strong>
 
               </td>
@@ -318,12 +408,29 @@
                   <%= driver.name %>
                 </strong>
 
+
                 <% if (driver.isFormerDriver) { %>
+
                   <small class="history-driver-state">
-                    Ehemalig<%= driver.regularToRound ? ` · bis R${driver.regularToRound}` : '' %>
+
+                    Ehemalig
+
+                    <% if (driver.regularToRound) { %>
+                      · bis R<%= driver.regularToRound %>
+                    <% } %>
+
                   </small>
-                <% } else if (driver.regularFromRound && driver.regularFromRound > 1) { %>
-                  <small class="history-driver-state">ab R<%= driver.regularFromRound %> Stammfahrer</small>
+
+
+                <% } else if (
+                  driver.regularFromRound &&
+                  driver.regularFromRound > 1
+                ) { %>
+
+                  <small class="history-driver-state">
+                    ab R<%= driver.regularFromRound %> Stammfahrer
+                  </small>
+
                 <% } %>
 
               </td>
@@ -362,24 +469,43 @@
 
                 const main =
                   weekendResult.main ||
-                  (!Object.prototype.hasOwnProperty.call(weekendResult, 'main') ? weekendResult : null);
+                  (
+                    !Object.prototype
+                      .hasOwnProperty
+                      .call(
+                        weekendResult,
+                        'main'
+                      )
+                      ? weekendResult
+                      : null
+                  );
 
                 const sprint =
                   weekendResult.sprint;
 
+                const mainState =
+                  regularDisplayState(
+                    main,
+                    race
+                  );
+
+                const sprintState =
+                  regularDisplayState(
+                    sprint,
+                    race
+                  );
+
               %>
+
 
                 <td
                   class="
                     history-weekend-cell
                     <%= race?.hasSprint ? 'has-sprint-weekend' : '' %>
+                    <%= !race?.isCompleted ? 'is-upcoming-cell' : '' %>
                   "
                 >
 
-
-                  <!-- ================================= -->
-                  <!-- SPRINTWOCHENENDE -->
-                  <!-- ================================= -->
 
                   <% if (race?.hasSprint) { %>
 
@@ -395,24 +521,31 @@
                         </span>
 
 
-                        <div class="<%= resultClass(sprint) %>">
+                        <div class="history-result-points">
 
-                          <% if (sprint?.status) { %>
+                          <% if (sprintState === 'future') { %>
 
-                            <span
-                              class="status-badge status-<%= sprint.status.toLowerCase() %>"
-                            >
-                              <%= sprint.status %>
+                            <span class="history-no-result">
+                              –
                             </span>
 
 
-                          <% } else if (sprint?.position) { %>
+                          <% } else if (sprintState === 'dns') { %>
 
-                            <span
-                              class="position-badge position-<%= sprint.position %>"
-                            >
-                              P<%= sprint.position %>
+                            <span class="history-dns">
+                              DNS
                             </span>
+
+
+                          <% } else if (sprintState === 'result') { %>
+
+                            <strong>
+                              <%= displayPoints(sprint) %>
+                            </strong>
+
+                            <small>
+                              PKT
+                            </small>
 
 
                           <% } else { %>
@@ -420,18 +553,6 @@
                             <span class="history-no-result">
                               –
                             </span>
-
-                          <% } %>
-
-
-                          <% if (sprint?.fastestLap) { %>
-
-                            <small
-                              class="history-fastest-lap"
-                              title="Schnellste Runde"
-                            >
-                              SR
-                            </small>
 
                           <% } %>
 
@@ -449,24 +570,31 @@
                         </span>
 
 
-                        <div class="<%= resultClass(main) %>">
+                        <div class="history-result-points">
 
-                          <% if (main?.status) { %>
+                          <% if (mainState === 'future') { %>
 
-                            <span
-                              class="status-badge status-<%= main.status.toLowerCase() %>"
-                            >
-                              <%= main.status %>
+                            <span class="history-no-result">
+                              –
                             </span>
 
 
-                          <% } else if (main?.position) { %>
+                          <% } else if (mainState === 'dns') { %>
 
-                            <span
-                              class="position-badge position-<%= main.position %>"
-                            >
-                              P<%= main.position %>
+                            <span class="history-dns">
+                              DNS
                             </span>
+
+
+                          <% } else if (mainState === 'result') { %>
+
+                            <strong>
+                              <%= displayPoints(main) %>
+                            </strong>
+
+                            <small>
+                              PKT
+                            </small>
 
 
                           <% } else { %>
@@ -477,18 +605,6 @@
 
                           <% } %>
 
-
-                          <% if (main?.fastestLap) { %>
-
-                            <small
-                              class="history-fastest-lap"
-                              title="Schnellste Runde"
-                            >
-                              SR
-                            </small>
-
-                          <% } %>
-
                         </div>
 
                       </div>
@@ -496,30 +612,33 @@
                     </div>
 
 
-                  <!-- ================================= -->
-                  <!-- NORMALES WOCHENENDE -->
-                  <!-- ================================= -->
-
                   <% } else { %>
 
-                    <div class="history-single-result <%= resultClass(main) %>">
+                    <div class="history-single-result history-result-points">
 
-                      <% if (main?.status) { %>
+                      <% if (mainState === 'future') { %>
 
-                        <span
-                          class="status-badge status-<%= main.status.toLowerCase() %>"
-                        >
-                          <%= main.status %>
+                        <span class="history-no-result">
+                          –
                         </span>
 
 
-                      <% } else if (main?.position) { %>
+                      <% } else if (mainState === 'dns') { %>
 
-                        <span
-                          class="position-badge position-<%= main.position %>"
-                        >
-                          P<%= main.position %>
+                        <span class="history-dns">
+                          DNS
                         </span>
+
+
+                      <% } else if (mainState === 'result') { %>
+
+                        <strong>
+                          <%= displayPoints(main) %>
+                        </strong>
+
+                        <small>
+                          PKT
+                        </small>
 
 
                       <% } else { %>
@@ -527,18 +646,6 @@
                         <span class="history-no-result">
                           –
                         </span>
-
-                      <% } %>
-
-
-                      <% if (main?.fastestLap) { %>
-
-                        <small
-                          class="history-fastest-lap"
-                          title="Schnellste Runde"
-                        >
-                          SR
-                        </small>
 
                       <% } %>
 
@@ -551,7 +658,7 @@
               <% }) %>
 
 
-              <!-- PUNKTE -->
+              <!-- GESAMTPUNKTE -->
 
               <td class="season-total">
 
@@ -562,7 +669,7 @@
               </td>
 
 
-              <!-- GAP -->
+              <!-- RÜCKSTAND -->
 
               <td class="history-stat-cell">
 
@@ -588,7 +695,6 @@
             </tr>
 
           <% }) %>
-
 
         </tbody>
 
@@ -627,16 +733,14 @@
 
         </div>
 
-
         <small>
-          Angezeigt werden nur Fahrer, die in dieser Saison
-          tatsächlich als Ersatzfahrer eingesetzt wurden.
+          Vergangene Rennen ohne Einsatz = DNS · zukünftige Rennen = –
         </small>
 
       </div>
 
 
-      <div class="table-wrap season-history-table season-history-reserve-table">
+      <div class="table-wrap season-history-table season-history-reserve-table season-history-points-table">
 
         <table>
 
@@ -644,15 +748,15 @@
 
             <tr>
 
-              <th>
+              <th class="history-position-column">
                 Pos.
               </th>
 
-              <th>
+              <th class="history-driver-column">
                 Ersatzfahrer
               </th>
 
-              <th>
+              <th class="history-team-column">
                 Team
               </th>
 
@@ -660,13 +764,34 @@
               <% selectedHistory.races.forEach((race) => { %>
 
                 <th
-                  class="<%= race.hasSprint ? 'history-race-head has-sprint' : 'history-race-head' %>"
+                  class="
+                    history-race-head
+                    <%= race.hasSprint ? 'has-sprint' : '' %>
+                    <%= race.isCompleted ? 'is-completed' : 'is-upcoming' %>
+                  "
                   title="Runde <%= race.round %> · <%= race.title %>"
                 >
 
-                  <strong>
-                    <%= race.code %>
-                  </strong>
+                  <div class="history-race-flag">
+
+                    <% if (race.countryFlagPath) { %>
+
+                      <img
+                        src="<%= race.countryFlagPath %>"
+                        alt="<%= race.countryName || race.title || '' %>"
+                        title="<%= race.countryName || race.title || '' %>"
+                      >
+
+                    <% } else { %>
+
+                      <span>
+                        <%= race.code %>
+                      </span>
+
+                    <% } %>
+
+                  </div>
+
 
                   <small>
                     R<%= race.round %>
@@ -686,15 +811,15 @@
               <% }) %>
 
 
-              <th>
+              <th class="history-stat-head">
                 ∑
               </th>
 
-              <th>
+              <th class="history-stat-head">
                 Δ
               </th>
 
-              <th>
+              <th class="history-stat-head">
                 Ø
               </th>
 
@@ -705,7 +830,6 @@
 
           <tbody>
 
-
             <% (selectedHistory.reserveDrivers || [])
               .forEach((driver) => {
             %>
@@ -715,12 +839,10 @@
 
                 <!-- POSITION -->
 
-                <td>
+                <td class="history-position-cell">
 
-                  <strong
-                    class="position-badge position-<%= driver.position %>"
-                  >
-                    P<%= driver.position %>
+                  <strong class="history-standing-position">
+                    <%= driver.position %>
                   </strong>
 
                 </td>
@@ -734,8 +856,13 @@
                     <%= driver.name %>
                   </strong>
 
+
                   <% if (driver.promotedToRegular) { %>
-                    <small class="history-driver-state">ab R<%= driver.promotedFromRound %> Stammfahrer</small>
+
+                    <small class="history-driver-state">
+                      ab R<%= driver.promotedFromRound %> Stammfahrer
+                    </small>
+
                   <% } %>
 
                 </td>
@@ -784,12 +911,26 @@
                   const sprint =
                     weekendResult.sprint;
 
+                  const mainState =
+                    reserveDisplayState(
+                      main,
+                      race
+                    );
+
+                  const sprintState =
+                    reserveDisplayState(
+                      sprint,
+                      race
+                    );
+
                 %>
+
 
                   <td
                     class="
                       history-weekend-cell
                       <%= race?.hasSprint ? 'has-sprint-weekend' : '' %>
+                      <%= !race?.isCompleted ? 'is-upcoming-cell' : '' %>
                     "
                   >
 
@@ -808,31 +949,31 @@
                           </span>
 
 
-                          <div class="<%= resultClass(sprint) %>">
+                          <div class="history-result-points">
 
-                            <% if (sprint?.status) { %>
+                            <% if (sprintState === 'future') { %>
 
-                              <span
-                                class="status-badge status-<%= sprint.status.toLowerCase() %>"
-                              >
-                                <%= sprint.status %>
+                              <span class="history-no-result">
+                                –
                               </span>
 
 
-                            <% } else if (sprint?.position) { %>
+                            <% } else if (sprintState === 'dns') { %>
 
-                              <span
-                                class="position-badge position-<%= sprint.position %>"
-                              >
-                                P<%= sprint.position %>
+                              <span class="history-dns">
+                                DNS
                               </span>
 
 
                             <% } else { %>
 
-                              <span class="history-no-result">
-                                –
-                              </span>
+                              <strong>
+                                <%= displayPoints(sprint) %>
+                              </strong>
+
+                              <small>
+                                PKT
+                              </small>
 
                             <% } %>
 
@@ -841,7 +982,7 @@
                         </div>
 
 
-                        <!-- GP -->
+                        <!-- HAUPTRENNEN -->
 
                         <div class="history-weekend-result history-weekend-main">
 
@@ -850,31 +991,31 @@
                           </span>
 
 
-                          <div class="<%= resultClass(main) %>">
+                          <div class="history-result-points">
 
-                            <% if (main?.status) { %>
+                            <% if (mainState === 'future') { %>
 
-                              <span
-                                class="status-badge status-<%= main.status.toLowerCase() %>"
-                              >
-                                <%= main.status %>
+                              <span class="history-no-result">
+                                –
                               </span>
 
 
-                            <% } else if (main?.position) { %>
+                            <% } else if (mainState === 'dns') { %>
 
-                              <span
-                                class="position-badge position-<%= main.position %>"
-                              >
-                                P<%= main.position %>
+                              <span class="history-dns">
+                                DNS
                               </span>
 
 
                             <% } else { %>
 
-                              <span class="history-no-result">
-                                –
-                              </span>
+                              <strong>
+                                <%= displayPoints(main) %>
+                              </strong>
+
+                              <small>
+                                PKT
+                              </small>
 
                             <% } %>
 
@@ -887,31 +1028,31 @@
 
                     <% } else { %>
 
-                      <div class="history-single-result <%= resultClass(main) %>">
+                      <div class="history-single-result history-result-points">
 
-                        <% if (main?.status) { %>
+                        <% if (mainState === 'future') { %>
 
-                          <span
-                            class="status-badge status-<%= main.status.toLowerCase() %>"
-                          >
-                            <%= main.status %>
+                          <span class="history-no-result">
+                            –
                           </span>
 
 
-                        <% } else if (main?.position) { %>
+                        <% } else if (mainState === 'dns') { %>
 
-                          <span
-                            class="position-badge position-<%= main.position %>"
-                          >
-                            P<%= main.position %>
+                          <span class="history-dns">
+                            DNS
                           </span>
 
 
                         <% } else { %>
 
-                          <span class="history-no-result">
-                            –
-                          </span>
+                          <strong>
+                            <%= displayPoints(main) %>
+                          </strong>
+
+                          <small>
+                            PKT
+                          </small>
 
                         <% } %>
 
@@ -924,8 +1065,6 @@
                 <% }) %>
 
 
-                <!-- PUNKTE -->
-
                 <td class="season-total">
 
                   <strong>
@@ -934,8 +1073,6 @@
 
                 </td>
 
-
-                <!-- GAP -->
 
                 <td class="history-stat-cell">
 
@@ -946,8 +1083,6 @@
 
                 </td>
 
-
-                <!-- Ø -->
 
                 <td class="history-stat-cell">
 
@@ -962,7 +1097,6 @@
 
             <% }) %>
 
-
           </tbody>
 
         </table>
@@ -973,10 +1107,7 @@
     <% } else { %>
 
       <div class="empty-state">
-
-        In dieser Saison wurde bisher
-        kein Ersatzfahrer eingesetzt.
-
+        In dieser Saison wurde bisher kein Ersatzfahrer eingesetzt.
       </div>
 
     <% } %>
@@ -987,9 +1118,7 @@
 <% } else { %>
 
   <div class="empty-state">
-
     Noch keine Ergebnisse eingetragen.
-
   </div>
 
 <% } %>

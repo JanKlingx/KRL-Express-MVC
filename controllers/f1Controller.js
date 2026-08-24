@@ -633,6 +633,81 @@ async function loadLeagueData(slug, requestedSeasonId) {
   );
 
   /*
+ * =====================================================
+ * SAISONVERLAUF · KALENDERDATEN
+ * =====================================================
+ *
+ * Ergänzt die bestehenden Standings-Daten nur um
+ * Darstellungseigenschaften:
+ *
+ * - Länderflagge
+ * - Ländername
+ * - Strecke
+ * - Information, ob die Runde bereits abgeschlossen ist
+ *
+ * Die Ergebnisdaten selbst werden NICHT verändert.
+ */
+
+if (standingsData.selectedHistory?.races) {
+  standingsData.selectedHistory.races.forEach((historyRace) => {
+    const round =
+      Number(historyRace.round);
+
+    const calendarEvent =
+      activeCalendar.find(
+        (event) =>
+          Number(event.sortOrder) ===
+          round,
+      );
+
+    const calendarPlain =
+      plain(calendarEvent);
+
+    const track =
+      plain(calendarPlain?.track);
+
+    const country =
+      plain(track?.countryRecord);
+
+    /*
+     * Ein Wochenende gilt erst dann als gefahren,
+     * wenn das Hauptrennen Ergebniszeilen besitzt.
+     */
+    const mainResult =
+      gpResults.find(
+        (race) =>
+          race.raceType === "main" &&
+          Number(race.sortOrder) === round,
+      );
+
+    const completed =
+      Boolean(
+        mainResult &&
+        Array.isArray(mainResult.entries) &&
+        mainResult.entries.length > 0,
+      );
+
+    historyRace.countryFlagPath =
+      country?.flagPath ||
+      null;
+
+    historyRace.countryName =
+      country?.name ||
+      track?.country ||
+      null;
+
+    historyRace.trackName =
+      track?.name ||
+      calendarPlain?.circuit ||
+      historyRace.circuit ||
+      null;
+
+    historyRace.isCompleted =
+      completed;
+  });
+}
+
+  /*
    * =====================================================
    * RETURN
    * =====================================================
