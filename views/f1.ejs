@@ -1,46 +1,1126 @@
 <%- include('partials/header', { title }) %>
-<div class="league-page" style="--accent:<%= league.accentColor %>">
+
+<%
+  const findPublicTeam = (teamName) => {
+
+    if (!teamName) {
+      return null;
+    }
+
+    return (
+      teams.find(
+        (team) =>
+          String(team.name || '')
+            .trim()
+            .toLowerCase() ===
+          String(teamName || '')
+            .trim()
+            .toLowerCase()
+      ) ||
+      null
+    );
+  };
+%>
+
+
+<div
+  class="league-page"
+  style="--accent:<%= league.accentColor %>"
+>
+
+
+  <!-- ================================================= -->
+  <!-- HERO -->
+  <!-- ================================================= -->
+
   <section class="league-hero">
+
     <div class="container">
-      <% if (league.logoPath) { %><img class="league-hero-logo" src="<%= league.logoPath %>" alt="Logo <%= league.name %>"><% } %>
-      <span class="eyebrow">FORMEL 1 · <%= league.currentSeason %></span>
-      <h1><%= league.name %></h1>
-      <p><%= league.description %></p>
-      <div class="facts"><span>Renntag <strong><%= league.raceDay %></strong></span><span>Start <strong><%= league.raceTime %></strong></span><span>Saison <strong><%= league.currentSeason %></strong></span></div>
-      <div class="league-resource-links"><a href="/formel-1/regelwerk">Regelwerk</a><a href="/formel-1/race-director-notes">Race-Director Notes</a></div>
+
+      <% if (league.logoPath) { %>
+
+        <img
+          class="league-hero-logo"
+          src="<%= league.logoPath %>"
+          alt="Logo <%= league.name %>"
+        >
+
+      <% } %>
+
+
+      <span class="eyebrow">
+        FORMEL 1 · <%= league.currentSeason %>
+      </span>
+
+
+      <h1>
+        <%= league.name %>
+      </h1>
+
+
+      <p>
+        <%= league.description %>
+      </p>
+
+
+      <div class="facts">
+
+        <span>
+          Renntag
+          <strong>
+            <%= league.raceDay %>
+          </strong>
+        </span>
+
+        <span>
+          Start
+          <strong>
+            <%= league.raceTime %>
+          </strong>
+        </span>
+
+        <span>
+          Saison
+          <strong>
+            <%= league.currentSeason %>
+          </strong>
+        </span>
+
+      </div>
+
+
+      <div class="league-resource-links">
+
+        <a href="/formel-1/regelwerk">
+          Regelwerk
+        </a>
+
+        <a href="/formel-1/race-director-notes">
+          Race-Director Notes
+        </a>
+
+      </div>
+
     </div>
+
   </section>
-  <section class="season-switcher container"><form method="get"><label for="season-select">Saison auswählen</label><select id="season-select" name="season"><%- include('partials/season-options', { seasons, selectedSeason }) %></select><noscript><button class="button button-small" type="submit">Saison laden</button></noscript></form></section>
-  <% if (isAdmin) { %><div class="public-edit-bar"><a href="/admin/season-setup?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Teams & Fahrer</a><a href="/admin/race-weekend/f1?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Rennwochenende</a><a href="/admin/season-manager?league=<%= league.id %>">✎ Saison</a><a href="/admin/season-calendar?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">✎ Rennkalender</a></div><% } %>
 
-  <% if (selectedSeason) { %><section class="section container">
-    <div class="section-heading"><span>STARTAUFSTELLUNG</span><h2>TEAMS & FAHRER</h2></div>
-    <div class="f1-team-grid"><% teams.forEach((team) => { %><article class="f1-team-card" style="--team-color:<%= team.accentColor || '#6ef2f2' %>" aria-label="<%= team.name %>"><div class="f1-team-watermark" aria-hidden="true"><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt=""><% } else { %><strong><%= team.name %></strong><% } %></div><ul aria-label="Fahrer von <%= team.name %>"><% team.drivers.forEach((driver) => { %><li><strong><%= driver.name %></strong></li><% }) %></ul></article><% }) %></div>
-    <% if (!teams.length) { %><div class="empty-state">Noch keine Teams für diese Liga angelegt.</div><% } %>
-  </section><% } %>
 
-  <section class="section container"><div class="section-heading"><span>ALLE TERMINE</span><h2>RENNKALENDER</h2></div><%- include('partials/race-calendar', { calendar, league, emptyMessage: 'Noch keine Renntermine veröffentlicht.' }) %></section>
+  <!-- ================================================= -->
+  <!-- SAISON -->
+  <!-- ================================================= -->
 
-  <section class="section section-dark">
-    <div class="container standings-grid">
-      <div id="f1-driver-wm"><div class="section-heading left"><span>AUTOMATISCH BERECHNET</span><h2>FAHRER-WM</h2><div class="export-actions"><a class="download-link" href="/f1/<%= league.slug %>/download/fahrer-wm.csv?season=<%= selectedSeason?.id || '' %>" download>CSV ↓</a><button class="button button-small" type="button" data-png-export data-png-target="#f1-driver-wm" data-png-title="<%= league.name %> · Fahrer-WM" data-png-subtitle="<%= selectedSeason?.name || league.currentSeason %>" data-png-filename="<%= league.slug %>-fahrer-wm" data-png-logo="<%= league.logoPath || '/images/krl-placeholder.svg' %>" data-png-accent="<%= league.accentColor %>">PNG ↓</button></div></div><div class="table-wrap"><table><thead><tr><th>Pos.</th><th>Fahrer</th><th>Team</th><th>Punkte</th><th>Siege</th></tr></thead><tbody><% driverStandings.forEach(row => { %><tr><td><strong><%= row.position %></strong></td><td><%= row.driver.name %></td><td><%= row.driver.team ? row.driver.team.name : '–' %></td><td><strong><%= row.points %></strong></td><td><%= row.wins %></td></tr><% }) %></tbody></table></div></div>
-      <div id="f1-team-wm"><div class="section-heading left"><span>AUTOMATISCH BERECHNET</span><h2>TEAM-WM</h2><div class="export-actions"><a class="download-link" href="/f1/<%= league.slug %>/download/team-wm.csv?season=<%= selectedSeason?.id || '' %>" download>CSV ↓</a><button class="button button-small" type="button" data-png-export data-png-target="#f1-team-wm" data-png-title="<%= league.name %> · Team-WM" data-png-subtitle="<%= selectedSeason?.name || league.currentSeason %>" data-png-filename="<%= league.slug %>-team-wm" data-png-logo="<%= league.logoPath || '/images/krl-placeholder.svg' %>" data-png-accent="<%= league.accentColor %>">PNG ↓</button></div></div><div class="table-wrap"><table><thead><tr><th>Pos.</th><th>Team</th><th>Punkte</th><th>Siege</th><th>Gap</th></tr></thead><tbody><% teamStandings.forEach(row => { %><tr><td><strong><%= row.position %></strong></td><td><%= row.team.name %></td><td><strong><%= row.points %></strong></td><td><%= row.wins %></td><td><%= row.gap || '–' %></td></tr><% }) %></tbody></table></div></div>
+  <section class="season-switcher container">
+
+    <form method="get">
+
+      <label for="season-select">
+        Saison auswählen
+      </label>
+
+      <select
+        id="season-select"
+        name="season"
+      >
+
+        <%- include(
+          'partials/season-options',
+          {
+            seasons,
+            selectedSeason
+          }
+        ) %>
+
+      </select>
+
+
+      <noscript>
+
+        <button
+          class="button button-small"
+          type="submit"
+        >
+          Saison laden
+        </button>
+
+      </noscript>
+
+    </form>
+
+  </section>
+
+
+  <!-- ================================================= -->
+  <!-- ADMIN -->
+  <!-- ================================================= -->
+
+  <% if (isAdmin) { %>
+
+    <div class="public-edit-bar">
+
+      <a href="/admin/season-setup?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">
+        ✎ Teams & Fahrer
+      </a>
+
+      <a href="/admin/race-weekend/f1?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">
+        ✎ Rennwochenende
+      </a>
+
+      <a href="/admin/season-manager?league=<%= league.id %>">
+        ✎ Saison
+      </a>
+
+      <a href="/admin/season-calendar?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>">
+        ✎ Rennkalender
+      </a>
+
     </div>
-  </section>
 
-  <section class="section container gp-results-section" id="f1-gp-results">
-    <div class="section-heading"><h2>GP-ERGEBNISSE</h2><div class="export-actions"><a class="download-link" href="/f1/<%= league.slug %>/download/gp-results.csv?season=<%= selectedSeason?.id || '' %>" download>CSV ↓</a><button class="button button-small" type="button" data-png-export data-png-target="#f1-gp-results" data-png-title="<%= league.name %> · GP-Results" data-png-subtitle="<%= selectedSeason?.name || league.currentSeason %>" data-png-filename="<%= league.slug %>-gp-results" data-png-logo="<%= league.logoPath || '/images/krl-placeholder.svg' %>" data-png-accent="<%= league.accentColor %>">PNG ↓</button></div></div>
-    <%- include('partials/gp-results', { items: gpResults, label: 'Grand-Prix-Ergebnisse' }) %>
-  </section>
+  <% } %>
 
-  <section class="section section-dark season-history-section" id="season-history">
-    <div class="container">
-      <div class="section-heading"><span>VOM AUFTAKT BIS ZUM FINALE</span><h2>SAISONVERLAUF</h2></div>
-      <%- include('partials/season-history', { history, selectedHistory, league }) %>
+
+  <!-- ================================================= -->
+  <!-- TEAMS -->
+  <!-- ================================================= -->
+
+  <% if (selectedSeason) { %>
+
+    <section class="section container">
+
+      <div class="section-heading">
+
+        <span>
+          STARTAUFSTELLUNG
+        </span>
+
+        <h2>
+          TEAMS & FAHRER
+        </h2>
+
+      </div>
+
+
+      <div class="f1-team-grid">
+
+        <% teams.forEach((team) => { %>
+
+          <article
+            class="f1-team-card"
+            style="--team-color:<%= team.accentColor || '#6ef2f2' %>"
+            aria-label="<%= team.name %>"
+          >
+
+            <div
+              class="f1-team-watermark"
+              aria-hidden="true"
+            >
+
+              <% if (team.logoPath) { %>
+
+                <img
+                  src="<%= team.logoPath %>"
+                  alt=""
+                >
+
+              <% } else { %>
+
+                <strong>
+                  <%= team.name %>
+                </strong>
+
+              <% } %>
+
+            </div>
+
+
+            <ul
+              aria-label="Fahrer von <%= team.name %>"
+            >
+
+              <% team.drivers.forEach((driver) => { %>
+
+                <li>
+                  <strong>
+                    <%= driver.name %>
+                  </strong>
+                </li>
+
+              <% }) %>
+
+            </ul>
+
+          </article>
+
+        <% }) %>
+
+      </div>
+
+
+      <% if (!teams.length) { %>
+
+        <div class="empty-state">
+          Noch keine Teams für diese Liga angelegt.
+        </div>
+
+      <% } %>
+
+    </section>
+
+  <% } %>
+
+
+  <!-- ================================================= -->
+  <!-- KALENDER -->
+  <!-- ================================================= -->
+
+  <section class="section container">
+
+    <div class="section-heading">
+
+      <span>
+        ALLE TERMINE
+      </span>
+
+      <h2>
+        RENNKALENDER
+      </h2>
+
     </div>
+
+
+    <%- include(
+      'partials/race-calendar',
+      {
+        calendar,
+        league,
+        emptyMessage:
+          'Noch keine Renntermine veröffentlicht.'
+      }
+    ) %>
+
   </section>
+
+
+  <!-- ================================================= -->
+<!-- WM-ZWISCHENSTÄNDE NACH JEDEM GP -->
+<!-- ================================================= -->
+
+<section
+  class="section section-dark standings-history-section"
+  id="f1-standings-history"
+>
+
+  <div class="container">
+
+    <div class="section-heading">
+
+      <span>
+        AUTOMATISCH BERECHNET
+      </span>
+
+      <h2>
+        WM-STÄNDE
+      </h2>
+
+    <div class="export-actions">
+
+  <button
+    class="button button-small"
+    type="button"
+    id="standings-png-download"
+  >
+    PNG ↓
+  </button>
+
 </div>
 
-<script src="/js/season-history-tabs.js" defer></script>
+    </div>
+
+
+    <% if ((standingsHistory || []).length) { %>
+
+      <div
+        class="standings-history-carousel standings-history-carousel-compact"
+        data-standings-history
+      >
+
+        <div class="standings-history-track">
+
+
+          <% standingsHistory.forEach((snapshot, snapshotIndex) => {
+
+            const raceDisplay =
+              (gpResults || []).find(
+                (race) =>
+                  race.raceType === 'main' &&
+                  Number(race.sortOrder) === Number(snapshot.round)
+              ) || null;
+
+
+            const displayTitle =
+              raceDisplay?.displayTitle ||
+              snapshot.title ||
+              `Runde ${snapshot.round}`;
+
+
+            const displayCircuit =
+              raceDisplay?.circuit ||
+              snapshot.circuit ||
+              '';
+
+
+            const displayDate =
+              raceDisplay?.raceDate ||
+              snapshot.raceDate ||
+              '';
+
+
+            const displayFlag =
+              raceDisplay?.countryFlagPath ||
+              raceDisplay?.trackLogoPath ||
+              null;
+
+
+            const displayCountry =
+              raceDisplay?.countryName ||
+              String(displayTitle)
+                .replace(
+                  /gro(?:ss|ß)er preis (?:von|der)\s*/i,
+                  ''
+                )
+                .trim();
+
+          %>
+
+
+            <article
+              class="standings-history-slide standings-history-slide-compact <%= snapshotIndex === standingsHistory.length - 1 ? 'is-active' : '' %>"
+              data-standings-slide
+              data-slide-index="<%= snapshotIndex %>"
+              aria-hidden="<%= snapshotIndex === standingsHistory.length - 1 ? 'false' : 'true' %>"
+            >
+
+
+              <!-- HEADER -->
+
+              <header class="standing-gp-header standing-gp-header-compact">
+
+                <div class="standing-gp-league">
+
+                  <% if (league.logoPath) { %>
+
+                    <img
+                      src="<%= league.logoPath %>"
+                      alt="<%= league.name %>"
+                    >
+
+                  <% } else { %>
+
+                    <strong>
+                      KRL
+                    </strong>
+
+                  <% } %>
+
+                </div>
+
+
+                <div class="standing-gp-title standing-gp-title-compact">
+
+                  <span>
+                    WM-STAND NACH RUNDE <%= snapshot.round %>
+                  </span>
+
+                  <h3>
+                    <%= displayTitle %>
+                  </h3>
+
+                  <small>
+
+                    <%= displayCircuit %>
+
+                    <% if (displayDate) { %>
+                      · <%= displayDate %>
+                    <% } %>
+
+                    · <%= selectedSeason?.name || league.currentSeason %>
+
+                  </small>
+
+                </div>
+
+
+                <div class="standing-gp-flag">
+
+                  <% if (displayFlag) { %>
+
+                    <img
+                      src="<%= displayFlag %>"
+                      alt="<%= displayCountry || displayTitle %>"
+                      title="<%= displayCountry || displayTitle %>"
+                    >
+
+                  <% } else { %>
+
+                    <span>
+                      <%= String(displayCountry || '')
+                        .slice(0, 3)
+                        .toUpperCase() || 'GP'
+                      %>
+                    </span>
+
+                  <% } %>
+
+                </div>
+
+              </header>
+
+
+              <% if (snapshot.hasSprint) { %>
+
+                <div class="standing-weekend-note">
+                  Sprint + Hauptrennen sind in diesem WM-Stand enthalten.
+                </div>
+
+              <% } %>
+
+
+              <!-- FAHRER + TEAM NEBENEINANDER -->
+
+              <div class="standing-snapshot-grid">
+
+
+                <!-- FAHRER-WM -->
+
+                <section class="standing-mini-card">
+
+                  <header class="standing-mini-heading">
+
+                    <div>
+
+                      <span>
+                        FAHRER
+                      </span>
+
+                      <h4>
+                        FAHRER-WM
+                      </h4>
+
+                    </div>
+
+                    <strong>
+                      NACH R<%= snapshot.round %>
+                    </strong>
+
+                  </header>
+
+
+                  <div class="standing-mini-ranking">
+
+
+                    <% snapshot.driverStandings.forEach((row) => {
+
+                      const standingTeam =
+                        findPublicTeam(
+                          row.team
+                        );
+
+
+                      const standingLogo =
+                        standingTeam?.logoPath ||
+                        row.teamLogoPath ||
+                        null;
+
+
+                      const standingColor =
+                        standingTeam?.accentColor ||
+                        league.accentColor ||
+                        '#6ef2f2';
+
+                    %>
+
+
+                      <div
+                        class="standing-mini-row"
+                        style="--standing-team-color:<%= standingColor %>"
+                      >
+
+
+                        <div class="standing-mini-position">
+                          <%= row.position %>
+                        </div>
+
+
+                        <div class="standing-mini-team">
+
+                          <% if (standingLogo) { %>
+
+                            <img
+                              src="<%= standingLogo %>"
+                              alt="<%= row.team || 'Team' %>"
+                              title="<%= row.team || '' %>"
+                            >
+
+                          <% } else { %>
+
+                            <span>
+                              <%= row.team || '–' %>
+                            </span>
+
+                          <% } %>
+
+                        </div>
+
+
+                        <div class="standing-mini-name">
+                          <%= row.name %>
+                        </div>
+
+
+                        <div class="standing-mini-points">
+                          <%= row.points %>
+                        </div>
+
+
+                      </div>
+
+
+                    <% }) %>
+
+
+                  </div>
+
+                </section>
+
+
+                <!-- TEAM-WM -->
+
+                <section class="standing-mini-card">
+
+                  <header class="standing-mini-heading">
+
+                    <div>
+
+                      <span>
+                        TEAMS
+                      </span>
+
+                      <h4>
+                        TEAM-WM
+                      </h4>
+
+                    </div>
+
+                    <strong>
+                      NACH R<%= snapshot.round %>
+                    </strong>
+
+                  </header>
+
+
+                  <div class="standing-mini-ranking">
+
+
+                    <% snapshot.teamStandings.forEach((row) => {
+
+                      const standingTeam =
+                        findPublicTeam(
+                          row.name
+                        );
+
+
+                      const standingColor =
+                        standingTeam?.accentColor ||
+                        league.accentColor ||
+                        '#6ef2f2';
+
+                    %>
+
+
+                      <div
+                        class="standing-mini-row standing-mini-team-row"
+                        style="--standing-team-color:<%= standingColor %>"
+                      >
+
+
+                        <div class="standing-mini-position">
+                          <%= row.position %>
+                        </div>
+
+
+                        <div class="standing-mini-team">
+
+                          <% if (standingTeam?.logoPath) { %>
+
+                            <img
+                              src="<%= standingTeam.logoPath %>"
+                              alt="<%= row.name %>"
+                              title="<%= row.name %>"
+                            >
+
+                          <% } else { %>
+
+                            <span>
+                              <%= row.name %>
+                            </span>
+
+                          <% } %>
+
+                        </div>
+
+
+                        <div class="standing-mini-name">
+                          <%= row.name %>
+                        </div>
+
+
+                        <div class="standing-mini-points">
+                          <%= row.points %>
+                        </div>
+
+
+                      </div>
+
+
+                    <% }) %>
+
+
+                  </div>
+
+                </section>
+
+
+              </div>
+
+            </article>
+
+
+          <% }) %>
+
+
+        </div>
+
+
+        <% if (standingsHistory.length > 1) { %>
+
+          <button
+            class="standings-history-control prev"
+            type="button"
+            data-standings-prev
+            aria-label="Vorheriger WM-Stand"
+          >
+            ‹
+          </button>
+
+
+          <button
+            class="standings-history-control next"
+            type="button"
+            data-standings-next
+            aria-label="Nächster WM-Stand"
+          >
+            ›
+          </button>
+
+
+          <div class="standings-history-dots">
+
+            <% standingsHistory.forEach((snapshot, index) => { %>
+
+              <button
+                type="button"
+                class="<%= index === standingsHistory.length - 1 ? 'is-active' : '' %>"
+                data-standings-dot="<%= index %>"
+                aria-label="WM-Stand nach Runde <%= snapshot.round %>"
+                title="Runde <%= snapshot.round %>"
+              ></button>
+
+            <% }) %>
+
+          </div>
+
+        <% } %>
+
+
+      </div>
+
+
+    <% } else { %>
+
+      <div class="empty-state">
+
+        Sobald das erste Hauptrennen ein Ergebnis besitzt,
+        erscheint hier der WM-Stand nach diesem Grand Prix.
+
+      </div>
+
+    <% } %>
+
+
+  </div>
+
+</section>
+
+  <!-- ================================================= -->
+  <!-- GP RESULTS -->
+  <!-- ================================================= -->
+
+  <section
+    class="section container gp-results-section"
+    id="f1-gp-results"
+  >
+
+    <div class="section-heading">
+
+      <h2>
+        GP-ERGEBNISSE
+      </h2>
+
+
+      <div class="export-actions">
+
+        <a
+          class="download-link"
+          href="/f1/<%= league.slug %>/download/gp-results.csv?season=<%= selectedSeason?.id || '' %>"
+          download
+        >
+          CSV ↓
+        </a>
+
+
+        <button
+          class="button button-small"
+          type="button"
+          data-png-export
+          data-png-target="#f1-gp-results"
+          data-png-title="<%= league.name %> · GP-Results"
+          data-png-subtitle="<%= selectedSeason?.name || league.currentSeason %>"
+          data-png-filename="<%= league.slug %>-gp-results"
+          data-png-logo="<%= league.logoPath || '/images/krl-placeholder.svg' %>"
+          data-png-accent="<%= league.accentColor %>"
+        >
+          PNG ↓
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <%- include(
+      'partials/gp-results',
+      {
+        items: gpResults,
+        label: 'Grand-Prix-Ergebnisse',
+        teams,
+        league
+      }
+    ) %>
+
+  </section>
+
+
+  <!-- ================================================= -->
+  <!-- SAISONVERLAUF -->
+  <!-- ================================================= -->
+
+  <section
+    class="section section-dark season-history-section"
+    id="season-history"
+  >
+
+    <div class="container">
+
+      <div class="section-heading">
+
+        <span>
+          VOM AUFTAKT BIS ZUM FINALE
+        </span>
+
+        <h2>
+          SAISONVERLAUF
+        </h2>
+
+      </div>
+
+
+      <%- include(
+        'partials/season-history',
+        {
+          history,
+          selectedHistory,
+          league
+        }
+      ) %>
+
+    </div>
+
+  </section>
+
+</div>
+
+
+<script
+  src="/js/season-history-tabs.js"
+  defer
+></script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  document
+    .querySelectorAll('[data-standings-history]')
+    .forEach((carousel) => {
+
+      const slides =
+        Array.from(
+          carousel.querySelectorAll(
+            '[data-standings-slide]'
+          )
+        );
+
+      const dots =
+        Array.from(
+          carousel.querySelectorAll(
+            '[data-standings-dot]'
+          )
+        );
+
+      const prev =
+        carousel.querySelector(
+          '[data-standings-prev]'
+        );
+
+      const next =
+        carousel.querySelector(
+          '[data-standings-next]'
+        );
+
+
+      if (!slides.length) {
+        return;
+      }
+
+
+      let activeIndex =
+        slides.findIndex(
+          (slide) =>
+            slide.classList.contains(
+              'is-active'
+            )
+        );
+
+
+      if (activeIndex < 0) {
+        activeIndex =
+          slides.length - 1;
+      }
+
+
+      const show =
+        (index) => {
+
+          activeIndex =
+            (
+              index +
+              slides.length
+            ) %
+            slides.length;
+
+
+          slides.forEach(
+            (
+              slide,
+              slideIndex
+            ) => {
+
+              const active =
+                slideIndex ===
+                activeIndex;
+
+
+              slide.classList.toggle(
+                'is-active',
+                active
+              );
+
+
+              slide.setAttribute(
+                'aria-hidden',
+                active
+                  ? 'false'
+                  : 'true'
+              );
+
+            }
+          );
+
+
+          dots.forEach(
+            (
+              dot,
+              dotIndex
+            ) => {
+
+              dot.classList.toggle(
+                'is-active',
+                dotIndex ===
+                  activeIndex
+              );
+
+            }
+          );
+
+        };
+
+
+      prev?.addEventListener(
+        'click',
+        () =>
+          show(
+            activeIndex - 1
+          )
+      );
+
+
+      next?.addEventListener(
+        'click',
+        () =>
+          show(
+            activeIndex + 1
+          )
+      );
+
+
+      dots.forEach(
+        (dot) => {
+
+          dot.addEventListener(
+            'click',
+            () => {
+
+              show(
+                Number(
+                  dot.dataset
+                    .standingsDot
+                )
+              );
+
+            }
+          );
+
+        }
+      );
+
+
+      show(
+        activeIndex
+      );
+
+    }
+  );
+
+});
+
+
+const standingsPngButton =
+  document.getElementById(
+    'standings-png-download'
+  );
+
+
+const standingsPngButton =
+  document.getElementById(
+    'standings-png-download'
+  );
+
+standingsPngButton?.addEventListener(
+  'click',
+  () => {
+
+    const activeSlide =
+      document.querySelector(
+        '[data-standings-slide].is-active'
+      );
+
+    if (!activeSlide) {
+      return;
+    }
+
+    let exportId =
+      activeSlide.id;
+
+    if (!exportId) {
+      exportId =
+        `standings-export-${Date.now()}`;
+
+      activeSlide.id =
+        exportId;
+    }
+
+    const exportButton =
+      document.createElement(
+        'button'
+      );
+
+    exportButton.type =
+      'button';
+
+    exportButton.style.display =
+      'none';
+
+    exportButton.setAttribute(
+      'data-png-export',
+      ''
+    );
+
+    exportButton.setAttribute(
+      'data-png-target',
+      `#${exportId}`
+    );
+
+    exportButton.setAttribute(
+      'data-png-title',
+      '<%= league.name %> · WM-Stand'
+    );
+
+    exportButton.setAttribute(
+      'data-png-subtitle',
+      '<%= selectedSeason?.name || league.currentSeason %>'
+    );
+
+    exportButton.setAttribute(
+      'data-png-filename',
+      '<%= league.slug %>-wm-stand'
+    );
+
+    exportButton.setAttribute(
+      'data-png-logo',
+      '<%= league.logoPath || "/images/krl-placeholder.svg" %>'
+    );
+
+    exportButton.setAttribute(
+      'data-png-accent',
+      '<%= selectedSeason?.accentColor || league.accentColor || "#6ef2f2" %>'
+    );
+
+    document.body.appendChild(
+      exportButton
+    );
+
+    exportButton.click();
+
+    setTimeout(
+      () => {
+        exportButton.remove();
+      },
+      500
+    );
+
+  }
+);
+</script>
+
 
 <%- include('partials/footer') %>

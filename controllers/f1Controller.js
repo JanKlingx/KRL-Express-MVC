@@ -13,10 +13,12 @@ const {
 } = require("../models");
 
 const { buildSeasonData } = require("../services/standings");
-
 const { sendCsv } = require("../services/csv");
-
 const { loadSeasonStructure } = require("../services/f1Season");
+
+function plain(value) {
+  return value && typeof value.toJSON === "function" ? value.toJSON() : value;
+}
 
 async function loadLeagueData(slug, requestedSeasonId) {
   /*
@@ -45,9 +47,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
   const seasons = await Season.findAll({
     where: {
       leagueType: "f1",
-
       scopeSlug: slug,
-
       isPublished: true,
     },
 
@@ -79,20 +79,17 @@ async function loadLeagueData(slug, requestedSeasonId) {
   const where = selectedSeason
     ? {
         LeagueId: league.id,
-
         SeasonId: selectedSeason.id,
-
         discipline: "f1",
       }
     : {
         LeagueId: league.id,
-
         season: league.currentSeason,
       };
 
   /*
    * =====================================================
-   * GRUNDDATEN LADEN
+   * GRUNDDATEN
    * =====================================================
    */
 
@@ -109,7 +106,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
     TeamRoster.findAll({
       where: {
         LeagueId: league.id,
-
         discipline: "f1",
       },
 
@@ -137,25 +133,21 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
       order: [
         ["sortOrder", "ASC"],
-
         ["id", "ASC"],
 
         [
           {
             model: TeamRosterDriver,
-
             as: "assignments",
           },
-
           "sortOrder",
-
           "ASC",
         ],
       ],
     }),
 
     /*
-     * GP-Ergebnisse
+     * GP Ergebnisse
      */
     GrandPrixResult.findAll({
       where,
@@ -163,39 +155,30 @@ async function loadLeagueData(slug, requestedSeasonId) {
       include: [
         {
           model: GrandPrixResultEntry,
-
           as: "entries",
         },
       ],
 
       order: [
         ["sortOrder", "ASC"],
-
         ["raceType", "DESC"],
-
         ["raceDate", "ASC"],
 
         [
           {
             model: GrandPrixResultEntry,
-
             as: "entries",
           },
-
           "sortOrder",
-
           "ASC",
         ],
 
         [
           {
             model: GrandPrixResultEntry,
-
             as: "entries",
           },
-
           "position",
-
           "ASC",
         ],
       ],
@@ -208,7 +191,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
       ? RaceEvent.findAll({
           where: {
             LeagueId: league.id,
-
             SeasonId: selectedSeason.id,
           },
 
@@ -226,14 +208,13 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
           order: [
             ["sortOrder", "ASC"],
-
             ["startsAt", "ASC"],
           ],
         })
       : [],
 
     /*
-     * Saison-Autoprofile
+     * F1 Autoprofile
      */
     selectedSeason
       ? SeasonF1CarAssignment.findAll({
@@ -250,21 +231,15 @@ async function loadLeagueData(slug, requestedSeasonId) {
       : [],
 
     /*
-     * Saison-Line-up
+     * Saisonstruktur
      */
     loadSeasonStructure(selectedSeason?.id),
   ]);
 
   /*
    * =====================================================
-   * RENN-LINE-UPS
+   * RENN-LINE-UP
    * =====================================================
-   *
-   * Wichtig:
-   * Keine nicht existierende Association
-   * "grandPrixResult" benutzen.
-   *
-   * Stattdessen über GrandPrixResultId filtern.
    */
 
   const raceIds = gpResults
@@ -295,9 +270,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
         order: [
           ["GrandPrixResultId", "ASC"],
-
           ["sortOrder", "ASC"],
-
           ["id", "ASC"],
         ],
       })
@@ -305,7 +278,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
   /*
    * =====================================================
-   * AUTOPROFILE -> TEAM
+   * AUTOPROFIL -> TEAM
    * =====================================================
    */
 
@@ -343,9 +316,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
         rosterId: roster.id,
 
         drivers: roster.assignments
-
           .filter((assignment) => assignment.roleName !== "Ersatzfahrer")
-
           .map((assignment) => ({
             ...assignment.driver.toJSON(),
 
@@ -353,7 +324,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
           })),
       };
     })
-
     .filter((team) => team.drivers.length >= 2);
 
   /*
@@ -372,16 +342,13 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
         logoPath: team.logoPath,
 
-        /*
-         * Hier ausschließlich Stammfahrer.
-         */
         drivers: team.drivers.filter((driver) => driver.roleType === "regular"),
       }))
     : legacyTeams;
 
   /*
    * =====================================================
-   * STAMMFAHRER AUFBAUEN
+   * STAMMFAHRER
    * =====================================================
    */
 
@@ -401,6 +368,8 @@ async function loadLeagueData(slug, requestedSeasonId) {
             name: team.name,
 
             logoPath: team.logoPath,
+
+            accentColor: team.accentColor,
           },
         });
       }
@@ -431,9 +400,13 @@ async function loadLeagueData(slug, requestedSeasonId) {
         .filter((race) => race.raceType === "main" && race.raceDate)
         .map((race) => ({
           id: `result-${race.id}`,
+
           title: race.title,
+
           circuit: race.circuit,
+
           startsAt: new Date(`${race.raceDate}T12:00:00Z`),
+
           sortOrder: race.sortOrder,
 
           hasSprint: sprintKeys.has(`${race.circuit}::${race.sortOrder}`),
@@ -441,7 +414,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
   /*
    * =====================================================
-   * LIGA FÜR AUSGEWÄHLTE SAISON
+   * LIGA DER AUSGEWÄHLTEN SAISON
    * =====================================================
    */
 
@@ -452,6 +425,185 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
     accentColor: selectedSeason?.accentColor || league.accentColor,
   };
+
+  /*
+   * =====================================================
+   * GP RESULT DISPLAY DATEN
+   * =====================================================
+   *
+   * Hier werden nur zusätzliche View-Daten aufgebaut.
+   * Die eigentlichen GP Ergebnisse werden NICHT verändert.
+   */
+
+  const plainLineups = raceLineupEntries.map(plain);
+
+  const plainCalendar = activeCalendar.map(plain);
+
+  /*
+   * Sprint verwendet das Line-up
+   * des Hauptrennens.
+   */
+  const mainRaceByWeekend = new Map(
+    gpResults
+      .filter((race) => race.raceType === "main")
+      .map((race) => [
+        `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
+
+        race,
+      ]),
+  );
+
+  function lineupForEntry(race, entry) {
+    const direct = plainLineups.find(
+      (lineup) =>
+        Number(lineup.GrandPrixResultId) === Number(race.id) &&
+        Number(lineup.DriverId) === Number(entry.DriverId),
+    );
+
+    if (direct) {
+      return direct;
+    }
+
+    if (race.raceType !== "sprint") {
+      return null;
+    }
+
+    const mainRace = mainRaceByWeekend.get(
+      `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
+    );
+
+    if (!mainRace) {
+      return null;
+    }
+
+    return (
+      plainLineups.find(
+        (lineup) =>
+          Number(lineup.GrandPrixResultId) === Number(mainRace.id) &&
+          Number(lineup.DriverId) === Number(entry.DriverId),
+      ) || null
+    );
+  }
+
+  function calendarForRace(race) {
+    /*
+     * Zuerst eindeutig über Strecke + Runde suchen.
+     */
+    const exactMatch = plainCalendar.find(
+      (event) =>
+        Number(event.sortOrder) === Number(race.sortOrder) &&
+        String(event.circuit || "")
+          .trim()
+          .toLowerCase() ===
+          String(race.circuit || "")
+            .trim()
+            .toLowerCase(),
+    );
+
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    /*
+     * Falls sich der Streckenname leicht unterscheidet:
+     * nur über die Strecke versuchen.
+     */
+    const circuitMatch = plainCalendar.find(
+      (event) =>
+        String(event.circuit || "")
+          .trim()
+          .toLowerCase() ===
+        String(race.circuit || "")
+          .trim()
+          .toLowerCase(),
+    );
+
+    if (circuitMatch) {
+      return circuitMatch;
+    }
+
+    /*
+     * SortOrder nur als allerletzten Fallback.
+     */
+    return (
+      plainCalendar.find(
+        (event) => Number(event.sortOrder) === Number(race.sortOrder),
+      ) || null
+    );
+  }
+
+  const decoratedGpResults = gpResults.map((raceValue) => {
+    const race = plain(raceValue);
+
+    const calendarEvent = calendarForRace(race);
+
+    const track = plain(calendarEvent?.track) || null;
+
+    const country = plain(track?.countryRecord) || null;
+
+    return {
+      ...race,
+
+      /*
+       * Titel aus dem Rennkalender.
+       */
+      displayTitle: calendarEvent?.title || race.title,
+
+      /*
+       * Streckenname aus Stammdaten.
+       */
+      displayCircuit: track?.name || calendarEvent?.circuit || race.circuit,
+
+      /*
+       * Land
+       */
+      countryName: country?.name || track?.country || null,
+
+      countryFlagPath: country?.flagPath || null,
+
+      /*
+       * Rechts oben:
+       *
+       * Wenn irgendwann ein eigenes
+       * Streckenlogo im Track vorhanden ist,
+       * wird dieses verwendet.
+       *
+       * Aktuell Fallback auf Länderflagge.
+       */
+      trackLogoPath: track?.logoPath || country?.flagPath || null,
+
+      entries: (race.entries || []).map(plain).map((entry) => {
+        const lineup = lineupForEntry(race, entry);
+
+        return {
+          ...entry,
+
+          /*
+           * Nur tatsächlich eingesetzter
+           * Ersatzfahrer.
+           */
+          isReserve:
+            lineup?.roleType === "reserve" && lineup?.includeInResults === true,
+
+          replacementForDriverId: lineup?.ReplacementForDriverId || null,
+        };
+      }),
+    };
+  });
+
+  /*
+   * =====================================================
+   * STANDINGS
+   * =====================================================
+   */
+
+  const standingsData = buildSeasonData(
+    leagueForSeason,
+    gpResults,
+    drivers,
+    raceLineupEntries,
+    selectedSeason,
+  );
 
   /*
    * =====================================================
@@ -466,7 +618,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
     drivers,
 
-    gpResults,
+    gpResults: decoratedGpResults,
 
     calendar,
 
@@ -474,18 +626,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
     selectedSeason,
 
-    /*
-     * Stammfahrer-WM +
-     * Ersatzfahrerwertung +
-     * Saisonentwicklung
-     */
-    ...buildSeasonData(
-      leagueForSeason,
-      gpResults,
-      drivers,
-      raceLineupEntries,
-      selectedSeason,
-    ),
+    ...standingsData,
   };
 }
 
@@ -545,9 +686,7 @@ exports.downloadDriverStandings = async (req, res) => {
   sendCsv(
     res,
 
-    `${data.league.slug}-${
-      data.selectedSeason?.name || data.league.currentSeason
-    }-fahrer-wm.csv`,
+    `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-fahrer-wm.csv`,
 
     rows,
   );
@@ -575,9 +714,7 @@ exports.downloadTeamStandings = async (req, res) => {
   sendCsv(
     res,
 
-    `${data.league.slug}-${
-      data.selectedSeason?.name || data.league.currentSeason
-    }-team-wm.csv`,
+    `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-team-wm.csv`,
 
     rows,
   );
@@ -615,7 +752,7 @@ exports.downloadGpResults = async (req, res) => {
       rows.push([
         race.sortOrder || raceIndex + 1,
 
-        race.title,
+        race.displayTitle || race.title,
 
         race.raceDate || "",
 
@@ -637,15 +774,13 @@ exports.downloadGpResults = async (req, res) => {
   sendCsv(
     res,
 
-    `${data.league.slug}-${
-      data.selectedSeason?.name || data.league.currentSeason
-    }-gp-results.csv`,
+    `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-gp-results.csv`,
 
     rows,
   );
 };
 
 /*
- * Für andere Controller/Tests verfügbar.
+ * Für andere Controller / Tests verfügbar.
  */
 module.exports.loadLeagueData = loadLeagueData;

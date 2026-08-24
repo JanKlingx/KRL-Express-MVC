@@ -8,12 +8,13 @@ function plain(value) {
 }
 
 function raceCode(race, index) {
-  const words =
-    String(race.title || race.circuit || "")
-      .replace(/gro(?:ss|ß)er preis (?:von|der)/i, "")
-      .match(/[A-Za-zÄÖÜäöü]+/g) || [];
-  const source = words.at(-1) || `R${index + 1}`;
-  return source.slice(0, 3).toUpperCase();
+  const words = String(race?.title || race?.circuit || "")
+    .replace(/gro(?:ss|ß)er preis (?:von|der)/i, "")
+    .match(/[A-Za-zÄÖÜäöü]+/g) || [];
+
+  return (words.at(-1) || `R${index + 1}`)
+    .slice(0, 3)
+    .toUpperCase();
 }
 
 function buildSeasonData(
@@ -24,92 +25,261 @@ function buildSeasonData(
   seasonValue = null,
 ) {
   const league = plain(leagueValue);
-  const seasonSettings = plain(seasonValue) || {};
+
+  const seasonSettings =
+    plain(seasonValue) || {};
+
   const reservePointsForConstructors =
     seasonSettings.reservePointsForConstructors !== false;
-
-  /*
-   * =====================================================
-   * RENNEN
-   * =====================================================
-   */
 
   const races = resultValues
     .map(plain)
     .sort(
-      (left, right) =>
-        number(left.sortOrder) - number(right.sortOrder) ||
-        (left.raceType === "sprint" ? -1 : 1) -
-          (right.raceType === "sprint" ? -1 : 1) ||
-        String(left.raceDate || "").localeCompare(String(right.raceDate || "")),
+      (a, b) =>
+        number(a.sortOrder) -
+          number(b.sortOrder) ||
+
+        (a.raceType === "sprint" ? -1 : 1) -
+          (b.raceType === "sprint" ? -1 : 1) ||
+
+        String(a.raceDate || "")
+          .localeCompare(
+            String(b.raceDate || ""),
+          ),
     );
 
   /*
    * =====================================================
-   * RENN-LINE-UP
+   * RENNWOCHENENDEN
+   * Sprint + Hauptrennen = eine Runde
    * =====================================================
    */
 
-  const lineups = lineupValues.map(plain);
+  const weekendMap = new Map();
 
-  const mainRaceByWeekend = new Map(
-    races
-      .filter((race) => race.raceType === "main")
-      .map((race) => [
-        `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
-        race,
-      ]),
-  );
+  races.forEach((race, index) => {
+    const round =
+      number(race.sortOrder) ||
+      index + 1;
 
-  function lineupEntryForResult(race, entry) {
-    const directRaceId = Number(entry.GrandPrixResultId || race.id);
-    const direct = lineups.find(
-      (row) =>
-        Number(row.GrandPrixResultId) === directRaceId &&
-        Number(row.DriverId) === Number(entry.DriverId),
+    const key =
+      `${race.SeasonId || ""}::` +
+      `${race.LeagueId || ""}::` +
+      `${round}`;
+
+    if (!weekendMap.has(key)) {
+      weekendMap.set(key, {
+        key,
+        round,
+        main: null,
+        sprint: null,
+      });
+    }
+
+    const weekend =
+      weekendMap.get(key);
+
+    if (race.raceType === "sprint") {
+      weekend.sprint = race;
+    } else {
+      weekend.main = race;
+    }
+  });
+
+  const weekends =
+    [...weekendMap.values()]
+      .sort(
+        (a, b) =>
+          a.round - b.round,
+      );
+
+  const raceIndexById =
+    new Map(
+      races.map(
+        (race, index) => [
+          Number(race.id),
+          index,
+        ],
+      ),
     );
-    if (direct || race.raceType !== "sprint") return direct || null;
 
-    const mainRace = mainRaceByWeekend.get(
-      `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
+  /*
+   * =====================================================
+   * LINE-UP
+   * =====================================================
+   */
+
+  const lineups =
+    lineupValues.map(plain);
+
+  const mainRaceByRound =
+    new Map(
+      races
+        .filter(
+          (race) =>
+            race.raceType === "main",
+        )
+        .map(
+          (race) => [
+            `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.sortOrder || ""}`,
+            race,
+          ],
+        ),
     );
-    if (!mainRace) return null;
-    return lineups.find(
-      (row) =>
-        Number(row.GrandPrixResultId) === Number(mainRace.id) &&
-        Number(row.DriverId) === Number(entry.DriverId),
-    ) || null;
+
+  const mainRaceForSprint =
+    (race) => {
+      if (
+        !race ||
+        race.raceType !== "sprint"
+      ) {
+        return race;
+      }
+
+      return (
+        mainRaceByRound.get(
+          `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.sortOrder || ""}`,
+        ) ||
+        null
+      );
+    };
+
+  function lineupEntryForResult(
+    race,
+    entry,
+  ) {
+    const directRaceId =
+      Number(
+        entry.GrandPrixResultId ||
+          race.id,
+      );
+
+    const direct =
+      lineups.find(
+        (row) =>
+          Number(
+            row.GrandPrixResultId,
+          ) ===
+            directRaceId &&
+
+          Number(
+            row.DriverId,
+          ) ===
+            Number(
+              entry.DriverId,
+            ),
+      );
+
+    if (
+      direct ||
+      race.raceType !== "sprint"
+    ) {
+      return direct || null;
+    }
+
+    const main =
+      mainRaceForSprint(race);
+
+    if (!main) {
+      return null;
+    }
+
+    return (
+      lineups.find(
+        (row) =>
+          Number(
+            row.GrandPrixResultId,
+          ) ===
+            Number(main.id) &&
+
+          Number(
+            row.DriverId,
+          ) ===
+            Number(
+              entry.DriverId,
+            ),
+      ) ||
+      null
+    );
   }
 
   /*
-   * Welche Stammfahrer wurden bei welchem
-   * Hauptrennen ersetzt?
-   *
-   * Map:
-   * GrandPrixResultId
-   *   -> Set von Stammfahrer-IDs
+   * =====================================================
+   * ERSATZFAHRER / ERSETZTE STAMMFAHRER
+   * =====================================================
    */
-  const replacedRegularsByRace = new Map();
 
-  /*
-   * Welcher Ersatzfahrer wurde bei welchem
-   * Rennen eingesetzt?
-   */
-  const usedReserveEntries = lineups.filter(
-    (entry) => entry.roleType === "reserve" && entry.ReplacementForDriverId,
+  const usedReserveEntries =
+    lineups.filter(
+      (entry) =>
+        entry.roleType ===
+          "reserve" &&
+
+        entry.ReplacementForDriverId &&
+
+        entry.includeInResults ===
+          true,
+    );
+
+  const replacedRegularsByRace =
+    new Map();
+
+  usedReserveEntries.forEach(
+    (entry) => {
+      const raceId =
+        Number(
+          entry.GrandPrixResultId,
+        );
+
+      if (
+        !replacedRegularsByRace.has(
+          raceId,
+        )
+      ) {
+        replacedRegularsByRace.set(
+          raceId,
+          new Set(),
+        );
+      }
+
+      replacedRegularsByRace
+        .get(raceId)
+        .add(
+          Number(
+            entry.ReplacementForDriverId,
+          ),
+        );
+    },
   );
 
-  usedReserveEntries.forEach((entry) => {
-    const raceId = Number(entry.GrandPrixResultId);
+  /*
+   * =====================================================
+   * TEAM-LOGOS
+   * =====================================================
+   */
 
-    if (!replacedRegularsByRace.has(raceId)) {
-      replacedRegularsByRace.set(raceId, new Set());
-    }
+  const teamLogoByName =
+    new Map();
 
-    replacedRegularsByRace
-      .get(raceId)
-      .add(Number(entry.ReplacementForDriverId));
-  });
+  driverValues
+    .map(plain)
+    .forEach(
+      (driver) => {
+        const team =
+          plain(driver.team) ||
+          null;
+
+        if (
+          team?.name &&
+          team?.logoPath
+        ) {
+          teamLogoByName.set(
+            team.name,
+            team.logoPath,
+          );
+        }
+      },
+    );
 
   /*
    * =====================================================
@@ -117,48 +287,82 @@ function buildSeasonData(
    * =====================================================
    */
 
-  const drivers = new Map();
+  const drivers =
+    new Map();
 
-  const namesToKeys = new Map();
+  const namesToKeys =
+    new Map();
 
-  driverValues.map(plain).forEach((driver) => {
-    const key = driver.id ? `id:${driver.id}` : `name:${driver.name}`;
+  driverValues
+    .map(plain)
+    .forEach(
+      (driver) => {
+        const team =
+          plain(driver.team) ||
+          null;
 
-    drivers.set(key, {
-      id: driver.id || null,
+        const key =
+          driver.id
+            ? `id:${driver.id}`
+            : `name:${driver.name}`;
 
-      name: driver.name,
+        drivers.set(
+          key,
+          {
+            id:
+              driver.id ||
+              null,
 
-      team: plain(driver.team)?.name || "Privatteam",
+            name:
+              driver.name,
 
-      results: [],
+            team:
+              team?.name ||
+              "Privatteam",
 
-      total: 0,
+            teamLogoPath:
+              team?.logoPath ||
+              null,
 
-      wins: 0,
-    });
+            results:
+              [],
 
-    namesToKeys.set(driver.name, key);
+            total:
+              0,
 
-    (driver.aliases || [])
-      .map(plain)
-      .forEach((alias) => namesToKeys.set(alias.alias, key));
-  });
+            wins:
+              0,
+          },
+        );
 
-  const keyForEntry = (entry) =>
-    entry.DriverId
-      ? `id:${entry.DriverId}`
-      : namesToKeys.get(entry.driverName) || `name:${entry.driverName}`;
+        namesToKeys.set(
+          driver.name,
+          key,
+        );
 
-  /*
-   * WICHTIG:
-   *
-   * Keine unbekannten Fahrer mehr automatisch
-   * in die Stammfahrerwertung aufnehmen.
-   *
-   * Dadurch tauchen Ersatzfahrer nicht in der
-   * normalen Fahrer-WM auf.
-   */
+        (
+          driver.aliases ||
+          []
+        )
+          .map(plain)
+          .forEach(
+            (alias) =>
+              namesToKeys.set(
+                alias.alias,
+                key,
+              ),
+          );
+      },
+    );
+
+  const keyForEntry =
+    (entry) =>
+      entry.DriverId
+        ? `id:${entry.DriverId}`
+        : namesToKeys.get(
+            entry.driverName,
+          ) ||
+          `name:${entry.driverName}`;
 
   /*
    * =====================================================
@@ -166,452 +370,678 @@ function buildSeasonData(
    * =====================================================
    */
 
-  for (const [driverKey, driver] of drivers.entries()) {
+  for (
+    const [
+      driverKey,
+      driver,
+    ] of drivers.entries()
+  ) {
     let cumulative = 0;
 
-    driver.results = races.map((race) => {
-      /*
-       * Bei Sprint zunächst keine
-       * Ersatz-DNS-Logik anwenden,
-       * da das Race-Line-up aktuell
-       * auf das Hauptrennen referenziert.
-       */
-      const wasReplaced =
-        race.raceType === "main" &&
-        replacedRegularsByRace.get(Number(race.id))?.has(Number(driver.id));
+    driver.results =
+      races.map(
+        (race) => {
+          const lineupRace =
+            race.raceType ===
+            "sprint"
+              ? mainRaceForSprint(
+                  race,
+                )
+              : race;
 
-      /*
-       * Stammfahrer wurde ersetzt.
-       *
-       * => DNS
-       * => 0 Punkte
-       */
-      if (wasReplaced) {
-        return {
-          value: "DNS",
+          const wasReplaced =
+            lineupRace &&
+            replacedRegularsByRace
+              .get(
+                Number(
+                  lineupRace.id,
+                ),
+              )
+              ?.has(
+                Number(
+                  driver.id,
+                ),
+              );
 
-          points: 0,
+          if (wasReplaced) {
+            return {
+              value: "DNS",
+              points: 0,
+              cumulative,
+              status: "DNS",
+              position: null,
+              fastestLap: false,
+              replaced: true,
+            };
+          }
 
-          cumulative,
+          const entry =
+            (
+              race.entries ||
+              []
+            )
+              .map(plain)
+              .find(
+                (candidate) =>
+                  keyForEntry(
+                    candidate,
+                  ) ===
+                  driverKey,
+              );
 
-          status: "DNS",
+          if (!entry) {
+            return {
+              value: "–",
+              points: 0,
+              cumulative,
+              status: null,
+              position: null,
+              fastestLap: false,
+            };
+          }
 
-          position: null,
+          const points =
+            number(
+              entry.points,
+            );
 
-          fastestLap: false,
+          const position =
+            number(
+              entry.position,
+            ) ||
+            null;
 
-          replaced: true,
-        };
-      }
+          const status =
+            String(
+              entry.status ||
+              "",
+            )
+              .trim()
+              .toUpperCase() ||
+            null;
 
-      const entry = (race.entries || [])
-        .map(plain)
-        .find((candidate) => keyForEntry(candidate) === driverKey);
+          cumulative +=
+            points;
 
-      if (!entry) {
-        return {
-          value: "–",
+          driver.total +=
+            points;
 
-          points: 0,
+          if (
+            position === 1 &&
+            race.raceType !==
+              "sprint"
+          ) {
+            driver.wins += 1;
+          }
 
-          cumulative,
+          if (
+            entry.teamName
+          ) {
+            driver.team =
+              entry.teamName;
 
-          status: null,
+            driver.teamLogoPath =
+              teamLogoByName.get(
+                entry.teamName,
+              ) ||
+              driver.teamLogoPath;
+          }
 
-          position: null,
+          return {
+            value:
+              status ||
+              (
+                position
+                  ? `P${position}`
+                  : "–"
+              ),
 
-          fastestLap: false,
-        };
-      }
+            points,
 
-      const points = number(entry.points);
+            cumulative,
 
-      const position = number(entry.position) || null;
+            status,
 
-      const status =
-        String(entry.status || "")
-          .trim()
-          .toUpperCase() || null;
+            position,
 
-      cumulative += points;
-
-      driver.total += points;
-
-      if (position === 1 && race.raceType !== "sprint") {
-        driver.wins += 1;
-      }
-
-      if (entry.teamName) {
-        driver.team = entry.teamName;
-      }
-
-      return {
-        value: status || (position ? `P${position}` : "–"),
-
-        points,
-
-        cumulative,
-
-        status,
-
-        position,
-
-        fastestLap: Boolean(entry.fastestLap),
-      };
-    });
+            fastestLap:
+              Boolean(
+                entry.fastestLap,
+              ),
+          };
+        },
+      );
   }
 
   /*
    * =====================================================
-   * STAMMFAHRER SORTIEREN
+   * FAHRER SORTIEREN
    * =====================================================
    */
 
-  const rankedDrivers = [...drivers.values()].sort(
-    (left, right) =>
-      right.total - left.total ||
-      right.wins - left.wins ||
-      left.name.localeCompare(right.name, "de"),
-  );
+  const rankedDrivers =
+    [...drivers.values()]
+      .sort(
+        (a, b) =>
+          b.total -
+            a.total ||
 
-  const leaderPoints = rankedDrivers[0]?.total || 0;
+          b.wins -
+            a.wins ||
 
-  rankedDrivers.forEach((driver, index) => {
-    driver.position = index + 1;
-
-    driver.gap = driver.total - leaderPoints;
-
-    driver.average = races.length ? driver.total / races.length : 0;
-  });
-
-  /*
-   * =====================================================
-   * ERSATZFAHRERWERTUNG
-   * =====================================================
-   *
-   * Nur Fahrer, die tatsächlich mindestens
-   * einen Stammfahrer ersetzt haben.
-   */
-
-  const reserveDrivers = new Map();
-
-  usedReserveEntries.forEach((lineupEntry) => {
-    const DriverId = Number(lineupEntry.DriverId);
-
-    if (reserveDrivers.has(DriverId)) {
-      return;
-    }
-
-    const lineupDriver = plain(lineupEntry.driver);
-
-    reserveDrivers.set(DriverId, {
-      id: DriverId,
-
-      name: lineupDriver?.name || `Fahrer ${DriverId}`,
-
-      team: null,
-
-      results: [],
-
-      total: 0,
-
-      wins: 0,
-    });
-  });
-
-  /*
-   * Ergebnis jedes eingesetzten Ersatzfahrers
-   * pro Rennen bestimmen.
-   */
-
-  for (const [reserveDriverId, reserveDriver] of reserveDrivers.entries()) {
-    let cumulative = 0;
-
-    reserveDriver.results = races.map((race) => {
-      /*
-       * Ersatzzuweisung existiert nur
-       * für Hauptrennen.
-       */
-      if (race.raceType !== "main") {
-        return {
-          value: "–",
-
-          points: 0,
-
-          cumulative,
-
-          status: null,
-
-          position: null,
-
-          fastestLap: false,
-        };
-      }
-
-      const lineupEntry = usedReserveEntries.find(
-        (entry) =>
-          Number(entry.GrandPrixResultId) === Number(race.id) &&
-          Number(entry.DriverId) === Number(reserveDriverId),
+          a.name.localeCompare(
+            b.name,
+            "de",
+          ),
       );
 
-      /*
-       * Bei diesem Rennen nicht eingesetzt.
-       */
-      if (!lineupEntry) {
-        return {
-          value: "DNS",
-          points: 0,
-          cumulative,
-          status: "DNS",
-          position: null,
-          fastestLap: false,
-        };
-      }
+  const leaderPoints =
+    rankedDrivers[0]
+      ?.total ||
+    0;
 
-      /*
-       * Tatsächliches Rennergebnis
-       * des Ersatzfahrers suchen.
-       */
-      const resultEntry = (race.entries || [])
-        .map(plain)
-        .find((entry) => Number(entry.DriverId) === Number(reserveDriverId));
+  rankedDrivers.forEach(
+    (driver, index) => {
+      driver.position =
+        index + 1;
 
-      /*
-       * Als Ersatz eingeteilt,
-       * aber kein Result vorhanden.
-       */
-      if (!resultEntry) {
-        return {
-          value: "DNS",
+      driver.gap =
+        driver.total -
+        leaderPoints;
 
-          points: 0,
-
-          cumulative,
-
-          status: "DNS",
-
-          position: null,
-
-          fastestLap: false,
-        };
-      }
-
-      const points = number(resultEntry.points);
-
-      const position = number(resultEntry.position) || null;
-
-      const status =
-        String(resultEntry.status || "")
-          .trim()
-          .toUpperCase() || null;
-
-      cumulative += points;
-
-      reserveDriver.total += points;
-
-      if (position === 1) {
-        reserveDriver.wins += 1;
-      }
-
-      if (resultEntry.teamName) {
-        reserveDriver.team = resultEntry.teamName;
-      }
-
-      return {
-        value: status || (position ? `P${position}` : "–"),
-
-        points,
-
-        cumulative,
-
-        status,
-
-        position,
-
-        fastestLap: Boolean(resultEntry.fastestLap),
-      };
-    });
-  }
-
-  /*
-   * Ersatzfahrer sortieren.
-   */
-
-  const rankedReserveDrivers = [...reserveDrivers.values()].sort(
-    (left, right) =>
-      right.total - left.total ||
-      right.wins - left.wins ||
-      left.name.localeCompare(right.name, "de"),
+      driver.average =
+        races.length
+          ? driver.total /
+            races.length
+          : 0;
+    },
   );
 
-  const reserveLeaderPoints = rankedReserveDrivers[0]?.total || 0;
+  /*
+   * =====================================================
+   * ERSATZFAHRER
+   * =====================================================
+   */
 
-  rankedReserveDrivers.forEach((driver, index) => {
-    driver.position = index + 1;
+  const reserveDrivers =
+    new Map();
 
-    driver.gap = driver.total - reserveLeaderPoints;
+  usedReserveEntries.forEach(
+    (lineupEntry) => {
+      const driverId =
+        Number(
+          lineupEntry.DriverId,
+        );
 
-    /*
-     * Durchschnitt nur über tatsächliche
-     * Einsätze berechnen.
-     */
-    const starts = driver.results.filter(
-      (result) => result.value !== "–",
-    ).length;
+      if (
+        reserveDrivers.has(
+          driverId,
+        )
+      ) {
+        return;
+      }
 
-    driver.starts = starts;
+      const lineupDriver =
+        plain(
+          lineupEntry.driver,
+        );
 
-    driver.average = starts ? driver.total / starts : 0;
-  });
+      reserveDrivers.set(
+        driverId,
+        {
+          id:
+            driverId,
+
+          name:
+            lineupDriver?.name ||
+            `Fahrer ${driverId}`,
+
+          team:
+            null,
+
+          teamLogoPath:
+            null,
+
+          results:
+            [],
+
+          total:
+            0,
+
+          wins:
+            0,
+        },
+      );
+    },
+  );
+
+  /*
+   * =====================================================
+   * ERSATZFAHRER-ERGEBNISSE
+   * =====================================================
+   */
+
+  for (
+    const [
+      reserveDriverId,
+      reserveDriver,
+    ] of reserveDrivers.entries()
+  ) {
+    let cumulative = 0;
+
+    reserveDriver.results =
+      races.map(
+        (race) => {
+          const lineupEntry =
+            lineupEntryForResult(
+              race,
+              {
+                DriverId:
+                  reserveDriverId,
+
+                GrandPrixResultId:
+                  race.id,
+              },
+            );
+
+          const usedHere =
+            lineupEntry
+              ?.roleType ===
+              "reserve" &&
+
+            lineupEntry
+              ?.includeInResults ===
+              true;
+
+          if (!usedHere) {
+            return {
+              value: "DNS",
+              points: 0,
+              cumulative,
+              status: "DNS",
+              position: null,
+              fastestLap: false,
+            };
+          }
+
+          const entry =
+            (
+              race.entries ||
+              []
+            )
+              .map(plain)
+              .find(
+                (row) =>
+                  Number(
+                    row.DriverId,
+                  ) ===
+                  reserveDriverId,
+              );
+
+          if (!entry) {
+            return {
+              value: "DNS",
+              points: 0,
+              cumulative,
+              status: "DNS",
+              position: null,
+              fastestLap: false,
+            };
+          }
+
+          const points =
+            number(
+              entry.points,
+            );
+
+          const position =
+            number(
+              entry.position,
+            ) ||
+            null;
+
+          const status =
+            String(
+              entry.status ||
+              "",
+            )
+              .trim()
+              .toUpperCase() ||
+            null;
+
+          cumulative +=
+            points;
+
+          reserveDriver.total +=
+            points;
+
+          if (
+            position === 1 &&
+            race.raceType !==
+              "sprint"
+          ) {
+            reserveDriver.wins += 1;
+          }
+
+          if (
+            entry.teamName
+          ) {
+            reserveDriver.team =
+              entry.teamName;
+
+            reserveDriver.teamLogoPath =
+              teamLogoByName.get(
+                entry.teamName,
+              ) ||
+              null;
+          }
+
+          return {
+            value:
+              status ||
+              (
+                position
+                  ? `P${position}`
+                  : "–"
+              ),
+
+            points,
+
+            cumulative,
+
+            status,
+
+            position,
+
+            fastestLap:
+              Boolean(
+                entry.fastestLap,
+              ),
+          };
+        },
+      );
+  }
+
+  const rankedReserveDrivers =
+    [...reserveDrivers.values()]
+      .sort(
+        (a, b) =>
+          b.total -
+            a.total ||
+
+          b.wins -
+            a.wins ||
+
+          a.name.localeCompare(
+            b.name,
+            "de",
+          ),
+      );
+
+  const reserveLeaderPoints =
+    rankedReserveDrivers[0]
+      ?.total ||
+    0;
+
+  rankedReserveDrivers.forEach(
+    (driver, index) => {
+      driver.position =
+        index + 1;
+
+      driver.gap =
+        driver.total -
+        reserveLeaderPoints;
+
+      driver.starts =
+        driver.results.filter(
+          (result) =>
+            result.status !==
+              "DNS" &&
+            result.value !==
+              "–",
+        ).length;
+
+      driver.average =
+        driver.starts
+          ? driver.total /
+            driver.starts
+          : 0;
+    },
+  );
 
   /*
    * =====================================================
    * TEAM-WM
    * =====================================================
-   *
-   * Die Teams kommen aus dem aktuellen Saison-Line-up.
-   * Alte/fremde Ergebnisfahrer werden ignoriert.
-   *
-   * Ersatzfahrer-Punkte gehen an das Team des
-   * Stammfahrers, den sie ersetzt haben.
    */
 
-  /*
-   * Aktueller Stammfahrer -> aktuelles Saisonteam
-   */
-  const regularDriverTeamMap = new Map();
+  const regularDriverTeamMap =
+    new Map();
 
-  driverValues.map(plain).forEach((driver) => {
-    const teamName = plain(driver.team)?.name || null;
+  driverValues
+    .map(plain)
+    .forEach(
+      (driver) => {
+        const teamName =
+          plain(
+            driver.team,
+          )?.name ||
+          null;
 
-    if (driver.id && teamName) {
-      regularDriverTeamMap.set(Number(driver.id), teamName);
-    }
-  });
-
-  /*
-   * Alle aktuellen Saisonteams zunächst mit 0 Punkten
-   * anlegen.
-   *
-   * Dadurch erscheinen auch Racing Bulls, Ferrari,
-   * RedBull usw., selbst wenn noch kein Rennen gefahren
-   * wurde.
-   */
-  const teamMap = new Map();
-
-  driverValues.map(plain).forEach((driver) => {
-    const teamName = plain(driver.team)?.name || null;
-
-    if (!teamName) {
-      return;
-    }
-
-    if (!teamMap.has(teamName)) {
-      teamMap.set(teamName, {
-        name: teamName,
-        points: 0,
-        wins: 0,
-      });
-    }
-  });
-
-  /*
-   * Tatsächliche Rennergebnisse auswerten.
-   */
-  races.forEach((race) => {
-    (race.entries || []).map(plain).forEach((entry) => {
-      const driverId = Number(entry.DriverId || 0);
-      const concreteLineupEntry = lineupEntryForResult(race, entry);
-      const isReserve = concreteLineupEntry?.roleType === "reserve";
-      const isRegular = regularDriverTeamMap.has(driverId);
-
-      if (!isRegular && !isReserve) {
-        return;
-      }
-
-      if (isReserve && !reservePointsForConstructors) {
-        return;
-      }
-
-      /*
-       * =================================================
-       * 1. STAMMFAHRER
-       * =================================================
-       */
-
-      let teamName = entry.teamName || regularDriverTeamMap.get(driverId) || null;
-
-      /*
-       * =================================================
-       * 2. ERSATZFAHRER
-       * =================================================
-       *
-       * Falls der Ergebnisfahrer kein Stammfahrer ist,
-       * prüfen wir, ob er bei diesem Rennen als Ersatz
-       * eingesetzt wurde.
-       */
-
-      if (!teamName && isReserve) {
-        if (concreteLineupEntry?.ReplacementForDriverId) {
-          /*
-           * Team des ersetzten Stammfahrers verwenden.
-           */
-          teamName =
-            regularDriverTeamMap.get(
-              Number(concreteLineupEntry.ReplacementForDriverId),
-            ) || null;
+        if (
+          driver.id &&
+          teamName
+        ) {
+          regularDriverTeamMap.set(
+            Number(
+              driver.id,
+            ),
+            teamName,
+          );
         }
-      }
+      },
+    );
 
-      /*
-       * Fahrer gehört weder als Stamm- noch als
-       * eingesetzter Ersatzfahrer zu dieser Saison.
-       *
-       * Alte Testdaten werden dadurch ignoriert.
-       */
-      if (!teamName) {
-        return;
-      }
+  function seedTeamMap() {
+    const map =
+      new Map();
 
-      /*
-       * Sicherheit:
-       * Team ggf. nachträglich anlegen.
-       */
-      if (!teamMap.has(teamName)) {
-        teamMap.set(teamName, {
-          name: teamName,
-          points: 0,
-          wins: 0,
-        });
-      }
+    driverValues
+      .map(plain)
+      .forEach(
+        (driver) => {
+          const teamName =
+            plain(
+              driver.team,
+            )?.name ||
+            null;
 
-      const team = teamMap.get(teamName);
+          if (
+            teamName &&
+            !map.has(
+              teamName,
+            )
+          ) {
+            map.set(
+              teamName,
+              {
+                name:
+                  teamName,
 
-      team.points += number(entry.points);
+                points:
+                  0,
 
-      if (number(entry.position) === 1 && race.raceType !== "sprint") {
-        team.wins += 1;
-      }
-    });
-  });
+                wins:
+                  0,
+              },
+            );
+          }
+        },
+      );
 
-  /*
-   * Team-WM sortieren
-   */
-  const rankedTeams = [...teamMap.values()].sort(
-    (left, right) =>
-      right.points - left.points ||
-      right.wins - left.wins ||
-      left.name.localeCompare(right.name, "de"),
+    return map;
+  }
+
+  function addRaceToTeamMap(
+    teamMap,
+    race,
+  ) {
+    (
+      race.entries ||
+      []
+    )
+      .map(plain)
+      .forEach(
+        (entry) => {
+          const driverId =
+            Number(
+              entry.DriverId ||
+              0,
+            );
+
+          const lineupEntry =
+            lineupEntryForResult(
+              race,
+              entry,
+            );
+
+          const isReserve =
+            lineupEntry
+              ?.roleType ===
+            "reserve";
+
+          const isRegular =
+            regularDriverTeamMap.has(
+              driverId,
+            );
+
+          if (
+            !isRegular &&
+            !isReserve
+          ) {
+            return;
+          }
+
+          if (
+            isReserve &&
+            !reservePointsForConstructors
+          ) {
+            return;
+          }
+
+          let teamName =
+            entry.teamName ||
+            regularDriverTeamMap.get(
+              driverId,
+            ) ||
+            null;
+
+          if (
+            !teamName &&
+            isReserve &&
+            lineupEntry
+              ?.ReplacementForDriverId
+          ) {
+            teamName =
+              regularDriverTeamMap.get(
+                Number(
+                  lineupEntry
+                    .ReplacementForDriverId,
+                ),
+              ) ||
+              null;
+          }
+
+          if (!teamName) {
+            return;
+          }
+
+          if (
+            !teamMap.has(
+              teamName,
+            )
+          ) {
+            teamMap.set(
+              teamName,
+              {
+                name:
+                  teamName,
+
+                points:
+                  0,
+
+                wins:
+                  0,
+              },
+            );
+          }
+
+          const team =
+            teamMap.get(
+              teamName,
+            );
+
+          team.points +=
+            number(
+              entry.points,
+            );
+
+          if (
+            race.raceType !==
+              "sprint" &&
+            number(
+              entry.position,
+            ) === 1
+          ) {
+            team.wins += 1;
+          }
+        },
+      );
+  }
+
+  const teamMap =
+    seedTeamMap();
+
+  races.forEach(
+    (race) =>
+      addRaceToTeamMap(
+        teamMap,
+        race,
+      ),
   );
 
-  const leaderTeamPoints = rankedTeams[0]?.points || 0;
+  const rankedTeams =
+    [...teamMap.values()]
+      .sort(
+        (a, b) =>
+          b.points -
+            a.points ||
 
-  rankedTeams.forEach((team, index) => {
-    team.position = index + 1;
+          b.wins -
+            a.wins ||
 
-    team.gap = index === 0 ? "Leader" : `+${leaderTeamPoints - team.points}`;
-  });
+          a.name.localeCompare(
+            b.name,
+            "de",
+          ),
+      );
+
+  const leaderTeamPoints =
+    rankedTeams[0]
+      ?.points ||
+    0;
+
+  rankedTeams.forEach(
+    (team, index) => {
+      team.position =
+        index + 1;
+
+      team.gap =
+        index === 0
+          ? "Leader"
+          : `+${leaderTeamPoints - team.points}`;
+    },
+  );
 
   /*
    * =====================================================
@@ -619,103 +1049,491 @@ function buildSeasonData(
    * =====================================================
    */
 
+  function resultForRace(
+    driver,
+    race,
+  ) {
+    if (!race) {
+      return null;
+    }
+
+    const index =
+      raceIndexById.get(
+        Number(
+          race.id,
+        ),
+      );
+
+    return index === undefined
+      ? null
+      : driver.results[index] ||
+          null;
+  }
+
+  function weekendResult(
+    driver,
+    weekend,
+  ) {
+    const sprint =
+      resultForRace(
+        driver,
+        weekend.sprint,
+      );
+
+    const main =
+      resultForRace(
+        driver,
+        weekend.main,
+      );
+
+    return {
+      hasSprint:
+        Boolean(
+          weekend.sprint,
+        ),
+
+      sprint,
+
+      main,
+
+      cumulative:
+        main?.cumulative ??
+        sprint?.cumulative ??
+        0,
+
+      value:
+        main?.value ||
+        sprint?.value ||
+        "–",
+
+      points:
+        number(
+          main?.points,
+        ) +
+        number(
+          sprint?.points,
+        ),
+
+      position:
+        main?.position ||
+        null,
+
+      status:
+        main?.status ||
+        null,
+
+      fastestLap:
+        Boolean(
+          main?.fastestLap ||
+          sprint?.fastestLap,
+        ),
+    };
+  }
+
+  const historyRaces =
+    weekends.map(
+      (weekend, index) => {
+        const displayRace =
+          weekend.main ||
+          weekend.sprint;
+
+        return {
+          round:
+            weekend.round,
+
+          code:
+            raceCode(
+              displayRace,
+              index,
+            ),
+
+          title:
+            displayRace?.title ||
+            "",
+
+          circuit:
+            displayRace?.circuit ||
+            "",
+
+          hasSprint:
+            Boolean(
+              weekend.sprint,
+            ),
+
+          mainTitle:
+            weekend.main?.title ||
+            null,
+
+          sprintTitle:
+            weekend.sprint?.title ||
+            null,
+        };
+      },
+    );
+
+  const historyDrivers =
+    rankedDrivers.map(
+      (driver) => ({
+        ...driver,
+
+        results:
+          weekends.map(
+            (weekend) =>
+              weekendResult(
+                driver,
+                weekend,
+              ),
+          ),
+      }),
+    );
+
+  const historyReserveDrivers =
+    rankedReserveDrivers.map(
+      (driver) => ({
+        ...driver,
+
+        results:
+          weekends.map(
+            (weekend) =>
+              weekendResult(
+                driver,
+                weekend,
+              ),
+          ),
+      }),
+    );
+
+  /*
+   * =====================================================
+   * WM-ZWISCHENSTÄNDE NACH JEDEM GEFAHRENEN GP
+   * =====================================================
+   */
+
+  const completedWeekends =
+    weekends.filter(
+      (weekend) =>
+        weekend.main &&
+
+        Array.isArray(
+          weekend.main.entries,
+        ) &&
+
+        weekend.main.entries.length >
+          0,
+    );
+
+  function driverStandingsAfterWeekend(
+    targetWeekend,
+  ) {
+    const fullWeekendIndex =
+      weekends.findIndex(
+        (weekend) =>
+          weekend.key ===
+          targetWeekend.key,
+      );
+
+    return rankedDrivers
+      .map(
+        (driver) => {
+          const result =
+            fullWeekendIndex >= 0
+              ? weekendResult(
+                  driver,
+                  weekends[
+                    fullWeekendIndex
+                  ],
+                )
+              : null;
+
+          let wins = 0;
+
+          for (
+            let i = 0;
+            i <= fullWeekendIndex;
+            i += 1
+          ) {
+            if (
+              Number(
+                resultForRace(
+                  driver,
+                  weekends[i]
+                    ?.main,
+                )?.position,
+              ) === 1
+            ) {
+              wins += 1;
+            }
+          }
+
+          return {
+            name:
+              driver.name,
+
+            team:
+              driver.team,
+
+            teamLogoPath:
+              driver.teamLogoPath,
+
+            points:
+              number(
+                result?.cumulative,
+              ),
+
+            wins,
+          };
+        },
+      )
+      .sort(
+        (a, b) =>
+          b.points -
+            a.points ||
+
+          b.wins -
+            a.wins ||
+
+          a.name.localeCompare(
+            b.name,
+            "de",
+          ),
+      )
+      .map(
+        (driver, index) => ({
+          ...driver,
+
+          position:
+            index + 1,
+        }),
+      );
+  }
+
+  function teamStandingsAfterRound(
+    targetRound,
+  ) {
+    const snapshotMap =
+      seedTeamMap();
+
+    races
+      .filter(
+        (race) =>
+          number(
+            race.sortOrder,
+          ) <=
+          number(
+            targetRound,
+          ),
+      )
+      .forEach(
+        (race) =>
+          addRaceToTeamMap(
+            snapshotMap,
+            race,
+          ),
+      );
+
+    return [
+      ...snapshotMap.values(),
+    ]
+      .sort(
+        (a, b) =>
+          b.points -
+            a.points ||
+
+          b.wins -
+            a.wins ||
+
+          a.name.localeCompare(
+            b.name,
+            "de",
+          ),
+      )
+      .map(
+        (team, index) => ({
+          ...team,
+
+          position:
+            index + 1,
+        }),
+      );
+  }
+
+  const standingsHistory =
+    completedWeekends.map(
+      (weekend) => {
+        const displayRace =
+          weekend.main ||
+          weekend.sprint;
+
+        return {
+          round:
+            weekend.round,
+
+          title:
+            displayRace?.title ||
+            "",
+
+          circuit:
+            displayRace?.circuit ||
+            "",
+
+          raceDate:
+            displayRace?.raceDate ||
+            null,
+
+          hasSprint:
+            Boolean(
+              weekend.sprint,
+            ),
+
+          driverStandings:
+            driverStandingsAfterWeekend(
+              weekend,
+            ),
+
+          teamStandings:
+            teamStandingsAfterRound(
+              weekend.round,
+            ),
+        };
+      },
+    );
+
+  /*
+   * =====================================================
+   * RETURN
+   * =====================================================
+   */
+
   const season = {
-    name: league.currentSeason,
+    name:
+      league.currentSeason,
 
-    races: races.map((race, index) => ({
-      round: race.sortOrder || index + 1,
+    races:
+      historyRaces,
 
-      code: raceCode(race, index),
+    drivers:
+      historyDrivers,
 
-      title: race.title,
-    })),
-
-    /*
-     * Nur Stammfahrer.
-     */
-    drivers: rankedDrivers,
-
-    /*
-     * Separate Ersatzfahrerwertung.
-     */
-    reserveDrivers: rankedReserveDrivers,
+    reserveDrivers:
+      historyReserveDrivers,
   };
 
   return {
     history: {
-      seasons: races.length ? [season] : [],
+      seasons:
+        races.length
+          ? [season]
+          : [],
 
-      sourceLabel: races.length ? "Admin-Saisonverlauf" : null,
+      sourceLabel:
+        races.length
+          ? "Admin-Saisonverlauf"
+          : null,
 
-      warning: null,
+      warning:
+        null,
     },
 
-    selectedHistory: races.length ? season : null,
+    selectedHistory:
+      races.length
+        ? season
+        : null,
 
-    /*
-     * Normale Fahrer-WM bleibt
-     * Stammfahrer-WM.
-     */
-    driverStandings: rankedDrivers.map((driver) => ({
-      position: driver.position,
+    driverStandings:
+      rankedDrivers.map(
+        (driver) => ({
+          position:
+            driver.position,
 
-      points: driver.total,
+          points:
+            driver.total,
 
-      wins: driver.wins,
+          wins:
+            driver.wins,
 
-      gap: driver.position === 1 ? "Leader" : `+${leaderPoints - driver.total}`,
+          gap:
+            driver.position === 1
+              ? "Leader"
+              : `+${leaderPoints - driver.total}`,
 
-      driver: {
-        name: driver.name,
+          driver: {
+            name:
+              driver.name,
 
-        team: {
-          name: driver.team,
-        },
-      },
-    })),
+            team: {
+              name:
+                driver.team,
 
-    /*
-     * Neue Ersatzfahrerwertung.
-     */
-    reserveStandings: rankedReserveDrivers.map((driver) => ({
-      position: driver.position,
+              logoPath:
+                driver.teamLogoPath,
+            },
+          },
+        }),
+      ),
 
-      points: driver.total,
+    reserveStandings:
+      rankedReserveDrivers.map(
+        (driver) => ({
+          position:
+            driver.position,
 
-      wins: driver.wins,
+          points:
+            driver.total,
 
-      starts: driver.starts,
+          wins:
+            driver.wins,
 
-      average: driver.average,
+          starts:
+            driver.starts,
 
-      gap:
-        driver.position === 1
-          ? "Leader"
-          : `+${reserveLeaderPoints - driver.total}`,
+          average:
+            driver.average,
 
-      driver: {
-        id: driver.id,
+          gap:
+            driver.position === 1
+              ? "Leader"
+              : `+${reserveLeaderPoints - driver.total}`,
 
-        name: driver.name,
+          driver: {
+            id:
+              driver.id,
 
-        team: driver.team
-          ? {
-              name: driver.team,
-            }
-          : null,
-      },
-    })),
+            name:
+              driver.name,
 
-    teamStandings: rankedTeams.map((team) => ({
-      ...team,
+            team:
+              driver.team
+                ? {
+                    name:
+                      driver.team,
 
-      team: {
-        name: team.name,
-      },
-    })),
+                    logoPath:
+                      driver.teamLogoPath,
+                  }
+                : null,
+          },
+        }),
+      ),
+
+    teamStandings:
+      rankedTeams.map(
+        (team) => ({
+          ...team,
+
+          team: {
+            name:
+              team.name,
+          },
+        }),
+      ),
+
+    standingsHistory,
 
     races,
   };
 }
 
-module.exports = { buildSeasonData, raceCode };
+module.exports = {
+  buildSeasonData,
+  raceCode,
+};

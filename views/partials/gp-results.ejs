@@ -1,64 +1,799 @@
-<% if (items.length) { %>
-  <div class="carousel gp-carousel" data-carousel tabindex="0" aria-label="<%= label %>">
+<%
+  const availableTeams =
+    Array.isArray(teams)
+      ? teams
+      : [];
+
+
+  const availableItems =
+    Array.isArray(items)
+      ? items
+      : [];
+
+
+  const findResultTeam =
+    (entry) => {
+
+      const byName =
+        availableTeams.find(
+          (team) =>
+            String(team.name || '')
+              .trim()
+              .toLowerCase() ===
+            String(entry.teamName || '')
+              .trim()
+              .toLowerCase()
+        );
+
+
+      if (byName) {
+        return byName;
+      }
+
+
+      const byId =
+        availableTeams.find(
+          (team) =>
+            Number(team.id) ===
+            Number(entry.TeamId)
+        );
+
+
+      return byId || null;
+    };
+
+
+  const pointLabel =
+    (entry) => {
+
+      /*
+       * Ersatzfahrer:
+       * Immer ERSATZ.
+       */
+      if (entry.isReserve) {
+        return "ERSATZ";
+      }
+
+
+      /*
+       * Stammfahrer:
+       * Tatsächlich erhaltene Punkte.
+       *
+       * Beispiel:
+       * P1 = +26
+       * P2 = +22
+       * P3 = +20
+       */
+      const points =
+        Number(entry.points) || 0;
+
+
+      return `+${points} PUNKTE`;
+    };
+
+
+  /*
+   * Prüft, ob die jeweilige Runde
+   * ein Sprint-Wochenende ist.
+   *
+   * Nur dann zeigen wir:
+   *
+   * HAUPTRENNEN
+   * bzw.
+   * SPRINTRENNEN
+   */
+  const isSprintWeekend =
+    (item) => {
+
+      return availableItems.some(
+        (other) => {
+
+          const sameRound =
+            Number(other.sortOrder) ===
+            Number(item.sortOrder);
+
+
+          const sameCircuit =
+            String(other.circuit || '')
+              .trim()
+              .toLowerCase() ===
+            String(item.circuit || '')
+              .trim()
+              .toLowerCase();
+
+
+          return (
+            other.raceType === "sprint" &&
+            (
+              sameRound ||
+              sameCircuit
+            )
+          );
+        }
+      );
+    };
+%>
+
+
+<% if (availableItems.length) { %>
+
+  <div
+    class="carousel gp-carousel gp-broadcast-carousel"
+    data-carousel
+    tabindex="0"
+    aria-label="<%= label %>"
+  >
+
     <div class="carousel-track">
-      <% items.forEach((item, index) => {
-        const classified = [...(item.entries || [])].sort((left, right) => {
-          const leftPosition = Number(left.position) || 999;
-          const rightPosition = Number(right.position) || 999;
-          return leftPosition - rightPosition || Number(left.sortOrder) - Number(right.sortOrder);
-        });
-        const podium = classified.filter((entry) => Number(entry.position) >= 1 && Number(entry.position) <= 3);
+
+
+      <% availableItems.forEach((item, index) => {
+
+        const classified =
+          [...(item.entries || [])]
+            .sort(
+              (left, right) => {
+
+                const leftPosition =
+                  Number(
+                    left.position,
+                  ) || 999;
+
+                const rightPosition =
+                  Number(
+                    right.position,
+                  ) || 999;
+
+
+                return (
+                  leftPosition -
+                    rightPosition ||
+
+                  Number(
+                    left.sortOrder,
+                  ) -
+                    Number(
+                      right.sortOrder,
+                    )
+                );
+              },
+            );
+
+
+        /*
+         * Podium explizit:
+         *
+         * P2 links
+         * P1 Mitte
+         * P3 rechts
+         */
+
+        const position1 =
+          classified.find(
+            (entry) =>
+              Number(
+                entry.position,
+              ) === 1,
+          );
+
+
+        const position2 =
+          classified.find(
+            (entry) =>
+              Number(
+                entry.position,
+              ) === 2,
+          );
+
+
+        const position3 =
+          classified.find(
+            (entry) =>
+              Number(
+                entry.position,
+              ) === 3,
+          );
+
+
+        const podium =
+          [
+            position2,
+            position1,
+            position3,
+          ].filter(Boolean);
+
+
+        /*
+         * Unter dem Podium:
+         * erst P4 und abwärts.
+         */
+
+        const lowerClassification =
+          classified.filter(
+            (entry) => {
+
+              const position =
+                Number(
+                  entry.position,
+                );
+
+
+              return (
+                !position ||
+                position > 3
+              );
+            },
+          );
+
+
+        /*
+         * Handelt es sich um
+         * ein Sprint-Wochenende?
+         */
+
+        const sprintWeekend =
+          isSprintWeekend(
+            item,
+          );
+
       %>
-        <article class="carousel-slide gp-result-card <%= index === 0 ? 'active' : '' %>" aria-hidden="<%= index !== 0 %>">
-          <% if (item.imagePath) { %><img class="gp-poster" src="<%= item.imagePath %>" alt="Rennposter: <%= item.title %>"><% } %>
-          <header class="gp-result-header">
-            <div>
-              <span class="gp-round">RUNDE <%= item.sortOrder || index + 1 %></span>
-              <h3><%= item.title %></h3>
-              <p><%= item.circuit || 'Strecke folgt' %><%= item.raceDate ? ` · ${item.raceDate}` : '' %></p>
+
+
+        <article
+          class="carousel-slide gp-broadcast-card <%= index === 0 ? 'active' : '' %>"
+          aria-hidden="<%= index !== 0 %>"
+        >
+
+
+          <!-- ========================================= -->
+          <!-- HEADER -->
+          <!-- ========================================= -->
+
+          <header class="gp-broadcast-header">
+
+
+            <!-- ======================================= -->
+            <!-- LIGA LOGO -->
+            <!-- ======================================= -->
+
+            <div class="gp-broadcast-league">
+
+              <% if (league?.logoPath) { %>
+
+                <img
+                  src="<%= league.logoPath %>"
+                  alt="<%= league.name %>"
+                >
+
+              <% } %>
+
             </div>
-            <span class="gp-season"><%= item.season %></span>
+
+
+            <!-- ======================================= -->
+            <!-- GP NAME -->
+            <!-- ======================================= -->
+
+            <div class="gp-broadcast-title">
+
+
+              <!--
+                Nur bei einem Sprint-Wochenende
+                wird zwischen Haupt- und
+                Sprintrennen unterschieden.
+              -->
+
+              <% if (sprintWeekend) { %>
+
+                <span>
+
+                  <% if (item.raceType === 'sprint') { %>
+
+                    SPRINTRENNEN
+
+                  <% } else { %>
+
+                    HAUPTRENNEN
+
+                  <% } %>
+
+                </span>
+
+              <% } %>
+
+
+              <!--
+                text-transform:none sorgt dafür,
+                dass "Großer Preis" auch wirklich
+                mit ß dargestellt wird.
+              -->
+
+              <h3 style="text-transform: none;">
+
+                <%= item.displayTitle || item.title %>
+
+              </h3>
+
+
+              <% if (item.displayCircuit) { %>
+
+                <small>
+
+                  <%= item.displayCircuit %>
+
+                </small>
+
+              <% } %>
+
+            </div>
+
+
+            <!-- ======================================= -->
+            <!-- STRECKE / LAND -->
+            <!-- ======================================= -->
+
+            <div class="gp-broadcast-track">
+
+              <% if (item.trackLogoPath) { %>
+
+                <img
+                  src="<%= item.trackLogoPath %>"
+                  alt="<%= item.countryName || item.displayCircuit || '' %>"
+                >
+
+              <% } else { %>
+
+                <span class="gp-track-fallback">
+
+                  <%= item.countryName || 'GP' %>
+
+                </span>
+
+              <% } %>
+
+            </div>
+
           </header>
 
-          <% if (classified.length) { %>
-            <% if (podium.length) { %><div class="gp-podium" aria-label="Podium">
-              <% podium.forEach((entry) => { const podiumStatus = String(entry.status || '').trim().toUpperCase(); %>
-                <article class="podium-place podium-place-<%= entry.position || entry.sortOrder %>">
-                  <span class="podium-position">P<%= entry.position %></span>
-                  <strong><%= entry.driverName %></strong>
-                  <small><%= entry.teamName || 'Privatteam' %></small>
-                  <% if (podiumStatus) { %><em class="status-badge status-<%= podiumStatus.toLowerCase() %>"><%= podiumStatus %></em><% } %>
-                </article>
-              <% }) %>
-            </div><% } %>
 
-            <div class="table-wrap gp-classification">
-              <table>
-                <thead><tr><th>Pos.</th><th>Fahrer</th><th>Team</th><th>Punkte</th></tr></thead>
-                <tbody>
-                  <% classified.forEach((entry) => { const status = String(entry.status || '').trim().toUpperCase(); const position = Number(entry.position) || null; %>
-                    <tr class="<%= position >= 1 && position <= 3 ? `result-position-${position}` : '' %> <%= status ? 'result-has-status' : '' %>">
-                      <td><span class="result-place"><% if (position) { %><strong class="position-badge position-<%= position %>">P<%= position %></strong><% } %><% if (status) { %><span class="status-badge status-<%= status.toLowerCase() %>"><%= status %></span><% } %><% if (!position && !status) { %>–<% } %></span></td>
-                      <td><%= entry.driverName %><% if (entry.fastestLap) { %><span class="fastest-lap" title="Schnellste Runde"> SR</span><% } %></td>
-                      <td><%= entry.teamName || '–' %></td>
-                      <td><strong><%= Number(entry.points) %></strong></td>
-                    </tr>
-                  <% }) %>
-                </tbody>
-              </table>
+          <!-- ========================================= -->
+          <!-- META -->
+          <!-- ========================================= -->
+
+          <div class="gp-broadcast-meta">
+
+            <span>
+
+              RUNDE
+
+              <strong>
+                <%= item.sortOrder || index + 1 %>
+              </strong>
+
+            </span>
+
+
+            <% if (item.raceDate) { %>
+
+              <span>
+
+                <%= item.raceDate %>
+
+              </span>
+
+            <% } %>
+
+
+            <span>
+
+              <%= item.season %>
+
+            </span>
+
+          </div>
+
+
+          <% if (classified.length) { %>
+
+
+            <!-- ======================================= -->
+            <!-- PODIUM -->
+            <!-- ======================================= -->
+
+            <% if (podium.length) { %>
+
+              <div
+                class="gp-broadcast-podium"
+                aria-label="Podium"
+              >
+
+
+                <% podium.forEach((entry) => {
+
+                  const team =
+                    findResultTeam(
+                      entry,
+                    );
+
+
+                  const position =
+                    Number(
+                      entry.position,
+                    );
+
+
+                  const status =
+                    String(
+                      entry.status ||
+                        '',
+                    )
+                      .trim()
+                      .toUpperCase();
+
+                %>
+
+
+                  <article
+                    class="
+                      gp-broadcast-podium-card
+                      gp-broadcast-podium-<%= position %>
+                    "
+                    style="
+                      --gp-team-color:
+                        <%= team?.accentColor || '#6ef2f2' %>;
+                    "
+                  >
+
+
+                    <!-- ================================= -->
+                    <!-- PLATZ -->
+                    <!-- ================================= -->
+
+                    <span class="gp-broadcast-podium-position">
+
+                      <%= position %>
+
+                    </span>
+
+
+                    <!-- ================================= -->
+                    <!-- TEAMLOGO -->
+                    <!-- ================================= -->
+
+                    <div class="gp-broadcast-podium-team">
+
+
+                      <% if (team?.logoPath) { %>
+
+                        <img
+                          src="<%= team.logoPath %>"
+                          alt="<%= entry.teamName || team.name %>"
+                          title="<%= entry.teamName || team.name %>"
+                        >
+
+                      <% } else { %>
+
+                        <strong>
+
+                          <%= entry.teamName || 'TEAM' %>
+
+                        </strong>
+
+                      <% } %>
+
+
+                    </div>
+
+
+                    <!-- ================================= -->
+                    <!-- FAHRER -->
+                    <!-- ================================= -->
+
+                    <strong class="gp-broadcast-driver">
+
+                      <%= entry.driverName %>
+
+                    </strong>
+
+
+                    <!-- ================================= -->
+                    <!-- ERSATZ / PUNKTE -->
+                    <!-- ================================= -->
+
+                    <span
+                      class="
+                        gp-broadcast-result-label
+                        <%= entry.isReserve
+                          ? 'is-reserve'
+                          : 'is-points'
+                        %>
+                      "
+                    >
+
+                      <%= pointLabel(entry) %>
+
+                    </span>
+
+
+                    <!-- ================================= -->
+                    <!-- SCHNELLSTE RUNDE -->
+                    <!-- ================================= -->
+
+                    <% if (entry.fastestLap) { %>
+
+                      <span
+                        class="gp-broadcast-fastest"
+                        title="Schnellste Runde"
+                      >
+
+                        SR
+
+                      </span>
+
+                    <% } %>
+
+
+                    <!-- ================================= -->
+                    <!-- STATUS -->
+                    <!-- ================================= -->
+
+                    <% if (
+                      status &&
+                      status !==
+                        "GEWERTET"
+                    ) { %>
+
+                      <span
+                        class="gp-broadcast-status"
+                      >
+
+                        <%= status %>
+
+                      </span>
+
+                    <% } %>
+
+
+                  </article>
+
+                <% }) %>
+
+
+              </div>
+
+            <% } %>
+
+
+            <!-- ======================================= -->
+            <!-- P4 BIS ENDE -->
+            <!-- ======================================= -->
+
+            <div class="gp-broadcast-ranking">
+
+
+              <% lowerClassification.forEach((entry) => {
+
+                const position =
+                  Number(
+                    entry.position,
+                  ) ||
+                  null;
+
+
+                const team =
+                  findResultTeam(
+                    entry,
+                  );
+
+
+                const status =
+                  String(
+                    entry.status ||
+                      '',
+                  )
+                    .trim()
+                    .toUpperCase();
+
+              %>
+
+
+                <article
+                  class="gp-broadcast-row"
+                  style="
+                    --gp-team-color:
+                      <%= team?.accentColor || '#6ef2f2' %>;
+                  "
+                >
+
+
+                  <!-- ================================= -->
+                  <!-- POSITION -->
+                  <!-- ================================= -->
+
+                  <div class="gp-broadcast-row-position">
+
+                    <% if (position) { %>
+
+                      <strong>
+
+                        <%= position %>
+
+                      </strong>
+
+                    <% } else { %>
+
+                      <strong>
+                        –
+                      </strong>
+
+                    <% } %>
+
+                  </div>
+
+
+                  <!-- ================================= -->
+                  <!-- TEAMLOGO -->
+                  <!-- ================================= -->
+
+                  <div class="gp-broadcast-row-team">
+
+                    <% if (team?.logoPath) { %>
+
+                      <img
+                        src="<%= team.logoPath %>"
+                        alt="<%= entry.teamName || team.name %>"
+                        title="<%= entry.teamName || team.name %>"
+                      >
+
+                    <% } else { %>
+
+                      <span>
+
+                        <%= entry.teamName || '–' %>
+
+                      </span>
+
+                    <% } %>
+
+                  </div>
+
+
+                  <!-- ================================= -->
+                  <!-- FAHRER -->
+                  <!-- ================================= -->
+
+                  <div class="gp-broadcast-row-driver">
+
+                    <strong>
+
+                      <%= entry.driverName %>
+
+                    </strong>
+
+
+                    <% if (
+                      status &&
+                      status !==
+                        "GEWERTET"
+                    ) { %>
+
+                      <small>
+
+                        <%= status %>
+
+                      </small>
+
+                    <% } %>
+
+
+                    <% if (entry.fastestLap) { %>
+
+                      <span
+                        class="gp-broadcast-row-sr"
+                        title="Schnellste Runde"
+                      >
+
+                        SR
+
+                      </span>
+
+                    <% } %>
+
+                  </div>
+
+
+                  <!-- ================================= -->
+                  <!-- PUNKTE / ERSATZ -->
+                  <!-- ================================= -->
+
+                  <div
+                    class="
+                      gp-broadcast-row-result
+                      <%= entry.isReserve
+                        ? 'is-reserve'
+                        : ''
+                      %>
+                    "
+                  >
+
+                    <%= pointLabel(entry) %>
+
+                  </div>
+
+
+                </article>
+
+              <% }) %>
+
+
             </div>
+
+
           <% } else { %>
-            <div class="empty-state">Für diesen Grand Prix wurde noch keine Klassifikation eingetragen.</div>
+
+            <div class="empty-state">
+
+              Für diesen Grand Prix wurde
+              noch keine Klassifikation eingetragen.
+
+            </div>
+
           <% } %>
+
+
         </article>
+
       <% }) %>
+
+
     </div>
-    <% if (items.length > 1) { %>
-      <button class="carousel-control prev" type="button" aria-label="Vorheriges Ergebnis">‹</button>
-      <button class="carousel-control next" type="button" aria-label="Nächstes Ergebnis">›</button>
-      <div class="carousel-dots" aria-label="Ergebnis auswählen"></div>
+
+
+    <!-- =============================================== -->
+    <!-- CAROUSEL CONTROLS -->
+    <!-- =============================================== -->
+
+    <% if (availableItems.length > 1) { %>
+
+      <button
+        class="carousel-control prev"
+        type="button"
+        aria-label="Vorheriges Ergebnis"
+      >
+
+        ‹
+
+      </button>
+
+
+      <button
+        class="carousel-control next"
+        type="button"
+        aria-label="Nächstes Ergebnis"
+      >
+
+        ›
+
+      </button>
+
+
+      <div
+        class="carousel-dots"
+        aria-label="Ergebnis auswählen"
+      ></div>
+
     <% } %>
+
+
   </div>
+
+
 <% } else { %>
-  <div class="empty-state">Noch keine Grand-Prix-Ergebnisse eingetragen.</div>
+
+  <div class="empty-state">
+
+    Noch keine Grand-Prix-Ergebnisse eingetragen.
+
+  </div>
+
 <% } %>

@@ -8,8 +8,7 @@ const {
   F1Track,
 } = require("../models");
 
-const seasonProgress =
-  require("../services/seasonProgress");
+const seasonProgress = require("../services/seasonProgress");
 
 
 const disciplineFor = (league) =>
@@ -25,11 +24,11 @@ const disciplineFor = (league) =>
 const redirectTo = (
   leagueId,
   seasonId,
-  req = null
+  req = null,
 ) => {
   if (
     req?.originalUrl?.includes(
-      "/season-setup/"
+      "/season-setup/",
     )
   ) {
     return `/admin/season-setup?league=${leagueId || ""}&season=${seasonId || ""}#setup-calendar`;
@@ -41,10 +40,150 @@ const redirectTo = (
 
 const timeFromLeague = (league) =>
   String(
-    league?.raceTime || ""
+    league?.raceTime || "",
   ).match(
-    /\b([01]\d|2[0-3]):[0-5]\d\b/
-  )?.[0] || "20:00";
+    /\b([01]\d|2[0-3]):[0-5]\d\b/,
+  )?.[0] ||
+  "20:00";
+
+
+/*
+ * =====================================================
+ * GP-TITEL AUS STRECKENSTAMM
+ * =====================================================
+ *
+ * Beispiel:
+ *
+ * track.country = Miami
+ * track.name = Miami International Autodrome
+ *
+ * => Großer Preis von Miami
+ *
+ * Die Flagge kann unabhängig davon weiterhin
+ * über countryRecord kommen.
+ */
+function titleFromTrack(track) {
+  const raceLocation =
+    String(
+      track?.country ||
+      track?.countryRecord?.name ||
+      "",
+    ).trim();
+
+  if (!raceLocation) {
+    return "Großer Preis";
+  }
+
+  return `Großer Preis von ${raceLocation}`;
+}
+
+
+/*
+ * =====================================================
+ * RUNDEN AUTOMATISCH NORMALISIEREN
+ * =====================================================
+ *
+ * Testtage:
+ * sortOrder = 0
+ *
+ * Echte Rennen:
+ * 1, 2, 3, 4 ...
+ *
+ * Dadurch entstehen nach dem Löschen keine Lücken.
+ */
+async function normalizeRaceOrders(
+  leagueId,
+  seasonId,
+) {
+  const events =
+    await RaceEvent.findAll({
+      where: {
+        LeagueId:
+          leagueId,
+
+        SeasonId:
+          seasonId,
+      },
+
+      order: [
+        ["startsAt", "ASC"],
+        ["id", "ASC"],
+      ],
+    });
+
+
+  let raceNumber = 0;
+
+
+  for (const event of events) {
+    let nextOrder;
+
+
+    /*
+     * Testtage zählen nicht als Rennrunde.
+     */
+    if (event.isTestDay) {
+      nextOrder = 0;
+    } else {
+      raceNumber += 1;
+
+      nextOrder =
+        raceNumber;
+    }
+
+
+    const changed =
+      Number(
+        event.sortOrder,
+      ) !==
+      Number(
+        nextOrder,
+      );
+
+
+    if (changed) {
+      await event.update({
+        previousSortOrder:
+          event.sortOrder,
+
+        sortOrder:
+          nextOrder,
+
+        calendarChanged:
+          true,
+      });
+    }
+
+
+    /*
+     * Zugehörige GP-Ergebnisse ebenfalls
+     * auf dieselbe Rundennummer setzen.
+     *
+     * Sprint + Hauptrennen derselben Strecke
+     * werden gemeinsam aktualisiert.
+     */
+    if (!event.isTestDay) {
+      await GrandPrixResult.update(
+        {
+          sortOrder:
+            nextOrder,
+        },
+        {
+          where: {
+            SeasonId:
+              seasonId,
+
+            LeagueId:
+              leagueId,
+
+            circuit:
+              event.circuit,
+          },
+        },
+      );
+    }
+  }
+}
 
 
 /*
@@ -53,12 +192,15 @@ const timeFromLeague = (league) =>
  * =====================================================
  */
 
-async function loadData(query = {}) {
-
+async function loadData(
+  query = {},
+) {
   const leagues =
     await League.findAll({
       where: {
-        type: "f1",
+        type:
+          "f1",
+
         slug: {
           [Op.in]: [
             "freitag",
@@ -79,21 +221,27 @@ async function loadData(query = {}) {
     leagues.find(
       (league) =>
         league.id ===
-        Number(query.league)
+        Number(
+          query.league,
+        ),
     ) ||
     leagues[0] ||
     null;
 
 
   const discipline =
-    disciplineFor(selectedLeague);
+    disciplineFor(
+      selectedLeague,
+    );
 
 
   const seasons =
     selectedLeague
       ? await Season.findAll({
           where: {
-            leagueType: discipline,
+            leagueType:
+              discipline,
+
             scopeSlug:
               selectedLeague.slug,
           },
@@ -111,11 +259,14 @@ async function loadData(query = {}) {
     seasons.find(
       (season) =>
         season.id ===
-        Number(query.season)
+        Number(
+          query.season,
+        ),
     ) ||
     seasons.find(
       (season) =>
-        season.status === "active"
+        season.status ===
+        "active",
     ) ||
     seasons[0] ||
     null;
@@ -134,7 +285,8 @@ async function loadData(query = {}) {
 
           include: [
             {
-              association: "track",
+              association:
+                "track",
 
               include: [
                 {
@@ -157,7 +309,6 @@ async function loadData(query = {}) {
   /*
    * Sprint wird über GrandPrixResult ermittelt.
    */
-
   const sprints =
     selectedSeason?.leagueType ===
     "f1"
@@ -169,7 +320,8 @@ async function loadData(query = {}) {
             SeasonId:
               selectedSeason.id,
 
-            raceType: "sprint",
+            raceType:
+              "sprint",
           },
 
           attributes: [
@@ -184,20 +336,22 @@ async function loadData(query = {}) {
     new Set(
       sprints.map(
         (race) =>
-          `${race.circuit}::${race.sortOrder}`
-      )
+          `${race.circuit}::${race.sortOrder}`,
+      ),
     );
 
 
   const events =
-    rawEvents.map((event) => ({
-      ...event.toJSON(),
+    rawEvents.map(
+      (event) => ({
+        ...event.toJSON(),
 
-      hasSprint:
-        sprintKeys.has(
-          `${event.circuit}::${event.sortOrder}`
-        ),
-    }));
+        hasSprint:
+          sprintKeys.has(
+            `${event.circuit}::${event.sortOrder}`,
+          ),
+      }),
+    );
 
 
   const tracks =
@@ -220,16 +374,22 @@ async function loadData(query = {}) {
 
   return {
     leagues,
+
     selectedLeague,
+
     discipline,
+
     seasons,
+
     selectedSeason,
+
     events,
+
     tracks,
 
     defaultTime:
       timeFromLeague(
-        selectedLeague
+        selectedLeague,
       ),
   };
 }
@@ -241,20 +401,25 @@ async function loadData(query = {}) {
  * =====================================================
  */
 
-exports.show = async (req, res) => {
+exports.show =
+  async (
+    req,
+    res,
+  ) => {
+    res.render(
+      "admin/season-calendar",
+      {
+        title:
+          "Rennkalender bearbeiten",
 
-  res.render(
-    "admin/season-calendar",
-    {
-      title:
-        "Rennkalender bearbeiten",
-
-      ...(await loadData(
-        req.query
-      )),
-    }
-  );
-};
+        ...(
+          await loadData(
+            req.query,
+          )
+        ),
+      },
+    );
+  };
 
 
 /*
@@ -263,237 +428,280 @@ exports.show = async (req, res) => {
  * =====================================================
  */
 
-exports.create = async (
-  req,
-  res
-) => {
-
-  let league;
-  let season;
-
-  try {
-
-    season =
-      await Season.findByPk(
-        req.body.SeasonId
-      );
+exports.create =
+  async (
+    req,
+    res,
+  ) => {
+    let league;
+    let season;
 
 
-    league =
-      await League.findByPk(
-        req.body.LeagueId
-      );
+    try {
+      season =
+        await Season.findByPk(
+          req.body.SeasonId,
+        );
 
 
-    if (
-      !season ||
-      !league ||
-      season.scopeSlug !==
-        league.slug ||
-      season.leagueType !==
-        disciplineFor(league)
-    ) {
-      throw new Error(
-        "Saison und Liga passen nicht zusammen."
-      );
-    }
+      league =
+        await League.findByPk(
+          req.body.LeagueId,
+        );
 
 
-    const date =
-      String(
-        req.body.date || ""
-      );
+      if (
+        !season ||
+        !league ||
+        season.scopeSlug !==
+          league.slug ||
+        season.leagueType !==
+          disciplineFor(
+            league,
+          )
+      ) {
+        throw new Error(
+          "Saison und Liga passen nicht zusammen.",
+        );
+      }
 
 
-    const time =
-      timeFromLeague(league);
+      const date =
+        String(
+          req.body.date ||
+          "",
+        );
 
 
-    const startsAt =
-      new Date(
-        `${date}T${time}:00`
-      );
+      const time =
+        timeFromLeague(
+          league,
+        );
 
 
-    if (
-      Number.isNaN(
-        startsAt.getTime()
-      )
-    ) {
-      throw new Error(
-        "Datum oder Startzeit ist ungültig."
-      );
-    }
+      const startsAt =
+        new Date(
+          `${date}T${time}:00`,
+        );
 
 
-    const track =
-      await F1Track.findByPk(
-        req.body.F1TrackId,
-        {
-          include: [
-            {
-              association:
-                "countryRecord",
-            },
-          ],
+      if (
+        Number.isNaN(
+          startsAt.getTime(),
+        )
+      ) {
+        throw new Error(
+          "Datum oder Startzeit ist ungültig.",
+        );
+      }
+
+
+      const track =
+        await F1Track.findByPk(
+          req.body.F1TrackId,
+          {
+            include: [
+              {
+                association:
+                  "countryRecord",
+              },
+            ],
+          },
+        );
+
+
+      if (!track) {
+        throw new Error(
+          "Bitte eine Strecke aus dem Formel-1-Streckenstamm auswählen.",
+        );
+      }
+
+
+      const circuit =
+        track.name;
+
+
+      const title =
+        titleFromTrack(
+          track,
+        );
+
+
+      const isTestDay =
+        req.body.isTestDay ===
+        "on";
+
+
+      /*
+       * Testtag:
+       * immer Runde 0.
+       */
+      let sortOrder;
+
+
+      if (isTestDay) {
+        sortOrder = 0;
+      } else {
+        sortOrder =
+          Number(
+            req.body.sortOrder,
+          );
+
+
+        if (
+          !Number.isInteger(
+            sortOrder,
+          ) ||
+          sortOrder < 1
+        ) {
+          throw new Error(
+            "Die Rennen-Nummer muss größer als 0 sein.",
+          );
         }
-      );
+      }
 
 
-    if (!track) {
-      throw new Error(
-        "Bitte eine Strecke aus dem Formel-1-Streckenstamm auswählen."
-      );
-    }
+      /*
+       * Nur echte Rennen dürfen dieselbe
+       * Rennnummer nicht doppelt verwenden.
+       */
+      if (!isTestDay) {
+        const duplicateRound =
+          await RaceEvent.findOne({
+            where: {
+              LeagueId:
+                league.id,
+
+              SeasonId:
+                season.id,
+
+              sortOrder,
+
+              isTestDay:
+                false,
+            },
+          });
 
 
-    const circuit =
-      track.name;
+        if (duplicateRound) {
+          throw new Error(
+            `Rennen Nr. ${sortOrder} ist in dieser Saison bereits belegt.`,
+          );
+        }
+      }
 
 
-    const title =
-      `Großer Preis von ${
-        track.countryRecord
-          ?.name ||
-        track.country
-      }`;
-
-
-    const sortOrder =
-      Number(
-        req.body.sortOrder
-      );
-
-
-    if (
-      !Number.isInteger(
-        sortOrder
-      ) ||
-      sortOrder < 1
-    ) {
-      throw new Error(
-        "Die Rennen-Nummer muss größer als 0 sein."
-      );
-    }
-
-
-    const duplicateRound =
-      await RaceEvent.findOne({
-        where: {
-          LeagueId:
-            league.id,
-
-          SeasonId:
-            season.id,
-
-          sortOrder,
-        },
-      });
-
-
-    if (duplicateRound) {
-      throw new Error(
-        `Rennen Nr. ${sortOrder} ist in dieser Saison bereits belegt.`
-      );
-    }
-
-
-    const { main } =
-      await seasonProgress
-        .createManualRace(
+      const { main } =
+        await seasonProgress.createManualRace(
           season.leagueType,
           {
             ...req.body,
 
             sortOrder,
+
             title,
+
             circuit,
-            raceDate: date,
+
+            raceDate:
+              date,
 
             pointsMode:
               "database",
 
             hasSprint:
               req.body.hasSprint,
-          }
+          },
         );
 
 
-    await RaceEvent.create({
-      LeagueId:
-        league.id,
+      await RaceEvent.create({
+        LeagueId:
+          league.id,
 
-      SeasonId:
-        season.id,
+        SeasonId:
+          season.id,
 
-      GrandPrixResultId:
-        main.id,
+        GrandPrixResultId:
+          main.id,
 
-      title:
-        main.title,
+        title:
+          main.title,
 
-      circuit:
-        main.circuit,
+        circuit:
+          main.circuit,
 
-      startsAt,
+        startsAt,
 
-      F1TrackId:
-        track.id,
+        F1TrackId:
+          track.id,
 
-      durationMinutes:
-        null,
+        durationMinutes:
+          null,
 
-      isPublished:
-        season.status ===
-          "active" &&
-        season.isPublished,
+        isPublished:
+          season.status ===
+            "active" &&
+          season.isPublished,
 
-      isTestDay:
-        req.body.isTestDay ===
-        "on",
+        isTestDay,
 
-      sortOrder:
-        main.sortOrder,
-    });
-
-
-    req.session.flash = {
-      type: "success",
-      message:
-        "Kalendereintrag wurde gespeichert.",
-    };
+        sortOrder:
+          isTestDay
+            ? 0
+            : main.sortOrder,
+      });
 
 
-    return res.redirect(
-      redirectTo(
+      /*
+       * Nach dem Anlegen die Rennrunden
+       * sicherheitshalber normalisieren.
+       */
+      await normalizeRaceOrders(
         league.id,
         season.id,
-        req
-      )
-    );
-
-  } catch (error) {
-
-    req.session.flash = {
-      type: "error",
-      message:
-        error.message,
-    };
+      );
 
 
-    return res.redirect(
-      redirectTo(
-        league?.id ||
-          req.body.LeagueId,
+      req.session.flash = {
+        type:
+          "success",
 
-        season?.id ||
-          req.body.SeasonId,
+        message:
+          "Kalendereintrag wurde gespeichert.",
+      };
 
-        req
-      )
-    );
-  }
-};
+
+      return res.redirect(
+        redirectTo(
+          league.id,
+          season.id,
+          req,
+        ),
+      );
+    } catch (error) {
+      req.session.flash = {
+        type:
+          "error",
+
+        message:
+          error.message,
+      };
+
+
+      return res.redirect(
+        redirectTo(
+          league?.id ||
+            req.body.LeagueId,
+
+          season?.id ||
+            req.body.SeasonId,
+
+          req,
+        ),
+      );
+    }
+  };
 
 
 /*
@@ -502,244 +710,273 @@ exports.create = async (
  * =====================================================
  */
 
-exports.update = async (
-  req,
-  res,
-  next
-) => {
-
-  const event =
-    await RaceEvent.findByPk(
-      req.params.eventId,
-      {
-        include: [
-          {
-            association:
-              "seasonRecord",
-          },
-
-          {
-            association:
-              "league",
-          },
-
-          {
-            association:
-              "grandPrixResult",
-          },
-        ],
-      }
-    );
-
-
-  if (!event) {
-    return next();
-  }
-
-
-  try {
-
-    const date =
-      String(
-        req.body.date || ""
-      );
-
-
-    const time =
-      timeFromLeague(
-        event.league
-      );
-
-
-    const startsAt =
-      new Date(
-        `${date}T${time}:00`
-      );
-
-
-    if (
-      Number.isNaN(
-        startsAt.getTime()
-      )
-    ) {
-      throw new Error(
-        "Datum oder Startzeit ist ungültig."
-      );
-    }
-
-
-    const sortOrder =
-      Number(
-        req.body.sortOrder ||
-        event.sortOrder ||
-        0
-      );
-
-
-    if (
-      !Number.isInteger(
-        sortOrder
-      ) ||
-      sortOrder < 1
-    ) {
-      throw new Error(
-        "Die Rennen-Nummer muss größer als 0 sein."
-      );
-    }
-
-
-    const track =
-      await F1Track.findByPk(
-        req.body.F1TrackId,
+exports.update =
+  async (
+    req,
+    res,
+    next,
+  ) => {
+    const event =
+      await RaceEvent.findByPk(
+        req.params.eventId,
         {
           include: [
             {
               association:
-                "countryRecord",
+                "seasonRecord",
+            },
+
+            {
+              association:
+                "league",
+            },
+
+            {
+              association:
+                "grandPrixResult",
             },
           ],
-        }
+        },
       );
 
 
-    if (!track) {
-      throw new Error(
-        "Bitte eine Strecke aus dem Formel-1-Streckenstamm auswählen."
-      );
+    if (!event) {
+      return next();
     }
 
 
-    const duplicateRound =
-      await RaceEvent.findOne({
-        where: {
-          id: {
-            [Op.ne]:
-              event.id,
+    try {
+      const date =
+        String(
+          req.body.date ||
+          "",
+        );
+
+
+      const time =
+        timeFromLeague(
+          event.league,
+        );
+
+
+      const startsAt =
+        new Date(
+          `${date}T${time}:00`,
+        );
+
+
+      if (
+        Number.isNaN(
+          startsAt.getTime(),
+        )
+      ) {
+        throw new Error(
+          "Datum oder Startzeit ist ungültig.",
+        );
+      }
+
+
+      const isTestDay =
+        req.body.isTestDay ===
+        "on";
+
+
+      let sortOrder;
+
+
+      if (isTestDay) {
+        sortOrder = 0;
+      } else {
+        sortOrder =
+          Number(
+            req.body.sortOrder ||
+            event.sortOrder ||
+            0,
+          );
+
+
+        if (
+          !Number.isInteger(
+            sortOrder,
+          ) ||
+          sortOrder < 1
+        ) {
+          throw new Error(
+            "Die Rennen-Nummer muss größer als 0 sein.",
+          );
+        }
+      }
+
+
+      const track =
+        await F1Track.findByPk(
+          req.body.F1TrackId,
+          {
+            include: [
+              {
+                association:
+                  "countryRecord",
+              },
+            ],
           },
+        );
 
-          LeagueId:
-            event.LeagueId,
 
-          SeasonId:
-            event.SeasonId,
+      if (!track) {
+        throw new Error(
+          "Bitte eine Strecke aus dem Formel-1-Streckenstamm auswählen.",
+        );
+      }
 
-          sortOrder,
-        },
+
+      /*
+       * Doppelte Rennnummer nur bei
+       * echten Rennen verhindern.
+       */
+      if (!isTestDay) {
+        const duplicateRound =
+          await RaceEvent.findOne({
+            where: {
+              id: {
+                [Op.ne]:
+                  event.id,
+              },
+
+              LeagueId:
+                event.LeagueId,
+
+              SeasonId:
+                event.SeasonId,
+
+              sortOrder,
+
+              isTestDay:
+                false,
+            },
+          });
+
+
+        if (duplicateRound) {
+          throw new Error(
+            `Rennen Nr. ${sortOrder} ist bereits belegt.`,
+          );
+        }
+      }
+
+
+      const nextTitle =
+        titleFromTrack(
+          track,
+        );
+
+
+      const nextCircuit =
+        track.name;
+
+
+      const changed =
+        new Date(
+          event.startsAt,
+        ).getTime() !==
+          startsAt.getTime() ||
+
+        Number(
+          event.sortOrder,
+        ) !==
+          Number(
+            sortOrder,
+          ) ||
+
+        Number(
+          event.F1TrackId,
+        ) !==
+          Number(
+            track.id,
+          ) ||
+
+        Boolean(
+          event.isTestDay,
+        ) !==
+          Boolean(
+            isTestDay,
+          );
+
+
+      /*
+       * Werte VOR dem Update merken.
+       */
+      const previousStartsAt =
+        event.startsAt;
+
+
+      const previousSortOrder =
+        event.sortOrder;
+
+
+      await event.update({
+        title:
+          nextTitle,
+
+        circuit:
+          nextCircuit,
+
+        F1TrackId:
+          track.id,
+
+        startsAt,
+
+        sortOrder,
+
+        isTestDay,
+
+        durationMinutes:
+          null,
+
+        isPublished:
+          event.seasonRecord
+            ?.status ===
+              "active" &&
+          event.seasonRecord
+            ?.isPublished,
+
+        previousStartsAt:
+          changed
+            ? previousStartsAt
+            : event.previousStartsAt,
+
+        previousSortOrder:
+          changed
+            ? previousSortOrder
+            : event.previousSortOrder,
+
+        calendarChanged:
+          changed ||
+          event.calendarChanged,
       });
 
 
-    if (duplicateRound) {
-      throw new Error(
-        `Rennen Nr. ${sortOrder} ist bereits belegt.`
-      );
-    }
+      /*
+       * =================================================
+       * HAUPTRENNEN + SPRINT SYNCHRONISIEREN
+       * =================================================
+       */
+
+      if (
+        event.grandPrixResult
+      ) {
+        const main =
+          event.grandPrixResult;
 
 
-    const nextTitle =
-      `Großer Preis von ${
-        track.countryRecord
-          ?.name ||
-        track.country
-      }`;
+        const oldCircuit =
+          main.circuit;
 
 
-    const nextCircuit =
-      track.name;
+        const oldSortOrder =
+          main.sortOrder;
 
 
-    const changed =
-      new Date(
-        event.startsAt
-      ).getTime() !==
-        startsAt.getTime() ||
-
-      Number(
-        event.sortOrder
-      ) !== sortOrder ||
-
-      Number(
-        event.F1TrackId
-      ) !==
-        Number(track.id);
-
-
-    /*
-     * Werte VOR dem Update merken.
-     */
-
-    const previousStartsAt =
-      event.startsAt;
-
-    const previousSortOrder =
-      event.sortOrder;
-
-
-    await event.update({
-      title:
-        nextTitle,
-
-      circuit:
-        nextCircuit,
-
-      F1TrackId:
-        track.id,
-
-      startsAt,
-
-      sortOrder,
-
-      isTestDay:
-        req.body.isTestDay ===
-        "on",
-
-      durationMinutes:
-        null,
-
-      isPublished:
-        event.seasonRecord
-          ?.status ===
-          "active" &&
-        event.seasonRecord
-          ?.isPublished,
-
-      previousStartsAt:
-        changed
-          ? previousStartsAt
-          : event.previousStartsAt,
-
-      previousSortOrder:
-        changed
-          ? previousSortOrder
-          : event.previousSortOrder,
-
-      calendarChanged:
-        changed ||
-        event.calendarChanged,
-    });
-
-
-    /*
-     * Hauptrennen + Sprint synchronisieren
-     */
-
-    if (
-      event.grandPrixResult
-    ) {
-
-      const main =
-        event.grandPrixResult;
-
-
-      const oldCircuit =
-        main.circuit;
-
-
-      const oldSortOrder =
-        main.sortOrder;
-
-
-      await seasonProgress
-        .updateRaceSettings(
+        await seasonProgress.updateRaceSettings(
           main.discipline,
           main.id,
           {
@@ -748,13 +985,16 @@ exports.update = async (
 
             hasSprint:
               req.body.hasSprint,
-          }
+          },
         );
 
 
-      const sprint =
-        await GrandPrixResult
-          .findOne({
+        /*
+         * Sprint mit alter Strecke/Runde suchen,
+         * bevor das Hauptrennen geändert wird.
+         */
+        const sprint =
+          await GrandPrixResult.findOne({
             where: {
               SeasonId:
                 main.SeasonId,
@@ -774,25 +1014,9 @@ exports.update = async (
           });
 
 
-      await main.update({
-        title:
-          nextTitle,
-
-        circuit:
-          nextCircuit,
-
-        raceDate:
-          date,
-
-        sortOrder,
-      });
-
-
-      if (sprint) {
-
-        await sprint.update({
+        await main.update({
           title:
-            `Sprint · ${nextCircuit}`,
+            nextTitle,
 
           circuit:
             nextCircuit,
@@ -800,36 +1024,69 @@ exports.update = async (
           raceDate:
             date,
 
-          sortOrder,
+          sortOrder:
+            isTestDay
+              ? 0
+              : sortOrder,
         });
+
+
+        if (sprint) {
+          await sprint.update({
+            title:
+              `Sprint · ${nextCircuit}`,
+
+            circuit:
+              nextCircuit,
+
+            raceDate:
+              date,
+
+            sortOrder:
+              isTestDay
+                ? 0
+                : sortOrder,
+          });
+        }
       }
+
+
+      /*
+       * Nach Datum/Testtag-Änderungen
+       * alle Rennrunden neu ordnen.
+       */
+      await normalizeRaceOrders(
+        event.LeagueId,
+        event.SeasonId,
+      );
+
+
+      req.session.flash = {
+        type:
+          "success",
+
+        message:
+          "Kalender wurde gespeichert.",
+      };
+    } catch (error) {
+      req.session.flash = {
+        type:
+          "error",
+
+        message:
+          error.message,
+      };
     }
 
 
-    req.session.flash = {
-      type: "success",
-      message:
-        "Kalender wurde gespeichert.",
-    };
-
-  } catch (error) {
-
-    req.session.flash = {
-      type: "error",
-      message:
-        error.message,
-    };
-  }
-
-
-  return res.redirect(
-    redirectTo(
-      event.LeagueId,
-      event.SeasonId,
-      req
-    )
-  );
-};
+    return res.redirect(
+      redirectTo(
+        event.LeagueId,
+        event.SeasonId,
+        req,
+      ),
+    );
+  };
 
 
 /*
@@ -838,198 +1095,226 @@ exports.update = async (
  * =====================================================
  */
 
-exports.reorder = async (
-  req,
-  res
-) => {
-
-  /*
-   * Im Saison-Assistenten steckt die SeasonId
-   * zusätzlich in der URL.
-   */
-
-  const seasonId =
-    Number(
-      req.body.SeasonId ||
-      req.params.seasonId
-    );
-
-
-  const leagueId =
-    Number(
-      req.body.LeagueId
-    );
-
-
-  if (
-    !Number.isInteger(
-      seasonId
-    ) ||
-    !Number.isInteger(
-      leagueId
-    )
-  ) {
-    throw new Error(
-      "Liga und Saison wurden nicht korrekt übergeben."
-    );
-  }
-
-
-  const ids = [
-    ...new Set(
-      []
-        .concat(
-          req.body.eventIds ||
-          []
-        )
-        .map(Number)
-        .filter(
-          Number.isInteger
-        )
-    ),
-  ];
-
-
-  const season =
-    await Season.findByPk(
-      seasonId
-    );
-
-
-  const league =
-    await League.findByPk(
-      leagueId
-    );
-
-
-  if (
-    !season ||
-    !league ||
-    !ids.length
-  ) {
-    throw new Error(
-      "Liga, Saison und Kalenderreihenfolge sind erforderlich."
-    );
-  }
-
-
-  const events =
-    await RaceEvent.findAll({
-      where: {
-        id: {
-          [Op.in]:
-            ids,
-        },
-
-        SeasonId:
-          season.id,
-
-        LeagueId:
-          league.id,
-      },
-    });
-
-
-  if (
-    events.length !==
-    ids.length
-  ) {
-    throw new Error(
-      "Die Kalenderreihenfolge enthält ungültige Termine."
-    );
-  }
-
-
-  /*
-   * Nacheinander speichern.
-   *
-   * Dadurch vermeiden wir unnötige Race Conditions.
-   */
-
-  for (
-    let index = 0;
-    index < ids.length;
-    index++
-  ) {
-
-    const id =
-      ids[index];
-
-
-    const event =
-      events.find(
-        (entry) =>
-          Number(entry.id) ===
-          Number(id)
+exports.reorder =
+  async (
+    req,
+    res,
+  ) => {
+    /*
+     * Im Saison-Assistenten steckt die SeasonId
+     * zusätzlich in der URL.
+     */
+    const seasonId =
+      Number(
+        req.body.SeasonId ||
+        req.params.seasonId,
       );
 
 
-    if (!event) {
-      continue;
+    const leagueId =
+      Number(
+        req.body.LeagueId,
+      );
+
+
+    if (
+      !Number.isInteger(
+        seasonId,
+      ) ||
+      !Number.isInteger(
+        leagueId,
+      )
+    ) {
+      throw new Error(
+        "Liga und Saison wurden nicht korrekt übergeben.",
+      );
     }
 
 
-    const nextOrder =
-      index + 1;
+    const ids = [
+      ...new Set(
+        []
+          .concat(
+            req.body.eventIds ||
+            [],
+          )
+          .map(Number)
+          .filter(
+            Number.isInteger,
+          ),
+      ),
+    ];
 
 
-    const changed =
-      Number(
-        event.sortOrder
-      ) !== nextOrder;
+    const season =
+      await Season.findByPk(
+        seasonId,
+      );
 
 
-    await event.update({
-      previousSortOrder:
-        changed
-          ? event.sortOrder
-          : event.previousSortOrder,
-
-      sortOrder:
-        nextOrder,
-
-      calendarChanged:
-        changed ||
-        event.calendarChanged,
-    });
+    const league =
+      await League.findByPk(
+        leagueId,
+      );
 
 
-    await GrandPrixResult.update(
-      {
-        sortOrder:
-          nextOrder,
-      },
-      {
+    if (
+      !season ||
+      !league ||
+      !ids.length
+    ) {
+      throw new Error(
+        "Liga, Saison und Kalenderreihenfolge sind erforderlich.",
+      );
+    }
+
+
+    const events =
+      await RaceEvent.findAll({
         where: {
+          id: {
+            [Op.in]:
+              ids,
+          },
+
           SeasonId:
             season.id,
 
           LeagueId:
             league.id,
-
-          circuit:
-            event.circuit,
         },
+      });
+
+
+    if (
+      events.length !==
+      ids.length
+    ) {
+      throw new Error(
+        "Die Kalenderreihenfolge enthält ungültige Termine.",
+      );
+    }
+
+
+    /*
+     * =================================================
+     * TESTTAGE NICHT MITZÄHLEN
+     * =================================================
+     */
+
+    let raceNumber = 0;
+
+
+    for (
+      let index = 0;
+      index < ids.length;
+      index++
+    ) {
+      const id =
+        ids[index];
+
+
+      const event =
+        events.find(
+          (entry) =>
+            Number(
+              entry.id,
+            ) ===
+            Number(
+              id,
+            ),
+        );
+
+
+      if (!event) {
+        continue;
       }
+
+
+      let nextOrder;
+
+
+      /*
+       * Testtage immer 0.
+       */
+      if (event.isTestDay) {
+        nextOrder = 0;
+      } else {
+        raceNumber += 1;
+
+        nextOrder =
+          raceNumber;
+      }
+
+
+      const changed =
+        Number(
+          event.sortOrder,
+        ) !==
+        Number(
+          nextOrder,
+        );
+
+
+      await event.update({
+        previousSortOrder:
+          changed
+            ? event.sortOrder
+            : event.previousSortOrder,
+
+        sortOrder:
+          nextOrder,
+
+        calendarChanged:
+          changed ||
+          event.calendarChanged,
+      });
+
+
+      /*
+       * Haupt- und Sprintrennen auf dieselbe
+       * Rundennummer setzen.
+       */
+      if (!event.isTestDay) {
+        await GrandPrixResult.update(
+          {
+            sortOrder:
+              nextOrder,
+          },
+          {
+            where: {
+              SeasonId:
+                season.id,
+
+              LeagueId:
+                league.id,
+
+              circuit:
+                event.circuit,
+            },
+          },
+        );
+      }
+    }
+
+
+    req.session.flash = {
+      type:
+        "success",
+
+      message:
+        "Kalenderreihenfolge wurde gespeichert.",
+    };
+
+
+    return res.redirect(
+      redirectTo(
+        league.id,
+        season.id,
+        req,
+      ),
     );
-  }
-
-
-  req.session.flash = {
-    type: "success",
-    message:
-      "Kalenderreihenfolge wurde gespeichert.",
   };
-
-
-  return res.redirect(
-    redirectTo(
-      league.id,
-      season.id,
-      req
-    )
-  );
-};
 
 
 /*
@@ -1038,75 +1323,93 @@ exports.reorder = async (
  * =====================================================
  */
 
-exports.remove = async (
-  req,
-  res,
-  next
-) => {
-
-  const event =
-    await RaceEvent.findByPk(
-      req.params.eventId
-    );
-
-
-  if (!event) {
-    return next();
-  }
+exports.remove =
+  async (
+    req,
+    res,
+    next,
+  ) => {
+    const event =
+      await RaceEvent.findByPk(
+        req.params.eventId,
+      );
 
 
-  const {
-    LeagueId,
-    SeasonId,
-    GrandPrixResultId,
-  } = event;
-
-
-  try {
-
-    const main =
-      GrandPrixResultId
-        ? await GrandPrixResult
-            .findByPk(
-              GrandPrixResultId
-            )
-        : null;
-
-
-    await event.destroy();
-
-
-    if (main) {
-
-      await seasonProgress
-        .removeRaceEvent(
-          main.discipline,
-          GrandPrixResultId
-        );
+    if (!event) {
+      return next();
     }
 
 
-    req.session.flash = {
-      type: "success",
-      message:
-        "Kalendereintrag wurde gelöscht.",
-    };
-
-  } catch (error) {
-
-    req.session.flash = {
-      type: "error",
-      message:
-        error.message,
-    };
-  }
-
-
-  return res.redirect(
-    redirectTo(
+    const {
       LeagueId,
       SeasonId,
-      req
-    )
-  );
-};
+      GrandPrixResultId,
+    } = event;
+
+
+    try {
+      const main =
+        GrandPrixResultId
+          ? await GrandPrixResult.findByPk(
+              GrandPrixResultId,
+            )
+          : null;
+
+
+      /*
+       * Kalendereintrag löschen.
+       */
+      await event.destroy();
+
+
+      /*
+       * Zugehöriges GP-Ergebnis
+       * inkl. Sprint entfernen.
+       */
+      if (main) {
+        await seasonProgress.removeRaceEvent(
+          main.discipline,
+          GrandPrixResultId,
+        );
+      }
+
+
+      /*
+       * =================================================
+       * WICHTIG:
+       * RENNEN DANACH LÜCKENLOS NEU NUMMERIEREN
+       * =================================================
+       */
+
+      await normalizeRaceOrders(
+        LeagueId,
+        SeasonId,
+      );
+
+
+      req.session.flash = {
+        type:
+          "success",
+
+        message:
+          "Kalendereintrag wurde gelöscht.",
+      };
+    } catch (error) {
+      req.session.flash = {
+        type:
+          "error",
+
+        message:
+          error.message,
+      };
+    }
+
+
+    return res.redirect(
+      redirectTo(
+        LeagueId,
+        SeasonId,
+        req,
+      ),
+    );
+  };
