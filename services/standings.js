@@ -675,11 +675,21 @@ function buildSeasonData(
         driver.total -
         leaderPoints;
 
-      driver.average =
-        races.length
-          ? driver.total /
-            races.length
-          : 0;
+      const completedMainIndexes = races
+        .map((race, raceIndex) => ({ race, raceIndex }))
+        .filter(({ race }) => race.raceType === "main" && Array.isArray(race.entries) && race.entries.length);
+      const startedMainResults = completedMainIndexes
+        .map(({ raceIndex }) => driver.results[raceIndex])
+        .filter((result) => result && !result.outsideStint && !result.replaced && result.status !== "DNS" && (result.position || result.status));
+      driver.starts = startedMainResults.length;
+      driver.failures = startedMainResults.filter((result) => result.status === "DNF").length;
+      driver.startRate = completedMainIndexes.length
+        ? (driver.starts / completedMainIndexes.length) * 100
+        : 0;
+      driver.failureRate = driver.starts
+        ? (driver.failures / driver.starts) * 100
+        : 0;
+      driver.average = driver.starts ? driver.total / driver.starts : 0;
     },
   );
 

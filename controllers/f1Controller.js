@@ -55,6 +55,10 @@ async function loadLeagueData(slug, requestedSeasonId) {
       {
         association: "category",
       },
+      {
+        association: "f1Game",
+        required: false,
+      },
     ],
 
     order: [

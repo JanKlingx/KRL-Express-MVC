@@ -17,7 +17,8 @@ const ATTENDANCE_STATUSES = [
   { value: 'anwesend', label: 'Anwesend' },
   { value: 'unabgemeldet', label: 'Unabgemeldet' },
   { value: 'zu_spaet_abgemeldet', label: 'Zu spät abgemeldet' },
-  { value: 'zu_spaet_vorbesprechung', label: 'Zu spät Vorbesprechung' }
+  { value: 'zu_spaet_vorbesprechung', label: 'Zu spät Vorbesprechung' },
+  { value: 'unsicher', label: 'Unsicher' }
 ];
 
 const REGULAR_STATUS_VALUES = new Set(REGULAR_STATUSES.map((status) => status.value));

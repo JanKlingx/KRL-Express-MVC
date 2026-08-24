@@ -3,6 +3,7 @@ const {
   sequelize,
   League,
   Season,
+  F1Game,
   PointsScheme,
   RaceEvent,
   Team,
@@ -86,6 +87,10 @@ async function loadData(query = {}) {
             association: "pointsScheme",
             required: false,
           },
+          {
+            association: "f1Game",
+            required: false,
+          },
         ],
         order: [
           ["status", "ASC"],
@@ -117,6 +122,7 @@ async function loadData(query = {}) {
     tracks,
     eligibleDrivers,
     structure,
+    f1Games,
   ] = await Promise.all([
     PointsScheme.findAll({
       where: {
@@ -215,6 +221,11 @@ async function loadData(query = {}) {
     loadEligibleSeasonDrivers(),
 
     loadSeasonStructure(selectedSeason?.id),
+
+    F1Game.findAll({
+      where: { isActive: true },
+      order: [["sortOrder", "ASC"], ["name", "ASC"]],
+    }),
   ]);
 
   /*
@@ -248,6 +259,7 @@ async function loadData(query = {}) {
     eligibleDrivers,
     structure,
     driverRankFilter,
+    f1Games,
 
     carAssignmentMap: Object.fromEntries(
       carAssignments.map((assignment) => [
@@ -302,6 +314,9 @@ exports.createSeason = async (req, res) => {
     if (!/^#[0-9a-f]{6}$/i.test(req.body.accentColor || ""))
       throw new Error("Bitte eine gültige Saisonfarbe auswählen.");
     const accentColor = req.body.accentColor;
+    const F1GameId = Number(req.body.F1GameId || 0) || null;
+    if (F1GameId && !(await F1Game.findByPk(F1GameId)))
+      throw new Error("Bitte ein gültiges F1-Spiel auswählen.");
     const season = await Season.create({
       name,
       leagueType: discipline,
@@ -313,6 +328,7 @@ exports.createSeason = async (req, res) => {
       isPublished: false,
       reservePointsForConstructors:
         req.body.reservePointsForConstructors === "on",
+      F1GameId,
     });
     req.session.flash = {
       type: "success",
@@ -355,11 +371,15 @@ exports.updateSeasonProfile = async (req, res) => {
     const accentColor = /^#[0-9a-f]{6}$/i.test(req.body.accentColor || "")
       ? req.body.accentColor
       : season.accentColor || league.accentColor;
+    const F1GameId = Number(req.body.F1GameId || 0) || null;
+    if (F1GameId && !(await F1Game.findByPk(F1GameId)))
+      throw new Error("Bitte ein gültiges F1-Spiel auswählen.");
     await season.update({
       PointsSchemeId: pointsScheme.id,
       accentColor,
       reservePointsForConstructors:
         req.body.reservePointsForConstructors === "on",
+      F1GameId,
     });
     req.session.flash = {
       type: "success",

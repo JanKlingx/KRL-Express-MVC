@@ -7570,548 +7570,252 @@ td strong {
 
 
 /* =========================================================
-   TABELLE
+   F1 SAISONVERLAUF · SHEET V3
    ========================================================= */
 
-.season-history-panel
-.season-history-table {
-  margin-top: 0;
-
-  border:
-    0;
-}
-
-
-.season-history-table table {
-  min-width:
-    max(
-      100%,
-      1050px
-    );
-
-  background:
-    #090e11;
-}
-
-
-.season-history-table th {
-  height: 58px;
-
-  padding:
-    0.55rem
-    0.7rem;
-
-  background:
-    #10171b;
-
-  border-bottom:
-    1px solid
-    #324049;
-
-  font-size: 0.67rem;
-}
-
-
-.season-history-table td {
-  height: 52px;
-
-  padding:
-    0.45rem
-    0.65rem;
-
-  background:
-    #0b1115;
-}
-
-
-.season-history-table tbody tr:hover td {
-  background-color:
-    rgba(110, 242, 242, 0.035);
-}
-
-
-/* =========================================================
-   FAHRER
-   ========================================================= */
-
-.history-driver-cell {
-  min-width: 160px;
-}
-
-
-.history-driver-cell > strong {
-  color: #fff !important;
-
-  font-family: var(--body);
-
-  font-size: 0.82rem;
-
-  font-weight: 750;
-}
-
-
-/* =========================================================
-   TEAM
-   ========================================================= */
-
-.history-team-cell {
-  min-width: 95px !important;
-
-  text-align: center !important;
-}
-
-
-.history-team-cell
-.team-logo-history {
-  width: 48px;
-
-  height: 28px;
-
-  margin:
-    0
-    auto;
-}
-
-
-/* =========================================================
-   RENNÜBERSCHRIFT
-   ========================================================= */
-
-.history-race-head {
-  min-width: 58px;
-
-  text-align: center !important;
-
-  vertical-align: middle;
-
-  position: relative;
-}
-
-
-.history-race-head > strong {
-  display: block;
-
-  color:
-    var(--accent, var(--cyan));
-
-  font-family: var(--display);
-
-  font-size: 0.78rem;
-
-  line-height: 1;
-}
-
-
-.history-race-head > small {
-  display: block;
-
-  margin-top: 2px;
-
-  color: #687981;
-
-  font-size: 0.5rem;
-}
-
-
-.history-race-head.has-sprint {
-  min-width: 86px;
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(233, 30, 99, 0.1),
-      #10171b
-    );
-}
-
-
-.history-sprint-marker {
-  display: inline-flex;
-
-  margin-top: 3px;
-
-  padding:
-    0.08rem
-    0.28rem;
-
-  background:
-    #e91e63;
-
-  color: #fff;
-
-  font-family: var(--body);
-
-  font-size: 0.42rem;
-
-  font-weight: 950;
-
-  letter-spacing: 0.06em;
-}
-
-
-/* =========================================================
-   NORMALES RENNEN
-   ========================================================= */
-
-.history-single-result {
-  min-height: 34px;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  gap: 0.25rem;
-}
-
-
-/* =========================================================
-   SPRINT-WOCHENENDE
-   ========================================================= */
-
-.history-weekend-cell.has-sprint-weekend {
-  min-width: 92px;
-
-  padding:
-    0.3rem
-    0.35rem;
-}
-
-
-.history-weekend-stack {
+.season-sheet-hero {
   display: grid;
-
-  gap: 3px;
-
-  min-width: 78px;
-}
-
-
-.history-weekend-result {
-  display: grid;
-
-  grid-template-columns:
-    24px
-    minmax(0, 1fr);
-
+  grid-template-columns: 64px minmax(0, 1fr) minmax(80px, 180px);
   align-items: center;
-
-  gap: 4px;
-
-  min-height: 29px;
-
-  overflow: hidden;
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.08);
-
-  background:
-    #0e1519;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-top: 3px solid var(--season-accent);
+  border-bottom: 1px solid color-mix(in srgb, var(--season-accent) 45%, #26343a);
+  background: linear-gradient(110deg, color-mix(in srgb, var(--season-accent) 12%, #0b1114), #080d10 58%);
 }
 
+.season-sheet-hero > div:nth-child(2) { min-width: 0; text-align: center; }
+.season-sheet-hero > div:nth-child(2) > span { color: var(--season-accent); font-size: .62rem; font-weight: 900; letter-spacing: .13em; }
+.season-sheet-hero h3 { margin: .08rem 0; color: #fff; font-family: var(--display); font-size: clamp(1.35rem, 2.5vw, 2rem); }
+.season-sheet-hero small { color: #95a5ad; }
+.season-sheet-brand, .season-sheet-game { min-height: 42px; display: flex; align-items: center; }
+.season-sheet-brand img, .season-sheet-game img { max-width: 100%; max-height: 44px; object-fit: contain; }
+.season-sheet-brand span { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--season-accent); color: var(--season-accent); font-family: var(--display); }
+.season-sheet-game { justify-content: flex-end; color: #fff; text-align: right; }
+.season-sheet-game strong { max-width: 160px; font-size: .72rem; line-height: 1.2; }
 
-.history-weekend-sprint {
-  border-left:
-    3px solid
-    #e91e63;
-
-  background:
-    linear-gradient(
-      90deg,
-      rgba(233, 30, 99, 0.11),
-      #0e1519 58%
-    );
+.season-sheet-wrap {
+  width: 100%;
+  margin-top: .65rem;
+  overflow: visible;
+  border: 1px solid #26343a;
+  background: #080d10;
 }
 
+.season-sheet-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.season-sheet-table .col-position { width: 2.1%; }
+.season-sheet-table .col-driver { width: 7.4%; }
+.season-sheet-table .col-team { width: 3%; }
+.season-sheet-table .col-stat { width: 3.15%; }
+.season-sheet-table .col-rate { width: 3.5%; }
 
-.history-weekend-main {
-  border-left:
-    3px solid
-    var(--accent, var(--cyan));
-
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(
-        in srgb,
-        var(--accent, var(--cyan))
-        9%,
-        #0e1519
-      ),
-      #0e1519 58%
-    );
-}
-
-
-.history-result-type {
-  display: grid;
-
-  place-items: center;
-
-  align-self: stretch;
-
-  color: #fff;
-
-  font-family: var(--display);
-
-  font-size: 0.58rem;
-
-  font-weight: 900;
-
-  background:
-    rgba(255, 255, 255, 0.04);
-}
-
-
-.history-weekend-sprint
-.history-result-type {
-  color:
-    #ff6fa9;
-}
-
-
-.history-weekend-main
-.history-result-type {
-  color:
-    var(--accent, var(--cyan));
-}
-
-
-.history-weekend-result > div {
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  gap: 2px;
-
+.season-sheet-table th, .season-sheet-table td {
   min-width: 0;
-
-  min-height: 27px;
+  height: 42px;
+  padding: .18rem .12rem;
+  overflow: hidden;
+  border-right: 1px solid #1d292e;
+  border-bottom: 1px solid #1d292e;
+  color: #dce5e8;
+  text-align: center;
+  vertical-align: middle;
 }
 
+.season-sheet-table thead th { height: 58px; background: #0d1519; color: #91a2aa; font-size: .53rem; letter-spacing: .035em; }
+.season-sheet-table tbody tr:hover td { background-color: #111c20; }
+.season-sheet-table .sheet-position { width: 36px; font-family: var(--display); color: #fff; }
+.season-sheet-table .sheet-driver { width: 120px; text-align: left; }
+.season-sheet-table .sheet-driver > strong { display: block; overflow: hidden; color: #fff; font-size: .68rem; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.season-sheet-table .sheet-driver > small { display: block; margin-top: 2px; overflow: hidden; color: #91a2aa; font-size: .47rem; text-overflow: ellipsis; white-space: nowrap; }
+.season-sheet-table .sheet-team { width: 44px; }
+.season-sheet-table .sheet-team img { width: 34px; height: 23px; object-fit: contain; }
+.season-sheet-table .sheet-team span { font-size: .5rem; font-weight: 900; }
+.sheet-race-head { position: relative; border-top: 2px solid transparent; }
+.sheet-race-head.is-completed { border-top-color: var(--season-accent, var(--accent)); }
+.sheet-race-head.is-upcoming { opacity: .64; }
+.sheet-race-head.has-sprint { border-top-color: #e91e63; }
+.sheet-flag { display: grid; place-items: center; width: 25px; height: 16px; margin: 0 auto 2px; overflow: hidden; border: 1px solid #334249; }
+.sheet-flag img { width: 100%; height: 100%; object-fit: cover; }
+.sheet-flag b { font-size: .42rem; }
+.sheet-race-head > strong { display: block; color: #fff; font-size: .57rem; }
+.sheet-race-head > small { display: block; color: #ff4f91; font-size: .38rem; line-height: 1; }
 
-/* =========================================================
-   BADGES IM SAISONVERLAUF
-   ========================================================= */
+.sheet-result { background: #0b1215; }
+.sheet-result-single { display: grid; place-items: center; min-height: 32px; color: #fff; font-family: var(--display); font-size: .78rem; font-weight: 900; }
+.sheet-result-part { display: grid; grid-template-columns: 15px 1fr; align-items: center; min-height: 19px; }
+.sheet-result-part + .sheet-result-part { border-top: 1px solid #26343a; }
+.sheet-result-part i { color: #94a5ac; font-size: .4rem; font-style: normal; font-weight: 900; }
+.sheet-result-part b { color: #fff; font-size: .62rem; }
+.sheet-result-part.is-sprint { box-shadow: inset 2px 0 #e91e63; }
+.sheet-result-part.is-main { box-shadow: inset 2px 0 var(--season-accent, var(--accent)); }
+.sheet-result .is-dnf, .sheet-result .is-dsq { color: #ff596b; }
+.sheet-result .is-dnf b, .sheet-result .is-dsq b { color: #ff596b; }
+.sheet-result .is-dns, .sheet-result .is-inactive, .sheet-result .is-future { color: #728188; }
+.sheet-result .is-dns b, .sheet-result .is-inactive b, .sheet-result .is-future b { color: #728188; }
+.sheet-total { color: #061012 !important; background: var(--season-accent, var(--accent)) !important; font-family: var(--display); font-size: .84rem; }
+.sheet-stat { color: #aebbc0 !important; font-size: .57rem; }
+.sheet-stat-head { font-size: .5rem !important; }
+.season-sheet-table tr.is-former-driver td { opacity: .7; filter: grayscale(.45); }
+.season-sheet-table tr.is-former-driver .sheet-driver { border-left: 2px solid #66757b; }
+.season-history-panel[hidden] { display: none; }
 
-.season-history-table
-.position-badge,
-.season-history-table
-.status-badge {
-  min-width: 31px;
+.f1-game-layout { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 1.2rem; align-items: start; }
+.f1-game-form { position: sticky; top: 1rem; padding: 1rem; border: 1px solid #2a3940; background: #0b1215; }
+.f1-game-grid { display: grid; gap: .75rem; }
+.f1-game-card { display: grid; grid-template-columns: 105px 1fr auto; gap: 1rem; align-items: center; padding: .9rem; border: 1px solid #29383e; border-left: 3px solid var(--accent); background: #0b1215; }
+.f1-game-card.is-inactive { opacity: .55; }
+.f1-game-logo { display: grid; place-items: center; height: 62px; background: #070b0d; }
+.f1-game-logo img { max-width: 90px; max-height: 48px; object-fit: contain; }
+.f1-game-card h2 { margin: .12rem 0; color: #fff; font-size: 1.1rem; }
+.f1-game-card span, .f1-game-card small { color: #8fa0a8; font-size: .58rem; }
+.f1-game-actions { display: flex; gap: .4rem; }
 
-  padding:
-    0.18rem
-    0.34rem;
-
-  font-size: 0.62rem;
+@media (max-width: 1199px) {
+  .season-sheet-wrap { overflow-x: auto; overscroll-behavior-inline: contain; }
+  .season-sheet-table { width: max-content; min-width: 100%; table-layout: fixed; }
+  .season-sheet-table .col-race { width: 46px; }
+  .season-sheet-table .col-stat { width: 52px; }
+  .season-sheet-table .col-rate { width: 56px; }
+  .season-sheet-table .sheet-sticky { position: sticky; z-index: 4; background: #0d1519; }
+  .season-sheet-table .sheet-position { left: 0; }
+  .season-sheet-table .sheet-driver { left: 36px; }
+  .season-sheet-table .sheet-team { left: 156px; }
 }
 
-
-.history-weekend-result
-.position-badge,
-.history-weekend-result
-.status-badge {
-  min-width: 27px;
-
-  padding:
-    0.14rem
-    0.25rem;
-
-  font-size: 0.54rem;
+@media (max-width: 760px) {
+  .season-history-switch { grid-template-columns: 1fr; }
+  .season-history-tab { min-height: 56px; }
+  .season-sheet-hero { grid-template-columns: 48px 1fr 72px; gap: .55rem; padding: .65rem; }
+  .season-sheet-hero small { display: none; }
+  .season-sheet-brand img, .season-sheet-game img { max-height: 34px; }
+  .sheet-rate-head, .sheet-rate { display: none; }
+  .f1-game-layout { grid-template-columns: 1fr; }
+  .f1-game-form { position: static; }
+  .f1-game-card { grid-template-columns: 76px 1fr; }
+  .f1-game-actions { grid-column: 1 / -1; }
 }
 
-
-.history-no-result {
-  color:
-    #75858d;
-
-  font-size: 0.75rem;
-
-  font-weight: 800;
+@media (max-width: 600px) {
+  .season-history-tab { grid-template-columns: auto minmax(0, 1fr); }
+  .season-history-tab small { display: none; }
 }
 
+/* F1 RACE CONTROL */
+.race-control-lineup { margin-top: 1rem; }
+.race-control-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .8rem; padding: .7rem .8rem; border: 1px solid #2a3a40; background: #091014; }
+.race-control-toolbar span, .race-control-reserves header > span { display: block; color: var(--accent); font-size: .55rem; font-weight: 900; letter-spacing: .1em; }
+.race-control-toolbar strong { color: #fff; font-size: .8rem; }
+.race-control-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); gap: .85rem; align-items: start; }
+.race-control-teams { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.race-control-team { overflow: hidden; border: 1px solid color-mix(in srgb, var(--team-color) 42%, #29383e); border-top: 3px solid var(--team-color); background: #0b1215; }
+.race-control-team > header { display: flex; align-items: center; gap: .65rem; min-height: 48px; padding: .55rem .7rem; background: linear-gradient(90deg, color-mix(in srgb, var(--team-color) 16%, #0b1215), #0b1215); }
+.race-control-team > header img { width: 42px; height: 28px; object-fit: contain; }
+.race-control-team > header > span { display: grid; place-items: center; width: 38px; height: 28px; color: var(--team-color); font-weight: 900; }
+.race-control-team > header strong { color: #fff; }
+.race-control-cockpits { display: grid; gap: 1px; background: #1b292e; }
+.race-control-cockpit { display: grid; grid-template-columns: minmax(120px, .9fr) minmax(140px, 1.1fr); gap: .45rem; padding: .5rem; background: #0a1013; }
+.race-control-cockpit.is-drop-target { outline: 2px solid var(--accent); outline-offset: -2px; }
+.race-control-cockpit.is-banned { filter: grayscale(.8); opacity: .7; }
+.race-control-driver-card, .race-control-seat, .race-control-reserve { min-width: 0; padding: .5rem; border: 1px solid #29383e; background: #10191d; }
+.race-control-driver-card > span, .race-control-assignment > span, .race-control-reserve > span { display: block; color: #8fa1a8; font-size: .46rem; font-weight: 900; }
+.race-control-driver-card > strong, .race-control-assignment > strong, .race-control-reserve > strong { display: block; overflow: hidden; color: #fff; font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.race-control-driver-card select, .race-control-reserve select { width: 100%; margin-top: .35rem; padding: .25rem; border: 1px solid #304148; background: #080e11; color: #dce5e8; font-size: .58rem; }
+.race-control-seat { display: grid; place-items: center; min-height: 68px; border-style: dashed; cursor: pointer; }
+.race-control-seat-empty { color: #687980; font-size: .5rem; font-weight: 900; text-align: center; }
+.race-control-assignment { position: relative; width: 100%; padding-left: .45rem; border-left: 3px solid var(--accent); }
+.race-control-assignment small, .race-control-reserve small { display: block; overflow: hidden; color: #91a2aa; font-size: .52rem; text-overflow: ellipsis; white-space: nowrap; }
+.race-control-assignment button { position: absolute; top: -.25rem; right: 0; border: 0; background: transparent; color: #ff6574; font-size: 1rem; cursor: pointer; }
+.race-control-assignment button:disabled { color: #6f7d82; cursor: not-allowed; }
+.race-control-reserves { position: sticky; top: .75rem; padding: .7rem; border: 1px solid #2a3a40; background: #080e11; }
+.race-control-reserves header { margin-bottom: .55rem; }
+.race-control-reserves header strong { display: block; color: #fff; font-family: var(--display); font-size: 1.25rem; }
+.race-control-reserves header small { color: #809198; font-size: .55rem; }
+.race-control-reserve-list { display: grid; gap: .4rem; max-height: 620px; overflow-y: auto; }
+.race-control-reserve { cursor: grab; touch-action: manipulation; }
+.race-control-reserve.is-selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.race-control-reserve.is-assigned, .race-control-reserve.is-unavailable, .race-control-reserve.is-locked { opacity: .55; cursor: not-allowed; }
+.race-control-reserve.is-dragging { opacity: .25; }
+.race-control-live { margin-top: .65rem; padding: .55rem .7rem; border-left: 3px solid var(--accent); background: #0a1417; color: #a9b8be; font-size: .65rem; }
+.race-control-live.is-error { border-color: #ff4055; color: #ff8994; }
 
-.history-fastest-lap {
-  display: inline-grid;
-
-  place-items: center;
-
-  min-width: 18px;
-  height: 17px;
-
-  padding:
-    0
-    3px;
-
-  background:
-    var(--accent, var(--cyan));
-
-  color:
-    #061012;
-
-  font-size: 0.45rem;
-
-  font-weight: 950;
+@media (max-width: 980px) {
+  .race-control-grid { grid-template-columns: 1fr; }
+  .race-control-reserves { position: static; grid-row: 1; }
+  .race-control-reserve-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; }
+}
+@media (max-width: 680px) {
+  .race-control-teams, .race-control-reserve-list { grid-template-columns: 1fr; }
+  .race-control-cockpit { grid-template-columns: 1fr; }
+  .race-control-toolbar { align-items: stretch; flex-direction: column; }
 }
 
+.attendance-race-control { margin-bottom: 1rem; padding: .75rem; border: 1px solid #293a40; background: #080e11; }
+.attendance-race-control > header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-bottom: .65rem; }
+.attendance-race-control > header span { display: block; color: var(--accent); font-size: .52rem; font-weight: 900; }
+.attendance-race-control > header strong { display: block; color: #fff; }
+.attendance-race-control > header small { color: #84969d; font-size: .55rem; }
+.attendance-status-zones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
+.attendance-status-zone { min-height: 108px; overflow: hidden; border: 1px solid #2a3b41; background: #0c1418; }
+.attendance-status-zone > header { display: flex; justify-content: space-between; padding: .42rem .5rem; border-bottom: 2px solid #5f7279; color: #fff; font-size: .55rem; }
+.attendance-status-zone.status-anwesend > header { border-color: #12d76e; }
+.attendance-status-zone.status-zu_spaet_vorbesprechung > header { border-color: #b54aff; }
+.attendance-status-zone.status-unsicher > header { border-color: #ffe600; }
+.attendance-status-zone.status-unabgemeldet > header, .attendance-status-zone.status-abgemeldet > header, .attendance-status-zone.status-zu_spaet_abgemeldet > header { border-color: #ff4055; }
+.attendance-status-zone.is-drop-target { outline: 2px solid var(--accent); outline-offset: -2px; }
+.attendance-status-zone.has-error { outline: 2px solid #ff4055; }
+.attendance-status-zone [data-status-cards] { display: grid; gap: .3rem; padding: .4rem; }
+.attendance-control-card { padding: .42rem .48rem; border: 1px solid #31434a; border-left: 3px solid #70838b; background: #111c20; color: #fff; font-weight: 800; font-size: .62rem; text-align: left; cursor: grab; }
+.attendance-control-card.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.has-race-control-attendance:not(.show-attendance-details) > .lineup-team-grid { display: none; }
 
-/* =========================================================
-   GESAMTPUNKTE / STATISTIK
-   ========================================================= */
+@media (max-width: 900px) { .attendance-status-zones { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .attendance-status-zones { grid-template-columns: 1fr; } .attendance-race-control > header { align-items: stretch; flex-direction: column; } }
 
-.season-history-table
-.season-total {
-  min-width: 70px;
+.has-visual-result-control > .lineup-team-grid { display: none; }
+.result-manual-notice, .result-control-error { display: flex; gap: .8rem; margin: .7rem 0; padding: .7rem; border-left: 3px solid #ffb020; background: #16130b; color: #e8d8af; }
+.result-control-error { border-color: #ff4055; background: #190c0f; color: #ff8e99; }
+.result-control-tabs { display: flex; gap: .35rem; margin: .8rem 0 .45rem; }
+.result-control-tabs button { padding: .5rem .8rem; border: 1px solid #2a3b41; background: #0b1215; color: #899ba2; font-weight: 900; }
+.result-control-tabs button.is-active { border-color: var(--accent); color: #061012; background: var(--accent); }
+.result-control-board { overflow: hidden; border: 1px solid #2a3b41; background: #080e11; }
+.result-control-board[hidden] { display: none; }
+.result-control-board > header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .65rem .8rem; border-bottom: 1px solid #293a40; background: #0d161a; }
+.result-control-board > header span { display: block; color: var(--accent); font-size: .5rem; font-weight: 900; }
+.result-control-board > header strong { color: #fff; font-family: var(--display); font-size: 1.2rem; }
+.result-control-badges { display: flex; gap: .35rem; }
+.result-control-badges button { padding: .4rem .55rem; border: 1px solid #e91e63; background: #171016; color: #ff79aa; font-size: .52rem; font-weight: 900; cursor: grab; }
+.result-control-badges button.is-active { color: #070b0d; background: #e91e63; }
+.result-control-workspace { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(300px, 1.1fr); min-height: 460px; }
+.result-position-tower { display: grid; align-content: start; border-right: 1px solid #293a40; }
+.result-position-slot { display: grid; grid-template-columns: 78px 1fr; min-height: 50px; border-bottom: 1px solid #1d2a2f; }
+.result-position-slot.is-drop-target { outline: 2px solid var(--accent); outline-offset: -2px; }
+.result-position-slot > header { display: grid; place-items: center; padding: .3rem; border-right: 1px solid #28383e; background: #0d171a; }
+.result-position-slot > header strong { color: #fff; font-family: var(--display); font-size: 1rem; }
+.result-position-slot > header span { color: var(--accent); font-size: .48rem; font-weight: 900; }
+.result-position-slot [data-position-card] { display: grid; align-items: stretch; padding: .25rem; }
+.result-driver-pool { padding: .65rem; }
+.result-driver-pool > header { margin-bottom: .5rem; }
+.result-driver-pool > header strong { display: block; color: #fff; }
+.result-driver-pool > header small { color: #87989f; font-size: .55rem; }
+.result-driver-pool [data-pool-cards] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem; }
+.result-control-driver { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: .45rem; width: 100%; min-height: 42px; padding: .35rem .45rem; border: 1px solid #2b3c42; border-left: 3px solid var(--team-color, var(--accent)); background: #10191d; color: #fff; text-align: left; cursor: grab; }
+.result-control-driver.is-selected { outline: 2px solid var(--accent); }
+.result-control-driver.is-reserve { border-left-color: #e91e63; }
+.result-control-driver img { width: 30px; height: 22px; object-fit: contain; }
+.result-control-logo { display: grid; place-items: center; width: 30px; height: 22px; color: var(--accent); font-size: .55rem; font-weight: 900; }
+.result-control-driver > span > strong { display: block; overflow: hidden; font-size: .65rem; text-overflow: ellipsis; white-space: nowrap; }
+.result-control-driver > span > small { display: block; overflow: hidden; color: #8da0a7; font-size: .46rem; text-overflow: ellipsis; white-space: nowrap; }
+.result-control-driver > b { padding: .22rem .3rem; border: 1px solid #34474e; color: #aebdc2; font-size: .43rem; cursor: pointer; }
+.result-control-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; border-top: 1px solid #2a3b41; background: #2a3b41; }
+.result-control-summary span { padding: .55rem; background: #0d161a; color: #87999f; font-size: .48rem; text-align: center; }
+.result-control-summary strong { display: block; margin-top: .15rem; color: #fff; font-size: .78rem; }
+.result-control-summary .is-valid strong { color: #35df83; }
+.result-control-summary .is-open strong { color: #ffb020; }
 
-  border-left:
-    2px solid
-    var(--accent, var(--cyan));
+@media (max-width: 820px) { .result-control-workspace { grid-template-columns: 1fr; } .result-position-tower { border-right: 0; } }
+@media (max-width: 540px) { .result-driver-pool [data-pool-cards] { grid-template-columns: 1fr; } .result-control-board > header { align-items: stretch; flex-direction: column; } .result-control-summary { grid-template-columns: repeat(2, 1fr); } }
 
-  background:
-    color-mix(
-      in srgb,
-      var(--accent, var(--cyan))
-      7%,
-      #0b1115
-    ) !important;
-}
-
-
-.season-history-table
-.season-total strong {
-  color:
-    var(--accent, var(--cyan));
-
-  font-family: var(--display);
-
-  font-size: 1rem;
-}
-
-
-.history-stat-cell {
-  min-width: 62px;
-
-  color:
-    #b6c2c8;
-
-  font-size: 0.7rem;
-}
-
-
-/* =========================================================
-   TOP 3 GESAMTWERTUNG
-   ========================================================= */
-
-.season-history-table
-.season-position-1
-> td:first-child {
-  box-shadow:
-    inset
-    4px
-    0
-    #f6c744;
-}
-
-
-.season-history-table
-.season-position-2
-> td:first-child {
-  box-shadow:
-    inset
-    4px
-    0
-    #c8d0d8;
-}
-
-
-.season-history-table
-.season-position-3
-> td:first-child {
-  box-shadow:
-    inset
-    4px
-    0
-    #c9854b;
-}
-
-
-/* =========================================================
-   ERSATZFAHRER
-   ========================================================= */
-
-.reserve-history-row
-.history-driver-cell {
-  position: relative;
-}
-
-
-.reserve-history-row
-.history-driver-cell::after {
-  content: "ERSATZ";
-
-  display: inline-flex;
-
-  margin-left:
-    0.5rem;
-
-  padding:
-    0.08rem
-    0.3rem;
-
-  background:
-    rgba(110, 242, 242, 0.1);
-
-  border:
-    1px solid
-    rgba(110, 242, 242, 0.35);
-
-  color:
-    var(--accent, var(--cyan));
-
-  font-size:
-    0.44rem;
-
-  font-weight:
-    950;
-
-  letter-spacing:
-    0.08em;
-
-  vertical-align:
-    middle;
-}
-
-/* Historisierte Fahrerwechsel */
-.season-history-table tr.is-former-driver td {
-  opacity: 0.56;
-  filter: grayscale(0.58);
-}
-
-.season-history-table tr.is-former-driver:hover td {
-  opacity: 0.76;
-}
-
-.history-driver-state {
-  display: inline-flex;
-  margin-top: 0.28rem;
-  padding: 0.1rem 0.35rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #b8c1c6;
-  font-size: 0.48rem;
-  font-weight: 900;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.reserve-history-row .history-driver-state {
-  border-color: color-mix(in srgb, var(--accent, var(--cyan)) 42%, transparent);
-  color: var(--accent, var(--cyan));
-}
 
 /* Admin · Fahrerwechsel */
 .driver-change-steps {
@@ -8196,88 +7900,6 @@ td strong {
   }
 }
 
-
-/* =========================================================
-   SPRINT PODIUMFARBEN NICHT ÜBERMALEN
-   ========================================================= */
-
-.history-weekend-result
-.season-race-position-1,
-.history-weekend-result
-.season-race-position-2,
-.history-weekend-result
-.season-race-position-3 {
-  min-height: 27px;
-
-  box-shadow: none !important;
-}
-
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
-@media (max-width: 800px) {
-
-  .season-history-switch {
-    grid-template-columns:
-      1fr;
-  }
-
-
-  .season-history-panel-header {
-    align-items:
-      flex-start;
-
-    flex-direction:
-      column;
-
-    gap:
-      0.4rem;
-  }
-
-
-  .season-history-panel-header > small {
-    text-align:
-      left;
-  }
-
-
-  .season-history-tab {
-    min-height:
-      56px;
-  }
-
-}
-
-
-@media (max-width: 600px) {
-
-  .season-history-tab {
-    grid-template-columns:
-      auto
-      minmax(0, 1fr);
-  }
-
-
-  .season-history-tab small {
-    display:
-      none;
-  }
-
-
-  .history-driver-cell {
-    min-width:
-      135px;
-  }
-
-
-  .history-weekend-cell.has-sprint-weekend {
-    min-width:
-      84px;
-  }
-
-}
 
 /* =========================================================
    F1 DRIVER / TEAM STANDINGS · BROADCAST DESIGN
@@ -10700,266 +10322,4 @@ button.is-active {
     right: 0;
   }
 
-}
-/* =========================================================
-   SAISONVERLAUF · KOMPAKTERE LINKE SPALTEN
-   ========================================================= */
-
-.season-history-points-table
-.history-position-column,
-.season-history-points-table
-.history-position-cell {
-  position: sticky;
-  left: 0;
-  z-index: 6;
-
-  width: 38px;
-  min-width: 38px;
-  max-width: 38px;
-}
-
-
-.season-history-points-table
-.history-driver-column,
-.season-history-points-table
-.history-driver-cell {
-  position: sticky;
-  left: 38px;
-  z-index: 5;
-
-  width: 125px;
-  min-width: 125px;
-}
-
-
-.season-history-points-table
-.history-team-column,
-.season-history-points-table
-.history-team-cell {
-  position: sticky;
-  left: 163px;
-  z-index: 5;
-
-  width: 48px;
-  min-width: 48px;
-  max-width: 48px;
-}
-
-
-/* Fahrername etwas größer/lesbarer */
-.season-history-points-table
-.history-driver-cell > strong {
-  display: block;
-
-  overflow: hidden;
-
-  color: #fff !important;
-
-  font-size: 0.82rem;
-
-  font-weight: 850;
-
-  text-overflow: ellipsis;
-
-  white-space: nowrap;
-}
-
-
-/* Teamlogo deutlich kleiner */
-.season-history-points-table
-.team-logo-history {
-  width: 32px;
-  height: 20px;
-
-  margin: auto;
-
-  object-fit: contain;
-}
-
-
-/* =========================================================
-   RENNSPALTEN BREITER
-   ========================================================= */
-
-.season-history-points-table
-.history-race-head {
-  width: 58px;
-  min-width: 58px;
-
-  padding: 0.35rem 0.2rem;
-
-  text-align: center !important;
-}
-
-
-.season-history-points-table
-.history-weekend-cell {
-  width: 58px;
-  min-width: 58px;
-
-  padding: 0.2rem;
-
-  text-align: center;
-}
-
-
-/* Sprint-Wochenende etwas breiter */
-.season-history-points-table
-.history-race-head.has-sprint {
-  width: 72px;
-  min-width: 72px;
-}
-
-
-.season-history-points-table
-.history-weekend-cell.has-sprint-weekend {
-  width: 72px;
-  min-width: 72px;
-}
-
-
-/* =========================================================
-   FLAGGE + RUNDE LESBARER
-   ========================================================= */
-
-.history-race-flag {
-  width: 32px;
-  height: 21px;
-
-  display: grid;
-  place-items: center;
-
-  margin: 0 auto 3px;
-
-  overflow: hidden;
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.18);
-
-  background: #090e12;
-}
-
-
-.history-race-flag img {
-  width: 100%;
-  height: 100%;
-
-  object-fit: cover;
-}
-
-
-.season-history-points-table
-.history-race-head > small {
-  display: block;
-
-  margin-top: 2px;
-
-  color: #95a5ad;
-
-  font-size: 0.58rem;
-
-  font-weight: 800;
-
-  line-height: 1;
-}
-
-
-/* =========================================================
-   PUNKTE DEUTLICH GRÖSSER
-   ========================================================= */
-
-.history-result-points {
-  min-height: 36px;
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
-  gap: 3px;
-}
-
-
-.history-result-points > strong {
-  color: #fff !important;
-
-  font-family: var(--display);
-
-  font-size: 1.15rem;
-
-  font-weight: 950;
-
-  line-height: 1;
-}
-
-
-.history-result-points > small {
-  color: var(--accent);
-
-  font-size: 0.42rem;
-
-  font-weight: 950;
-
-  letter-spacing: 0.04em;
-}
-
-
-/* DNS etwas besser sichtbar */
-.history-dns {
-  min-width: 34px;
-
-  height: 22px;
-
-  font-size: 0.62rem;
-
-  font-weight: 950;
-}
-
-
-/* =========================================================
-   SPRINT / GP
-   ========================================================= */
-
-.history-weekend-stack {
-  display: grid;
-
-  gap: 3px;
-
-  min-width: 66px;
-}
-
-
-.history-weekend-result {
-  display: grid;
-
-  grid-template-columns:
-    22px
-    minmax(0, 1fr);
-
-  align-items: center;
-
-  min-height: 29px;
-
-  overflow: hidden;
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.08);
-
-  background: #0e1519;
-}
-
-
-.history-result-type {
-  height: 100%;
-
-  display: grid;
-
-  place-items: center;
-
-  font-size: 0.5rem;
-
-  font-weight: 950;
 }

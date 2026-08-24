@@ -21,6 +21,11 @@
       ? false
       : finishReady;
 
+  const setupF1Games =
+    typeof f1Games === 'undefined'
+      ? []
+      : f1Games;
+
 const setupDriverRankFilter =
   typeof driverRankFilter === 'undefined'
     ? 'all'
@@ -311,6 +316,17 @@ const setupDriverRankFilter =
                   value="<%= selectedLeague.accentColor %>"
                   required
                 >
+              </label>
+
+              <label>
+                F1-Spiel
+                <select name="F1GameId">
+                  <option value="">Kein Spiel ausgewählt</option>
+                  <% setupF1Games.forEach((game) => { %>
+                    <option value="<%= game.id %>"><%= game.name %></option>
+                  <% }) %>
+                </select>
+                <small>Logo und Spielname werden im öffentlichen Saisonverlauf angezeigt.</small>
               </label>
 
               <label class="checkbox-control setup-option-card">
@@ -762,6 +778,16 @@ const setupDriverRankFilter =
             >
 
             <label>
+              F1-Spiel
+              <select name="F1GameId">
+                <option value="">Kein Spiel ausgewählt</option>
+                <% setupF1Games.forEach((game) => { %>
+                  <option value="<%= game.id %>" <%= Number(selectedSeason.F1GameId) === Number(game.id) ? 'selected' : '' %>><%= game.name %></option>
+                <% }) %>
+              </select>
+            </label>
+
+            <label>
               Punktesystem
 
               <select
@@ -1102,10 +1128,7 @@ const setupDriverRankFilter =
                       <%= team.name %>
                     </strong>
 
-                    <small>
-                      gehört zu
-                      <%= team.baseTeam?.name || '–' %>
-                    </small>
+                    <small>gehört zu <%= team.baseTeam?.name || '–' %></small>
 
                   </label>
 
@@ -1155,7 +1178,7 @@ const setupDriverRankFilter =
 
           <p class="setup-note">
             Ordne jedem Team maximal zwei Stammfahrer zu.
-            Nicht zugeordnete Fahrer bleiben automatisch Ersatzfahrer.
+            Nicht zugeordnete Fahrer bleiben automatisch als Ersatzfahrer erhalten.
             Ein Fahrer kann nur einem Team zugeordnet werden.
           </p>
 

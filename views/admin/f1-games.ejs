@@ -1,0 +1,59 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell">
+  <div class="container">
+    <div class="admin-heading">
+      <div>
+        <span class="eyebrow">FORMEL 1 STAMMDATEN</span>
+        <h1>F1-SPIELE PFLEGEN</h1>
+        <p class="admin-intro">Spiel und Logo einmal zentral pflegen und anschließend im Saison-Assistenten auswählen.</p>
+      </div>
+      <a class="button button-ghost" href="/admin">Zum Dashboard</a>
+    </div>
+
+    <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
+
+    <div class="f1-game-layout">
+      <form class="setup-form f1-game-form" method="post" action="/admin/f1-games<%= form?.id ? `/${form.id}` : '' %>" enctype="multipart/form-data">
+        <% if (form?.id) { %><input type="hidden" name="_method" value="PUT"><% } %>
+        <span class="form-kicker"><%= form?.id ? 'SPIEL BEARBEITEN' : 'NEUES SPIEL' %></span>
+        <label>Name *<input name="name" value="<%= form?.name || '' %>" required></label>
+        <label>Sortierung<input type="number" name="sortOrder" min="0" value="<%= form?.sortOrder ?? 0 %>"></label>
+        <label class="checkbox-control"><input type="checkbox" name="isActive" <%= form?.id ? (form.isActive ? 'checked' : '') : 'checked' %>><span>Aktiv und im Saison-Assistenten auswählbar</span></label>
+        <label class="upload-dropzone" data-upload-dropzone>
+          <input type="file" name="image" accept="image/png,image/jpeg,image/webp">
+          <strong>Logo hier ablegen oder auswählen</strong>
+          <span data-upload-name>PNG, JPG oder WebP · maximal 10 MB</span>
+          <img data-upload-local-preview alt="Vorschau des neuen Logos" hidden>
+        </label>
+        <div class="form-actions">
+          <button class="button" type="submit"><%= form?.id ? 'Änderungen speichern' : 'F1-Spiel anlegen' %></button>
+          <% if (form?.id) { %><a class="button button-ghost" href="/admin/f1-games">Abbrechen</a><% } %>
+        </div>
+      </form>
+
+      <div class="f1-game-grid">
+        <% games.forEach((game) => { %>
+          <article class="f1-game-card <%= game.isActive ? '' : 'is-inactive' %>">
+            <div class="f1-game-logo">
+              <% if (game.logoPath) { %><img src="<%= game.logoPath %>" alt="Logo <%= game.name %>"><% } else { %><span>F1</span><% } %>
+            </div>
+            <div>
+              <span><%= game.isActive ? 'AKTIV' : 'INAKTIV' %> · SORTIERUNG <%= game.sortOrder %></span>
+              <h2><%= game.name %></h2>
+              <small><%= game.seasons?.length || 0 %> verknüpfte Saison(en)</small>
+            </div>
+            <div class="f1-game-actions">
+              <a class="button button-ghost" href="/admin/f1-games?edit=<%= game.id %>">Bearbeiten</a>
+              <form method="post" action="/admin/f1-games/<%= game.id %>" data-confirm="F1-Spiel wirklich löschen?">
+                <input type="hidden" name="_method" value="DELETE">
+                <button class="button button-danger" type="submit" <% if (game.seasons?.length) { %>disabled title="Wird noch von einer Saison verwendet"<% } %>>Löschen</button>
+              </form>
+            </div>
+          </article>
+        <% }) %>
+        <% if (!games.length) { %><div class="empty-state">Noch kein F1-Spiel angelegt.</div><% } %>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('../partials/footer') %>

@@ -1,0 +1,63 @@
+<form method="post" action="/admin/f1-race-lineup/<%= selectedRace.id %>" class="race-control-lineup" data-race-control-lineup>
+  <input type="hidden" name="_return" value="race-control">
+  <div class="race-control-toolbar">
+    <div><span>COCKPITS</span><strong>Ersatzfahrer auf den gewünschten Stammplatz ziehen</strong></div>
+    <button class="button" type="submit">Aufstellung speichern</button>
+  </div>
+
+  <div class="race-control-grid">
+    <section class="race-control-teams" aria-label="Teamcockpits">
+      <% teamCards.forEach((card) => { %>
+        <article class="race-control-team" style="--team-color:<%= card.team.accentColor || '#6ef2f2' %>">
+          <header>
+            <% if (card.team.logoPath) { %><img src="<%= card.team.logoPath %>" alt=""><% } else { %><span><%= card.team.name.slice(0, 2).toUpperCase() %></span><% } %>
+            <strong><%= card.team.name %></strong>
+          </header>
+          <div class="race-control-cockpits">
+            <% card.rows.forEach((row) => {
+              const replacement = reserveRows.find((candidate) => Number(candidate.driver.id) === Number(row.replacementDriverId));
+            %>
+              <div class="race-control-cockpit <%= row.isBanned ? 'is-banned' : '' %> <%= replacement?.isAttendanceLocked ? 'is-locked' : '' %>" data-cockpit data-regular-id="<%= row.driver.id %>" data-team-name="<%= card.team.name %>">
+                <input type="hidden" name="regular[d<%= row.driver.id %>][ReplacementDriverId]" value="<%= row.replacementDriverId || '' %>" data-replacement-input>
+                <div class="race-control-driver-card is-regular">
+                  <span>STAMM</span><strong><%= row.driver.name %></strong>
+                  <select name="regular[d<%= row.driver.id %>][status]" data-regular-status aria-label="Status <%= row.driver.name %>" <%= row.isBanned ? 'disabled' : '' %>>
+                    <% regularStatuses.forEach((status) => { %><option value="<%= status.value %>" <%= row.status === status.value ? 'selected' : '' %>><%= status.label %></option><% }) %>
+                  </select>
+                  <% if (row.isBanned) { %><input type="hidden" name="regular[d<%= row.driver.id %>][status]" value="rennsperre"><% } %>
+                </div>
+                <div class="race-control-seat" data-seat tabindex="0" role="button" aria-label="Ersatz für <%= row.driver.name %> zuweisen">
+                  <% if (replacement) { %>
+                    <div class="race-control-assignment" data-assignment data-reserve-id="<%= replacement.driver.id %>">
+                      <span><%= replacement.isAttendanceLocked ? '🔒 ANWESENHEIT BESTÄTIGT' : 'EINGETEILT' %></span>
+                      <strong><%= replacement.driver.name %></strong><small>Ersatz für <%= row.driver.name %></small>
+                      <button type="button" data-unassign <%= replacement.isAttendanceLocked ? 'disabled' : '' %> aria-label="Zuordnung entfernen">×</button>
+                    </div>
+                  <% } else { %><span class="race-control-seat-empty">ERSATZ HIER ABLEGEN</span><% } %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </article>
+      <% }) %>
+    </section>
+
+    <aside class="race-control-reserves">
+      <header><span>FAHRERPOOL</span><strong>Ersatzfahrer</strong><small>Antippen und anschließend Cockpit antippen funktioniert ebenfalls.</small></header>
+      <div class="race-control-reserve-list" data-reserve-pool>
+        <% reserveRows.forEach((row) => { %>
+          <div class="race-control-reserve <%= row.isAssigned ? 'is-assigned' : '' %> <%= row.isAttendanceLocked ? 'is-locked' : '' %>" data-reserve-card data-reserve-id="<%= row.driver.id %>" data-reserve-name="<%= row.driver.name %>" draggable="<%= !row.isAssigned && !row.isAttendanceLocked ? 'true' : 'false' %>" tabindex="0">
+            <input type="hidden" name="reserve[d<%= row.driver.id %>][status]" value="<%= row.status %>" data-reserve-status-input>
+            <span><%= row.isAttendanceLocked ? '🔒 BESTÄTIGT' : row.isAssigned ? 'EINGETEILT' : 'VERFÜGBAR' %></span>
+            <strong><%= row.driver.name %></strong>
+            <% if (row.assignedTo) { %><small><%= row.assignedTo.team.name %> · Ersatz für <%= row.assignedTo.driver.name %></small><% } else { %><small><%= row.driver.platform || 'F1 Ersatz' %></small><% } %>
+            <select data-reserve-status-select aria-label="Status <%= row.driver.name %>">
+              <% reserveStatuses.forEach((status) => { %><option value="<%= status.value %>" <%= row.status === status.value ? 'selected' : '' %>><%= status.label %></option><% }) %>
+            </select>
+          </div>
+        <% }) %>
+      </div>
+    </aside>
+  </div>
+  <div class="race-control-live" role="status" data-lineup-feedback>Jeder Ersatzfahrer kann pro Rennwochenende genau einmal eingesetzt werden.</div>
+</form>

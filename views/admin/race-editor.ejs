@@ -5,6 +5,10 @@
     typeof currentOnly === 'boolean'
       ? currentOnly
       : false;
+  const editorPointsScheme =
+    typeof resultPointsScheme === 'undefined'
+      ? null
+      : resultPointsScheme;
 %>
 
 <section class="admin-shell">
@@ -443,6 +447,7 @@
         method="post"
         action="/admin/race-editor/<%= selectedRace.id %>"
         class="race-sheet-form"
+        <%= currentMode ? 'data-result-race-control' : '' %>
       >
 
         <input
@@ -490,6 +495,22 @@
           </button>
 
         </div>
+
+        <% if (currentMode) {
+          const pointPayload = JSON.stringify({
+            pointsMode: selectedRace.pointsMode,
+            hasSprint: Boolean(sprintRace),
+            main: (editorPointsScheme?.allocations || []).filter((row) => row.raceType === 'main').map((row) => ({ position: row.position, points: Number(row.points) })),
+            sprint: (editorPointsScheme?.allocations || []).filter((row) => row.raceType === 'sprint').map((row) => ({ position: row.position, points: Number(row.points) })),
+            fastestLapEnabled: Boolean(editorPointsScheme?.fastestLapEnabled),
+            fastestLapPoints: Number(editorPointsScheme?.fastestLapPoints || 0),
+            polePositionEnabled: Boolean(editorPointsScheme?.polePositionEnabled),
+            polePositionPoints: Number(editorPointsScheme?.polePositionPoints || 0)
+          }).replace(/</g, '\\u003c');
+        %>
+          <div data-result-control-mount></div>
+          <script type="application/json" data-result-control-points><%- pointPayload %></script>
+        <% } %>
 
 
         <!-- ================================================= -->
@@ -657,6 +678,11 @@
                       <div
                         class="result-driver-row"
                         style="--team-color:<%= assignedTeam?.accentColor || '#6ef2f2' %>"
+                        data-result-driver="<%= driver.id %>"
+                        data-driver-name="<%= driver.name %>"
+                        data-team-name="<%= assignedTeam?.name || '' %>"
+                        data-team-logo="<%= assignedTeam?.logoPath || '' %>"
+                        data-is-reserve="<%= isReserve ? 'true' : 'false' %>"
                       >
 
 
@@ -768,6 +794,7 @@
                                 name="rows[d<%= driver.id %>][position]"
                                 value="<%= entry?.position || '' %>"
                                 placeholder="Platz"
+                                data-result-position="main"
                               >
 
                             </label>
@@ -786,6 +813,7 @@
                             <select
                               name="rows[d<%= driver.id %>][status]"
                               data-result-status
+                              data-result-status-race="main"
                             >
 
                               <% currentResultStatuses.forEach((status) => { %>
@@ -816,6 +844,7 @@
                               <input
                                 type="checkbox"
                                 name="rows[d<%= driver.id %>][fastestLap]"
+                                data-result-fastest="main"
                                 <%= entry?.fastestLap
                                   ? 'checked'
                                   : ''
@@ -828,6 +857,13 @@
 
                             </label>
 
+                          <% } %>
+
+                          <% if (selectedRace.pointsMode === 'database' && editorPointsScheme?.polePositionEnabled) { %>
+                            <label class="result-checkbox result-fastest">
+                              <input type="checkbox" name="rows[d<%= driver.id %>][polePosition]" data-result-pole="main" <%= entry?.polePosition ? 'checked' : '' %>>
+                              <span>Pole Position</span>
+                            </label>
                           <% } %>
 
                         </div>
@@ -909,6 +945,7 @@
                                     name="rows[d<%= driver.id %>][sprintPosition]"
                                     value="<%= sprintEntry?.position || '' %>"
                                     placeholder="Platz"
+                                    data-result-position="sprint"
                                   >
 
                                 </label>
@@ -919,6 +956,7 @@
                                   <input
                                     type="checkbox"
                                     name="rows[d<%= driver.id %>][sprintFastestLap]"
+                                    data-result-fastest="sprint"
                                     <%= sprintEntry?.fastestLap
                                       ? 'checked'
                                       : ''
@@ -930,6 +968,13 @@
                                   </span>
 
                                 </label>
+
+                                <% if (editorPointsScheme?.polePositionEnabled) { %>
+                                  <label class="result-checkbox result-fastest">
+                                    <input type="checkbox" name="rows[d<%= driver.id %>][sprintPolePosition]" data-result-pole="sprint" <%= sprintEntry?.polePosition ? 'checked' : '' %>>
+                                    <span>Pole Position</span>
+                                  </label>
+                                <% } %>
 
                               <% } %>
 
@@ -1143,11 +1188,7 @@
 
                     <td>
 
-                      <input
-                        type="hidden"
-                        name="rows[<%= driver.id %>][included]"
-                        value="on"
-                      >
+                      <input type="hidden" name="rows[<%= driver.id %>][included]" value="on">
 
                       <span class="id-badge">
                         Dabei
@@ -1444,4 +1485,5 @@
 
 </section>
 
+<script src="/js/f1-result-control.js" defer></script>
 <%- include('../partials/footer') %>
