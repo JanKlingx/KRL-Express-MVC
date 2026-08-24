@@ -376,6 +376,32 @@ async function loadLeagueData(slug, requestedSeasonId) {
     });
   });
 
+  /*
+   * SeasonLineupEntry bleibt der aktuelle Kader. Für die historische
+   * Fahrer-WM werden zusätzlich alle Fahrer mit einem Stammfahrer-Stint
+   * aufgenommen, damit ausgeschiedene Fahrer nicht verschwinden.
+   */
+  seasonStructure.stints
+    .filter((stint) => stint.roleType === "regular" && stint.driver)
+    .sort((left, right) => Number(left.fromRound) - Number(right.fromRound))
+    .forEach((stint) => {
+      const driver = plain(stint.driver);
+      const stintTeam = plain(stint.seasonTeam);
+      const driverId = Number(stint.DriverId || driver.id);
+      if (!driverMap.has(driverId)) {
+        driverMap.set(driverId, {
+          ...driver,
+          id: driverId,
+          team: {
+            id: stintTeam?.id || null,
+            name: stintTeam?.name || "Privatteam",
+            logoPath: stintTeam?.logoPath || null,
+            accentColor: stintTeam?.accentColor || league.accentColor,
+          },
+        });
+      }
+    });
+
   const drivers = [...driverMap.values()];
 
   /*
@@ -603,6 +629,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
     drivers,
     raceLineupEntries,
     selectedSeason,
+    seasonStructure.stints,
   );
 
   /*

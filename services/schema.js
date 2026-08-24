@@ -1,8 +1,10 @@
 const { DataTypes, Op } = require('sequelize');
 const {
   sequelize, League, Team, TeamRoster, TeamRosterDriver, Driver, PointsRule, PointsScheme, PointAllocation,
-  SeasonCategory, Season, GrandPrixResult, RaceEvent, LmuCockpit
+  SeasonCategory, Season, GrandPrixResult, RaceEvent, LmuCockpit,
+  SeasonLineupEntry
 } = require('../models');
+const { seedSeasonDriverStints } = require('./seasonDriverStints');
 
 async function addMissingColumn(table, description, name, definition) {
   if (!description[name]) await sequelize.getQueryInterface().addColumn(table, name, definition);
@@ -318,6 +320,24 @@ async function ensureSchema() {
   const legacyEvents = await RaceEvent.findAll();
   for (const event of legacyEvents) {
     if (!event.SeasonId && activeSeasons.has(event.LeagueId)) await event.update({ SeasonId: activeSeasons.get(event.LeagueId).id });
+  }
+
+  // sequelize.sync() legt die neue Tabelle migrationssicher an. Danach werden
+  // vorhandene aktive Saison-Line-ups genau einmal als Start-Historie übernommen.
+  const activeLineupSeasonIds = await SeasonLineupEntry.findAll({
+    attributes: ['SeasonId'],
+    include: [{
+      model: Season,
+      as: 'season',
+      attributes: [],
+      where: { status: 'active', leagueType: 'f1' },
+      required: true
+    }],
+    raw: true
+  });
+  for (const seasonId of new Set(activeLineupSeasonIds.map((row) => Number(row.SeasonId || row.season_id)))) {
+    if (!seasonId) continue;
+    await seedSeasonDriverStints(seasonId);
   }
 
   await Driver.update({ roleF1Friday: true }, { where: { f1Role: 'friday' } });

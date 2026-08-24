@@ -45,3 +45,22 @@ test('Saisonverlauf markiert die Top 3 in jeder Rennspalte', async () => {
   assert.match(html, /season-race-position-2/);
   assert.match(html, /season-race-position-3/);
 });
+
+test('Saisonverlauf kennzeichnet ehemalige und beförderte Fahrer verständlich', async () => {
+  const template = path.join(__dirname, '..', 'views', 'partials', 'season-history.ejs');
+  const dns = { value: 'DNS', position: null, points: 0, cumulative: 0, status: 'DNS', fastestLap: false };
+  const html = await ejs.renderFile(template, {
+    league: { slug: 'sonntag' },
+    isAdmin: false,
+    history: { seasons: [{}], warning: null },
+    selectedHistory: {
+      name: 'Saison 14',
+      races: [{ round: 5, code: 'MON', hasSprint: false }],
+      drivers: [{ position: 1, name: 'Marcel', team: 'Mercedes', total: 20, gap: 0, average: 4, isFormerDriver: true, regularToRound: 4, results: [{ main: dns, sprint: null }] }],
+      reserveDrivers: [{ position: 1, name: 'Tobi', team: 'Mercedes', total: 16, gap: 0, average: 8, promotedToRegular: true, promotedFromRound: 5, results: [{ main: dns, sprint: null }] }]
+    }
+  });
+  assert.match(html, /is-former-driver/);
+  assert.match(html, /Ehemalig · bis R4/);
+  assert.match(html, /ab R5 Stammfahrer/);
+});

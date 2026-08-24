@@ -13,6 +13,7 @@ const {
   SeasonDriver,
   SeasonTeam,
   SeasonLineupEntry,
+  SeasonDriverStint,
   Driver,
 } = require("../models");
 const {
@@ -24,6 +25,7 @@ const {
   loadSeasonStructure,
   resolveTeamToken,
 } = require("../services/f1Season");
+const { seedSeasonDriverStints } = require("../services/seasonDriverStints");
 
 function disciplineForLeague(league) {
   return league?.type === "competition" ? "wdl" : league?.type;
@@ -604,6 +606,9 @@ exports.assignDrivers = async (req, res) => {
   try {
     if (!season || !league)
       throw new Error("Saison oder Liga wurde nicht gefunden.");
+    if (season.isPublished && await SeasonDriverStint.count({ where: { SeasonId: season.id } })) {
+      throw new Error("Der veröffentlichte Fahrerkader besitzt bereits eine Historie. Stammfahrer bitte nur über „Fahrerwechsel“ ändern.");
+    }
     const ids = [
       ...new Set(
         []
@@ -664,6 +669,9 @@ exports.assignTeams = async (req, res) => {
   try {
     if (!season || !league)
       throw new Error("Saison oder Liga wurde nicht gefunden.");
+    if (season.isPublished && await SeasonDriverStint.count({ where: { SeasonId: season.id } })) {
+      throw new Error("Die veröffentlichten Saisonteams sind historisch verknüpft und können hier nicht neu aufgebaut werden.");
+    }
     const tokens = [
       ...new Set([].concat(req.body.teamTokens || []).filter(Boolean)),
     ];
@@ -718,6 +726,15 @@ exports.assignLineup = async (req, res) => {
   try {
     if (!season || !league) {
       throw new Error("Saison oder Liga wurde nicht gefunden.");
+    }
+
+    const existingHistory = await SeasonDriverStint.count({
+      where: { SeasonId: season.id },
+    });
+    if (season.isPublished && existingHistory) {
+      throw new Error(
+        "Das veröffentlichte Line-up besitzt bereits eine Historie. Bitte Änderungen über „Fahrerwechsel“ durchführen.",
+      );
     }
 
     /*
@@ -974,8 +991,11 @@ exports.finish = async (req, res) => {
     /*
      * Saison veröffentlichen
      */
-    await season.update({
-      isPublished: true,
+    await sequelize.transaction(async (transaction) => {
+      await seedSeasonDriverStints(season.id, transaction);
+      await season.update({
+        isPublished: true,
+      }, { transaction });
     });
 
     /*

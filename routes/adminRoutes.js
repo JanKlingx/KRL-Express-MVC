@@ -11,6 +11,7 @@ const seasonSetupController = require('../controllers/seasonSetupController');
 const tableHubController = require('../controllers/tableHubController');
 const seasonCalendarController = require('../controllers/seasonCalendarController');
 const seasonManagerController = require('../controllers/seasonManagerController');
+const seasonDriverChangeController = require('../controllers/seasonDriverChangeController');
 const penaltyLedgerController = require('../controllers/penaltyLedgerController');
 const raceWeekendController = require('../controllers/raceWeekendController');
 const krlTeamPlanningController = require('../controllers/krlTeamPlanningController');
@@ -74,6 +75,8 @@ router.delete('/season-calendar/events/:eventId', asyncHandler(seasonCalendarCon
 router.get('/season-manager', asyncHandler(seasonManagerController.show));
 router.post('/season-manager/:seasonId', asyncHandler(seasonManagerController.update));
 router.delete('/season-manager/:seasonId', asyncHandler(seasonManagerController.remove));
+router.get('/season-driver-change', asyncHandler(seasonDriverChangeController.show));
+router.post('/season-driver-change', asyncHandler(seasonDriverChangeController.save));
 router.get('/penalty-ledger', asyncHandler(penaltyLedgerController.show));
 router.post('/penalty-ledger', asyncHandler(penaltyLedgerController.create));
 router.delete('/penalty-ledger/:id', asyncHandler(penaltyLedgerController.remove));
