@@ -550,7 +550,7 @@
                         Ersatzfahrer
 
                         <select
-                          name="regular[d<%= row.driver.id %>][ReplacementDriverId]"
+                          name="regular[<%= row.driver.id %>][ReplacementDriverId]"
                           data-replacement-select
                           data-current-replacement="<%= row.replacementDriverId || '' %>"
                           <%= (
@@ -624,8 +624,7 @@
               Auswirkung:
             </strong>
 
-            Die gespeicherte Einteilung wird nur für dieses Rennen
-            der aktuellen Saison in den Saisonverlauf übernommen.
+            Die gespeicherte Einteilung wird nur für dieses Rennen der aktuellen Saison in den Saisonverlauf übernommen.
             Historische Saisons bleiben unverändert.
 
           </div>

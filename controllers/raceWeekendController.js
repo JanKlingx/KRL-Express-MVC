@@ -6,6 +6,7 @@ const {
   Season,
   RaceEvent,
   GrandPrixResult,
+  GrandPrixResultEntry,
   F1RaceLineupEntry,
   Driver,
   PenaltyRule,
@@ -14,12 +15,15 @@ const {
 
 const {
   ATTENDANCE_STATUSES,
+  REGULAR_STATUSES,
+  RESERVE_STATUSES,
   normalizeAttendanceStatus,
 } = require("../services/raceLineup");
 
 const {
   loadSeasonStructure,
 } = require("../services/f1Season");
+const f1RaceLineupController = require("./f1RaceLineupController");
 
 
 /*
@@ -840,6 +844,13 @@ exports.show = async (
       req.query,
     );
 
+  const planning = data.league && data.race
+    ? await f1RaceLineupController.loadPlanningRows(data.league, data.race)
+    : { teamCards: [], reserveRows: [], hasSavedPlan: false };
+  const resultCount = data.race
+    ? await GrandPrixResultEntry.count({ where: { GrandPrixResultId: data.race.id } })
+    : 0;
+
 
   const lineupHref =
     `/admin/f1-race-lineup?league=${data.league?.id || ""}&race=${data.race?.id || ""}`;
@@ -863,6 +874,12 @@ exports.show = async (
 
       attendanceStatuses:
         ATTENDANCE_STATUSES,
+
+      regularStatuses: REGULAR_STATUSES,
+      reserveStatuses: RESERVE_STATUSES,
+      selectedRace: data.race,
+      resultCount,
+      ...planning,
 
       lineupHref,
       resultsHref,
@@ -969,6 +986,18 @@ exports.saveAttendance = async (
     req.body
       .uncertainPresent ||
     {};
+
+  const unresolvedAttendance = Object.values(input)
+    .filter((row) => row && normalizeAttendanceStatus(row.status) === "unsicher").length;
+  if (unresolvedAttendance) {
+    req.session.flash = {
+      type: "error",
+      message: `${unresolvedAttendance} Fahrer besitzen noch den Status Unsicher. Bitte vor dem Abschluss auflösen.`,
+    };
+    return res.redirect(
+      `/admin/race-weekend/f1?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}#anwesenheit`,
+    );
+  }
 
 
   /*

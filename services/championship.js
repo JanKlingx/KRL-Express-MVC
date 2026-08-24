@@ -50,7 +50,7 @@ async function pointsForPosition(position, context = {}) {
       where: { PointsSchemeId: scheme.id, raceType: context.raceType || 'main', position: numericPosition }
     });
     const fastestLapBonus = context.fastestLap && scheme.fastestLapEnabled ? Number(scheme.fastestLapPoints || 0) : 0;
-    const polePositionBonus = discipline === 'lmu' && context.polePosition && scheme.polePositionEnabled ? Number(scheme.polePositionPoints || 0) : 0;
+    const polePositionBonus = context.polePosition && scheme.polePositionEnabled ? Number(scheme.polePositionPoints || 0) : 0;
     return Number(allocation?.points || 0) + fastestLapBonus + polePositionBonus;
   }
   const rule = await PointsRule.findOne({ where: { position: numericPosition } });

@@ -153,6 +153,13 @@ const SeasonCategory = sequelize.define('SeasonCategory', {
   ...commonSort
 });
 
+const F1Game = sequelize.define('F1Game', {
+  name: { type: DataTypes.STRING, allowNull: false, unique: true },
+  logoPath: DataTypes.STRING,
+  isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+  ...commonSort
+});
+
 const Season = sequelize.define('Season', {
   name: { type: DataTypes.STRING, allowNull: false },
   leagueType: { type: DataTypes.STRING, allowNull: false },
@@ -488,6 +495,8 @@ PointsScheme.hasMany(PointAllocation, { as: 'allocations', foreignKey: { name: '
 PointAllocation.belongsTo(PointsScheme, { as: 'scheme', foreignKey: { name: 'PointsSchemeId', allowNull: false } });
 SeasonCategory.hasMany(Season, { as: 'seasons', foreignKey: { name: 'SeasonCategoryId', allowNull: true }, onDelete: 'SET NULL' });
 Season.belongsTo(SeasonCategory, { as: 'category', foreignKey: { name: 'SeasonCategoryId', allowNull: true } });
+F1Game.hasMany(Season, { as: 'seasons', foreignKey: { name: 'F1GameId', allowNull: true }, onDelete: 'SET NULL' });
+Season.belongsTo(F1Game, { as: 'f1Game', foreignKey: { name: 'F1GameId', allowNull: true }, onDelete: 'SET NULL' });
 PointsScheme.hasMany(Season, { as: 'seasons', foreignKey: { name: 'PointsSchemeId', allowNull: true }, onDelete: 'SET NULL' });
 Season.belongsTo(PointsScheme, { as: 'pointsScheme', foreignKey: { name: 'PointsSchemeId', allowNull: true }, onDelete: 'SET NULL' });
 Season.hasMany(SeasonF1CarAssignment, { as: 'f1CarAssignments', foreignKey: { name: 'SeasonId', allowNull: false }, onDelete: 'CASCADE' });
@@ -609,6 +618,7 @@ module.exports = {
   PointsScheme,
   PointAllocation,
   SeasonCategory,
+  F1Game,
   Season,
   PenaltyRule,
   PenaltyEntry,

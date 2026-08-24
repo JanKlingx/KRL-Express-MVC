@@ -16,6 +16,7 @@ const penaltyLedgerController = require('../controllers/penaltyLedgerController'
 const raceWeekendController = require('../controllers/raceWeekendController');
 const krlTeamPlanningController = require('../controllers/krlTeamPlanningController');
 const f1ContentController = require('../controllers/f1ContentController');
+const f1GameController = require('../controllers/f1GameController');
 const { requireAdmin } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const pdfUpload = require('../middleware/pdfUpload');
@@ -23,6 +24,10 @@ const pdfUpload = require('../middleware/pdfUpload');
 const router = express.Router();
 router.use(requireAdmin);
 router.get('/', asyncHandler(adminController.dashboard));
+router.get('/f1-games', asyncHandler(f1GameController.index));
+router.post('/f1-games', upload.single('image'), asyncHandler(f1GameController.create));
+router.put('/f1-games/:id', upload.single('image'), asyncHandler(f1GameController.update));
+router.delete('/f1-games/:id', asyncHandler(f1GameController.remove));
 router.get('/krl-team-planning', asyncHandler(krlTeamPlanningController.show));
 router.post('/krl-team-planning/assign', asyncHandler(krlTeamPlanningController.assign));
 router.post('/krl-team-planning/move/:assignmentId', asyncHandler(krlTeamPlanningController.move));

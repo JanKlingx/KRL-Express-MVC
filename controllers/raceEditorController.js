@@ -13,6 +13,7 @@ const {
   F1RaceLineupEntry,
   F1CarProfile,
   PenaltyEntry,
+  PointsScheme,
 } = require("../models");
 
 const {
@@ -523,7 +524,6 @@ async function loadEligibleDrivers(
 
 
             const assignedTeam =
-              direct?.assignedTeam ||
               teams.find(
                 (team) =>
                   Number(team.id) ===
@@ -531,6 +531,7 @@ async function loadEligibleDrivers(
                     entry.TeamId,
                   ),
               ) ||
+              direct?.assignedTeam ||
               null;
 
 
@@ -1023,6 +1024,9 @@ async function showEditor(
   let lineupManaged =
     false;
 
+  let attendanceManaged =
+    false;
+
 
   if (
     selectedRace &&
@@ -1161,11 +1165,16 @@ async function showEditor(
 
 
       eligible =
-        lineup.rows;
+        lineup.attendanceManaged
+          ? lineup.rows
+          : [];
 
 
       lineupManaged =
         lineup.managed;
+
+      attendanceManaged =
+        lineup.attendanceManaged;
     }
 
 
@@ -1278,7 +1287,13 @@ async function showEditor(
       availableDrivers,
       historicalDriverIds,
       lineupManaged,
+      attendanceManaged,
       currentOnly,
+      resultPointsScheme: selectedSeason?.PointsSchemeId
+        ? await PointsScheme.findByPk(selectedSeason.PointsSchemeId, {
+            include: [{ association: "allocations", required: false }],
+          })
+        : null,
     },
   );
 }
@@ -1445,6 +1460,9 @@ exports.save = async (
   let lineupManaged =
     false;
 
+  let attendanceManaged =
+    false;
+
 
   let eligible;
 
@@ -1500,6 +1518,17 @@ exports.save = async (
 
     lineupManaged =
       lineup.managed;
+
+    attendanceManaged =
+      lineup.attendanceManaged;
+  }
+
+  if (race.seasonRecord.status === "active" && (!lineupManaged || !attendanceManaged)) {
+    req.session.flash = {
+      type: "error",
+      message: "Bitte zuerst Aufstellung und Anwesenheitskontrolle vollständig abschließen.",
+    };
+    return res.redirect(`/admin/race-weekend/f1?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}#anwesenheit`);
   }
 
 
@@ -1518,15 +1547,6 @@ exports.save = async (
               isReserve:
                 false,
             },
-    );
-
-
-  const driverIds =
-    driverRows.map(
-      ({
-        driver,
-      }) =>
-        driver.id,
     );
 
 
@@ -1656,12 +1676,21 @@ exports.save = async (
 
       if (
         submitted.included !==
-          "on" ||
-        !submitted[
-          event.field
-        ]
+          "on"
       ) {
+        if (race.seasonRecord.status === "active" && lineupManaged) {
+          req.session.flash = { type: "error", message: `${driver.name} fehlt im vollständigen Rennergebnis.` };
+          return res.redirect(`${requestedEditorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
+        }
         continue;
+      }
+
+      if (!submitted[event.field]) {
+        req.session.flash = {
+          type: "error",
+          message: `${event.race.raceType === "sprint" ? "Sprint: " : ""}${driver.name} besitzt noch keine Platzierung.`,
+        };
+        return res.redirect(`${requestedEditorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
       }
 
 
@@ -1731,6 +1760,23 @@ exports.save = async (
     }
   }
 
+  for (const event of [
+    { race, prefix: "" },
+    ...(sprintRace ? [{ race: sprintRace, prefix: "sprint" }] : []),
+  ]) {
+    const fastestField = event.prefix ? "sprintFastestLap" : "fastestLap";
+    const poleField = event.prefix ? "sprintPolePosition" : "polePosition";
+    const fastestCount = driverRows.filter(({ driver }) => getSubmittedRow(submittedRows, driver.id)[fastestField] === "on").length;
+    const poleCount = driverRows.filter(({ driver }) => getSubmittedRow(submittedRows, driver.id)[poleField] === "on").length;
+    if (fastestCount > 1 || poleCount > 1) {
+      req.session.flash = {
+        type: "error",
+        message: `${event.race.raceType === "sprint" ? "Sprint: " : ""}${fastestCount > 1 ? "Die schnellste Runde" : "Die Pole Position"} darf nur einmal vergeben werden.`,
+      };
+      return res.redirect(`${requestedEditorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
+    }
+  }
+
 
   /*
    * =====================================================
@@ -1748,67 +1794,6 @@ exports.save = async (
 
         /*
          * =================================================
-         * VERALTETE EINTRÄGE ENTFERNEN
-         * =================================================
-         */
-
-        if (
-          race.seasonRecord.status ===
-            "historical" ||
-          lineupManaged
-        ) {
-
-          const omittedWhere =
-            driverIds.length
-              ? {
-                  [Op.or]: [
-                    {
-                      DriverId: {
-                        [Op.notIn]:
-                          driverIds,
-                      },
-                    },
-
-                    {
-                      DriverId:
-                        null,
-                    },
-                  ],
-                }
-              : {};
-
-
-          await GrandPrixResultEntry.destroy({
-            where: {
-              GrandPrixResultId:
-                race.id,
-
-              ...omittedWhere,
-            },
-
-            transaction,
-          });
-
-
-          if (
-            sprintRace
-          ) {
-            await GrandPrixResultEntry.destroy({
-              where: {
-                GrandPrixResultId:
-                  sprintRace.id,
-
-                ...omittedWhere,
-              },
-
-              transaction,
-            });
-          }
-        }
-
-
-        /*
-         * =================================================
          * FAHRER SPEICHERN
          * =================================================
          */
@@ -1817,7 +1802,6 @@ exports.save = async (
           const {
             driver,
             assignedTeam,
-            isReserve,
           }
           of driverRows
         ) {
@@ -1855,44 +1839,9 @@ exports.save = async (
             submitted.included !==
             "on"
           ) {
-
-            if (
-              existing
-            ) {
-              await existing.destroy({
-                transaction,
-              });
-            }
-
-
-            if (
-              existingSprint
-            ) {
-              await existingSprint.destroy({
-                transaction,
-              });
-            }
-
-
-            await PenaltyEntry.destroy({
-              where: {
-                GrandPrixResultId:
-                  race.id,
-
-                DriverId:
-                  driver.id,
-
-                isRaceBan:
-                  true,
-
-                reason:
-                  "Rennsperre (Ergebnispflege)",
-              },
-
-              transaction,
-            });
-
-
+            // Nicht übertragene Zeilen werden bewusst nicht gelöscht. Dadurch
+            // bleiben bereits gespeicherte Rennhistorien bei einer späteren
+            // Kader- oder Anwesenheitsänderung unangetastet.
             continue;
           }
 
@@ -1917,19 +1866,14 @@ exports.save = async (
 
 
           /*
-           * Historisch:
-           * Team aus Formular.
-           *
-           * Aktiver Ersatz:
-           * ebenfalls Team aus Formular.
-           *
-           * Aktiver Stammfahrer:
-           * Saisonteam.
+           * Historisch: Team aus dem bewusst gepflegten Formular.
+           * Aktuell: immer das Team der tatsächlichen Rennaufstellung.
+           * Insbesondere bei Ersatzfahrern darf ein manipulierter Formularwert
+           * vergangene oder aktuelle Konstrukteurspunkte nicht verschieben.
            */
           const team =
             race.seasonRecord.status ===
-              "historical" ||
-            isReserve
+              "historical"
               ? selectedTeam
               : assignedTeam;
 
@@ -2026,6 +1970,10 @@ exports.save = async (
                 ] ===
                   "on";
 
+              const poleField = prefix ? `${prefix}PolePosition` : "polePosition";
+              const polePosition =
+                eventRace.pointsMode === "database" && submitted[poleField] === "on";
+
 
               /*
                * Punkte zuerst regulär berechnen.
@@ -2045,6 +1993,7 @@ exports.save = async (
                         ...eventRace.toJSON(),
 
                         fastestLap,
+                        polePosition,
                       },
                     );
 
@@ -2092,6 +2041,8 @@ exports.save = async (
                 points,
 
                 fastestLap,
+
+                polePosition,
 
                 sortOrder:
                   position ||

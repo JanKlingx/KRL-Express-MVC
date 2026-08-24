@@ -12,6 +12,20 @@ async function addMissingColumn(table, description, name, definition) {
 
 async function ensureSchema() {
   const queryInterface = sequelize.getQueryInterface();
+  const knownTables = (await queryInterface.showAllTables()).map((table) =>
+    String(typeof table === 'string' ? table : table.tableName || table.name).toLowerCase()
+  );
+  if (!knownTables.includes('f1_games')) {
+    await queryInterface.createTable('f1_games', {
+      id: { type: DataTypes.INTEGER, allowNull: false, autoIncrement: true, primaryKey: true },
+      name: { type: DataTypes.STRING, allowNull: false, unique: true },
+      logo_path: { type: DataTypes.STRING, allowNull: true },
+      is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      sort_order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      created_at: { type: DataTypes.DATE, allowNull: false },
+      updated_at: { type: DataTypes.DATE, allowNull: false }
+    });
+  }
   const driverTable = await queryInterface.describeTable('drivers');
   const hadFridayReserveRole = Boolean(driverTable.role_f1_reserve_friday);
   const hadSundayReserveRole = Boolean(driverTable.role_f1_reserve_sunday);
@@ -81,6 +95,7 @@ async function ensureSchema() {
   await addMissingColumn('seasons', seasonTable, 'points_scheme_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('seasons', seasonTable, 'accent_color', { type: DataTypes.STRING, allowNull: true });
   await addMissingColumn('seasons', seasonTable, 'game_name', { type: DataTypes.STRING, allowNull: true });
+  await addMissingColumn('seasons', seasonTable, 'f1_game_id', { type: DataTypes.INTEGER, allowNull: true });
   await addMissingColumn('seasons', seasonTable, 'is_published', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true });
   await addMissingColumn('seasons', seasonTable, 'reserve_points_for_constructors', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true });
 

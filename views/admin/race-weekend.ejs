@@ -1,5 +1,15 @@
 <%- include('../partials/header', { title }) %>
 
+<%
+  const raceControlResultCount = typeof resultCount === 'undefined' ? 0 : resultCount;
+  const raceControlTeamCards = typeof teamCards === 'undefined' ? [] : teamCards;
+  const raceControlReserveRows = typeof reserveRows === 'undefined' ? [] : reserveRows;
+  const raceControlRegularStatuses = typeof regularStatuses === 'undefined' ? [] : regularStatuses;
+  const raceControlReserveStatuses = typeof reserveStatuses === 'undefined' ? [] : reserveStatuses;
+  const raceControlSelectedRace = typeof selectedRace === 'undefined' ? race : selectedRace;
+  const raceControlExcludedRows = typeof excludedAttendanceRows === 'undefined' ? [] : excludedAttendanceRows;
+%>
+
 <section class="admin-shell">
   <div class="container">
 
@@ -122,10 +132,10 @@
         </a>
 
 
-        <a href="#ergebnisse">
+        <a href="#ergebnisse" class="<%= raceControlResultCount ? 'complete' : '' %>">
           <span>3</span>
           <strong>Ergebnisse</strong>
-          <small>Plätze & Punkte</small>
+          <small><%= raceControlResultCount ? 'gespeichert' : 'Plätze & Punkte' %></small>
         </a>
 
       </div>
@@ -151,19 +161,8 @@
             AUFSTELLUNG
           </h2>
 
-          <p>
-            Stammfahrerstatus setzen, Ersatz zuweisen und Rennsperren kontrollieren.
-          </p>
-
-          <a
-            class="button"
-            href="<%= lineupHref %>"
-          >
-            <%= entries.length
-              ? 'Aufstellung prüfen / ändern'
-              : 'Aufstellung jetzt erstellen'
-            %>
-          </a>
+          <p>Stammfahrerstatus setzen, Ersatz per Drag & Drop zuweisen und Rennsperren kontrollieren.</p>
+          <%- include('partials/f1-lineup-board', { selectedRace: raceControlSelectedRace, teamCards: raceControlTeamCards, reserveRows: raceControlReserveRows, regularStatuses: raceControlRegularStatuses, reserveStatuses: raceControlReserveStatuses }) %>
 
         </div>
 
@@ -315,6 +314,7 @@
                           class="attendance-team-row <%= row.replacementFor ? 'is-replacement' : '' %>"
                           data-attendance-row
                         >
+                          <input type="hidden" name="attendance[<%= row.id %>][includeInResults]" value="<%= row.includeInResults ? 'on' : '' %>">
 
 
                           <% if (hasUncertainReplacement) { %>
@@ -711,7 +711,7 @@
                 Anwesenheit bestätigen
               </button>
 
-              <% if (excludedAttendanceRows?.length) { %>
+              <% if (raceControlExcludedRows.length) { %>
 
 <button
   type="button"
@@ -725,7 +725,7 @@
 
             </form>
 
-            <% if (excludedAttendanceRows?.length) { %>
+            <% if (raceControlExcludedRows.length) { %>
 
   <div
     class="attendance-corrections"
@@ -763,7 +763,7 @@
           const excludedByTeam =
             new Map();
 
-          excludedAttendanceRows.forEach(({
+          raceControlExcludedRows.forEach(({
             entry,
             displayTeam,
             currentReplacement
@@ -1018,5 +1018,6 @@
   src="/js/race-weekend.js"
   defer
 ></script>
+<script src="/js/f1-race-control.js" defer></script>
 
 <%- include('../partials/footer') %>

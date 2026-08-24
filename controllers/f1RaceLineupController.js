@@ -183,6 +183,7 @@ async function loadPlanningRows(league, race) {
       return {
         driver,
         team,
+        entry: saved || null,
         status: bannedDriverIds.has(driver.id)
           ? "rennsperre"
           : normalizeRegularStatus(saved?.status),
@@ -190,6 +191,7 @@ async function loadPlanningRows(league, race) {
         replacementDriverId: bannedDriverIds.has(driver.id)
           ? null
           : Number(reserveByRegular.get(driverId)?.DriverId || 0) || null,
+        replacementEntry: reserveByRegular.get(driverId) || null,
       };
     }),
   }));
@@ -204,12 +206,19 @@ async function loadPlanningRows(league, race) {
 
     return {
       driver,
+      entry: saved || null,
 
       status: normalizeReserveStatus(saved?.status),
 
       assignedTo: replacementForDriverId
         ? regularById.get(replacementForDriverId) || null
         : null,
+      isAssigned: Boolean(replacementForDriverId),
+      isAttendanceLocked: Boolean(
+        replacementForDriverId &&
+        saved?.includeInResults === true &&
+        ["anwesend", "zu_spaet_vorbesprechung"].includes(saved?.attendanceStatus),
+      ),
     };
   });
 
@@ -312,6 +321,11 @@ exports.save = async (req, res) => {
 
   const reserveInput = req.body.reserve || {};
 
+  const regularInputFor = (driverId) => ({
+    ...(regularInput[String(driverId)] || {}),
+    ...(regularInput[`d${driverId}`] || {}),
+  });
+
   console.log("=== REGULAR INPUT ===", JSON.stringify(regularInput, null, 2));
 
   console.log("=== RESERVE INPUT ===", JSON.stringify(reserveInput, null, 2));
@@ -321,6 +335,20 @@ exports.save = async (req, res) => {
   const replacementByReserve = new Map();
 
   try {
+    const existingEntries = await F1RaceLineupEntry.findAll({
+      where: { GrandPrixResultId: race.id },
+      include: [{ association: "driver" }],
+    });
+    const lockedAssignments = new Map(
+      existingEntries
+        .filter((entry) =>
+          entry.roleType === "reserve" &&
+          entry.ReplacementForDriverId &&
+          entry.includeInResults === true &&
+          ["anwesend", "zu_spaet_vorbesprechung"].includes(entry.attendanceStatus),
+        )
+        .map((entry) => [Number(entry.DriverId), entry]),
+    );
     /*
      * =====================================================
      * ERSATZ-ZUORDNUNGEN PRÜFEN
@@ -330,7 +358,7 @@ exports.save = async (req, res) => {
     for (const row of regularRows) {
       const driverId = Number(row.driver.id);
 
-      const input = regularInput[`d${driverId}`] || {};
+      const input = regularInputFor(driverId);
 
       const regularStatus = bannedDriverIds.has(driverId)
         ? "rennsperre"
@@ -417,6 +445,15 @@ exports.save = async (req, res) => {
       replacementByReserve.set(replacementId, row);
     }
 
+    for (const [driverId, locked] of lockedAssignments) {
+      const postedTarget = replacementByReserve.get(driverId);
+      if (!postedTarget || Number(postedTarget.driver.id) !== Number(locked.ReplacementForDriverId)) {
+        throw new Error(
+          `Ersatzfahrer ${locked.driver?.name || driverId} ist bereits in der Anwesenheit bestätigt. Die Zuordnung muss zuerst über eine ausdrückliche Anwesenheitskorrektur zurückgesetzt werden.`,
+        );
+      }
+    }
+
     /*
      * =====================================================
      * DATENSÄTZE AUFBAUEN
@@ -431,7 +468,7 @@ exports.save = async (req, res) => {
     regularRows.forEach((row, index) => {
       const driverId = Number(row.driver.id);
 
-      const input = regularInput[`d${driverId}`] || {};
+      const input = regularInputFor(driverId);
 
       records.push({
         GrandPrixResultId: race.id,
@@ -490,19 +527,32 @@ exports.save = async (req, res) => {
       JSON.stringify(records, null, 2),
     );
 
+    const driverIds = records.map((record) => Number(record.DriverId));
+    if (new Set(driverIds).size !== driverIds.length)
+      throw new Error("Ein Fahrer darf in diesem Rennwochenende nur einmal eingeplant werden.");
+    const targetIds = records.map((record) => Number(record.ReplacementForDriverId || 0)).filter(Boolean);
+    if (new Set(targetIds).size !== targetIds.length)
+      throw new Error("Ein Stammfahrerplatz darf in diesem Rennwochenende nur einmal ersetzt werden.");
+
     await sequelize.transaction(async (transaction) => {
-      await F1RaceLineupEntry.destroy({
-        where: {
-          GrandPrixResultId: race.id,
-        },
-
-        transaction,
-      });
-
-      if (records.length) {
-        await F1RaceLineupEntry.bulkCreate(records, {
-          transaction,
-        });
+      const existingByDriver = new Map(existingEntries.map((entry) => [Number(entry.DriverId), entry]));
+      for (const record of records) {
+        const existing = existingByDriver.get(Number(record.DriverId));
+        if (existing) {
+          const assignmentUnchanged =
+            existing.roleType === record.roleType &&
+            Number(existing.TeamId || 0) === Number(record.TeamId || 0) &&
+            Number(existing.ReplacementForDriverId || 0) === Number(record.ReplacementForDriverId || 0) &&
+            existing.status === record.status;
+          await existing.update({
+            ...record,
+            ...(assignmentUnchanged
+              ? { attendanceStatus: existing.attendanceStatus, includeInResults: existing.includeInResults }
+              : { attendanceStatus: null, includeInResults: false }),
+          }, { transaction });
+        } else {
+          await F1RaceLineupEntry.create(record, { transaction });
+        }
       }
     });
 
@@ -520,7 +570,9 @@ exports.save = async (req, res) => {
   }
 
   return res.redirect(
-    `/admin/f1-race-lineup?league=${race.LeagueId}&race=${race.id}`,
+    req.body._return === "race-control"
+      ? `/admin/race-weekend/f1?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}#aufstellung`
+      : `/admin/f1-race-lineup?league=${race.LeagueId}&race=${race.id}`,
   );
 };
 

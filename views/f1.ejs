@@ -20,6 +20,10 @@
       null
     );
   };
+  const safeStandingsHistory =
+    typeof standingsHistory === 'undefined'
+      ? []
+      : standingsHistory;
 %>
 
 
@@ -39,11 +43,7 @@
 
       <% if (league.logoPath) { %>
 
-        <img
-          class="league-hero-logo"
-          src="<%= league.logoPath %>"
-          alt="Logo <%= league.name %>"
-        >
+        <img class="league-hero-logo" src="<%= league.logoPath %>" alt="Logo <%= league.name %>">
 
       <% } %>
 
@@ -204,23 +204,13 @@
 
         <% teams.forEach((team) => { %>
 
-          <article
-            class="f1-team-card"
-            style="--team-color:<%= team.accentColor || '#6ef2f2' %>"
-            aria-label="<%= team.name %>"
-          >
+          <article class="f1-team-card" style="--team-color:<%= team.accentColor || '#6ef2f2' %>" aria-label="<%= team.name %>">
 
-            <div
-              class="f1-team-watermark"
-              aria-hidden="true"
-            >
+            <div class="f1-team-watermark" aria-hidden="true">
 
               <% if (team.logoPath) { %>
 
-                <img
-                  src="<%= team.logoPath %>"
-                  alt=""
-                >
+                <img src="<%= team.logoPath %>" alt="">
 
               <% } else { %>
 
@@ -233,9 +223,7 @@
             </div>
 
 
-            <ul
-              aria-label="Fahrer von <%= team.name %>"
-            >
+            <ul aria-label="Fahrer von <%= team.name %>">
 
               <% team.drivers.forEach((driver) => { %>
 
@@ -328,6 +316,7 @@
     class="button button-small"
     type="button"
     id="standings-png-download"
+    data-png-title="<%= league.name %> · Fahrer-WM"
   >
     PNG ↓
   </button>
@@ -337,7 +326,7 @@
     </div>
 
 
-    <% if ((standingsHistory || []).length) { %>
+    <% if (safeStandingsHistory.length) { %>
 
       <div
         class="standings-history-carousel standings-history-carousel-compact"
@@ -347,7 +336,7 @@
         <div class="standings-history-track">
 
 
-          <% standingsHistory.forEach((snapshot, snapshotIndex) => {
+          <% safeStandingsHistory.forEach((snapshot, snapshotIndex) => {
 
             const raceDisplay =
               (gpResults || []).find(
@@ -394,10 +383,10 @@
 
 
             <article
-              class="standings-history-slide standings-history-slide-compact <%= snapshotIndex === standingsHistory.length - 1 ? 'is-active' : '' %>"
+              class="standings-history-slide standings-history-slide-compact <%= snapshotIndex === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
               data-standings-slide
               data-slide-index="<%= snapshotIndex %>"
-              aria-hidden="<%= snapshotIndex === standingsHistory.length - 1 ? 'false' : 'true' %>"
+              aria-hidden="<%= snapshotIndex === safeStandingsHistory.length - 1 ? 'false' : 'true' %>"
             >
 
 
@@ -701,7 +690,7 @@
         </div>
 
 
-        <% if (standingsHistory.length > 1) { %>
+        <% if (safeStandingsHistory.length > 1) { %>
 
           <button
             class="standings-history-control prev"
@@ -725,11 +714,11 @@
 
           <div class="standings-history-dots">
 
-            <% standingsHistory.forEach((snapshot, index) => { %>
+            <% safeStandingsHistory.forEach((snapshot, index) => { %>
 
               <button
                 type="button"
-                class="<%= index === standingsHistory.length - 1 ? 'is-active' : '' %>"
+                class="<%= index === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
                 data-standings-dot="<%= index %>"
                 aria-label="WM-Stand nach Runde <%= snapshot.round %>"
                 title="Runde <%= snapshot.round %>"
@@ -849,7 +838,8 @@
         {
           history,
           selectedHistory,
-          league
+          league,
+          selectedSeason
         }
       ) %>
 
