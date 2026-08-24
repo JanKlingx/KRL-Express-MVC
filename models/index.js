@@ -228,6 +228,62 @@ const SeasonLineupEntry = sequelize.define('SeasonLineupEntry', {
   ...commonSort
 }, { indexes: [{ unique: true, fields: ['season_id', 'driver_id'] }] });
 
+const SeasonDriverStint = sequelize.define('SeasonDriverStint', {
+  roleType: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: { isIn: [['regular', 'reserve']] }
+  },
+  fromRound: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    validate: { min: 1 }
+  },
+  toRound: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: { min: 1 }
+  },
+  endReason: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    validate: {
+      isIn: [[
+        'left',
+        'promoted',
+        'demoted',
+        'team_change',
+        'replaced',
+        'other'
+      ]]
+    }
+  },
+  carryReservePoints: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  }
+}, {
+  validate: {
+    validRoundRange() {
+      if (this.toRound !== null && Number(this.fromRound) > Number(this.toRound)) {
+        throw new Error('Die Startrunde darf nicht nach der Endrunde liegen.');
+      }
+    }
+  },
+  indexes: [
+    {
+      name: 'uq_season_driver_stint_start',
+      unique: true,
+      fields: ['season_id', 'driver_id', 'role_type', 'from_round']
+    },
+    {
+      name: 'idx_sds_season_team_role',
+      fields: ['season_id', 'season_team_id', 'role_type', 'to_round']
+    }
+  ]
+});
+
 const DriverAlias = sequelize.define('DriverAlias', {
   alias: { type: DataTypes.STRING, allowNull: false },
   ...commonSort
@@ -454,6 +510,13 @@ SeasonTeam.hasMany(SeasonLineupEntry, { as: 'lineupEntries', foreignKey: { name:
 SeasonLineupEntry.belongsTo(SeasonTeam, { as: 'seasonTeam', foreignKey: { name: 'SeasonTeamId', allowNull: true } });
 Driver.hasMany(SeasonLineupEntry, { as: 'seasonLineups', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
 SeasonLineupEntry.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
+Season.hasMany(SeasonDriverStint, { as: 'driverStints', foreignKey: { name: 'SeasonId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonDriverStint.belongsTo(Season, { as: 'season', foreignKey: { name: 'SeasonId', allowNull: false } });
+Driver.hasMany(SeasonDriverStint, { as: 'seasonStints', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonDriverStint.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
+SeasonTeam.hasMany(SeasonDriverStint, { as: 'driverStints', foreignKey: { name: 'SeasonTeamId', allowNull: true }, onDelete: 'SET NULL' });
+SeasonDriverStint.belongsTo(SeasonTeam, { as: 'seasonTeam', foreignKey: { name: 'SeasonTeamId', allowNull: true } });
+SeasonDriverStint.belongsTo(SeasonDriverStint, { as: 'previousStint', foreignKey: { name: 'previousStintId', allowNull: true }, onDelete: 'SET NULL' });
 Driver.hasMany(DriverAlias, { as: 'aliases', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
 DriverAlias.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
 League.hasMany(DriverStanding, { as: 'driverStandings', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -554,6 +617,7 @@ module.exports = {
   SeasonDriver,
   SeasonTeam,
   SeasonLineupEntry,
+  SeasonDriverStint,
   F1CalendarRound,
   DriverStanding,
   TeamStanding,

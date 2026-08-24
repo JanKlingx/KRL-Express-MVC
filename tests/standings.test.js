@@ -96,6 +96,103 @@ test('Ersatzfahrer-Punkte bleiben im Ergebnis, zählen aber konfigurierbar zur T
   assert.equal(weekend[0].entries[1].points, 15);
 });
 
+function driverChangeScenario(reservePoints = [6, 10]) {
+  const mercedes = { id: 10, name: 'Mercedes', sourceType: 'current', sourceId: 100, logoPath: '/mercedes.png' };
+  const drivers = [
+    { id: 1, name: 'Marcel', team: mercedes },
+    { id: 2, name: 'Tobi', team: mercedes }
+  ];
+  const positions = [4, 8, 5, 7];
+  const points = [12, 4, 10, 6];
+  const races = Array.from({ length: 6 }, (_, index) => ({
+    id: 101 + index,
+    SeasonId: 7,
+    LeagueId: 1,
+    title: `GP ${index + 1}`,
+    circuit: `Strecke ${index + 1}`,
+    raceType: 'main',
+    sortOrder: index + 1,
+    entries: index < 4
+      ? [
+          { GrandPrixResultId: 101 + index, DriverId: 1, TeamId: 100, driverName: 'Marcel', teamName: 'Mercedes', position: positions[index], points: points[index] },
+          ...([1, 3].includes(index) ? [{ GrandPrixResultId: 101 + index, DriverId: 2, TeamId: 100, driverName: 'Tobi', teamName: 'Mercedes', position: index === 1 ? 7 : 5, points: reservePoints[index === 1 ? 0 : 1] }] : [])
+        ]
+      : [{ GrandPrixResultId: 101 + index, DriverId: 2, TeamId: 100, driverName: 'Tobi', teamName: 'Mercedes', position: index === 4 ? 5 : 3, points: index === 4 ? 10 : 15 }]
+  }));
+  const lineups = races.flatMap((race, index) => {
+    if (index < 4) {
+      return [
+        { GrandPrixResultId: race.id, DriverId: 1, roleType: 'regular', includeInResults: true },
+        ...([1, 3].includes(index) ? [{ GrandPrixResultId: race.id, DriverId: 2, ReplacementForDriverId: 9, roleType: 'reserve', includeInResults: true, driver: { id: 2, name: 'Tobi' } }] : [])
+      ];
+    }
+    return [{ GrandPrixResultId: race.id, DriverId: 2, roleType: 'regular', includeInResults: true }];
+  });
+  const stints = [
+    { id: 11, SeasonId: 7, DriverId: 1, SeasonTeamId: 10, roleType: 'regular', fromRound: 1, toRound: 4, endReason: 'left', carryReservePoints: false, driver: drivers[0], seasonTeam: mercedes },
+    { id: 20, SeasonId: 7, DriverId: 2, SeasonTeamId: 10, roleType: 'reserve', fromRound: 1, toRound: 4, endReason: 'promoted', carryReservePoints: false, driver: drivers[1], seasonTeam: mercedes },
+    { id: 21, SeasonId: 7, DriverId: 2, SeasonTeamId: 10, roleType: 'regular', fromRound: 5, toRound: null, endReason: null, carryReservePoints: true, previousStintId: 20, driver: drivers[1], seasonTeam: mercedes }
+  ];
+  return { drivers, races, lineups, stints };
+}
+
+test('Fahrerwechsel historisiert ausgeschiedene und neue Stammfahrer mit DNS', () => {
+  const scenario = driverChangeScenario();
+  const data = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
+  const marcel = data.selectedHistory.drivers.find((driver) => driver.name === 'Marcel');
+  const tobi = data.selectedHistory.drivers.find((driver) => driver.name === 'Tobi');
+
+  assert.equal(marcel.isFormerDriver, true);
+  assert.equal(marcel.regularToRound, 4);
+  assert.deepEqual(marcel.results.map((row) => row.main.value), ['P4', 'P8', 'P5', 'P7', 'DNS', 'DNS']);
+  assert.equal(tobi.regularFromRound, 5);
+  assert.deepEqual(tobi.results.map((row) => row.main.value), ['DNS', 'DNS', 'DNS', 'DNS', 'P5', 'P3']);
+});
+
+test('Beförderter Ersatzfahrer bleibt in Ersatzwertung und übernimmt Punkte dynamisch', () => {
+  const scenario = driverChangeScenario();
+  const data = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
+  const regular = data.driverStandings.find((row) => row.driver.name === 'Tobi');
+  const reserve = data.selectedHistory.reserveDrivers.find((driver) => driver.name === 'Tobi');
+
+  assert.equal(regular.points, 41);
+  assert.equal(reserve.total, 16);
+  assert.equal(reserve.promotedToRegular, true);
+  assert.equal(reserve.promotedFromRound, 5);
+  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNS', 'P7', 'DNS', 'P5', 'DNS', 'DNS']);
+
+  scenario.races[1].entries.find((entry) => entry.DriverId === 2).points = 8;
+  const corrected = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
+  assert.equal(corrected.driverStandings.find((row) => row.driver.name === 'Tobi').points, 43);
+  assert.equal(corrected.reserveStandings.find((row) => row.driver.name === 'Tobi').points, 18);
+});
+
+test('Ersatzpunkte eines anderen Teams werden nicht in die Stammfahrer-WM übertragen', () => {
+  const mercedes = { id: 10, name: 'Mercedes', sourceType: 'current', sourceId: 100 };
+  const williams = { id: 20, name: 'Williams', sourceType: 'current', sourceId: 200 };
+  const driver = { id: 3, name: 'Alex', team: mercedes };
+  const races = [
+    { id: 201, SeasonId: 8, LeagueId: 1, title: 'GP 2', raceType: 'main', sortOrder: 2, entries: [{ GrandPrixResultId: 201, DriverId: 3, TeamId: 200, driverName: 'Alex', teamName: 'Williams', position: 5, points: 10 }] },
+    { id: 202, SeasonId: 8, LeagueId: 1, title: 'GP 5', raceType: 'main', sortOrder: 5, entries: [{ GrandPrixResultId: 202, DriverId: 3, TeamId: 100, driverName: 'Alex', teamName: 'Mercedes', position: 3, points: 15 }] }
+  ];
+  const lineups = [
+    { GrandPrixResultId: 201, DriverId: 3, ReplacementForDriverId: 8, roleType: 'reserve', includeInResults: true, driver },
+    { GrandPrixResultId: 202, DriverId: 3, roleType: 'regular', includeInResults: true }
+  ];
+  const stints = [
+    { id: 30, DriverId: 3, SeasonTeamId: 20, roleType: 'reserve', fromRound: 1, toRound: 4, endReason: 'promoted', driver, seasonTeam: williams },
+    { id: 31, DriverId: 3, SeasonTeamId: 10, roleType: 'regular', fromRound: 5, toRound: null, carryReservePoints: false, previousStintId: 30, driver, seasonTeam: mercedes }
+  ];
+  const data = buildSeasonData(league, races, [driver], lineups, {}, stints);
+
+  assert.equal(data.driverStandings.find((row) => row.driver.name === 'Alex').points, 15);
+  assert.equal(data.reserveStandings.find((row) => row.driver.name === 'Alex').points, 10);
+  assert.equal(data.teamStandings.find((row) => row.team.name === 'Williams').points, 10);
+  assert.equal(data.teamStandings.find((row) => row.team.name === 'Mercedes').points, 15);
+  assert.equal(races[0].entries[0].TeamId, 200);
+  assert.equal(races[0].entries[0].teamName, 'Williams');
+});
+
 test('LMU-Punktesystem addiert schnellste Runde und Poleposition saisonbezogen', async () => {
   const originals = { season: Season.findByPk, scheme: PointsScheme.findOne, allocation: PointAllocation.findOne };
   Season.findByPk = async () => ({ PointsSchemeId: 9 });

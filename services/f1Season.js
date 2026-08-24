@@ -4,6 +4,7 @@ const {
   SeasonDriver,
   SeasonTeam,
   SeasonLineupEntry,
+  SeasonDriverStint,
   Driver,
   Team,
   F1CarProfile
@@ -45,7 +46,8 @@ async function loadSeasonStructure(seasonId) {
       teams: [],
       unassignedDrivers: [],
       allDrivers: [],
-      lineup: []
+      lineup: [],
+      stints: []
     };
   }
 
@@ -53,7 +55,8 @@ async function loadSeasonStructure(seasonId) {
   const [
     memberships,
     seasonTeams,
-    lineup
+    lineup,
+    stints
   ] = await Promise.all([
 
     SeasonDriver.findAll({
@@ -113,6 +116,15 @@ async function loadSeasonStructure(seasonId) {
         ['sortOrder', 'ASC'],
         ['id', 'ASC']
       ]
+    }),
+
+    SeasonDriverStint.findAll({
+      where: { SeasonId: seasonId },
+      include: [
+        { association: 'driver', include: [{ association: 'aliases' }] },
+        { association: 'seasonTeam' }
+      ],
+      order: [['fromRound', 'ASC'], ['id', 'ASC']]
     })
 
   ]);
@@ -226,7 +238,8 @@ async function loadSeasonStructure(seasonId) {
 
     allDrivers,
 
-    lineup
+    lineup,
+    stints
   };
 }
 

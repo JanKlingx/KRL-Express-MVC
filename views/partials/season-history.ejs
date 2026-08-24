@@ -294,7 +294,7 @@
 
           <% selectedHistory.drivers.forEach((driver) => { %>
 
-            <tr class="season-position-<%= driver.position %>">
+            <tr class="season-position-<%= driver.position %> <%= driver.isFormerDriver ? 'is-former-driver' : '' %>">
 
 
               <!-- POSITION -->
@@ -317,6 +317,14 @@
                 <strong>
                   <%= driver.name %>
                 </strong>
+
+                <% if (driver.isFormerDriver) { %>
+                  <small class="history-driver-state">
+                    Ehemalig<%= driver.regularToRound ? ` · bis R${driver.regularToRound}` : '' %>
+                  </small>
+                <% } else if (driver.regularFromRound && driver.regularFromRound > 1) { %>
+                  <small class="history-driver-state">ab R<%= driver.regularFromRound %> Stammfahrer</small>
+                <% } %>
 
               </td>
 
@@ -353,7 +361,8 @@
                   selectedHistory.races[resultIndex];
 
                 const main =
-                  weekendResult.main;
+                  weekendResult.main ||
+                  (!Object.prototype.hasOwnProperty.call(weekendResult, 'main') ? weekendResult : null);
 
                 const sprint =
                   weekendResult.sprint;
@@ -724,6 +733,10 @@
                   <strong>
                     <%= driver.name %>
                   </strong>
+
+                  <% if (driver.promotedToRegular) { %>
+                    <small class="history-driver-state">ab R<%= driver.promotedFromRound %> Stammfahrer</small>
+                  <% } %>
 
                 </td>
 

@@ -7,6 +7,13 @@ function plain(value) {
   return value && typeof value.toJSON === "function" ? value.toJSON() : value;
 }
 
+function isRoundInStint(stint, roundValue) {
+  const round = Number(roundValue);
+  return Number.isFinite(round) &&
+    round >= Number(stint.fromRound) &&
+    (stint.toRound === null || stint.toRound === undefined || round <= Number(stint.toRound));
+}
+
 function raceCode(race, index) {
   const words = String(race?.title || race?.circuit || "")
     .replace(/gro(?:ss|ß)er preis (?:von|der)/i, "")
@@ -23,6 +30,7 @@ function buildSeasonData(
   driverValues = [],
   lineupValues = [],
   seasonValue = null,
+  stintValues = [],
 ) {
   const league = plain(leagueValue);
 
@@ -103,6 +111,16 @@ function buildSeasonData(
       ),
     );
 
+  const raceIndexByObject =
+    new Map(
+      races.map(
+        (race, index) => [
+          race,
+          index,
+        ],
+      ),
+    );
+
   /*
    * =====================================================
    * LINE-UP
@@ -111,6 +129,20 @@ function buildSeasonData(
 
   const lineups =
     lineupValues.map(plain);
+
+  const stints = stintValues.map(plain);
+  const stintsByDriverAndRole = new Map();
+  stints.forEach((stint) => {
+    const key = `${Number(stint.DriverId)}::${stint.roleType}`;
+    if (!stintsByDriverAndRole.has(key)) stintsByDriverAndRole.set(key, []);
+    stintsByDriverAndRole.get(key).push(stint);
+  });
+  stintsByDriverAndRole.forEach((rows) => rows.sort(
+    (left, right) => Number(left.fromRound) - Number(right.fromRound)
+  ));
+
+  const stintsFor = (driverId, roleType) =>
+    stintsByDriverAndRole.get(`${Number(driverId)}::${roleType}`) || [];
 
   const mainRaceByRound =
     new Map(
@@ -281,6 +313,11 @@ function buildSeasonData(
       },
     );
 
+  stints.forEach((stint) => {
+    const team = plain(stint.seasonTeam);
+    if (team?.name && team?.logoPath) teamLogoByName.set(team.name, team.logoPath);
+  });
+
   /*
    * =====================================================
    * STAMMFAHRER
@@ -300,6 +337,15 @@ function buildSeasonData(
         const team =
           plain(driver.team) ||
           null;
+
+        const regularStints = stintsFor(driver.id, "regular");
+        const regularFromRound = regularStints.length
+          ? Math.min(...regularStints.map((stint) => Number(stint.fromRound)))
+          : null;
+        const hasActiveRegularStint = regularStints.some((stint) => stint.toRound == null);
+        const regularToRound = regularStints.length && !hasActiveRegularStint
+          ? Math.max(...regularStints.map((stint) => Number(stint.toRound)))
+          : null;
 
         const key =
           driver.id
@@ -332,6 +378,13 @@ function buildSeasonData(
 
             wins:
               0,
+
+            regularFromRound,
+
+            regularToRound,
+
+            isFormerDriver:
+              Boolean(regularStints.length && !hasActiveRegularStint),
           },
         );
 
@@ -364,6 +417,55 @@ function buildSeasonData(
           ) ||
           `name:${entry.driverName}`;
 
+  const stintById = new Map(stints.map((stint) => [Number(stint.id), stint]));
+  const transferWindowsByDriver = new Map();
+
+  stints
+    .filter((stint) => stint.roleType === "regular" && stint.carryReservePoints === true)
+    .forEach((regularStint) => {
+      const previous = stintById.get(Number(regularStint.previousStintId));
+      if (!previous || previous.roleType !== "reserve" ||
+          Number(previous.DriverId) !== Number(regularStint.DriverId) ||
+          Number(previous.SeasonTeamId) !== Number(regularStint.SeasonTeamId)) {
+        return;
+      }
+      const driverId = Number(regularStint.DriverId);
+      if (!transferWindowsByDriver.has(driverId)) transferWindowsByDriver.set(driverId, []);
+      transferWindowsByDriver.get(driverId).push({
+        promotionRound: Number(regularStint.fromRound),
+        reserveStint: previous,
+        team: plain(previous.seasonTeam) || plain(regularStint.seasonTeam) || null,
+      });
+    });
+
+  function entryMatchesStintTeam(entry, window) {
+    const team = window.team;
+    if (!team) return false;
+    if (entry.teamName && team.name) {
+      return String(entry.teamName).trim().toLowerCase() ===
+        String(team.name).trim().toLowerCase();
+    }
+    return team.sourceType === "current" &&
+      Number(entry.TeamId) === Number(team.sourceId);
+  }
+
+  function transferredReservePoints(driverId, upToRound) {
+    const windows = transferWindowsByDriver.get(Number(driverId)) || [];
+    return windows.reduce((sum, window) => {
+      if (Number(upToRound) < window.promotionRound) return sum;
+      return sum + races.reduce((raceSum, race) => {
+        if (!isRoundInStint(window.reserveStint, race.sortOrder)) return raceSum;
+        const entry = (race.entries || []).map(plain).find(
+          (candidate) => Number(candidate.DriverId) === Number(driverId)
+        );
+        if (!entry || !entryMatchesStintTeam(entry, window)) return raceSum;
+        const lineupEntry = lineupEntryForResult(race, entry);
+        if (lineupEntry?.roleType !== "reserve") return raceSum;
+        return raceSum + number(entry.points);
+      }, 0);
+    }, 0);
+  }
+
   /*
    * =====================================================
    * STAMMFAHRER-ERGEBNISSE
@@ -377,6 +479,8 @@ function buildSeasonData(
     ] of drivers.entries()
   ) {
     let cumulative = 0;
+    let appliedTransfer = 0;
+    const regularStints = stintsFor(driver.id, "regular");
 
     driver.results =
       races.map(
@@ -388,6 +492,28 @@ function buildSeasonData(
                   race,
                 )
               : race;
+
+          const availableTransfer = transferredReservePoints(driver.id, race.sortOrder);
+          if (availableTransfer > appliedTransfer) {
+            const delta = availableTransfer - appliedTransfer;
+            cumulative += delta;
+            driver.total += delta;
+            appliedTransfer = availableTransfer;
+          }
+
+          const isRegularInRound = !regularStints.length ||
+            regularStints.some((stint) => isRoundInStint(stint, race.sortOrder));
+          if (!isRegularInRound) {
+            return {
+              value: "DNS",
+              points: 0,
+              cumulative,
+              status: "DNS",
+              position: null,
+              fastestLap: false,
+              outsideStint: true,
+            };
+          }
 
           const wasReplaced =
             lineupRace &&
@@ -615,6 +741,24 @@ function buildSeasonData(
     },
   );
 
+  stints
+    .filter((stint) => stint.roleType === "reserve" && stint.driver)
+    .forEach((stint) => {
+      const driverId = Number(stint.DriverId);
+      if (reserveDrivers.has(driverId)) return;
+      const stintDriver = plain(stint.driver);
+      const stintTeam = plain(stint.seasonTeam);
+      reserveDrivers.set(driverId, {
+        id: driverId,
+        name: stintDriver?.name || `Fahrer ${driverId}`,
+        team: stintTeam?.name || null,
+        teamLogoPath: stintTeam?.logoPath || null,
+        results: [],
+        total: 0,
+        wins: 0,
+      });
+    });
+
   /*
    * =====================================================
    * ERSATZFAHRER-ERGEBNISSE
@@ -628,10 +772,25 @@ function buildSeasonData(
     ] of reserveDrivers.entries()
   ) {
     let cumulative = 0;
+    const reserveStints = stintsFor(reserveDriverId, "reserve");
 
     reserveDriver.results =
       races.map(
         (race) => {
+          const isReserveInRound = !reserveStints.length ||
+            reserveStints.some((stint) => isRoundInStint(stint, race.sortOrder));
+          if (!isReserveInRound) {
+            return {
+              value: "DNS",
+              points: 0,
+              cumulative,
+              status: "DNS",
+              position: null,
+              fastestLap: false,
+              outsideStint: true,
+            };
+          }
+
           const lineupEntry =
             lineupEntryForResult(
               race,
@@ -785,8 +944,15 @@ function buildSeasonData(
 
   rankedReserveDrivers.forEach(
     (driver, index) => {
+      const reserveStintIds = new Set(stintsFor(driver.id, "reserve").map((stint) => Number(stint.id)));
+      const promotionStint = stintsFor(driver.id, "regular")
+        .find((stint) => reserveStintIds.has(Number(stint.previousStintId)));
+
       driver.position =
         index + 1;
+
+      driver.promotedToRegular = Boolean(promotionStint);
+      driver.promotedFromRound = promotionStint ? Number(promotionStint.fromRound) : null;
 
       driver.gap =
         driver.total -
@@ -879,6 +1045,13 @@ function buildSeasonData(
         },
       );
 
+    stints.forEach((stint) => {
+      const team = plain(stint.seasonTeam);
+      if (team?.name && !map.has(team.name)) {
+        map.set(team.name, { name: team.name, points: 0, wins: 0 });
+      }
+    });
+
     return map;
   }
 
@@ -899,14 +1072,14 @@ function buildSeasonData(
               0,
             );
 
-          const lineupEntry =
+          const concreteLineupEntry =
             lineupEntryForResult(
               race,
               entry,
             );
 
           const isReserve =
-            lineupEntry
+            concreteLineupEntry
               ?.roleType ===
             "reserve";
 
@@ -939,13 +1112,13 @@ function buildSeasonData(
           if (
             !teamName &&
             isReserve &&
-            lineupEntry
+            concreteLineupEntry
               ?.ReplacementForDriverId
           ) {
             teamName =
               regularDriverTeamMap.get(
                 Number(
-                  lineupEntry
+                  concreteLineupEntry
                     .ReplacementForDriverId,
                 ),
               ) ||
@@ -1057,12 +1230,10 @@ function buildSeasonData(
       return null;
     }
 
-    const index =
-      raceIndexById.get(
-        Number(
-          race.id,
-        ),
-      );
+    const raceId = Number(race.id);
+    const index = Number.isFinite(raceId)
+      ? raceIndexById.get(raceId)
+      : raceIndexByObject.get(race);
 
     return index === undefined
       ? null
@@ -1148,6 +1319,7 @@ function buildSeasonData(
             ),
 
           title:
+            weekend.sprint?.title ||
             displayRace?.title ||
             "",
 

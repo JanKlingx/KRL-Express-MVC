@@ -1,8 +1,13 @@
 <%
   const availableTeams =
-    Array.isArray(teams)
+    typeof teams !== 'undefined' && Array.isArray(teams)
       ? teams
       : [];
+
+  const currentLeague =
+    typeof league !== 'undefined'
+      ? league
+      : null;
 
 
   const availableItems =
@@ -258,11 +263,11 @@
 
             <div class="gp-broadcast-league">
 
-              <% if (league?.logoPath) { %>
+              <% if (currentLeague?.logoPath) { %>
 
                 <img
-                  src="<%= league.logoPath %>"
-                  alt="<%= league.name %>"
+                  src="<%= currentLeague.logoPath %>"
+                  alt="<%= currentLeague.name %>"
                 >
 
               <% } %>
@@ -437,6 +442,7 @@
                     class="
                       gp-broadcast-podium-card
                       gp-broadcast-podium-<%= position %>
+                      position-<%= position %>
                     "
                     style="
                       --gp-team-color:
@@ -594,11 +600,16 @@
                     .trim()
                     .toUpperCase();
 
+                const statusClass =
+                  status
+                    .toLowerCase()
+                    .replace(/[^a-z0-9_-]+/g, '-');
+
               %>
 
 
                 <article
-                  class="gp-broadcast-row"
+                  class="gp-broadcast-row <%= position ? `position-${position}` : '' %> <%= statusClass ? `status-${statusClass}` : '' %>"
                   style="
                     --gp-team-color:
                       <%= team?.accentColor || '#6ef2f2' %>;
@@ -677,11 +688,7 @@
                         "GEWERTET"
                     ) { %>
 
-                      <small>
-
-                        <%= status %>
-
-                      </small>
+                      <small class="status-<%= statusClass %>"><%= status %></small>
 
                     <% } %>
 

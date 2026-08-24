@@ -27,8 +27,8 @@ test('Saison-Assistent und Saisonpflege speichern den Checkboxwert explizit', ()
 test('Team-WM erkennt Ersatzfahrer über das konkrete Renn-Line-up', () => {
   const standingsSource = read('services/standings.js');
 
-  assert.match(standingsSource, /Number\(row\.GrandPrixResultId\)\s*===\s*directRaceId/);
-  assert.match(standingsSource, /Number\(row\.DriverId\)\s*===\s*Number\(entry\.DriverId\)/);
-  assert.match(standingsSource, /concreteLineupEntry\?\.roleType\s*===\s*["']reserve["']/);
+  assert.match(standingsSource, /Number\(\s*row\.GrandPrixResultId,?\s*\)\s*===\s*directRaceId/);
+  assert.match(standingsSource, /Number\(\s*row\.DriverId,?\s*\)\s*===\s*Number\(\s*entry\.DriverId,?\s*\)/);
+  assert.match(standingsSource, /concreteLineupEntry\s*[\s\S]*?\?\.roleType\s*===\s*["']reserve["']/);
   assert.match(standingsSource, /isReserve\s*&&\s*!reservePointsForConstructors/);
 });
