@@ -310,18 +310,17 @@
         WM-STÄNDE
       </h2>
 
-    <div class="export-actions">
+      <div class="export-actions">
 
-  <button
-    class="button button-small"
-    type="button"
-    id="standings-png-download"
-    data-png-title="<%= league.name %> · Fahrer-WM"
-  >
-    PNG ↓
-  </button>
+        <button
+          class="button button-small"
+          type="button"
+          id="standings-png-download"
+        >
+          PNG ↓
+        </button>
 
-</div>
+      </div>
 
     </div>
 
@@ -329,7 +328,7 @@
     <% if (safeStandingsHistory.length) { %>
 
       <div
-        class="standings-history-carousel standings-history-carousel-compact"
+        class="standings-history-carousel standings-history-carousel-wide"
         data-standings-history
       >
 
@@ -379,20 +378,64 @@
                 )
                 .trim();
 
+
+            /*
+             * Fahrer-WM:
+             * Desktop in zwei Spalten teilen.
+             */
+            const driverSplit =
+              Math.ceil(
+                snapshot.driverStandings.length / 2
+              );
+
+            const driverLeft =
+              snapshot.driverStandings.slice(
+                0,
+                driverSplit
+              );
+
+            const driverRight =
+              snapshot.driverStandings.slice(
+                driverSplit
+              );
+
+
+            /*
+             * Team-WM:
+             * ebenfalls zwei Spalten.
+             */
+            const teamSplit =
+              Math.ceil(
+                snapshot.teamStandings.length / 2
+              );
+
+            const teamLeft =
+              snapshot.teamStandings.slice(
+                0,
+                teamSplit
+              );
+
+            const teamRight =
+              snapshot.teamStandings.slice(
+                teamSplit
+              );
+
           %>
 
 
             <article
-              class="standings-history-slide standings-history-slide-compact <%= snapshotIndex === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
+              class="standings-history-slide standings-history-slide-wide <%= snapshotIndex === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
               data-standings-slide
               data-slide-index="<%= snapshotIndex %>"
               aria-hidden="<%= snapshotIndex === safeStandingsHistory.length - 1 ? 'false' : 'true' %>"
             >
 
 
+              <!-- ===================================== -->
               <!-- HEADER -->
+              <!-- ===================================== -->
 
-              <header class="standing-gp-header standing-gp-header-compact">
+              <header class="standing-gp-header standing-gp-header-wide">
 
                 <div class="standing-gp-league">
 
@@ -414,7 +457,7 @@
                 </div>
 
 
-                <div class="standing-gp-title standing-gp-title-compact">
+                <div class="standing-gp-title">
 
                   <span>
                     WM-STAND NACH RUNDE <%= snapshot.round %>
@@ -468,22 +511,26 @@
               <% if (snapshot.hasSprint) { %>
 
                 <div class="standing-weekend-note">
-                  Sprint + Hauptrennen sind in diesem WM-Stand enthalten.
+                  Sprint + Hauptrennen in diesem WM-Stand berücksichtigt
                 </div>
 
               <% } %>
 
 
-              <!-- FAHRER + TEAM NEBENEINANDER -->
+              <!-- ===================================== -->
+              <!-- FAHRER + TEAM -->
+              <!-- ===================================== -->
 
-              <div class="standing-snapshot-grid">
+              <div class="standing-wide-grid">
 
 
+                <!-- =================================== -->
                 <!-- FAHRER-WM -->
+                <!-- =================================== -->
 
-                <section class="standing-mini-card">
+                <section class="standing-wide-card">
 
-                  <header class="standing-mini-heading">
+                  <header class="standing-wide-heading">
 
                     <div>
 
@@ -504,89 +551,166 @@
                   </header>
 
 
-                  <div class="standing-mini-ranking">
+                  <div class="standing-wide-columns">
 
 
-                    <% snapshot.driverStandings.forEach((row) => {
+                    <!-- FAHRER LINKS -->
 
-                      const standingTeam =
-                        findPublicTeam(
-                          row.team
-                        );
+                    <div class="standing-wide-column">
 
+                      <% driverLeft.forEach((row) => {
 
-                      const standingLogo =
-                        standingTeam?.logoPath ||
-                        row.teamLogoPath ||
-                        null;
+                        const standingTeam =
+                          findPublicTeam(
+                            row.team
+                          );
 
 
-                      const standingColor =
-                        standingTeam?.accentColor ||
-                        league.accentColor ||
-                        '#6ef2f2';
-
-                    %>
+                        const standingLogo =
+                          standingTeam?.logoPath ||
+                          row.teamLogoPath ||
+                          null;
 
 
-                      <div
-                        class="standing-mini-row"
-                        style="--standing-team-color:<%= standingColor %>"
-                      >
+                        const standingColor =
+                          standingTeam?.accentColor ||
+                          league.accentColor ||
+                          '#6ef2f2';
+
+                      %>
 
 
-                        <div class="standing-mini-position">
-                          <%= row.position %>
+                        <div
+                          class="standing-wide-row"
+                          style="--standing-team-color:<%= standingColor %>"
+                        >
+
+                          <div class="standing-wide-position">
+                            <%= row.position %>
+                          </div>
+
+
+                          <div class="standing-wide-team">
+
+                            <% if (standingLogo) { %>
+
+                              <img
+                                src="<%= standingLogo %>"
+                                alt="<%= row.team || 'Team' %>"
+                                title="<%= row.team || '' %>"
+                              >
+
+                            <% } else { %>
+
+                              <span>
+                                <%= row.team || '–' %>
+                              </span>
+
+                            <% } %>
+
+                          </div>
+
+
+                          <div class="standing-wide-name">
+                            <%= row.name %>
+                          </div>
+
+
+                          <div class="standing-wide-points">
+                            <%= row.points %>
+                          </div>
+
                         </div>
 
+                      <% }) %>
 
-                        <div class="standing-mini-team">
+                    </div>
 
-                          <% if (standingLogo) { %>
 
-                            <img
-                              src="<%= standingLogo %>"
-                              alt="<%= row.team || 'Team' %>"
-                              title="<%= row.team || '' %>"
-                            >
+                    <!-- FAHRER RECHTS -->
 
-                          <% } else { %>
+                    <div class="standing-wide-column">
 
-                            <span>
-                              <%= row.team || '–' %>
-                            </span>
+                      <% driverRight.forEach((row) => {
 
-                          <% } %>
+                        const standingTeam =
+                          findPublicTeam(
+                            row.team
+                          );
+
+
+                        const standingLogo =
+                          standingTeam?.logoPath ||
+                          row.teamLogoPath ||
+                          null;
+
+
+                        const standingColor =
+                          standingTeam?.accentColor ||
+                          league.accentColor ||
+                          '#6ef2f2';
+
+                      %>
+
+
+                        <div
+                          class="standing-wide-row"
+                          style="--standing-team-color:<%= standingColor %>"
+                        >
+
+                          <div class="standing-wide-position">
+                            <%= row.position %>
+                          </div>
+
+
+                          <div class="standing-wide-team">
+
+                            <% if (standingLogo) { %>
+
+                              <img
+                                src="<%= standingLogo %>"
+                                alt="<%= row.team || 'Team' %>"
+                                title="<%= row.team || '' %>"
+                              >
+
+                            <% } else { %>
+
+                              <span>
+                                <%= row.team || '–' %>
+                              </span>
+
+                            <% } %>
+
+                          </div>
+
+
+                          <div class="standing-wide-name">
+                            <%= row.name %>
+                          </div>
+
+
+                          <div class="standing-wide-points">
+                            <%= row.points %>
+                          </div>
 
                         </div>
 
+                      <% }) %>
 
-                        <div class="standing-mini-name">
-                          <%= row.name %>
-                        </div>
-
-
-                        <div class="standing-mini-points">
-                          <%= row.points %>
-                        </div>
-
-
-                      </div>
-
-
-                    <% }) %>
-
+                    </div>
 
                   </div>
 
                 </section>
 
 
+                <!-- =================================== -->
                 <!-- TEAM-WM -->
+                <!-- =================================== -->
 
-                <section class="standing-mini-card">
+                <section class="standing-wide-card">
 
-                  <header class="standing-mini-heading">
+                  <header class="standing-wide-heading">
 
                     <div>
 
@@ -607,88 +731,158 @@
                   </header>
 
 
-                  <div class="standing-mini-ranking">
+                  <div class="standing-wide-columns">
 
 
-                    <% snapshot.teamStandings.forEach((row) => {
+                    <!-- TEAM LINKS -->
 
-                      const standingTeam =
-                        findPublicTeam(
-                          row.name
-                        );
+                    <div class="standing-wide-column">
 
+                      <% teamLeft.forEach((row) => {
 
-                      const standingColor =
-                        standingTeam?.accentColor ||
-                        league.accentColor ||
-                        '#6ef2f2';
-
-                    %>
+                        const standingTeam =
+                          findPublicTeam(
+                            row.name
+                          );
 
 
-                      <div
-                        class="standing-mini-row standing-mini-team-row"
-                        style="--standing-team-color:<%= standingColor %>"
-                      >
+                        const standingColor =
+                          standingTeam?.accentColor ||
+                          league.accentColor ||
+                          '#6ef2f2';
+
+                      %>
 
 
-                        <div class="standing-mini-position">
-                          <%= row.position %>
+                        <div
+                          class="standing-wide-row standing-wide-team-row"
+                          style="--standing-team-color:<%= standingColor %>"
+                        >
+
+                          <div class="standing-wide-position">
+                            <%= row.position %>
+                          </div>
+
+
+                          <div class="standing-wide-team">
+
+                            <% if (standingTeam?.logoPath) { %>
+
+                              <img
+                                src="<%= standingTeam.logoPath %>"
+                                alt="<%= row.name %>"
+                                title="<%= row.name %>"
+                              >
+
+                            <% } else { %>
+
+                              <span>
+                                <%= row.name %>
+                              </span>
+
+                            <% } %>
+
+                          </div>
+
+
+                          <div class="standing-wide-name">
+                            <%= row.name %>
+                          </div>
+
+
+                          <div class="standing-wide-points">
+                            <%= row.points %>
+                          </div>
+
                         </div>
 
+                      <% }) %>
 
-                        <div class="standing-mini-team">
+                    </div>
 
-                          <% if (standingTeam?.logoPath) { %>
 
-                            <img
-                              src="<%= standingTeam.logoPath %>"
-                              alt="<%= row.name %>"
-                              title="<%= row.name %>"
-                            >
+                    <!-- TEAM RECHTS -->
 
-                          <% } else { %>
+                    <div class="standing-wide-column">
 
-                            <span>
-                              <%= row.name %>
-                            </span>
+                      <% teamRight.forEach((row) => {
 
-                          <% } %>
+                        const standingTeam =
+                          findPublicTeam(
+                            row.name
+                          );
+
+
+                        const standingColor =
+                          standingTeam?.accentColor ||
+                          league.accentColor ||
+                          '#6ef2f2';
+
+                      %>
+
+
+                        <div
+                          class="standing-wide-row standing-wide-team-row"
+                          style="--standing-team-color:<%= standingColor %>"
+                        >
+
+                          <div class="standing-wide-position">
+                            <%= row.position %>
+                          </div>
+
+
+                          <div class="standing-wide-team">
+
+                            <% if (standingTeam?.logoPath) { %>
+
+                              <img
+                                src="<%= standingTeam.logoPath %>"
+                                alt="<%= row.name %>"
+                                title="<%= row.name %>"
+                              >
+
+                            <% } else { %>
+
+                              <span>
+                                <%= row.name %>
+                              </span>
+
+                            <% } %>
+
+                          </div>
+
+
+                          <div class="standing-wide-name">
+                            <%= row.name %>
+                          </div>
+
+
+                          <div class="standing-wide-points">
+                            <%= row.points %>
+                          </div>
 
                         </div>
 
+                      <% }) %>
 
-                        <div class="standing-mini-name">
-                          <%= row.name %>
-                        </div>
-
-
-                        <div class="standing-mini-points">
-                          <%= row.points %>
-                        </div>
-
-
-                      </div>
-
-
-                    <% }) %>
-
+                    </div>
 
                   </div>
 
                 </section>
 
-
               </div>
 
             </article>
 
-
           <% }) %>
-
 
         </div>
 
+
+        <!-- =========================================== -->
+        <!-- CAROUSEL -->
+        <!-- =========================================== -->
 
         <% if (safeStandingsHistory.length > 1) { %>
 
@@ -730,7 +924,6 @@
 
         <% } %>
 
-
       </div>
 
 
@@ -745,11 +938,9 @@
 
     <% } %>
 
-
   </div>
 
 </section>
-
   <!-- ================================================= -->
   <!-- GP RESULTS -->
   <!-- ================================================= -->
@@ -856,261 +1047,9 @@
 ></script>
 
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-
-  document
-    .querySelectorAll('[data-standings-history]')
-    .forEach((carousel) => {
-
-      const slides =
-        Array.from(
-          carousel.querySelectorAll(
-            '[data-standings-slide]'
-          )
-        );
-
-      const dots =
-        Array.from(
-          carousel.querySelectorAll(
-            '[data-standings-dot]'
-          )
-        );
-
-      const prev =
-        carousel.querySelector(
-          '[data-standings-prev]'
-        );
-
-      const next =
-        carousel.querySelector(
-          '[data-standings-next]'
-        );
-
-
-      if (!slides.length) {
-        return;
-      }
-
-
-      let activeIndex =
-        slides.findIndex(
-          (slide) =>
-            slide.classList.contains(
-              'is-active'
-            )
-        );
-
-
-      if (activeIndex < 0) {
-        activeIndex =
-          slides.length - 1;
-      }
-
-
-      const show =
-        (index) => {
-
-          activeIndex =
-            (
-              index +
-              slides.length
-            ) %
-            slides.length;
-
-
-          slides.forEach(
-            (
-              slide,
-              slideIndex
-            ) => {
-
-              const active =
-                slideIndex ===
-                activeIndex;
-
-
-              slide.classList.toggle(
-                'is-active',
-                active
-              );
-
-
-              slide.setAttribute(
-                'aria-hidden',
-                active
-                  ? 'false'
-                  : 'true'
-              );
-
-            }
-          );
-
-
-          dots.forEach(
-            (
-              dot,
-              dotIndex
-            ) => {
-
-              dot.classList.toggle(
-                'is-active',
-                dotIndex ===
-                  activeIndex
-              );
-
-            }
-          );
-
-        };
-
-
-      prev?.addEventListener(
-        'click',
-        () =>
-          show(
-            activeIndex - 1
-          )
-      );
-
-
-      next?.addEventListener(
-        'click',
-        () =>
-          show(
-            activeIndex + 1
-          )
-      );
-
-
-      dots.forEach(
-        (dot) => {
-
-          dot.addEventListener(
-            'click',
-            () => {
-
-              show(
-                Number(
-                  dot.dataset
-                    .standingsDot
-                )
-              );
-
-            }
-          );
-
-        }
-      );
-
-
-      show(
-        activeIndex
-      );
-
-    }
-  );
-
-});
-
-
-const standingsPngButton =
-  document.getElementById(
-    'standings-png-download'
-  );
-
-
-const standingsPngButton =
-  document.getElementById(
-    'standings-png-download'
-  );
-
-standingsPngButton?.addEventListener(
-  'click',
-  () => {
-
-    const activeSlide =
-      document.querySelector(
-        '[data-standings-slide].is-active'
-      );
-
-    if (!activeSlide) {
-      return;
-    }
-
-    let exportId =
-      activeSlide.id;
-
-    if (!exportId) {
-      exportId =
-        `standings-export-${Date.now()}`;
-
-      activeSlide.id =
-        exportId;
-    }
-
-    const exportButton =
-      document.createElement(
-        'button'
-      );
-
-    exportButton.type =
-      'button';
-
-    exportButton.style.display =
-      'none';
-
-    exportButton.setAttribute(
-      'data-png-export',
-      ''
-    );
-
-    exportButton.setAttribute(
-      'data-png-target',
-      `#${exportId}`
-    );
-
-    exportButton.setAttribute(
-      'data-png-title',
-      '<%= league.name %> · WM-Stand'
-    );
-
-    exportButton.setAttribute(
-      'data-png-subtitle',
-      '<%= selectedSeason?.name || league.currentSeason %>'
-    );
-
-    exportButton.setAttribute(
-      'data-png-filename',
-      '<%= league.slug %>-wm-stand'
-    );
-
-    exportButton.setAttribute(
-      'data-png-logo',
-      '<%= league.logoPath || "/images/krl-placeholder.svg" %>'
-    );
-
-    exportButton.setAttribute(
-      'data-png-accent',
-      '<%= selectedSeason?.accentColor || league.accentColor || "#6ef2f2" %>'
-    );
-
-    document.body.appendChild(
-      exportButton
-    );
-
-    exportButton.click();
-
-    setTimeout(
-      () => {
-        exportButton.remove();
-      },
-      500
-    );
-
-  }
-);
-</script>
-
+<script
+  src="/js/standings-history.js"
+  defer
+></script>
 
 <%- include('partials/footer') %>

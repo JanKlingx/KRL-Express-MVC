@@ -1,235 +1,1764 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const board = document.querySelector('[data-race-control-lineup]');
-  if (!board) return;
+document.addEventListener("DOMContentLoaded", () => {
+  const form =
+    document.querySelector(
+      "form.attendance-board",
+    );
 
-  const feedback = board.querySelector('[data-lineup-feedback]');
-  const reserveCards = [...board.querySelectorAll('[data-reserve-card]')];
-  const cockpits = [...board.querySelectorAll('[data-cockpit]')];
-  let selectedReserveId = null;
-
-  const cardFor = (id) => reserveCards.find((card) => String(card.dataset.reserveId) === String(id));
-  const cockpitForReserve = (id) => cockpits.find((cockpit) => String(cockpit.querySelector('[data-replacement-input]')?.value || '') === String(id));
-  const setFeedback = (message, error = false) => {
-    if (!feedback) return;
-    feedback.textContent = message;
-    feedback.classList.toggle('is-error', error);
-  };
-
-  function refreshCard(card) {
-    const assigned = Boolean(cockpitForReserve(card.dataset.reserveId));
-    const locked = card.classList.contains('is-locked');
-    const status = card.querySelector('[data-reserve-status-input]')?.value;
-    const available = ['anwesend', 'unsicher', 'auf_abruf'].includes(status);
-    card.classList.toggle('is-assigned', assigned);
-    card.classList.toggle('is-unavailable', !available);
-    card.draggable = !assigned && !locked && available;
-    card.setAttribute('aria-disabled', String(assigned || locked || !available));
-    const state = card.querySelector(':scope > span');
-    if (state) state.textContent = locked ? '🔒 BESTÄTIGT' : assigned ? 'EINGETEILT' : available ? 'VERFÜGBAR' : 'NICHT VERFÜGBAR';
+  if (!form) {
+    return;
   }
 
-  function renderAssignment(cockpit, card) {
-    const seat = cockpit.querySelector('[data-seat]');
-    seat.innerHTML = '';
-    const assignment = document.createElement('div');
-    assignment.className = 'race-control-assignment';
-    assignment.dataset.assignment = '';
-    assignment.dataset.reserveId = card.dataset.reserveId;
-    const state = document.createElement('span');
-    state.textContent = 'EINGETEILT';
-    const name = document.createElement('strong');
-    name.textContent = card.dataset.reserveName;
-    const detail = document.createElement('small');
-    detail.textContent = `Ersatz für ${cockpit.querySelector('.is-regular strong')?.textContent || 'Stammfahrer'}`;
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.dataset.unassign = '';
-    remove.setAttribute('aria-label', 'Zuordnung entfernen');
-    remove.textContent = '×';
-    assignment.append(state, name, detail, remove);
-    seat.append(assignment);
+
+  /*
+   * =====================================================
+   * NORMALE STATUS IN SCHRITT 2
+   * =====================================================
+   *
+   * UNSICHER ist KEIN Drop-Ziel.
+   * ABGEMELDET ist KEIN Drop-Ziel.
+   */
+
+  const attendanceTargets = [
+    {
+      value: "anwesend",
+      label: "ANWESEND",
+      short: "ANWESEND",
+      description: "Teilnahme bestätigt",
+    },
+
+    {
+      value:
+        "zu_spaet_vorbesprechung",
+
+      label:
+        "ZU SPÄT VORBESPRECHUNG",
+
+      short:
+        "ZU SPÄT",
+
+      description:
+        "Teilnahme bestätigt",
+    },
+
+    {
+      value:
+        "unabgemeldet",
+
+      label:
+        "NICHT ERSCHIENEN",
+
+      short:
+        "NICHT ERSCHIENEN",
+
+      description:
+        "Keine Teilnahme",
+    },
+
+    {
+      value:
+        "zu_spaet_abgemeldet",
+
+      label:
+        "ZU SPÄT ABGEMELDET",
+
+      short:
+        "ZU SPÄT ABGEMELDET",
+
+      description:
+        "Keine Teilnahme",
+    },
+  ];
+
+
+  let selectedAttendanceSelect =
+    null;
+
+
+  /*
+   * =====================================================
+   * HELPERS
+   * =====================================================
+   */
+
+  function decisionInputFor(row) {
+    return row?.querySelector(
+      "[data-uncertain-decision]",
+    );
   }
 
-  function clearCockpit(cockpit, announce = false) {
-    if (cockpit.classList.contains('is-locked')) {
-      setFeedback('Diese Zuordnung ist durch die bestätigte Anwesenheit gesperrt.', true);
-      return false;
-    }
-    const input = cockpit.querySelector('[data-replacement-input]');
-    const previousCard = cardFor(input.value);
-    input.value = '';
-    const seat = cockpit.querySelector('[data-seat]');
-    seat.innerHTML = '<span class="race-control-seat-empty">ERSATZ HIER ABLEGEN</span>';
-    if (previousCard) refreshCard(previousCard);
-    if (announce) setFeedback('Ersatzfahrer-Zuordnung wurde im Entwurf entfernt. Zum Übernehmen speichern.');
-    return true;
+
+  function teamInfo(select) {
+    const card =
+      select.closest(
+        ".lineup-team-card",
+      );
+
+    return {
+      name:
+        card
+          ?.querySelector(
+            "header h3",
+          )
+          ?.textContent
+          ?.trim() ||
+        "",
+
+      logo:
+        card
+          ?.querySelector(
+            "header img",
+          )
+          ?.getAttribute(
+            "src",
+          ) ||
+        "",
+    };
   }
 
-  function assign(card, cockpit) {
-    if (!card || !cockpit) return;
-    if (card.classList.contains('is-locked')) return setFeedback('Die Anwesenheit dieses Ersatzfahrers ist bereits bestätigt.', true);
-    const status = card.querySelector('[data-reserve-status-input]')?.value;
-    if (!['anwesend', 'unsicher', 'auf_abruf'].includes(status)) return setFeedback(`${card.dataset.reserveName} ist mit diesem Status nicht einsetzbar.`, true);
-    const currentCockpit = cockpitForReserve(card.dataset.reserveId);
-    if (currentCockpit && currentCockpit !== cockpit) return setFeedback(`${card.dataset.reserveName} ist in diesem Rennwochenende bereits einem Cockpit zugeordnet.`, true);
-    if (cockpit.classList.contains('is-banned')) return setFeedback('Ein Fahrer mit Rennsperre darf nicht ersetzt werden.', true);
-    if (cockpit.classList.contains('is-locked')) return setFeedback('Dieses Cockpit besitzt bereits eine bestätigte, gesperrte Zuordnung.', true);
-    if (cockpit.querySelector('[data-replacement-input]').value && !clearCockpit(cockpit)) return;
-    const regularStatus = cockpit.querySelector('[data-regular-status]');
-    if (regularStatus && !['abgemeldet', 'unsicher'].includes(regularStatus.value)) regularStatus.value = 'unsicher';
-    cockpit.querySelector('[data-replacement-input]').value = card.dataset.reserveId;
-    renderAssignment(cockpit, card);
-    refreshCard(card);
-    selectedReserveId = null;
-    reserveCards.forEach((item) => item.classList.remove('is-selected'));
-    setFeedback(`${card.dataset.reserveName} ist jetzt ${cockpit.dataset.teamName} zugeordnet. Aufstellung speichern, um zu bestätigen.`);
-  }
 
-  reserveCards.forEach((card) => {
-    const select = card.querySelector('[data-reserve-status-select]');
-    const input = card.querySelector('[data-reserve-status-input]');
-    select?.addEventListener('change', () => { input.value = select.value; refreshCard(card); });
-    card.addEventListener('dragstart', (event) => {
-      if (!card.draggable) return event.preventDefault();
-      event.dataTransfer.setData('text/plain', card.dataset.reserveId);
-      event.dataTransfer.effectAllowed = 'move';
-      card.classList.add('is-dragging');
-    });
-    card.addEventListener('dragend', () => card.classList.remove('is-dragging'));
-    card.addEventListener('click', (event) => {
-      if (event.target.closest('select')) return;
-      if (!card.draggable) return;
-      selectedReserveId = selectedReserveId === card.dataset.reserveId ? null : card.dataset.reserveId;
-      reserveCards.forEach((item) => item.classList.toggle('is-selected', item.dataset.reserveId === selectedReserveId));
-      if (selectedReserveId) setFeedback(`${card.dataset.reserveName} ausgewählt. Jetzt ein Cockpit antippen.`);
-    });
-    card.addEventListener('keydown', (event) => {
-      if ((event.key === 'Enter' || event.key === ' ') && card.draggable) { event.preventDefault(); card.click(); }
-    });
-    refreshCard(card);
-  });
-
-  cockpits.forEach((cockpit) => {
-    const seat = cockpit.querySelector('[data-seat]');
-    seat.addEventListener('dragover', (event) => { event.preventDefault(); cockpit.classList.add('is-drop-target'); });
-    seat.addEventListener('dragleave', () => cockpit.classList.remove('is-drop-target'));
-    seat.addEventListener('drop', (event) => {
-      event.preventDefault();
-      cockpit.classList.remove('is-drop-target');
-      assign(cardFor(event.dataTransfer.getData('text/plain')), cockpit);
-    });
-    seat.addEventListener('click', (event) => {
-      const remove = event.target.closest('[data-unassign]');
-      if (remove) return clearCockpit(cockpit, true);
-      if (selectedReserveId) assign(cardFor(selectedReserveId), cockpit);
-    });
-    seat.addEventListener('keydown', (event) => {
-      if ((event.key === 'Enter' || event.key === ' ') && selectedReserveId) { event.preventDefault(); assign(cardFor(selectedReserveId), cockpit); }
-    });
-    cockpit.querySelector('[data-regular-status]')?.addEventListener('change', (event) => {
-      if (!['abgemeldet', 'unsicher'].includes(event.target.value) && cockpit.querySelector('[data-replacement-input]').value) clearCockpit(cockpit, true);
-    });
-  });
-
-  board.addEventListener('submit', (event) => {
-    const ids = cockpits.map((cockpit) => cockpit.querySelector('[data-replacement-input]').value).filter(Boolean);
-    if (new Set(ids).size !== ids.length) {
-      event.preventDefault();
-      setFeedback('Ein Ersatzfahrer wurde mehrfach zugeordnet. Bitte den markierten Konflikt korrigieren.', true);
-    }
-  });
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.querySelector('form.attendance-board');
-  if (!form) return;
-  const sourceGrid = form.querySelector('.lineup-team-grid');
-  if (!sourceGrid) return;
-
-  const labels = {
-    anwesend: 'ANWESEND',
-    zu_spaet_vorbesprechung: 'ZU SPÄT VORBESPR.',
-    unsicher: 'UNSICHER',
-    abgemeldet: 'ABGEMELDET',
-    unabgemeldet: 'NICHT ERSCHIENEN',
-    zu_spaet_abgemeldet: 'ZU SPÄT ABGEMELDET'
-  };
-  const board = document.createElement('section');
-  board.className = 'attendance-race-control';
-  const heading = document.createElement('header');
-  heading.innerHTML = '<div><span>RACE CONTROL</span><strong>Fahrer auf Anwesenheitsstatus ziehen</strong><small>Antippen + Ziel antippen ist auf Touch-Geräten möglich.</small></div><button type="button" class="button button-ghost" data-attendance-details>Detailansicht</button>';
-  const zones = document.createElement('div');
-  zones.className = 'attendance-status-zones';
-  board.append(heading, zones);
-  form.insertBefore(board, sourceGrid);
-  form.classList.add('has-race-control-attendance');
-
-  let selectedSelect = null;
   function driverName(select) {
-    const host = select.closest('.attendance-active-driver, .attendance-team-row');
-    return host?.querySelector('.lineup-driver-name strong')?.textContent.replace(/^\s*#\d+\s*·\s*/, '').trim() || 'Fahrer';
+    const host =
+      select.closest(
+        ".attendance-active-driver, .attendance-team-row",
+      );
+
+    return (
+      host
+        ?.querySelector(
+          ".lineup-driver-name strong",
+        )
+        ?.textContent
+        ?.replace(
+          /^\s*#\d+\s*·\s*/,
+          "",
+        )
+        ?.trim() ||
+      "Fahrer"
+    );
   }
-  function rebuild() {
-    zones.innerHTML = '';
-    const selects = [...form.querySelectorAll('[data-attendance-status]')].filter((select) => !select.disabled);
-    Object.entries(labels).forEach(([value, label]) => {
-      const zone = document.createElement('div');
-      zone.className = `attendance-status-zone status-${value}`;
-      zone.dataset.attendanceZone = value;
-      zone.tabIndex = 0;
-      zone.innerHTML = `<header><strong>${label}</strong><span>0</span></header><div data-status-cards></div>`;
-      zones.append(zone);
+
+
+  function statusMeta(value) {
+    return (
+      attendanceTargets.find(
+        (item) =>
+          item.value === value,
+      ) ||
+      {
+        value,
+        label: value,
+        short: value,
+        description: "",
+      }
+    );
+  }
+
+
+  /*
+   * =====================================================
+   * SELECT-FARBE
+   * =====================================================
+   */
+
+  function paintAttendanceSelect(
+    select,
+  ) {
+    if (!select) return;
+
+    [
+      "attendance-select-anwesend",
+      "attendance-select-zu_spaet_vorbesprechung",
+      "attendance-select-unabgemeldet",
+      "attendance-select-zu_spaet_abgemeldet",
+    ].forEach(
+      (className) =>
+        select.classList.remove(
+          className,
+        ),
+    );
+
+    select.classList.add(
+      `attendance-select-${select.value}`,
+    );
+  }
+
+
+  /*
+   * =====================================================
+   * SPONTANER ERSATZ
+   * =====================================================
+   */
+
+  function updateReplacementPanel(
+    container,
+  ) {
+    if (!container) {
+      return;
+    }
+
+    const status =
+      container.querySelector(
+        "[data-attendance-status]",
+      );
+
+    const panel =
+      container.querySelector(
+        "[data-replacement-panel]",
+      );
+
+    if (!status) {
+      return;
+    }
+
+    paintAttendanceSelect(status);
+
+    if (!panel) {
+      return;
+    }
+
+    const allowed =
+      [
+        "unabgemeldet",
+        "zu_spaet_abgemeldet",
+      ].includes(
+        status.value,
+      );
+
+    panel.hidden =
+      !allowed;
+
+    const replacementSelect =
+      panel.querySelector(
+        "select",
+      );
+
+    replacementSelect &&
+      (replacementSelect.disabled =
+        !allowed);
+
+    if (
+      !allowed &&
+      replacementSelect
+    ) {
+      replacementSelect.value = "";
+    }
+  }
+
+
+  /*
+   * =====================================================
+   * VERWENDETE ERSATZFAHRER
+   * =====================================================
+   */
+
+  function updateReplacementAvailability() {
+    const blocked =
+      new Set();
+
+    /*
+     * Vorgemerkter Ersatz ist NUR blockiert,
+     * wenn er wirklich übernimmt.
+     */
+
+    form
+      .querySelectorAll(
+        "[data-uncertain-decision]",
+      )
+      .forEach((decision) => {
+        if (
+          decision.value !==
+          "replacement"
+        ) {
+          return;
+        }
+
+        const row =
+          decision.closest(
+            "[data-attendance-row]",
+          );
+
+        const checkbox =
+          row?.querySelector(
+            "[data-uncertain-present]",
+          );
+
+        const driverId =
+          checkbox?.dataset
+            .plannedReplacementDriverId;
+
+        if (driverId) {
+          blocked.add(
+            String(driverId),
+          );
+        }
+      });
+
+
+    /*
+     * Spontan ausgewählte Ersatzfahrer.
+     */
+
+    const replacementSelects =
+      Array.from(
+        form.querySelectorAll(
+          ".attendance-replacement-panel select",
+        ),
+      );
+
+    replacementSelects.forEach(
+      (select) => {
+        if (
+          !select.disabled &&
+          select.value
+        ) {
+          blocked.add(
+            String(select.value),
+          );
+        }
+      },
+    );
+
+
+    replacementSelects.forEach(
+      (select) => {
+        const ownValue =
+          String(
+            select.value || "",
+          );
+
+        Array.from(
+          select.options,
+        ).forEach((option) => {
+          if (!option.value) {
+            option.disabled = false;
+            option.hidden = false;
+            return;
+          }
+
+          const isBlocked =
+            blocked.has(
+              String(option.value),
+            ) &&
+            String(option.value) !==
+              ownValue;
+
+          option.disabled =
+            isBlocked;
+
+          option.hidden =
+            isBlocked;
+        });
+      },
+    );
+  }
+
+
+  /*
+   * =====================================================
+   * UNSICHER ENTSCHEIDUNG
+   * =====================================================
+   */
+
+  function applyUncertainDecision(
+    row,
+    decision,
+  ) {
+    if (!row) return;
+
+    const decisionInput =
+      decisionInputFor(row);
+
+    const checkbox =
+      row.querySelector(
+        "[data-uncertain-present]",
+      );
+
+    const regular =
+      row.querySelector(
+        "[data-regular-attendance]",
+      );
+
+    const replacement =
+      row.querySelector(
+        "[data-replacement-attendance]",
+      );
+
+
+    if (decisionInput) {
+      decisionInput.value =
+        decision;
+    }
+
+
+    /*
+     * Legacy Checkbox für Backend-Kompatibilität.
+     */
+
+    if (checkbox) {
+      checkbox.indeterminate =
+        decision === "unresolved";
+
+      checkbox.checked =
+        decision === "regular";
+    }
+
+
+    const regularActive =
+      decision === "regular";
+
+    const replacementActive =
+      decision === "replacement";
+
+
+    /*
+     * STAMMFAHRER
+     */
+
+    if (regular) {
+      regular.hidden =
+        !regularActive;
+
+      regular
+        .querySelectorAll(
+          "select, input",
+        )
+        .forEach((control) => {
+          control.disabled =
+            !regularActive;
+        });
+
+      if (regularActive) {
+        updateReplacementPanel(
+          regular,
+        );
+      }
+    }
+
+
+    /*
+     * VORGEMERKTER ERSATZ
+     */
+
+    if (replacement) {
+      replacement.hidden =
+        !replacementActive;
+
+      replacement
+        .querySelectorAll(
+          "select, input",
+        )
+        .forEach((control) => {
+          control.disabled =
+            !replacementActive;
+        });
+
+      if (replacementActive) {
+        const status =
+          replacement.querySelector(
+            "[data-attendance-status]",
+          );
+
+        if (status) {
+          status.value =
+            "anwesend";
+
+          paintAttendanceSelect(
+            status,
+          );
+        }
+
+        updateReplacementPanel(
+          replacement,
+        );
+      }
+    }
+
+
+    updateReplacementAvailability();
+
+    rebuild();
+  }
+
+
+  /*
+   * =====================================================
+   * BESTEHENDE SELECTS
+   * =====================================================
+   */
+
+  form
+    .querySelectorAll(
+      "[data-attendance-status]",
+    )
+    .forEach((status) => {
+      const container =
+        status.closest(
+          ".attendance-active-driver, .attendance-team-row",
+        );
+
+      if (!container) {
+        return;
+      }
+
+      status.addEventListener(
+        "change",
+        () => {
+          updateReplacementPanel(
+            container,
+          );
+
+          updateReplacementAvailability();
+
+          rebuild();
+        },
+      );
+
+      updateReplacementPanel(
+        container,
+      );
     });
+
+
+  /*
+   * =====================================================
+   * BOARD ERZEUGEN
+   * =====================================================
+   */
+
+  const originalGrid =
+    form.querySelector(
+      ".lineup-team-grid",
+    );
+
+  const board =
+    document.createElement(
+      "section",
+    );
+
+  board.className =
+    "attendance-race-control attendance-race-control-v2";
+
+  board.innerHTML = `
+    <header>
+
+      <div>
+        <span>RACE CONTROL</span>
+
+        <strong>
+          Anwesenheit festlegen
+        </strong>
+
+        <small>
+          Fahrer ziehen oder antippen und Status festlegen.
+        </small>
+      </div>
+
+      <button
+        type="button"
+        class="button button-ghost"
+        data-attendance-details
+      >
+        DETAILANSICHT
+      </button>
+
+    </header>
+
+
+    <div
+      class="attendance-summary"
+      data-attendance-summary
+    ></div>
+
+
+    <section
+      class="attendance-unresolved"
+      data-attendance-unresolved
+      hidden
+    >
+
+      <header>
+        <div>
+          <span>
+            UNSICHER
+          </span>
+
+          <strong>
+            Rückmeldung prüfen
+          </strong>
+        </div>
+      </header>
+
+      <div
+        class="attendance-unresolved-list"
+        data-attendance-unresolved-list
+      ></div>
+
+    </section>
+
+
+    <div class="attendance-workspace">
+
+      <section
+        class="attendance-driver-panel"
+      >
+
+        <header>
+
+          <div>
+            <span>FAHRER</span>
+            <strong>Teilnehmer</strong>
+          </div>
+
+          <span
+            data-attendance-driver-count
+          >
+            0
+          </span>
+
+        </header>
+
+
+        <div
+          class="attendance-driver-list"
+          data-attendance-driver-list
+        ></div>
+
+      </section>
+
+
+      <section
+        class="attendance-target-panel"
+      >
+
+        <header>
+
+          <div>
+            <span>STATUS</span>
+            <strong>Ziel auswählen</strong>
+          </div>
+
+          <small>
+            Drag & Drop
+          </small>
+
+        </header>
+
+
+        <div
+          class="attendance-target-grid"
+          data-attendance-target-grid
+        ></div>
+
+      </section>
+
+    </div>
+  `;
+
+
+  form.insertBefore(
+    board,
+    originalGrid,
+  );
+
+  form.classList.add(
+    "has-race-control-attendance",
+  );
+
+
+  const summary =
+    board.querySelector(
+      "[data-attendance-summary]",
+    );
+
+  const driverList =
+    board.querySelector(
+      "[data-attendance-driver-list]",
+    );
+
+  const driverCount =
+    board.querySelector(
+      "[data-attendance-driver-count]",
+    );
+
+  const targetGrid =
+    board.querySelector(
+      "[data-attendance-target-grid]",
+    );
+
+  const unresolvedPanel =
+    board.querySelector(
+      "[data-attendance-unresolved]",
+    );
+
+  const unresolvedList =
+    board.querySelector(
+      "[data-attendance-unresolved-list]",
+    );
+
+
+  /*
+   * =====================================================
+   * UNSICHER INITIALISIEREN
+   * =====================================================
+   */
+
+  form
+    .querySelectorAll(
+      "[data-uncertain-present]",
+    )
+    .forEach((checkbox) => {
+      const row =
+        checkbox.closest(
+          "[data-attendance-row]",
+        );
+
+      if (!row) return;
+
+      const decision =
+        decisionInputFor(row);
+
+      const value =
+        decision?.value ||
+        "unresolved";
+
+      checkbox.indeterminate =
+        value === "unresolved";
+
+      checkbox.checked =
+        value === "regular";
+
+
+      const regular =
+        row.querySelector(
+          "[data-regular-attendance]",
+        );
+
+      const replacement =
+        row.querySelector(
+          "[data-replacement-attendance]",
+        );
+
+
+      if (regular) {
+        const active =
+          value === "regular";
+
+        regular.hidden =
+          !active;
+
+        regular
+          .querySelectorAll(
+            "select, input",
+          )
+          .forEach((control) => {
+            control.disabled =
+              !active;
+          });
+      }
+
+
+      if (replacement) {
+        const active =
+          value ===
+          "replacement";
+
+        replacement.hidden =
+          !active;
+
+        replacement
+          .querySelectorAll(
+            "select, input",
+          )
+          .forEach((control) => {
+            control.disabled =
+              !active;
+          });
+      }
+    });
+
+
+  /*
+   * =====================================================
+   * SUMMARY
+   * =====================================================
+   */
+
+  function buildSummary(
+    selects,
+    unresolvedCount,
+  ) {
+    const ready =
+      selects.filter((select) =>
+        [
+          "anwesend",
+          "zu_spaet_vorbesprechung",
+        ].includes(
+          select.value,
+        ),
+      ).length;
+
+    const absent =
+      selects.filter((select) =>
+        [
+          "unabgemeldet",
+          "zu_spaet_abgemeldet",
+        ].includes(
+          select.value,
+        ),
+      ).length;
+
+
+    summary.innerHTML = `
+      <div>
+        <span>STARTKLAR</span>
+        <strong>${ready}</strong>
+      </div>
+
+      <div
+        class="${
+          unresolvedCount
+            ? "has-warning"
+            : ""
+        }"
+      >
+        <span>
+          FEHLENDE RÜCKMELDUNG
+        </span>
+
+        <strong>
+          ${unresolvedCount}
+        </strong>
+      </div>
+
+      <div>
+        <span>NICHT DABEI</span>
+        <strong>${absent}</strong>
+      </div>
+    `;
+  }
+
+
+  /*
+   * =====================================================
+   * UNSICHER / FEHLENDE RÜCKMELDUNG
+   * =====================================================
+   */
+
+  function buildUnresolved() {
+    const rows =
+      Array.from(
+        form.querySelectorAll(
+          "[data-attendance-row]",
+        ),
+      ).filter((row) => {
+        const decision =
+          decisionInputFor(row);
+
+        return (
+          decision &&
+          decision.value ===
+            "unresolved"
+        );
+      });
+
+
+    unresolvedPanel.hidden =
+      rows.length === 0;
+
+    unresolvedList.innerHTML =
+      "";
+
+
+    rows.forEach((row) => {
+      const regular =
+        row.querySelector(
+          "[data-regular-attendance]",
+        );
+
+      const replacement =
+        row.querySelector(
+          "[data-replacement-attendance]",
+        );
+
+
+      const regularSelect =
+        regular?.querySelector(
+          "[data-attendance-status]",
+        );
+
+      const replacementSelect =
+        replacement?.querySelector(
+          "[data-attendance-status]",
+        );
+
+
+      const spontaneousSelect =
+        regular?.querySelector(
+          "[data-replacement-panel] select",
+        );
+
+
+      const regularName =
+        regularSelect
+          ? driverName(
+              regularSelect,
+            )
+          : "Stammfahrer";
+
+
+      const replacementName =
+        replacementSelect
+          ? driverName(
+              replacementSelect,
+            )
+          : "";
+
+
+      const team =
+        regularSelect
+          ? teamInfo(
+              regularSelect,
+            )
+          : {
+              name: "",
+              logo: "",
+            };
+
+
+      const card =
+        document.createElement(
+          "article",
+        );
+
+      card.className =
+        "attendance-unresolved-card";
+
+
+      /*
+       * Kein vorgemerkter Ersatz:
+       * freien Reservefahrer direkt auswählbar machen.
+       */
+
+      let freeReplacementHtml = "";
+
+      if (
+        !replacementName &&
+        spontaneousSelect
+      ) {
+        const options =
+          Array.from(
+            spontaneousSelect.options,
+          )
+            .map(
+              (option) => `
+                <option
+                  value="${option.value}"
+                >
+                  ${option.textContent}
+                </option>
+              `,
+            )
+            .join("");
+
+        freeReplacementHtml = `
+          <label
+            class="attendance-unresolved-free-replacement"
+          >
+            <span>
+              ERSATZ BEI FEHLENDER RÜCKMELDUNG
+            </span>
+
+            <select
+              data-unresolved-replacement
+            >
+              ${options}
+            </select>
+          </label>
+        `;
+      }
+
+
+      card.innerHTML = `
+        <div
+          class="attendance-unresolved-driver"
+        >
+          <span>
+            UNSICHER
+          </span>
+
+          <strong>
+            ${regularName}
+          </strong>
+
+          <small>
+            ${team.name || "Stammfahrer"}
+          </small>
+        </div>
+
+
+        ${
+          replacementName
+            ? `
+              <div
+                class="attendance-unresolved-replacement"
+              >
+                <span>
+                  VORGEMERKTER ERSATZ
+                </span>
+
+                <strong>
+                  ${replacementName}
+                </strong>
+
+                <small>
+                  Übernimmt automatisch bei fehlender Rückmeldung.
+                </small>
+              </div>
+            `
+            : `
+              <div
+                class="attendance-unresolved-replacement"
+              >
+                <span>
+                  KEIN ERSATZ VORGEMERKT
+                </span>
+
+                <strong>
+                  Cockpit derzeit ohne Ersatz
+                </strong>
+
+                <small>
+                  Bei Bedarf jetzt freien Ersatz auswählen.
+                </small>
+              </div>
+            `
+        }
+
+
+        ${freeReplacementHtml}
+
+
+        <div
+          class="attendance-unresolved-actions"
+        >
+
+          <button
+            type="button"
+            data-uncertain-present-action
+          >
+            ANWESEND
+            <small>
+              Stammfahrer fährt · Ersatz bleibt frei
+            </small>
+          </button>
+
+
+          <button
+            type="button"
+            data-uncertain-missing-action
+          >
+            FEHLENDE RÜCKMELDUNG
+            <small>
+              ${
+                replacementName
+                  ? `${replacementName} übernimmt`
+                  : "Stammfahrer fährt nicht"
+              }
+            </small>
+          </button>
+
+        </div>
+      `;
+
+
+      /*
+       * ANWESEND:
+       *
+       * Stammfahrer fährt.
+       * Vorgemerkter Ersatz wird nicht verwendet.
+       */
+
+      card
+        .querySelector(
+          "[data-uncertain-present-action]",
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            if (regularSelect) {
+              regularSelect.value =
+                "anwesend";
+
+              paintAttendanceSelect(
+                regularSelect,
+              );
+            }
+
+            applyUncertainDecision(
+              row,
+              "regular",
+            );
+          },
+        );
+
+
+      /*
+       * FEHLENDE RÜCKMELDUNG
+       */
+
+      card
+        .querySelector(
+          "[data-uncertain-missing-action]",
+        )
+        ?.addEventListener(
+          "click",
+          () => {
+            /*
+             * Vorgemerkter Ersatz vorhanden:
+             * er übernimmt automatisch.
+             */
+
+            if (replacementName) {
+              if (replacementSelect) {
+                replacementSelect.value =
+                  "anwesend";
+              }
+
+              applyUncertainDecision(
+                row,
+                "replacement",
+              );
+
+              return;
+            }
+
+
+            /*
+             * Kein vorgemerkter Ersatz.
+             *
+             * Stammfahrer = nicht erschienen.
+             * Optional ausgewählten freien Ersatz übernehmen.
+             */
+
+            if (!regularSelect) {
+              return;
+            }
+
+            regularSelect.value =
+              "unabgemeldet";
+
+            regularSelect.disabled =
+              false;
+
+
+            const visualReplacement =
+              card.querySelector(
+                "[data-unresolved-replacement]",
+              );
+
+
+            if (
+              spontaneousSelect &&
+              visualReplacement
+            ) {
+              spontaneousSelect.disabled =
+                false;
+
+              spontaneousSelect.value =
+                visualReplacement.value;
+            }
+
+
+            applyUncertainDecision(
+              row,
+              "regular",
+            );
+          },
+        );
+
+
+      /*
+       * Freien Ersatz im Popup auswählen.
+       */
+
+      const visualReplacement =
+        card.querySelector(
+          "[data-unresolved-replacement]",
+        );
+
+      if (
+        visualReplacement &&
+        spontaneousSelect
+      ) {
+        visualReplacement.value =
+          spontaneousSelect.value;
+
+        visualReplacement.addEventListener(
+          "change",
+          () => {
+            spontaneousSelect.value =
+              visualReplacement.value;
+
+            updateReplacementAvailability();
+          },
+        );
+      }
+
+
+      unresolvedList.appendChild(
+        card,
+      );
+    });
+
+
+    return rows.length;
+  }
+
+
+  /*
+   * =====================================================
+   * FAHRERLISTE
+   * =====================================================
+   */
+
+  function buildDrivers(selects) {
+    driverList.innerHTML = "";
+
+    driverCount.textContent =
+      String(selects.length);
+
+
     selects.forEach((select) => {
-      const zone = zones.querySelector(`[data-attendance-zone="${select.value}"]`) || zones.querySelector('[data-attendance-zone="anwesend"]');
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'attendance-control-card';
+      const meta =
+        statusMeta(
+          select.value,
+        );
+
+      const team =
+        teamInfo(
+          select,
+        );
+
+      const container =
+        select.closest(
+          ".attendance-active-driver, .attendance-team-row",
+        );
+
+      const replacementPanel =
+        container?.querySelector(
+          "[data-replacement-panel]",
+        );
+
+      const realReplacementSelect =
+        replacementPanel?.querySelector(
+          "select",
+        );
+
+
+      const card =
+        document.createElement(
+          "article",
+        );
+
+      card.className =
+        `attendance-driver-card attendance-status-${select.value}`;
+
       card.draggable = true;
-      card.textContent = driverName(select);
-      card.dataset.selectName = select.name;
-      card.addEventListener('dragstart', (event) => event.dataTransfer.setData('text/plain', select.name));
-      card.addEventListener('click', () => {
-        selectedSelect = selectedSelect === select ? null : select;
-        zones.querySelectorAll('.attendance-control-card').forEach((item) => item.classList.toggle('is-selected', item.dataset.selectName === selectedSelect?.name));
-      });
-      zone.querySelector('[data-status-cards]').append(card);
-    });
-    zones.querySelectorAll('[data-attendance-zone]').forEach((zone) => {
-      zone.querySelector('header span').textContent = zone.querySelectorAll('.attendance-control-card').length;
-      const apply = (select) => {
-        if (!select) return;
-        select.value = zone.dataset.attendanceZone;
-        select.dispatchEvent(new Event('change', { bubbles: true }));
-        selectedSelect = null;
-        rebuild();
-      };
-      zone.addEventListener('dragover', (event) => { event.preventDefault(); zone.classList.add('is-drop-target'); });
-      zone.addEventListener('dragleave', () => zone.classList.remove('is-drop-target'));
-      zone.addEventListener('drop', (event) => {
-        event.preventDefault();
-        zone.classList.remove('is-drop-target');
-        apply([...form.querySelectorAll('[data-attendance-status]')].find((select) => select.name === event.dataTransfer.getData('text/plain')));
-      });
-      zone.addEventListener('click', (event) => { if (!event.target.closest('.attendance-control-card')) apply(selectedSelect); });
-      zone.addEventListener('keydown', (event) => { if ((event.key === 'Enter' || event.key === ' ') && selectedSelect) { event.preventDefault(); apply(selectedSelect); } });
+
+      card.dataset.selectName =
+        select.name;
+
+
+      card.innerHTML = `
+        ${
+          team.logo
+            ? `
+              <span
+                class="attendance-driver-team"
+              >
+                <img
+                  src="${team.logo}"
+                  alt=""
+                >
+              </span>
+            `
+            : `
+              <span
+                class="attendance-driver-team"
+              ></span>
+            `
+        }
+
+        <span
+          class="attendance-driver-copy"
+        >
+          <strong>
+            ${driverName(select)}
+          </strong>
+
+          <small>
+            ${team.name}
+          </small>
+        </span>
+
+        <span
+          class="attendance-driver-state"
+        >
+          ${meta.short}
+        </span>
+      `;
+
+
+      /*
+       * NICHT ERSCHIENEN /
+       * ZU SPÄT ABGEMELDET
+       *
+       * → spontaner Ersatz.
+       */
+
+      if (
+        [
+          "unabgemeldet",
+          "zu_spaet_abgemeldet",
+        ].includes(
+          select.value,
+        ) &&
+        realReplacementSelect
+      ) {
+        const wrapper =
+          document.createElement(
+            "div",
+          );
+
+        wrapper.className =
+          "attendance-inline-replacement";
+
+
+        const label =
+          document.createElement(
+            "span",
+          );
+
+        label.textContent =
+          "Ersatz einsetzen";
+
+
+        const visualSelect =
+          realReplacementSelect.cloneNode(
+            true,
+          );
+
+        visualSelect.removeAttribute(
+          "name",
+        );
+
+        visualSelect.disabled =
+          false;
+
+        visualSelect.value =
+          realReplacementSelect.value;
+
+
+        visualSelect.addEventListener(
+          "click",
+          (event) => {
+            event.stopPropagation();
+          },
+        );
+
+
+        visualSelect.addEventListener(
+          "change",
+          () => {
+            realReplacementSelect.disabled =
+              false;
+
+            realReplacementSelect.value =
+              visualSelect.value;
+
+            updateReplacementAvailability();
+
+            rebuild();
+          },
+        );
+
+
+        wrapper.append(
+          label,
+          visualSelect,
+        );
+
+        card.appendChild(
+          wrapper,
+        );
+      }
+
+
+      card.addEventListener(
+        "dragstart",
+        (event) => {
+          event.dataTransfer.setData(
+            "text/plain",
+            select.name,
+          );
+
+          event.dataTransfer.effectAllowed =
+            "move";
+
+          card.classList.add(
+            "is-dragging",
+          );
+        },
+      );
+
+
+      card.addEventListener(
+        "dragend",
+        () => {
+          card.classList.remove(
+            "is-dragging",
+          );
+        },
+      );
+
+
+      card.addEventListener(
+        "click",
+        () => {
+          selectedAttendanceSelect =
+            selectedAttendanceSelect ===
+            select
+              ? null
+              : select;
+
+          rebuild();
+        },
+      );
+
+
+      if (
+        selectedAttendanceSelect ===
+        select
+      ) {
+        card.classList.add(
+          "is-selected",
+        );
+      }
+
+
+      driverList.appendChild(
+        card,
+      );
     });
   }
 
-  form.querySelectorAll('[data-uncertain-present]').forEach((control) => control.addEventListener('change', () => setTimeout(rebuild, 0)));
-  heading.querySelector('[data-attendance-details]').addEventListener('click', (event) => {
-    const open = form.classList.toggle('show-attendance-details');
-    event.currentTarget.textContent = open ? 'Details schließen' : 'Detailansicht';
-  });
-  form.addEventListener('submit', (event) => {
-    const unresolved = [...form.querySelectorAll('[data-attendance-status]')].filter((select) => !select.disabled && select.value === 'unsicher');
-    if (unresolved.length) {
+
+  /*
+   * =====================================================
+   * DROP-ZIELE
+   * =====================================================
+   */
+
+  function buildTargets(selects) {
+    targetGrid.innerHTML = "";
+
+
+    attendanceTargets.forEach(
+      (status) => {
+        const count =
+          selects.filter(
+            (select) =>
+              select.value ===
+              status.value,
+          ).length;
+
+
+        const target =
+          document.createElement(
+            "button",
+          );
+
+        target.type = "button";
+
+        target.className =
+          `attendance-target attendance-status-${status.value}`;
+
+        target.innerHTML = `
+          <span
+            class="attendance-target-icon"
+          ></span>
+
+          <span
+            class="attendance-target-copy"
+          >
+            <strong>
+              ${status.label}
+            </strong>
+
+            <small>
+              ${status.description}
+            </small>
+          </span>
+
+          <b>
+            ${count}
+          </b>
+        `;
+
+
+        function apply(select) {
+          if (
+            !select ||
+            select.disabled
+          ) {
+            return;
+          }
+
+          select.value =
+            status.value;
+
+          select.dispatchEvent(
+            new Event(
+              "change",
+              {
+                bubbles: true,
+              },
+            ),
+          );
+
+          selectedAttendanceSelect =
+            null;
+        }
+
+
+        target.addEventListener(
+          "dragover",
+          (event) => {
+            event.preventDefault();
+
+            target.classList.add(
+              "is-drop-target",
+            );
+          },
+        );
+
+
+        target.addEventListener(
+          "dragleave",
+          () => {
+            target.classList.remove(
+              "is-drop-target",
+            );
+          },
+        );
+
+
+        target.addEventListener(
+          "drop",
+          (event) => {
+            event.preventDefault();
+
+            target.classList.remove(
+              "is-drop-target",
+            );
+
+            const name =
+              event.dataTransfer.getData(
+                "text/plain",
+              );
+
+            const select =
+              selects.find(
+                (candidate) =>
+                  candidate.name ===
+                  name,
+              );
+
+            apply(select);
+          },
+        );
+
+
+        target.addEventListener(
+          "click",
+          () => {
+            apply(
+              selectedAttendanceSelect,
+            );
+          },
+        );
+
+
+        targetGrid.appendChild(
+          target,
+        );
+      },
+    );
+  }
+
+
+  /*
+   * =====================================================
+   * REBUILD
+   * =====================================================
+   */
+
+  function rebuild() {
+    updateReplacementAvailability();
+
+    const unresolvedCount =
+      buildUnresolved();
+
+
+    const activeSelects =
+      Array.from(
+        form.querySelectorAll(
+          "[data-attendance-status]",
+        ),
+      ).filter(
+        (select) =>
+          !select.disabled &&
+          attendanceTargets.some(
+            (target) =>
+              target.value ===
+              select.value,
+          ),
+      );
+
+
+    buildSummary(
+      activeSelects,
+      unresolvedCount,
+    );
+
+    buildDrivers(
+      activeSelects,
+    );
+
+    buildTargets(
+      activeSelects,
+    );
+  }
+
+
+  /*
+   * =====================================================
+   * DETAILANSICHT
+   * =====================================================
+   */
+
+  board
+    .querySelector(
+      "[data-attendance-details]",
+    )
+    ?.addEventListener(
+      "click",
+      (event) => {
+        const open =
+          form.classList.toggle(
+            "show-attendance-details",
+          );
+
+        event.currentTarget.textContent =
+          open
+            ? "DETAILS SCHLIESSEN"
+            : "DETAILANSICHT";
+      },
+    );
+
+
+  /*
+   * =====================================================
+   * SUBMIT
+   * =====================================================
+   */
+
+  form.addEventListener(
+    "submit",
+    (event) => {
+      const unresolved =
+        Array.from(
+          form.querySelectorAll(
+            "[data-uncertain-decision]",
+          ),
+        ).filter(
+          (input) =>
+            input.value ===
+            "unresolved",
+        );
+
+
+      if (!unresolved.length) {
+        return;
+      }
+
       event.preventDefault();
-      unresolved.forEach((select) => select.closest('.attendance-active-driver, .attendance-team-row')?.classList.add('has-error'));
-      const first = zones.querySelector('[data-attendance-zone="unsicher"]');
-      first?.classList.add('has-error');
-      first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  });
+
+      unresolvedPanel.classList.add(
+        "has-error",
+      );
+
+      unresolvedPanel.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    },
+  );
+
+
+  /*
+   * =====================================================
+   * KORREKTUREN
+   * =====================================================
+   */
+
+  const correctionToggle =
+    document.querySelector(
+      "[data-toggle-attendance-corrections]",
+    );
+
+  const corrections =
+    document.querySelector(
+      "[data-attendance-corrections]",
+    );
+
+
+  if (
+    correctionToggle &&
+    corrections
+  ) {
+    correctionToggle.addEventListener(
+      "click",
+      () => {
+        const open =
+          corrections.hidden;
+
+        corrections.hidden =
+          !open;
+
+        correctionToggle.textContent =
+          open
+            ? "Korrekturen schließen"
+            : "Ausgeschiedene Fahrer bearbeiten";
+
+        if (open) {
+          corrections.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      },
+    );
+  }
+
+
+  /*
+   * =====================================================
+   * INITIAL
+   * =====================================================
+   */
+
+  updateReplacementAvailability();
+
   rebuild();
 });

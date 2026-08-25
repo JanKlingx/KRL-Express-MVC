@@ -9,114 +9,80 @@
       ? league
       : null;
 
-
   const availableItems =
     Array.isArray(items)
       ? items
       : [];
 
 
-  const findResultTeam =
-    (entry) => {
+  const findResultTeam = (entry) => {
 
-      const byName =
-        availableTeams.find(
-          (team) =>
-            String(team.name || '')
-              .trim()
-              .toLowerCase() ===
-            String(entry.teamName || '')
-              .trim()
-              .toLowerCase()
-        );
-
-
-      if (byName) {
-        return byName;
-      }
-
-
-      const byId =
-        availableTeams.find(
-          (team) =>
-            Number(team.id) ===
-            Number(entry.TeamId)
-        );
-
-
-      return byId || null;
-    };
-
-
-  const pointLabel =
-    (entry) => {
-
-      /*
-       * Ersatzfahrer:
-       * Immer ERSATZ.
-       */
-      if (entry.isReserve) {
-        return "ERSATZ";
-      }
-
-
-      /*
-       * Stammfahrer:
-       * Tatsächlich erhaltene Punkte.
-       *
-       * Beispiel:
-       * P1 = +26
-       * P2 = +22
-       * P3 = +20
-       */
-      const points =
-        Number(entry.points) || 0;
-
-
-      return `+${points} PUNKTE`;
-    };
-
-
-  /*
-   * Prüft, ob die jeweilige Runde
-   * ein Sprint-Wochenende ist.
-   *
-   * Nur dann zeigen wir:
-   *
-   * HAUPTRENNEN
-   * bzw.
-   * SPRINTRENNEN
-   */
-  const isSprintWeekend =
-    (item) => {
-
-      return availableItems.some(
-        (other) => {
-
-          const sameRound =
-            Number(other.sortOrder) ===
-            Number(item.sortOrder);
-
-
-          const sameCircuit =
-            String(other.circuit || '')
-              .trim()
-              .toLowerCase() ===
-            String(item.circuit || '')
-              .trim()
-              .toLowerCase();
-
-
-          return (
-            other.raceType === "sprint" &&
-            (
-              sameRound ||
-              sameCircuit
-            )
-          );
-        }
+    const byName =
+      availableTeams.find(
+        (team) =>
+          String(team.name || '')
+            .trim()
+            .toLowerCase() ===
+          String(entry.teamName || '')
+            .trim()
+            .toLowerCase()
       );
-    };
+
+    if (byName) {
+      return byName;
+    }
+
+    const byId =
+      availableTeams.find(
+        (team) =>
+          Number(team.id) ===
+          Number(entry.TeamId)
+      );
+
+    return byId || null;
+  };
+
+
+  const pointLabel = (entry) => {
+
+    if (entry.isReserve) {
+      return 'ERSATZ';
+    }
+
+    const points =
+      Number(entry.points) || 0;
+
+    return `+${points}`;
+  };
+
+
+  const isSprintWeekend = (item) => {
+
+    return availableItems.some(
+      (other) => {
+
+        const sameRound =
+          Number(other.sortOrder) ===
+          Number(item.sortOrder);
+
+        const sameCircuit =
+          String(other.circuit || '')
+            .trim()
+            .toLowerCase() ===
+          String(item.circuit || '')
+            .trim()
+            .toLowerCase();
+
+        return (
+          other.raceType === 'sprint' &&
+          (
+            sameRound ||
+            sameCircuit
+          )
+        );
+      }
+    );
+  };
 %>
 
 
@@ -131,7 +97,6 @@
 
     <div class="carousel-track">
 
-
       <% availableItems.forEach((item, index) => {
 
         const classified =
@@ -140,106 +105,95 @@
               (left, right) => {
 
                 const leftPosition =
-                  Number(
-                    left.position,
-                  ) || 999;
+                  Number(left.position) || 999;
 
                 const rightPosition =
-                  Number(
-                    right.position,
-                  ) || 999;
-
+                  Number(right.position) || 999;
 
                 return (
                   leftPosition -
                     rightPosition ||
 
-                  Number(
-                    left.sortOrder,
-                  ) -
-                    Number(
-                      right.sortOrder,
-                    )
+                  Number(left.sortOrder) -
+                    Number(right.sortOrder)
                 );
-              },
+              }
             );
 
-
-        /*
-         * Podium explizit:
-         *
-         * P2 links
-         * P1 Mitte
-         * P3 rechts
-         */
 
         const position1 =
           classified.find(
             (entry) =>
-              Number(
-                entry.position,
-              ) === 1,
+              Number(entry.position) === 1
           );
-
 
         const position2 =
           classified.find(
             (entry) =>
-              Number(
-                entry.position,
-              ) === 2,
+              Number(entry.position) === 2
           );
-
 
         const position3 =
           classified.find(
             (entry) =>
-              Number(
-                entry.position,
-              ) === 3,
+              Number(entry.position) === 3
           );
 
 
+        /*
+         * Optische Reihenfolge:
+         * P2 | P1 | P3
+         */
         const podium =
           [
             position2,
             position1,
-            position3,
+            position3
           ].filter(Boolean);
 
 
         /*
-         * Unter dem Podium:
-         * erst P4 und abwärts.
+         * Alles ab P4.
          */
-
         const lowerClassification =
           classified.filter(
             (entry) => {
 
               const position =
-                Number(
-                  entry.position,
-                );
-
+                Number(entry.position);
 
               return (
                 !position ||
                 position > 3
               );
-            },
+            }
           );
 
 
         /*
-         * Handelt es sich um
-         * ein Sprint-Wochenende?
+         * Desktop:
+         * linke Spalte  = erste Hälfte
+         * rechte Spalte = zweite Hälfte
          */
+        const splitIndex =
+          Math.ceil(
+            lowerClassification.length / 2
+          );
+
+        const lowerLeft =
+          lowerClassification.slice(
+            0,
+            splitIndex
+          );
+
+        const lowerRight =
+          lowerClassification.slice(
+            splitIndex
+          );
+
 
         const sprintWeekend =
-          isSprintWeekend(
-            item,
-          );
+          isSprintWeekend(item);
 
       %>
 
@@ -256,11 +210,6 @@
 
           <header class="gp-broadcast-header">
 
-
-            <!-- ======================================= -->
-            <!-- LIGA LOGO -->
-            <!-- ======================================= -->
-
             <div class="gp-broadcast-league">
 
               <% if (currentLeague?.logoPath) { %>
@@ -275,67 +224,41 @@
             </div>
 
 
-            <!-- ======================================= -->
-            <!-- GP NAME -->
-            <!-- ======================================= -->
-
             <div class="gp-broadcast-title">
-
-
-              <!--
-                Nur bei einem Sprint-Wochenende
-                wird zwischen Haupt- und
-                Sprintrennen unterschieden.
-              -->
 
               <% if (sprintWeekend) { %>
 
                 <span>
+                  <%= item.raceType === 'sprint'
+                    ? 'SPRINTRENNEN'
+                    : 'HAUPTRENNEN'
+                  %>
+                </span>
 
-                  <% if (item.raceType === 'sprint') { %>
+              <% } else { %>
 
-                    SPRINTRENNEN
-
-                  <% } else { %>
-
-                    HAUPTRENNEN
-
-                  <% } %>
-
+                <span>
+                  GRAND PRIX
                 </span>
 
               <% } %>
 
 
-              <!--
-                text-transform:none sorgt dafür,
-                dass "Großer Preis" auch wirklich
-                mit ß dargestellt wird.
-              -->
-
-              <h3 style="text-transform: none;">
-
+              <h3>
                 <%= item.displayTitle || item.title %>
-
               </h3>
 
 
               <% if (item.displayCircuit) { %>
 
                 <small>
-
                   <%= item.displayCircuit %>
-
                 </small>
 
               <% } %>
 
             </div>
 
-
-            <!-- ======================================= -->
-            <!-- STRECKE / LAND -->
-            <!-- ======================================= -->
 
             <div class="gp-broadcast-track">
 
@@ -349,9 +272,7 @@
               <% } else { %>
 
                 <span class="gp-track-fallback">
-
                   <%= item.countryName || 'GP' %>
-
                 </span>
 
               <% } %>
@@ -368,31 +289,24 @@
           <div class="gp-broadcast-meta">
 
             <span>
-
               RUNDE
-
               <strong>
                 <%= item.sortOrder || index + 1 %>
               </strong>
-
             </span>
 
 
             <% if (item.raceDate) { %>
 
               <span>
-
                 <%= item.raceDate %>
-
               </span>
 
             <% } %>
 
 
             <span>
-
               <%= item.season %>
-
             </span>
 
           </div>
@@ -412,26 +326,16 @@
                 aria-label="Podium"
               >
 
-
                 <% podium.forEach((entry) => {
 
                   const team =
-                    findResultTeam(
-                      entry,
-                    );
-
+                    findResultTeam(entry);
 
                   const position =
-                    Number(
-                      entry.position,
-                    );
-
+                    Number(entry.position);
 
                   const status =
-                    String(
-                      entry.status ||
-                        '',
-                    )
+                    String(entry.status || '')
                       .trim()
                       .toUpperCase();
 
@@ -442,32 +346,23 @@
                     class="
                       gp-broadcast-podium-card
                       gp-broadcast-podium-<%= position %>
-                      position-<%= position %>
                     "
                     style="
-                      --gp-team-color:
-                        <%= team?.accentColor || '#6ef2f2' %>;
+                      --gp-team-color:<%= team?.accentColor || '#6ef2f2' %>;
                     "
                   >
 
 
-                    <!-- ================================= -->
-                    <!-- PLATZ -->
-                    <!-- ================================= -->
-
-                    <span class="gp-broadcast-podium-position">
-
+                    <span
+                      class="gp-broadcast-podium-position"
+                    >
                       <%= position %>
-
                     </span>
 
 
-                    <!-- ================================= -->
-                    <!-- TEAMLOGO -->
-                    <!-- ================================= -->
-
-                    <div class="gp-broadcast-podium-team">
-
+                    <div
+                      class="gp-broadcast-podium-team"
+                    >
 
                       <% if (team?.logoPath) { %>
 
@@ -480,50 +375,45 @@
                       <% } else { %>
 
                         <strong>
-
                           <%= entry.teamName || 'TEAM' %>
-
                         </strong>
 
                       <% } %>
 
-
                     </div>
 
 
-                    <!-- ================================= -->
-                    <!-- FAHRER -->
-                    <!-- ================================= -->
-
-                    <strong class="gp-broadcast-driver">
-
-                      <%= entry.driverName %>
-
-                    </strong>
-
-
-                    <!-- ================================= -->
-                    <!-- ERSATZ / PUNKTE -->
-                    <!-- ================================= -->
-
-                    <span
-                      class="
-                        gp-broadcast-result-label
-                        <%= entry.isReserve
-                          ? 'is-reserve'
-                          : 'is-points'
-                        %>
-                      "
+                    <div
+                      class="gp-broadcast-podium-info"
                     >
 
-                      <%= pointLabel(entry) %>
+                      <strong
+                        class="gp-broadcast-driver"
+                      >
+                        <%= entry.driverName %>
+                      </strong>
 
-                    </span>
 
+                      <span
+                        class="
+                          gp-broadcast-result-label
+                          <%= entry.isReserve
+                            ? 'is-reserve'
+                            : 'is-points'
+                          %>
+                        "
+                      >
 
-                    <!-- ================================= -->
-                    <!-- SCHNELLSTE RUNDE -->
-                    <!-- ================================= -->
+                        <%= pointLabel(entry) %>
+
+                        <% if (!entry.isReserve) { %>
+                          PKT
+                        <% } %>
+
+                      </span>
+
+                    </div>
+
 
                     <% if (entry.fastestLap) { %>
 
@@ -531,39 +421,28 @@
                         class="gp-broadcast-fastest"
                         title="Schnellste Runde"
                       >
-
                         SR
-
                       </span>
 
                     <% } %>
 
 
-                    <!-- ================================= -->
-                    <!-- STATUS -->
-                    <!-- ================================= -->
-
                     <% if (
                       status &&
-                      status !==
-                        "GEWERTET"
+                      status !== 'GEWERTET'
                     ) { %>
 
                       <span
                         class="gp-broadcast-status"
                       >
-
                         <%= status %>
-
                       </span>
 
                     <% } %>
 
-
                   </article>
 
                 <% }) %>
-
 
               </div>
 
@@ -571,167 +450,282 @@
 
 
             <!-- ======================================= -->
-            <!-- P4 BIS ENDE -->
+            <!-- P4 BIS ENDE · ZWEI SPALTEN -->
             <!-- ======================================= -->
 
             <div class="gp-broadcast-ranking">
 
 
-              <% lowerClassification.forEach((entry) => {
+              <!-- LINKE SPALTE -->
 
-                const position =
-                  Number(
-                    entry.position,
-                  ) ||
-                  null;
+              <div class="gp-broadcast-ranking-column">
 
+                <% lowerLeft.forEach((entry) => {
 
-                const team =
-                  findResultTeam(
-                    entry,
-                  );
+                  const position =
+                    Number(entry.position) ||
+                    null;
 
+                  const team =
+                    findResultTeam(entry);
 
-                const status =
-                  String(
-                    entry.status ||
-                      '',
-                  )
-                    .trim()
-                    .toUpperCase();
+                  const status =
+                    String(entry.status || '')
+                      .trim()
+                      .toUpperCase();
 
-                const statusClass =
-                  status
-                    .toLowerCase()
-                    .replace(/[^a-z0-9_-]+/g, '-');
+                  const statusClass =
+                    status
+                      .toLowerCase()
+                      .replace(
+                        /[^a-z0-9_-]+/g,
+                        '-'
+                      );
 
-              %>
+                %>
 
-
-                <article
-                  class="gp-broadcast-row <%= position ? `position-${position}` : '' %> <%= statusClass ? `status-${statusClass}` : '' %>"
-                  style="
-                    --gp-team-color:
-                      <%= team?.accentColor || '#6ef2f2' %>;
-                  "
-                >
-
-
-                  <!-- ================================= -->
-                  <!-- POSITION -->
-                  <!-- ================================= -->
-
-                  <div class="gp-broadcast-row-position">
-
-                    <% if (position) { %>
-
-                      <strong>
-
-                        <%= position %>
-
-                      </strong>
-
-                    <% } else { %>
-
-                      <strong>
-                        –
-                      </strong>
-
-                    <% } %>
-
-                  </div>
-
-
-                  <!-- ================================= -->
-                  <!-- TEAMLOGO -->
-                  <!-- ================================= -->
-
-                  <div class="gp-broadcast-row-team">
-
-                    <% if (team?.logoPath) { %>
-
-                      <img
-                        src="<%= team.logoPath %>"
-                        alt="<%= entry.teamName || team.name %>"
-                        title="<%= entry.teamName || team.name %>"
-                      >
-
-                    <% } else { %>
-
-                      <span>
-
-                        <%= entry.teamName || '–' %>
-
-                      </span>
-
-                    <% } %>
-
-                  </div>
-
-
-                  <!-- ================================= -->
-                  <!-- FAHRER -->
-                  <!-- ================================= -->
-
-                  <div class="gp-broadcast-row-driver">
-
-                    <strong>
-
-                      <%= entry.driverName %>
-
-                    </strong>
-
-
-                    <% if (
-                      status &&
-                      status !==
-                        "GEWERTET"
-                    ) { %>
-
-                      <small class="status-<%= statusClass %>"><%= status %></small>
-
-                    <% } %>
-
-
-                    <% if (entry.fastestLap) { %>
-
-                      <span
-                        class="gp-broadcast-row-sr"
-                        title="Schnellste Runde"
-                      >
-
-                        SR
-
-                      </span>
-
-                    <% } %>
-
-                  </div>
-
-
-                  <!-- ================================= -->
-                  <!-- PUNKTE / ERSATZ -->
-                  <!-- ================================= -->
-
-                  <div
+                  <article
                     class="
-                      gp-broadcast-row-result
-                      <%= entry.isReserve
-                        ? 'is-reserve'
-                        : ''
-                      %>
+                      gp-broadcast-row
+                      <%= position ? `gp-position-${position}` : '' %>
+                      <%= statusClass ? `status-${statusClass}` : '' %>
+                    "
+                    style="
+                      --gp-team-color:<%= team?.accentColor || '#6ef2f2' %>;
                     "
                   >
 
-                    <%= pointLabel(entry) %>
 
-                  </div>
+                    <div
+                      class="gp-broadcast-row-position"
+                    >
+
+                      <strong>
+                        <%= position || '–' %>
+                      </strong>
+
+                    </div>
 
 
-                </article>
+                    <div
+                      class="gp-broadcast-row-team"
+                    >
 
-              <% }) %>
+                      <% if (team?.logoPath) { %>
 
+                        <img
+                          src="<%= team.logoPath %>"
+                          alt="<%= entry.teamName || team.name %>"
+                          title="<%= entry.teamName || team.name %>"
+                        >
+
+                      <% } else { %>
+
+                        <span>
+                          <%= entry.teamName || '–' %>
+                        </span>
+
+                      <% } %>
+
+                    </div>
+
+
+                    <div
+                      class="gp-broadcast-row-driver"
+                    >
+
+                      <strong>
+                        <%= entry.driverName %>
+                      </strong>
+
+
+                      <% if (
+                        status &&
+                        status !== 'GEWERTET'
+                      ) { %>
+
+                        <small
+                          class="status-<%= statusClass %>"
+                        >
+                          <%= status %>
+                        </small>
+
+                      <% } %>
+
+
+                      <% if (entry.fastestLap) { %>
+
+                        <span
+                          class="gp-broadcast-row-sr"
+                          title="Schnellste Runde"
+                        >
+                          SR
+                        </span>
+
+                      <% } %>
+
+                    </div>
+
+
+                    <div
+                      class="
+                        gp-broadcast-row-result
+                        <%= entry.isReserve
+                          ? 'is-reserve'
+                          : ''
+                        %>
+                      "
+                    >
+
+                      <%= pointLabel(entry) %>
+
+                      <% if (!entry.isReserve) { %>
+                        <small>PKT</small>
+                      <% } %>
+
+                    </div>
+
+                  </article>
+
+                <% }) %>
+
+              </div>
+
+
+              <!-- RECHTE SPALTE -->
+
+              <div class="gp-broadcast-ranking-column">
+
+                <% lowerRight.forEach((entry) => {
+
+                  const position =
+                    Number(entry.position) ||
+                    null;
+
+                  const team =
+                    findResultTeam(entry);
+
+                  const status =
+                    String(entry.status || '')
+                      .trim()
+                      .toUpperCase();
+
+                  const statusClass =
+                    status
+                      .toLowerCase()
+                      .replace(
+                        /[^a-z0-9_-]+/g,
+                        '-'
+                      );
+
+                %>
+
+                  <article
+                    class="
+                      gp-broadcast-row
+                      <%= position ? `gp-position-${position}` : '' %>
+                      <%= statusClass ? `status-${statusClass}` : '' %>
+                    "
+                    style="
+                      --gp-team-color:<%= team?.accentColor || '#6ef2f2' %>;
+                    "
+                  >
+
+
+                    <div
+                      class="gp-broadcast-row-position"
+                    >
+
+                      <strong>
+                        <%= position || '–' %>
+                      </strong>
+
+                    </div>
+
+
+                    <div
+                      class="gp-broadcast-row-team"
+                    >
+
+                      <% if (team?.logoPath) { %>
+
+                        <img
+                          src="<%= team.logoPath %>"
+                          alt="<%= entry.teamName || team.name %>"
+                          title="<%= entry.teamName || team.name %>"
+                        >
+
+                      <% } else { %>
+
+                        <span>
+                          <%= entry.teamName || '–' %>
+                        </span>
+
+                      <% } %>
+
+                    </div>
+
+
+                    <div
+                      class="gp-broadcast-row-driver"
+                    >
+
+                      <strong>
+                        <%= entry.driverName %>
+                      </strong>
+
+
+                      <% if (
+                        status &&
+                        status !== 'GEWERTET'
+                      ) { %>
+
+                        <small
+                          class="status-<%= statusClass %>"
+                        >
+                          <%= status %>
+                        </small>
+
+                      <% } %>
+
+
+                      <% if (entry.fastestLap) { %>
+
+                        <span
+                          class="gp-broadcast-row-sr"
+                          title="Schnellste Runde"
+                        >
+                          SR
+                        </span>
+
+                      <% } %>
+
+                    </div>
+
+
+                    <div
+                      class="
+                        gp-broadcast-row-result
+                        <%= entry.isReserve
+                          ? 'is-reserve'
+                          : ''
+                        %>
+                      "
+                    >
+
+                      <%= pointLabel(entry) %>
+
+                      <% if (!entry.isReserve) { %>
+                        <small>PKT</small>
+                      <% } %>
+
+                    </div>
+
+                  </article>
+
+                <% }) %>
+
+              </div>
 
             </div>
 
@@ -739,25 +733,20 @@
           <% } else { %>
 
             <div class="empty-state">
-
-              Für diesen Grand Prix wurde
-              noch keine Klassifikation eingetragen.
-
+              Für diesen Grand Prix wurde noch keine Klassifikation eingetragen.
             </div>
 
           <% } %>
-
 
         </article>
 
       <% }) %>
 
-
     </div>
 
 
     <!-- =============================================== -->
-    <!-- CAROUSEL CONTROLS -->
+    <!-- CAROUSEL -->
     <!-- =============================================== -->
 
     <% if (availableItems.length > 1) { %>
@@ -767,9 +756,7 @@
         type="button"
         aria-label="Vorheriges Ergebnis"
       >
-
         ‹
-
       </button>
 
 
@@ -778,9 +765,7 @@
         type="button"
         aria-label="Nächstes Ergebnis"
       >
-
         ›
-
       </button>
 
 
@@ -791,16 +776,13 @@
 
     <% } %>
 
-
   </div>
 
 
 <% } else { %>
 
   <div class="empty-state">
-
     Noch keine Grand-Prix-Ergebnisse eingetragen.
-
   </div>
 
 <% } %>

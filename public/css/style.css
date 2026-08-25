@@ -1028,120 +1028,8 @@ td strong {
 .league-page tbody tr:hover {
   background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
-.gp-result-card {
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--accent) 7%, var(--surface-2)),
-    var(--surface)
-  );
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
-}
-.gp-result-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 2rem;
-  align-items: flex-start;
-  padding: 2rem 2.25rem;
-  border-bottom: 1px solid var(--line);
-}
-.gp-result-header h3 {
-  font-family: var(--display);
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 0.9;
-  margin: 0.35rem 0;
-  text-transform: uppercase;
-}
-.gp-result-header p {
-  margin: 0;
-  color: var(--muted);
-}
-.gp-round {
-  color: var(--accent);
-  font-family: var(--display);
-  font-weight: 800;
-  letter-spacing: 0.16em;
-}
-.gp-season {
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  font-family: var(--display);
-  font-weight: 700;
-  white-space: nowrap;
-}
-.gp-podium {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 1rem;
-  padding: 3rem 2rem 2rem;
-  background: radial-gradient(
-    circle at 50% 100%,
-    color-mix(in srgb, var(--accent) 13%, transparent),
-    transparent 55%
-  );
-}
-.podium-place {
-  order: 4;
-  width: min(29%, 240px);
-  min-height: 130px;
-  padding: 1.3rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-  background: #0b1014;
-  border: 1px solid var(--line);
-  border-top: 3px solid color-mix(in srgb, var(--accent) 55%, #fff);
-}
-.podium-place-1 {
-  order: 2;
-  min-height: 175px;
-  border-top-color: var(--accent);
-  box-shadow: 0 0 35px color-mix(in srgb, var(--accent) 16%, transparent);
-}
-.podium-place-2 {
-  order: 1;
-  min-height: 150px;
-}
-.podium-place-3 {
-  order: 3;
-}
-.podium-place > span {
-  color: var(--accent);
-  font-family: var(--display);
-  font-size: 1.5rem;
-  font-weight: 800;
-}
-.podium-place strong {
-  font-family: var(--display);
-  font-size: 1.5rem;
-  line-height: 1.05;
-  margin: 0.35rem 0;
-}
-.podium-place small {
-  color: var(--muted);
-}
-.gp-classification {
-  border-width: 1px 0 0;
-}
-.gp-classification table {
-  min-width: 620px;
-}
-.gp-classification tbody tr:last-child td {
-  border-bottom: 0;
-}
-.fastest-lap {
-  display: inline-flex;
-  margin-left: 0.35rem;
-  padding: 0.05rem 0.35rem;
-  background: var(--accent);
-  color: #071013;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 0.72rem;
-}
+
+
 .gp-carousel .carousel-control {
   border-color: var(--accent);
   color: var(--accent);
@@ -1448,15 +1336,8 @@ td strong {
 .podium-place {
   position: relative;
 }
-.podium-place .status-badge {
-  align-self: center;
-  margin-top: 0.65rem;
-  font-style: normal;
-  font-size: 0.78rem;
-}
-.podium-position {
-  display: block;
-}
+
+
 
 /* Saisonmatrix nach dem Tabellenprinzip des Google Sheets */
 .season-history-table th:nth-child(3),
@@ -2857,97 +2738,391 @@ td strong {
   }
 }
 
-/* Reduzierte F1-Teamkarten im Frontend */
+/* =========================================================
+   F1 LINE-UP · COMPACT TEAM CARDS
+   ========================================================= */
+
 .f1-team-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.25rem;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
 }
+
+
+/* =========================================================
+   TEAMKARTE
+   ========================================================= */
+
 .f1-team-card {
+  --team-color: var(--cyan);
+
   position: relative;
   isolation: isolate;
+
+  min-width: 0;
+  min-height: 170px;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    92px;
+
+  grid-template-rows:
+    auto
+    1fr;
+
+  gap: 0;
+
   overflow: hidden;
-  min-height: 230px;
-  padding: 1.5rem;
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--team-color) 38%, #080c0f),
-    #080c0f 84%
-  );
-  border: 1px solid color-mix(in srgb, var(--team-color) 64%, #28343a);
-  border-left: 5px solid var(--team-color);
+
+  padding: 0;
+
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(
+        in srgb,
+        var(--team-color) 18%,
+        #0b1115
+      ),
+      #090e12 72%
+    );
+
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--team-color) 48%,
+      #29363d
+    );
+
+  border-left:
+    4px solid
+    var(--team-color);
 }
+
+
+/* =========================================================
+   TEAMNAME
+   ========================================================= */
+
 .f1-team-card::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--team-color) 24%, transparent),
-    transparent 72%
-  );
+  content:
+    attr(data-team-name);
+
+  grid-column:
+    1 / 2;
+
+  align-self:
+    end;
+
+  padding:
+    10px
+    14px
+    5px;
+
+  color:
+    var(--team-color);
+
+  font-family:
+    var(--display);
+
+  font-size:
+    0.62rem;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    0.1em;
+
+  text-transform:
+    uppercase;
 }
+
+
+/* =========================================================
+   LOGO-ZONE
+   ========================================================= */
+
 .f1-team-watermark {
-  position: absolute;
-  z-index: -1;
-  top: 10%;
-  right: -4%;
-  bottom: 10%;
-  width: 68%;
+  position: static;
+
+  z-index: auto;
+
+  grid-column:
+    2;
+
+  grid-row:
+    1 / 3;
+
+  width: 92px;
+  height: 100%;
+
   display: grid;
   place-items: center;
+
+  padding:
+    12px
+    10px;
+
+  opacity: 1;
+
   pointer-events: none;
-  opacity: 0.14;
+
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(
+        in srgb,
+        var(--team-color) 18%,
+        #0b1115
+      ),
+      color-mix(
+        in srgb,
+        var(--team-color) 7%,
+        #080d10
+      )
+    );
+
+  border-left:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--team-color) 30%,
+      #29363d
+    );
 }
+
+
 .f1-team-watermark img {
-  width: 100%;
-  height: 100%;
+  width: 72px;
+  height: 72px;
+
+  max-width: 100%;
+
   object-fit: contain;
+
+  opacity: 0.72;
+
+  filter:
+    drop-shadow(
+      0
+      4px
+      8px
+      rgba(0,0,0,.42)
+    );
 }
+
+
 .f1-team-watermark > strong {
-  font-family: var(--display);
-  font-size: 3.2rem;
-  line-height: 0.9;
-  color: #fff;
-  text-align: center;
-  overflow-wrap: anywhere;
+  max-width: 78px;
+
+  overflow: hidden;
+
+  color:
+    var(--team-color);
+
+  font-family:
+    var(--display);
+
+  font-size:
+    1rem;
+
+  line-height:
+    1;
+
+  text-align:
+    center;
+
+  overflow-wrap:
+    anywhere;
 }
+
+
+/* =========================================================
+   FAHRERLISTE
+   ========================================================= */
+
 .f1-team-card ul {
-  position: relative;
-  z-index: 1;
-  width: min(76%, 280px);
-  min-height: 180px;
+  position: static;
+
+  z-index: auto;
+
+  grid-column:
+    1;
+
+  grid-row:
+    2;
+
+  width: 100%;
+  min-height: 0;
+
   display: grid;
-  align-content: center;
-  list-style: none;
-  padding: 0;
+
+  align-content:
+    center;
+
+  list-style:
+    none;
+
+  padding:
+    4px
+    14px
+    12px;
+
   margin: 0;
+
   text-align: left;
 }
+
+
 .f1-team-card li {
   display: flex;
+
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.8rem 0.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+
+  min-width: 0;
+
+  gap: 8px;
+
+  min-height: 42px;
+
+  padding:
+    7px
+    0;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.10);
 }
+
+
 .f1-team-card li:last-child {
   border-bottom: 0;
 }
+
+
+/* =========================================================
+   KLEINER TEAM-AKZENT AM FAHRER
+   ========================================================= */
+
 .f1-driver-dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  background: var(--team-color);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--team-color) 20%, transparent);
-  transform: rotate(45deg);
+  width: 6px;
+  height: 20px;
+
+  flex:
+    0 0 6px;
+
+  background:
+    var(--team-color);
+
+  box-shadow: none;
+
+  transform: none;
 }
+
+
+/* =========================================================
+   FAHRERNAME
+   ========================================================= */
+
 .f1-team-card li strong {
+  min-width: 0;
+
+  overflow: hidden;
+
   color: #fff;
-  font-size: 1.05rem;
-  text-shadow: 0 1px 3px #000;
+
+  font-family:
+    var(--display);
+
+  font-size:
+    1.22rem;
+
+  font-weight:
+    800;
+
+  line-height:
+    1;
+
+  letter-spacing:
+    0;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+
+  text-shadow:
+    0
+    1px
+    3px
+    rgba(0,0,0,.55);
 }
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  .f1-team-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+
+/* =========================================================
+   HANDY
+   ========================================================= */
+
+@media (max-width: 580px) {
+
+  .f1-team-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .f1-team-card {
+    min-height: 145px;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      78px;
+  }
+
+
+  .f1-team-watermark {
+    width: 78px;
+
+    padding:
+      9px
+      7px;
+  }
+
+
+  .f1-team-watermark img {
+    width: 60px;
+    height: 60px;
+  }
+
+
+  .f1-team-card li strong {
+    font-size:
+      1.12rem;
+  }
+
+}
+
+
 
 /* Grafische zentrale Teamauswahl */
 .team-choice-panel {
@@ -6211,62 +6386,88 @@ td strong {
   font-size: 0.7rem;
 }
 
+
 /* =========================================================
-   KRL GP RESULTS - BROADCAST DESIGN
-   kompakt, aber besser lesbar
+   KRL GP RESULTS · COMPACT BROADCAST V2
+   gleiche Breitenwirkung wie Saisonverlauf
    ========================================================= */
 
 .gp-broadcast-carousel {
-  width: 100%;
+  width: min(100%, 1180px);
+  margin-inline: auto;
 }
+
+
+/* =========================================================
+   KARTE
+   ========================================================= */
 
 .gp-broadcast-card {
   position: relative;
   overflow: hidden;
+  width: 100%;
   padding: 0;
 
   background:
     radial-gradient(
-      circle at 50% 20%,
-      rgba(255, 255, 255, 0.035),
+      circle at 50% 0,
+      color-mix(
+        in srgb,
+        var(--accent, #6ef2f2) 5%,
+        transparent
+      ),
       transparent 35%
     ),
     linear-gradient(
       160deg,
-      #141a21 0%,
-      #090e13 55%,
-      #080c10 100%
+      #121920,
+      #080d11 65%
     );
 
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--accent, #6ef2f2) 30%,
+      #26333b
+    );
+
+  border-top:
+    3px solid
+    var(--accent, #6ef2f2);
 
   font-family: var(--body);
 }
 
 
 /* =========================================================
-   HEADER
+   HEADER · DEUTLICH FLACHER
    ========================================================= */
 
 .gp-broadcast-header {
+  min-height: 88px;
+
   display: grid;
 
   grid-template-columns:
-    110px
+    80px
     minmax(0, 1fr)
-    110px;
+    80px;
 
   align-items: center;
 
-  gap: 16px;
+  gap: 14px;
 
   padding:
-    20px
-    28px
-    16px;
+    10px
+    18px;
+
+  background:
+    #10171c;
 
   border-bottom:
-    1px solid rgba(255, 255, 255, 0.08);
+    1px solid
+    #26333b;
 }
 
 
@@ -6280,63 +6481,91 @@ td strong {
 
 .gp-broadcast-league img,
 .gp-broadcast-track img {
-  display: block;
-
-  width: 76px;
-  height: 76px;
+  width: 58px;
+  height: 58px;
 
   object-fit: contain;
 }
 
 
 .gp-broadcast-track img {
-  border-radius: 50%;
+  border-radius: 0;
 }
 
 
+.gp-track-fallback {
+  width: 58px;
+  height: 44px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 4px;
+
+  color: #fff;
+
+  border:
+    1px solid
+    #34434b;
+
+  font-size: 0.52rem;
+  font-weight: 800;
+
+  text-align: center;
+  text-transform: uppercase;
+}
+
+
+/* =========================================================
+   TITEL
+   ========================================================= */
+
 .gp-broadcast-title {
+  min-width: 0;
   text-align: center;
 }
 
 
-.gp-broadcast-title span {
+.gp-broadcast-title > span {
   display: block;
 
-  margin-bottom: 4px;
+  margin-bottom: 1px;
 
-  color: var(--accent, #6ef2f2);
+  color:
+    var(--accent, #6ef2f2);
 
-  font-family: var(--body);
+  font-size: 0.56rem;
 
-  font-size: 0.72rem;
+  font-weight: 900;
 
-  font-weight: 800;
-
-  letter-spacing: 0.22em;
+  letter-spacing: 0.15em;
 
   text-transform: uppercase;
 }
 
 
 .gp-broadcast-title h3 {
+  overflow: hidden;
+
   margin: 0;
 
   color: #fff;
 
-  font-family: var(--display);
+  font-family:
+    var(--display);
 
   font-size:
     clamp(
-      2.15rem,
-      4.2vw,
-      3.45rem
+      1.65rem,
+      3vw,
+      2.5rem
     );
 
-  font-weight: 800;
+  line-height: 0.95;
 
-  line-height: 0.92;
+  text-overflow: ellipsis;
 
-  letter-spacing: 0;
+  white-space: nowrap;
 
   text-transform: none;
 }
@@ -6345,49 +6574,19 @@ td strong {
 .gp-broadcast-title small {
   display: block;
 
-  margin-top: 8px;
+  margin-top: 4px;
 
-  color:
-    rgba(
-      255,
-      255,
-      255,
-      0.52
-    );
+  overflow: hidden;
 
-  font-family: var(--body);
+  color: #819098;
 
-  font-size: 0.72rem;
+  font-size: 0.55rem;
 
-  font-weight: 700;
+  font-weight: 750;
 
-  text-transform: uppercase;
-}
+  text-overflow: ellipsis;
 
-
-.gp-track-fallback {
-  display: grid;
-  place-items: center;
-
-  width: 72px;
-  height: 72px;
-
-  padding: 8px;
-
-  border:
-    1px solid rgba(255, 255, 255, 0.2);
-
-  border-radius: 50%;
-
-  color: #fff;
-
-  font-family: var(--body);
-
-  font-size: 0.64rem;
-
-  font-weight: 800;
-
-  text-align: center;
+  white-space: nowrap;
 
   text-transform: uppercase;
 }
@@ -6398,32 +6597,32 @@ td strong {
    ========================================================= */
 
 .gp-broadcast-meta {
+  min-height: 29px;
+
   display: flex;
 
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 
-  gap: 16px;
+  gap: 14px;
 
   padding:
-    9px
-    18px;
+    4px
+    12px;
 
   color:
-    rgba(
-      255,
-      255,
-      255,
-      0.55
-    );
+    #7f8e96;
 
-  font-family: var(--body);
+  background:
+    #0a1014;
 
-  font-size: 0.69rem;
+  border-bottom:
+    1px solid
+    #202c32;
 
-  font-weight: 700;
+  font-size: 0.53rem;
 
-  letter-spacing: 0.05em;
+  font-weight: 800;
 
   text-transform: uppercase;
 }
@@ -6435,10 +6634,16 @@ td strong {
 
 
 /* =========================================================
-   PODIUM
+   PODIUM · KOMPAKT
    ========================================================= */
 
 .gp-broadcast-podium {
+  width:
+    min(
+      calc(100% - 28px),
+      840px
+    );
+
   display: grid;
 
   grid-template-columns:
@@ -6449,252 +6654,243 @@ td strong {
 
   align-items: end;
 
-  gap: 13px;
-
-  max-width: 790px;
+  gap: 8px;
 
   margin:
-    26px
+    15px
     auto
-    22px;
+    12px;
 
-  padding:
-    0
-    20px;
+  padding: 0;
 }
 
 
 .gp-broadcast-podium-card {
   position: relative;
 
-  min-height: 265px;
+  min-width: 0;
+  min-height: 142px;
 
-  display: flex;
+  display: grid;
 
-  flex-direction: column;
+  grid-template-columns:
+    42px
+    minmax(62px, 92px)
+    minmax(0, 1fr);
+
+  grid-template-rows:
+    1fr;
 
   align-items: center;
 
   overflow: hidden;
 
+  padding:
+    8px
+    10px;
+
   background:
     linear-gradient(
-      180deg,
-      #131b26 0%,
-      #0a1018 100%
+      105deg,
+      color-mix(
+        in srgb,
+        var(--gp-team-color) 15%,
+        #111820
+      ),
+      #0a1015 62%
     );
 
   border:
-    1px solid rgba(255, 255, 255, 0.18);
+    1px solid
+    #344149;
 
-  border-radius: 11px;
+  border-top:
+    3px solid
+    var(--gp-team-color);
+
+  border-radius: 4px;
 
   box-shadow:
-    0 13px 28px rgba(0, 0, 0, 0.3);
+    0 7px 18px
+    rgba(0, 0, 0, 0.22);
 }
 
 
-.gp-broadcast-podium-card::before {
-  content: "";
-
-  position: absolute;
-
-  top: 0;
-  left: 0;
-  right: 0;
-
-  height: 3px;
-
-  background:
-    var(
-      --gp-team-color,
-      #6ef2f2
-    );
-}
-
-
-/* P1 etwas höher */
+/*
+ * Sieger minimal größer,
+ * aber KEIN riesiger Turm mehr.
+ */
 
 .gp-broadcast-podium-1 {
-  min-height: 290px;
-
-  transform:
-    translateY(-10px);
+  min-height: 158px;
 
   border-color:
-    var(
-      --gp-team-color,
-      #6ef2f2
+    var(--gp-team-color);
+
+  box-shadow:
+    0 10px 24px
+    color-mix(
+      in srgb,
+      var(--gp-team-color) 13%,
+      rgba(0, 0, 0, 0.3)
     );
 }
 
 
 .gp-broadcast-podium-position {
-  position: relative;
-  z-index: 2;
+  display: grid;
 
-  display: block;
+  place-items: center;
 
-  padding-top: 11px;
+  align-self: stretch;
 
   color: #fff;
 
-  font-family: var(--display);
+  border-right:
+    1px solid
+    rgba(255, 255, 255, 0.1);
+
+  font-family:
+    var(--display);
 
   font-size:
-    clamp(
-      2.5rem,
-      4.5vw,
-      3.7rem
-    );
+    2.1rem;
 
-  font-weight: 800;
+  font-weight: 900;
 
   line-height: 1;
 }
 
 
+/* =========================================================
+   PODIUM TEAMLOGO
+   ========================================================= */
+
 .gp-broadcast-podium-team {
-  position: relative;
-
   width: 100%;
-  height: 122px;
+  height: 72px;
 
-  display: flex;
+  display: grid;
+  place-items: center;
 
-  align-items: center;
-  justify-content: center;
-
-  margin-top: 6px;
+  margin: 0;
 
   background:
     radial-gradient(
       circle,
       color-mix(
         in srgb,
-        var(--gp-team-color) 68%,
+        var(--gp-team-color) 26%,
         transparent
       ),
-      color-mix(
-        in srgb,
-        var(--gp-team-color) 22%,
-        transparent
-      ) 45%,
-      transparent 75%
+      transparent 70%
     );
 }
 
 
 .gp-broadcast-podium-team::after {
-  content: "";
-
-  position: absolute;
-
-  inset:
-    12px
-    0;
-
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      color-mix(
-        in srgb,
-        var(--gp-team-color) 35%,
-        transparent
-      ),
-      transparent
-    );
-
-  filter: blur(15px);
-
-  pointer-events: none;
+  display: none;
 }
 
 
 .gp-broadcast-podium-team img {
-  position: relative;
+  width: 72px;
+  height: 48px;
 
-  z-index: 2;
-
-  display: block;
-
-  width: 125px;
-  height: 82px;
-
-  max-width: 72%;
+  max-width: 90%;
 
   object-fit: contain;
 
   filter:
     drop-shadow(
-      0 6px 10px
+      0 3px 5px
       rgba(0, 0, 0, 0.5)
     );
 }
 
 
 .gp-broadcast-podium-team strong {
-  position: relative;
+  max-width: 90%;
 
-  z-index: 2;
+  overflow: hidden;
 
   color: #fff;
 
-  font-family: var(--display);
+  font-family:
+    var(--display);
 
-  font-size: 1.08rem;
+  font-size: 0.8rem;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   PODIUM FAHRER
+   ========================================================= */
+
+.gp-broadcast-podium-info {
+  min-width: 0;
+
+  display: grid;
+
+  align-content: center;
+
+  gap: 5px;
+
+  padding-left: 7px;
+
+  text-align: left;
 }
 
 
 .gp-broadcast-driver {
-  margin-top: 12px;
+  min-width: 0;
 
-  padding:
-    0
-    12px;
+  overflow: hidden;
+
+  margin: 0;
+
+  padding: 0;
 
   color: #fff;
 
-  font-family: var(--display);
+  font-family:
+    var(--display);
 
   font-size:
     clamp(
-      1.15rem,
-      2vw,
-      1.45rem
+      0.95rem,
+      1.7vw,
+      1.25rem
     );
 
-  font-weight: 800;
+  font-weight: 900;
 
   line-height: 1;
 
-  text-align: center;
+  text-align: left;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
 }
 
 
 .gp-broadcast-result-label {
-  margin-top: 7px;
+  margin: 0;
 
-  padding:
-    4px
-    8px;
+  padding: 0;
 
-  color:
-    rgba(
-      255,
-      255,
-      255,
-      0.8
-    );
+  color: #fff;
 
-  font-family: var(--body);
+  font-size: 0.62rem;
 
-  font-size: 0.68rem;
+  font-weight: 900;
 
-  font-weight: 800;
-
-  letter-spacing: 0.08em;
+  letter-spacing: 0.03em;
 
   text-transform: uppercase;
 }
@@ -6702,73 +6898,65 @@ td strong {
 
 .gp-broadcast-result-label.is-reserve {
   color:
-    var(
-      --accent,
-      #6ef2f2
-    );
-}
-
-
-.gp-broadcast-result-label.is-points {
-  color: #fff;
+    var(--accent, #6ef2f2);
 }
 
 
 .gp-broadcast-fastest {
   position: absolute;
 
-  top: 8px;
-  right: 8px;
+  top: 5px;
+  right: 5px;
 
   padding:
-    3px
-    5px;
+    2px
+    4px;
 
-  color: #071014;
+  color: #061012;
 
   background:
-    var(
-      --accent,
-      #6ef2f2
-    );
+    var(--accent, #6ef2f2);
 
-  font-family: var(--body);
+  font-size: 0.45rem;
 
-  font-size: 0.54rem;
+  font-weight: 950;
+}
+
+
+.gp-broadcast-status {
+  position: absolute;
+
+  right: 5px;
+  bottom: 4px;
+
+  color: #ff7780;
+
+  font-size: 0.46rem;
 
   font-weight: 900;
 }
 
 
-.gp-broadcast-status {
-  margin-top: 4px;
-
-  color:
-    rgba(
-      255,
-      255,
-      255,
-      0.43
-    );
-
-  font-family: var(--body);
-
-  font-size: 0.6rem;
-
-  font-weight: 700;
-}
-
-
 /* =========================================================
-   ERGEBNISZEILEN
+   P4 BIS ENDE · ZWEI SPALTEN
    ========================================================= */
 
 .gp-broadcast-ranking {
+  width:
+    min(
+      calc(100% - 28px),
+      1040px
+    );
+
   display: grid;
 
-  gap: 6px;
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
 
-  max-width: 850px;
+  gap: 8px;
 
   margin:
     0
@@ -6776,79 +6964,89 @@ td strong {
 
   padding:
     0
-    22px
-    26px;
+    0
+    16px;
 }
 
+
+.gp-broadcast-ranking-column {
+  min-width: 0;
+
+  display: grid;
+
+  align-content: start;
+
+  gap: 4px;
+}
+
+
+/* =========================================================
+   RANGLISTENZEILE
+   ========================================================= */
 
 .gp-broadcast-row {
   position: relative;
 
-  min-height: 50px;
+  min-width: 0;
+  min-height: 38px;
 
   display: grid;
 
   grid-template-columns:
-    56px
-    135px
+    38px
+    76px
     minmax(0, 1fr)
-    150px;
+    76px;
 
   align-items: stretch;
 
   overflow: hidden;
 
   background:
-    linear-gradient(
-      90deg,
-      #121a24,
-      #0b1118
-    );
+    #10171e;
 
   border:
-    1px solid rgba(255, 255, 255, 0.15);
+    1px solid
+    #2b3941;
 
-  border-radius: 8px;
+  border-radius: 3px;
 }
 
 
 .gp-broadcast-row-position {
-  display: flex;
+  display: grid;
 
-  align-items: center;
-  justify-content: center;
+  place-items: center;
 
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.025
-    );
+    #151e27;
 
   border-right:
-    1px solid rgba(255, 255, 255, 0.1);
+    1px solid
+    #2b3941;
 }
 
 
 .gp-broadcast-row-position strong {
   color: #fff;
 
-  font-family: var(--display);
+  font-family:
+    var(--display);
 
-  font-size: 1.4rem;
+  font-size: 1rem;
 
-  font-weight: 800;
+  font-weight: 900;
 }
 
 
+/* =========================================================
+   TEAM
+   ========================================================= */
+
 .gp-broadcast-row-team {
-  position: relative;
+  display: grid;
 
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
+  place-items: center;
 
   overflow: hidden;
 
@@ -6857,268 +7055,328 @@ td strong {
       90deg,
       color-mix(
         in srgb,
-        var(--gp-team-color) 75%,
-        #05070a
+        var(--gp-team-color) 55%,
+        #080d11
       ),
       color-mix(
         in srgb,
-        var(--gp-team-color) 22%,
-        #090d13
+        var(--gp-team-color) 20%,
+        #090e12
       )
     );
 }
 
 
 .gp-broadcast-row-team img {
-  position: relative;
-
-  z-index: 2;
-
-  display: block;
-
-  width: 78px;
-  height: 38px;
+  width: 52px;
+  height: 27px;
 
   object-fit: contain;
 
   filter:
     drop-shadow(
-      0 3px 5px
+      0 2px 3px
       rgba(0, 0, 0, 0.4)
     );
 }
 
 
 .gp-broadcast-row-team span {
-  position: relative;
+  max-width: 70px;
 
-  z-index: 2;
-
-  color: #fff;
-
-  font-family: var(--body);
-
-  font-size: 0.66rem;
-
-  font-weight: 800;
-}
-
-
-.gp-broadcast-row-driver {
-  display: flex;
-
-  align-items: center;
-
-  gap: 8px;
-
-  min-width: 0;
-
-  padding:
-    0
-    16px;
-}
-
-
-.gp-broadcast-row-driver strong {
   overflow: hidden;
 
   color: #fff;
 
-  font-family: var(--body);
+  font-size: 0.5rem;
 
-  font-size: 0.94rem;
-
-  font-weight: 700;
-
-  white-space: nowrap;
+  font-weight: 850;
 
   text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   FAHRER
+   ========================================================= */
+
+.gp-broadcast-row-driver {
+  min-width: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 5px;
+
+  padding:
+    0
+    9px;
+}
+
+
+.gp-broadcast-row-driver strong {
+  min-width: 0;
+
+  overflow: hidden;
+
+  color: #fff;
+
+  font-size: 0.71rem;
+
+  font-weight: 800;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
 }
 
 
 .gp-broadcast-row-driver small {
-  color:
-    rgba(
-      255,
-      255,
-      255,
-      0.42
-    );
+  color: #ff6b76;
 
-  font-family: var(--body);
-
-  font-size: 0.58rem;
-
-  font-weight: 700;
-}
-
-
-.gp-broadcast-row-sr {
-  padding:
-    2px
-    4px;
-
-  color: #071014;
-
-  background:
-    var(
-      --accent,
-      #6ef2f2
-    );
-
-  font-family: var(--body);
-
-  font-size: 0.5rem;
+  font-size: 0.43rem;
 
   font-weight: 900;
 }
 
 
+.gp-broadcast-row-sr {
+  flex: 0 0 auto;
+
+  padding:
+    1px
+    3px;
+
+  color: #061012;
+
+  background:
+    var(--accent, #6ef2f2);
+
+  font-size: 0.4rem;
+
+  font-weight: 950;
+}
+
+
+/* =========================================================
+   PUNKTE / ERSATZ
+   ========================================================= */
+
 .gp-broadcast-row-result {
   display: flex;
 
   align-items: center;
-
   justify-content: flex-end;
+
+  gap: 2px;
 
   padding:
     0
-    18px;
+    8px;
 
   color: #fff;
 
-  font-family: var(--body);
+  font-family:
+    var(--display);
 
-  font-size: 0.72rem;
+  font-size: 0.69rem;
 
-  font-weight: 800;
-
-  letter-spacing: 0.05em;
+  font-weight: 900;
 
   white-space: nowrap;
 }
 
 
+.gp-broadcast-row-result small {
+  color: #7f8f97;
+
+  font-family:
+    var(--body);
+
+  font-size: 0.38rem;
+
+  font-weight: 800;
+}
+
+
 .gp-broadcast-row-result.is-reserve {
   color:
-    var(
-      --accent,
-      #6ef2f2
-    );
+    var(--accent, #6ef2f2);
+
+  font-size: 0.54rem;
+
+  letter-spacing: 0.04em;
 }
 
 
 /* =========================================================
-   RESPONSIVE
+   CAROUSEL BUTTONS
    ========================================================= */
 
-@media (max-width: 850px) {
+.gp-broadcast-carousel .carousel-control {
+  top: 50%;
 
-  .gp-broadcast-header {
-    grid-template-columns:
-      66px
-      minmax(0, 1fr)
-      66px;
+  width: 34px;
+  height: 44px;
 
-    gap: 10px;
+  border-color:
+    var(--accent, #6ef2f2);
 
-    padding:
-      16px
-      12px;
-  }
+  color:
+    var(--accent, #6ef2f2);
 
+  background:
+    rgba(5, 9, 12, 0.95);
 
-  .gp-broadcast-league img,
-  .gp-broadcast-track img {
-    width: 58px;
-    height: 58px;
-  }
+  font-size: 1.5rem;
 
-
-  .gp-broadcast-title h3 {
-    font-size:
-      clamp(
-        1.7rem,
-        5vw,
-        2.5rem
-      );
-  }
+  transform:
+    translateY(-50%);
+}
 
 
-  .gp-broadcast-podium {
-    gap: 8px;
-
-    padding:
-      0
-      10px;
-  }
+.gp-broadcast-carousel .carousel-control.prev {
+  left: -17px;
+}
 
 
-  .gp-broadcast-podium-card {
-    min-height: 220px;
-  }
+.gp-broadcast-carousel .carousel-control.next {
+  right: -17px;
+}
 
 
-  .gp-broadcast-podium-1 {
-    min-height: 240px;
-  }
+.gp-broadcast-carousel .carousel-dots {
+  margin-top: 0.6rem;
+}
 
 
-  .gp-broadcast-podium-team {
-    height: 96px;
-  }
+.gp-broadcast-carousel .carousel-dots button {
+  width: 7px;
+  height: 7px;
+
+  border-color:
+    var(--accent, #6ef2f2);
+}
 
 
-  .gp-broadcast-podium-team img {
-    width: 94px;
-    height: 62px;
-  }
+.gp-broadcast-carousel
+.carousel-dots
+button.active {
+  background:
+    var(--accent, #6ef2f2);
+}
 
 
-  .gp-broadcast-driver {
-    font-size:
-      clamp(
-        1rem,
-        2.5vw,
-        1.2rem
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 900px) {
+
+  .gp-broadcast-ranking {
+    width:
+      min(
+        calc(100% - 20px),
+        760px
       );
   }
 
 
   .gp-broadcast-row {
     grid-template-columns:
-      44px
-      96px
+      34px
+      64px
       minmax(0, 1fr)
-      112px;
-
-    min-height: 46px;
+      68px;
   }
 
 
-  .gp-broadcast-row-team img {
-    width: 64px;
-    height: 34px;
+  .gp-broadcast-podium {
+    width:
+      min(
+        calc(100% - 20px),
+        760px
+      );
   }
 
 
-  .gp-broadcast-row-driver strong {
-    font-size: 0.82rem;
+  .gp-broadcast-podium-card {
+    grid-template-columns:
+      34px
+      65px
+      minmax(0, 1fr);
+
+    min-height: 128px;
   }
 
 
-  .gp-broadcast-row-result {
-    padding:
-      0
-      10px;
+  .gp-broadcast-podium-1 {
+    min-height: 140px;
+  }
 
-    font-size: 0.62rem;
+
+  .gp-broadcast-podium-position {
+    font-size: 1.7rem;
+  }
+
+
+  .gp-broadcast-podium-team img {
+    width: 58px;
+    height: 40px;
   }
 
 }
 
 
-@media (max-width: 600px) {
+/* =========================================================
+   HANDY
+   ========================================================= */
+
+@media (max-width: 650px) {
+
+  .gp-broadcast-header {
+    grid-template-columns:
+      48px
+      minmax(0, 1fr)
+      48px;
+
+    min-height: 74px;
+
+    gap: 7px;
+
+    padding:
+      8px
+      7px;
+  }
+
+
+  .gp-broadcast-league img,
+  .gp-broadcast-track img {
+    width: 42px;
+    height: 42px;
+  }
+
+
+  .gp-track-fallback {
+    width: 42px;
+    height: 34px;
+
+    font-size: 0.4rem;
+  }
+
+
+  .gp-broadcast-title h3 {
+    font-size:
+      clamp(
+        1.15rem,
+        6vw,
+        1.65rem
+      );
+  }
+
 
   .gp-broadcast-title small {
     display: none;
@@ -7126,104 +7384,181 @@ td strong {
 
 
   .gp-broadcast-meta {
-    flex-wrap: wrap;
+    gap: 7px;
 
-    gap: 6px;
+    font-size: 0.44rem;
   }
 
+
+  /*
+   * Podium auf Handy weiterhin
+   * nebeneinander statt riesig untereinander.
+   */
 
   .gp-broadcast-podium {
-    grid-template-columns: 1fr;
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+
+    gap: 4px;
+
+    width:
+      calc(100% - 12px);
+
+    margin-top: 9px;
   }
 
 
+  .gp-broadcast-podium-card,
   .gp-broadcast-podium-1 {
-    order: 1;
+    min-height: 118px;
 
-    transform: none;
+    grid-template-columns: 1fr;
+
+    grid-template-rows:
+      25px
+      43px
+      auto;
+
+    padding: 4px;
   }
 
 
-  .gp-broadcast-podium-2 {
-    order: 2;
-  }
+  .gp-broadcast-podium-position {
+    align-self: auto;
 
+    border-right: 0;
+    border-bottom:
+      1px solid
+      rgba(255, 255, 255, 0.08);
 
-  .gp-broadcast-podium-3 {
-    order: 3;
-  }
-
-
-  .gp-broadcast-podium-card {
-    min-height: 205px;
+    font-size: 1.2rem;
   }
 
 
   .gp-broadcast-podium-team {
-    height: 90px;
+    height: 42px;
   }
 
 
   .gp-broadcast-podium-team img {
-    width: 90px;
-    height: 58px;
+    width: 48px;
+    height: 32px;
+  }
+
+
+  .gp-broadcast-podium-info {
+    padding: 3px 2px;
+
+    text-align: center;
   }
 
 
   .gp-broadcast-driver {
-    font-size: 1.05rem;
+    font-size: 0.69rem;
+
+    text-align: center;
   }
 
 
+  .gp-broadcast-result-label {
+    font-size: 0.43rem;
+  }
+
+
+  /*
+   * Rangliste auf Handy
+   * wieder EINspaltig.
+   */
+
   .gp-broadcast-ranking {
-    padding:
-      0
-      8px
-      20px;
+    grid-template-columns: 1fr;
+
+    width:
+      calc(100% - 12px);
+
+    gap: 4px;
+
+    padding-bottom: 10px;
+  }
+
+
+  .gp-broadcast-ranking-column {
+    gap: 3px;
   }
 
 
   .gp-broadcast-row {
-    grid-template-columns:
-      40px
-      72px
-      minmax(0, 1fr);
+    min-height: 36px;
 
-    min-height: 44px;
+    grid-template-columns:
+      31px
+      56px
+      minmax(0, 1fr)
+      63px;
   }
 
 
-  .gp-broadcast-row-result {
-    grid-column:
-      2 / -1;
-
-    min-height: 29px;
-
-    justify-content: flex-end;
-
-    border-top:
-      1px solid rgba(255, 255, 255, 0.07);
+  .gp-broadcast-row-position strong {
+    font-size: 0.87rem;
   }
 
 
   .gp-broadcast-row-team img {
-    width: 52px;
-    height: 30px;
+    width: 44px;
+    height: 24px;
   }
 
 
   .gp-broadcast-row-driver {
     padding:
       0
-      9px;
+      6px;
   }
 
 
   .gp-broadcast-row-driver strong {
-    font-size: 0.78rem;
+    font-size: 0.65rem;
+  }
+
+
+  .gp-broadcast-row-result {
+    padding:
+      0
+      5px;
+
+    font-size: 0.62rem;
+  }
+
+
+  .gp-broadcast-carousel
+  .carousel-control {
+    top: 47%;
+
+    width: 30px;
+    height: 40px;
+  }
+
+
+  .gp-broadcast-carousel
+  .carousel-control.prev {
+    left: 0;
+  }
+
+
+  .gp-broadcast-carousel
+  .carousel-control.next {
+    right: 0;
   }
 
 }
+
+
+
+
+
 
 /* =========================================================
    F1 SAISONVERLAUF 2026
@@ -7902,695 +8237,20 @@ td strong {
 
 
 /* =========================================================
-   F1 DRIVER / TEAM STANDINGS · BROADCAST DESIGN
+   F1 WM-STÄNDE · WIDE BROADCAST
+   Fahrer 2 Spalten / Teams 2 Spalten
    ========================================================= */
 
-.f1-broadcast-standings-section {
-  background:
-    radial-gradient(
-      circle at 50% 0,
-      color-mix(in srgb, var(--accent, var(--cyan)) 5%, transparent),
-      transparent 32%
-    ),
-    #090e12;
-}
-
-.standings-broadcast-grid {
-  align-items: start;
-  gap: 1.8rem;
-}
-
-.standings-broadcast-column {
-  min-width: 0;
-}
-
-.standings-broadcast-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.65rem;
-  min-height: 42px;
-  margin-bottom: 0.7rem;
-}
-
-.standings-broadcast-actions .download-link {
-  margin-top: 0;
-}
-
-.standings-broadcast-card {
-  overflow: hidden;
-  background:
-    linear-gradient(
-      145deg,
-      #25292c 0%,
-      #171c21 16%,
-      #0b1015 100%
-    );
-
-  border: 7px solid #202832;
-  border-radius: 24px;
-
-  box-shadow:
-    0 24px 55px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-
-/* =========================================================
-   KOPF
-   ========================================================= */
-
-.standings-broadcast-header {
+.standings-history-carousel-wide {
   position: relative;
 
-  display: grid;
-
-  grid-template-columns:
-    112px
-    minmax(0, 1fr)
-    112px;
-
-  align-items: center;
-
-  gap: 0.8rem;
-
-  min-height: 125px;
-
-  padding:
-    0.85rem
-    1rem;
-
-  background:
-    linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.06),
-      rgba(255, 255, 255, 0.015)
-    ),
-    repeating-linear-gradient(
-      100deg,
-      rgba(255, 255, 255, 0.018) 0 18px,
-      transparent 18px 36px
-    ),
-    #3b3e40;
-
-  border-bottom:
-    1px solid rgba(255, 255, 255, 0.12);
-}
-
-.standings-broadcast-league-logo,
-.standings-broadcast-race-flag {
-  display: grid;
-  place-items: center;
-  min-width: 0;
-}
-
-.standings-broadcast-league-logo img {
-  width: 92px;
-  height: 92px;
-
-  object-fit: contain;
-
-  border-radius: 50%;
-
-  filter:
-    drop-shadow(
-      0 5px 11px
-      rgba(0, 0, 0, 0.42)
-    );
-}
-
-.standings-broadcast-league-logo strong {
-  display: grid;
-  place-items: center;
-
-  width: 82px;
-  height: 82px;
-
-  border: 2px solid #fff;
-  border-radius: 50%;
-
-  color: #fff;
-
-  font-family: var(--display);
-  font-size: 2rem;
-}
-
-.standings-broadcast-heading {
-  min-width: 0;
-
-  display: grid;
-  justify-items: center;
-
-  text-align: center;
-
-  line-height: 1;
-}
-
-.standings-broadcast-heading > span {
-  color:
-    var(--accent, var(--cyan));
-
-  font-size: 0.55rem;
-
-  font-weight: 900;
-
-  letter-spacing: 0.28em;
-}
-
-.standings-broadcast-heading h2 {
-  margin:
-    0.2rem
-    0
-    0.1rem;
-
-  color: #fff;
-
-  font-family: var(--display);
-
-  font-size:
-    clamp(
-      2rem,
-      3.4vw,
-      3.05rem
+  width:
+    min(
+      100%,
+      1180px
     );
 
-  font-weight: 850;
-
-  line-height: 0.9;
-
-  letter-spacing: 0.08em;
-
-  white-space: nowrap;
-}
-
-.standings-broadcast-heading > strong {
-  color: #fff;
-
-  font-family: var(--display);
-
-  font-size:
-    clamp(
-      1.15rem,
-      2.2vw,
-      1.75rem
-    );
-
-  letter-spacing: 0.12em;
-}
-
-.standings-broadcast-race-flag img {
-  width: 86px;
-  height: 64px;
-
-  object-fit: contain;
-
-  filter:
-    drop-shadow(
-      0 5px 11px
-      rgba(0, 0, 0, 0.4)
-    );
-}
-
-.standings-broadcast-race-flag span {
-  display: grid;
-  place-items: center;
-
-  width: 78px;
-  height: 56px;
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.25);
-
-  color: #fff;
-
-  font-family: var(--display);
-
-  font-size: 1.2rem;
-}
-
-
-/* =========================================================
-   LISTE
-   ========================================================= */
-
-.standings-broadcast-list {
-  display: grid;
-
-  gap: 7px;
-
-  padding:
-    10px
-    12px
-    14px;
-
-  background:
-    radial-gradient(
-      circle at 20% 50%,
-      rgba(255, 255, 255, 0.025),
-      transparent 45%
-    ),
-    #2b2d2e;
-}
-
-.standings-broadcast-row {
-  --standing-team-color:
-    var(--accent, var(--cyan));
-
-  min-width: 0;
-
-  min-height: 62px;
-
-  display: grid;
-
-  grid-template-columns:
-    58px
-    150px
-    minmax(0, 1fr)
-    78px;
-
-  align-items: stretch;
-
-  overflow: hidden;
-
-  border:
-    2px solid #0d1217;
-
-  border-radius: 17px;
-
-  background:
-    #17202c;
-
-  box-shadow:
-    0 2px 0 rgba(255, 255, 255, 0.14),
-    0 4px 10px rgba(0, 0, 0, 0.28);
-}
-
-
-/* Position */
-
-.standings-broadcast-position {
-  display: grid;
-  place-items: center;
-
-  color: #fff;
-
-  background:
-    linear-gradient(
-      90deg,
-      #101722,
-      #17202c
-    );
-
-  font-family: var(--display);
-
-  font-size: 2.05rem;
-
-  font-weight: 900;
-
-  line-height: 1;
-}
-
-
-/* =========================================================
-   TEAMFARBE + LOGO
-   ========================================================= */
-
-.standings-broadcast-team-band {
-  position: relative;
-
-  isolation: isolate;
-
-  display: grid;
-  place-items: center;
-
-  overflow: hidden;
-
-  background:
-    radial-gradient(
-      circle at 55% 50%,
-      color-mix(
-        in srgb,
-        var(--standing-team-color) 78%,
-        #fff 4%
-      ),
-      color-mix(
-        in srgb,
-        var(--standing-team-color) 52%,
-        #070b10
-      ) 55%,
-      #101722 100%
-    );
-}
-
-.standings-broadcast-team-band::before {
-  content: "";
-
-  position: absolute;
-
-  z-index: -1;
-
-  inset: 0;
-
-  background:
-    linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.35),
-      transparent 30% 70%,
-      rgba(0, 0, 0, 0.24)
-    );
-}
-
-.standings-broadcast-team-band img {
-  width: 118px;
-  height: 50px;
-
-  object-fit: contain;
-
-  filter:
-    drop-shadow(
-      0 3px 7px
-      rgba(0, 0, 0, 0.5)
-    );
-}
-
-.standings-broadcast-team-band strong {
-  max-width: 130px;
-
-  padding:
-    0
-    0.5rem;
-
-  overflow: hidden;
-
-  color: #fff;
-
-  font-family: var(--display);
-
-  font-size: 1rem;
-
-  text-align: center;
-
-  text-overflow: ellipsis;
-
-  white-space: nowrap;
-}
-
-
-/* =========================================================
-   NAME
-   ========================================================= */
-
-.standings-broadcast-name {
-  min-width: 0;
-
-  display: flex;
-
-  align-items: center;
-
-  padding:
-    0
-    1rem;
-
-  overflow: hidden;
-
-  color: #fff;
-
-  font-family: var(--display);
-
-  font-size:
-    clamp(
-      1.35rem,
-      2.3vw,
-      1.85rem
-    );
-
-  font-weight: 850;
-
-  line-height: 1;
-
-  letter-spacing: 0.015em;
-
-  text-overflow: ellipsis;
-
-  white-space: nowrap;
-}
-
-
-/* =========================================================
-   PUNKTE
-   ========================================================= */
-
-.standings-broadcast-points {
-  display: flex;
-
-  align-items: center;
-
-  justify-content: flex-end;
-
-  padding:
-    0
-    1rem
-    0
-    0.5rem;
-
-  color: #fff;
-
-  font-family: var(--display);
-
-  font-size: 2rem;
-
-  font-weight: 900;
-
-  line-height: 1;
-}
-
-.standings-team-row
-.standings-broadcast-name {
-  text-transform: uppercase;
-}
-
-.standings-team-row
-.standings-broadcast-team-band img {
-  width: 122px;
-  height: 52px;
-}
-
-
-/* =========================================================
-   TOP 3
-   ========================================================= */
-
-.standings-broadcast-row:nth-child(1) {
-  box-shadow:
-    inset 4px 0 0 #f6c744,
-    0 2px 0 rgba(255, 255, 255, 0.14),
-    0 4px 10px rgba(0, 0, 0, 0.28);
-}
-
-.standings-broadcast-row:nth-child(2) {
-  box-shadow:
-    inset 4px 0 0 #c8d0d8,
-    0 2px 0 rgba(255, 255, 255, 0.14),
-    0 4px 10px rgba(0, 0, 0, 0.28);
-}
-
-.standings-broadcast-row:nth-child(3) {
-  box-shadow:
-    inset 4px 0 0 #c9854b,
-    0 2px 0 rgba(255, 255, 255, 0.14),
-    0 4px 10px rgba(0, 0, 0, 0.28);
-}
-
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
-@media (max-width: 1120px) {
-
-  .standings-broadcast-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .standings-broadcast-card,
-  .standings-broadcast-actions {
-    max-width: 760px;
-
-    margin-inline: auto;
-  }
-
-  .standings-broadcast-actions {
-    margin-bottom: 0.7rem;
-  }
-
-}
-
-
-@media (max-width: 700px) {
-
-  .standings-broadcast-card {
-    border-width: 4px;
-
-    border-radius: 17px;
-  }
-
-  .standings-broadcast-header {
-    grid-template-columns:
-      72px
-      minmax(0, 1fr)
-      72px;
-
-    min-height: 98px;
-
-    padding: 0.7rem;
-  }
-
-  .standings-broadcast-league-logo img {
-    width: 62px;
-    height: 62px;
-  }
-
-  .standings-broadcast-race-flag img {
-    width: 62px;
-    height: 46px;
-  }
-
-  .standings-broadcast-heading h2 {
-    font-size:
-      clamp(
-        1.35rem,
-        5.8vw,
-        2rem
-      );
-
-    white-space: normal;
-  }
-
-  .standings-broadcast-heading > strong {
-    font-size: 1rem;
-  }
-
-  .standings-broadcast-list {
-    gap: 5px;
-
-    padding: 7px;
-  }
-
-  .standings-broadcast-row {
-    min-height: 54px;
-
-    grid-template-columns:
-      42px
-      92px
-      minmax(0, 1fr)
-      58px;
-
-    border-radius: 12px;
-  }
-
-  .standings-broadcast-position {
-    font-size: 1.55rem;
-  }
-
-  .standings-broadcast-team-band img,
-  .standings-team-row
-  .standings-broadcast-team-band img {
-    width: 76px;
-    height: 38px;
-  }
-
-  .standings-broadcast-name {
-    padding:
-      0
-      0.65rem;
-
-    font-size:
-      clamp(
-        1rem,
-        4vw,
-        1.35rem
-      );
-  }
-
-  .standings-broadcast-points {
-    padding-right: 0.65rem;
-
-    font-size: 1.45rem;
-  }
-
-}
-
-
-@media (max-width: 470px) {
-
-  .standings-broadcast-header {
-    grid-template-columns:
-      58px
-      minmax(0, 1fr)
-      58px;
-  }
-
-  .standings-broadcast-league-logo img {
-    width: 50px;
-    height: 50px;
-  }
-
-  .standings-broadcast-race-flag img {
-    width: 50px;
-    height: 38px;
-  }
-
-  .standings-broadcast-row {
-    grid-template-columns:
-      36px
-      70px
-      minmax(0, 1fr)
-      48px;
-
-    min-height: 48px;
-  }
-
-  .standings-broadcast-team-band img,
-  .standings-team-row
-  .standings-broadcast-team-band img {
-    width: 58px;
-    height: 30px;
-  }
-
-  .standings-broadcast-position {
-    font-size: 1.25rem;
-  }
-
-  .standings-broadcast-name {
-    font-size: 0.95rem;
-  }
-
-  .standings-broadcast-points {
-    font-size: 1.18rem;
-  }
-
-}
-/* =========================================================
-   WM-STÄNDE NACH JEDEM GP
-   passend zum GP-RESULTS-DESIGN
-   ========================================================= */
-
-.standings-history-section {
-  overflow: hidden;
-}
-
-.standings-history-carousel {
-  position: relative;
-
-  width: min(
-    100%,
-    980px
-  );
-
-  margin:
-    0
-    auto;
+  margin-inline: auto;
 }
 
 
@@ -8598,32 +8258,35 @@ td strong {
    SLIDES
    ========================================================= */
 
-.standings-history-slide {
+.standings-history-slide-wide {
   display: none;
-
-  position: relative;
 
   overflow: hidden;
 
+  width: 100%;
+
   background:
-    radial-gradient(
-      circle at 50% 18%,
-      rgba(255, 255, 255, 0.035),
-      transparent 34%
-    ),
     linear-gradient(
       160deg,
-      #141a21 0%,
-      #090e13 55%,
-      #080c10 100%
+      #111820,
+      #080d11 70%
     );
 
   border:
     1px solid
-    rgba(255, 255, 255, 0.12);
+    color-mix(
+      in srgb,
+      var(--accent) 30%,
+      #26333b
+    );
+
+  border-top:
+    3px solid
+    var(--accent);
 }
 
-.standings-history-slide.is-active {
+
+.standings-history-slide-wide.is-active {
   display: block;
 }
 
@@ -8632,82 +8295,52 @@ td strong {
    HEADER
    ========================================================= */
 
-.standing-gp-header {
+.standing-gp-header-wide {
+  min-height: 88px;
+
   display: grid;
 
   grid-template-columns:
-    110px
+    76px
     minmax(0, 1fr)
-    110px;
+    76px;
 
   align-items: center;
 
-  gap: 16px;
+  gap: 12px;
 
   padding:
-    20px
-    28px
-    16px;
+    10px
+    18px;
+
+  background:
+    #10171c;
 
   border-bottom:
     1px solid
-    rgba(255, 255, 255, 0.08);
+    #26333b;
 }
 
 
+.standing-gp-header-wide
 .standing-gp-league,
+.standing-gp-header-wide
 .standing-gp-flag {
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
+  display: grid;
+  place-items: center;
 }
 
 
+.standing-gp-header-wide
 .standing-gp-league img,
+.standing-gp-header-wide
 .standing-gp-flag img {
-  display: block;
-
-  width: 76px;
-  height: 76px;
+  width: 54px;
+  height: 54px;
 
   object-fit: contain;
 }
 
-
-.standing-gp-league img {
-  border-radius: 50%;
-}
-
-
-.standing-gp-league > strong,
-.standing-gp-flag > span {
-  display: grid;
-
-  place-items: center;
-
-  width: 72px;
-  height: 72px;
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.22);
-
-  border-radius: 50%;
-
-  color: #fff;
-
-  font-family:
-    var(--display);
-
-  font-weight: 900;
-}
-
-
-/* =========================================================
-   TITEL
-   ========================================================= */
 
 .standing-gp-title {
   min-width: 0;
@@ -8719,28 +8352,23 @@ td strong {
 .standing-gp-title > span {
   display: block;
 
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 
   color:
-    var(
-      --accent,
-      var(--cyan)
-    );
+    var(--accent);
 
-  font-family:
-    var(--body);
-
-  font-size:
-    0.68rem;
+  font-size: 0.56rem;
 
   font-weight: 900;
 
   letter-spacing:
-    0.22em;
+    0.14em;
 }
 
 
 .standing-gp-title h3 {
+  overflow: hidden;
+
   margin: 0;
 
   color: #fff;
@@ -8750,1023 +8378,52 @@ td strong {
 
   font-size:
     clamp(
-      2rem,
-      4vw,
-      3.2rem
+      1.65rem,
+      3vw,
+      2.5rem
     );
 
-  font-weight: 800;
+  line-height: 0.95;
 
-  line-height: 0.92;
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
 }
 
 
 .standing-gp-title small {
   display: block;
 
-  margin-top: 7px;
+  margin-top: 4px;
+
+  overflow: hidden;
 
   color:
-    rgba(
-      255,
-      255,
-      255,
-      0.52
-    );
+    #84939b;
 
-  font-family:
-    var(--body);
+  font-size: 0.54rem;
 
-  font-size:
-    0.68rem;
+  font-weight: 750;
 
-  font-weight: 700;
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
 
   text-transform: uppercase;
 }
 
 
 /* =========================================================
-   META
-   ========================================================= */
-
-.standing-gp-meta {
-  display: flex;
-
-  justify-content: center;
-
-  align-items: center;
-
-  flex-wrap: wrap;
-
-  gap: 14px;
-
-  min-height: 43px;
-
-  padding:
-    8px
-    18px;
-
-  border-bottom:
-    1px solid
-    rgba(255, 255, 255, 0.08);
-
-  color:
-    rgba(
-      255,
-      255,
-      255,
-      0.55
-    );
-
-  font-family:
-    var(--body);
-
-  font-size:
-    0.68rem;
-
-  font-weight: 800;
-
-  letter-spacing:
-    0.05em;
-
-  text-transform: uppercase;
-}
-
-
-.standing-gp-meta strong {
-  color: #fff;
-}
-
-
-.standing-sprint-badge {
-  padding:
-    0.18rem
-    0.45rem;
-
-  background:
-    #e91e63;
-
-  color:
-    #fff !important;
-
-  font-size:
-    0.58rem;
-
-  font-weight:
-    950;
-}
-
-
-/* =========================================================
-   FAHRER / TEAM UMSCHALTER
-   ========================================================= */
-
-.standing-type-switch {
-  display: grid;
-
-  grid-template-columns:
-    repeat(
-      2,
-      minmax(0, 1fr)
-    );
-
-  width:
-    min(
-      520px,
-      calc(100% - 40px)
-    );
-
-  margin:
-    18px
-    auto
-    16px;
-
-  border:
-    1px solid
-    #34434b;
-
-  background:
-    #080d11;
-}
-
-
-.standing-type-button {
-  min-height:
-    43px;
-
-  padding:
-    0.6rem
-    1rem;
-
-  border: 0;
-
-  border-right:
-    1px solid
-    #34434b;
-
-  background:
-    transparent;
-
-  color:
-    #8c9aa2;
-
-  font-family:
-    var(--display);
-
-  font-size:
-    1rem;
-
-  font-weight:
-    900;
-
-  letter-spacing:
-    0.06em;
-
-  cursor:
-    pointer;
-}
-
-
-.standing-type-button:last-child {
-  border-right: 0;
-}
-
-
-.standing-type-button.is-active {
-  background:
-    var(
-      --accent,
-      var(--cyan)
-    );
-
-  color:
-    #061012;
-}
-
-
-.standing-type-panel[hidden] {
-  display:
-    none !important;
-}
-
-
-/* =========================================================
-   RANKING
-   ========================================================= */
-
-.standing-broadcast-ranking {
-  display: grid;
-
-  gap: 6px;
-
-  width:
-    min(
-      760px,
-      calc(100% - 44px)
-    );
-
-  margin:
-    0
-    auto;
-
-  padding:
-    0
-    0
-    26px;
-}
-
-
-.standing-broadcast-row {
-  --standing-team-color:
-    var(
-      --accent,
-      var(--cyan)
-    );
-
-  min-height:
-    48px;
-
-  display: grid;
-
-  grid-template-columns:
-    52px
-    130px
-    minmax(0, 1fr)
-    92px;
-
-  align-items:
-    stretch;
-
-  overflow:
-    hidden;
-
-  background:
-    #111923;
-
-  border:
-    1px solid
-    #34434b;
-
-  border-radius:
-    8px;
-}
-
-
-/* =========================================================
-   POSITION
-   ========================================================= */
-
-.standing-broadcast-position {
-  display: grid;
-
-  place-items:
-    center;
-
-  color:
-    #fff;
-
-  background:
-    #18212d;
-
-  border-right:
-    1px solid
-    #34434b;
-
-  font-family:
-    var(--display);
-
-  font-size:
-    1.35rem;
-
-  font-weight:
-    900;
-}
-
-
-/* =========================================================
-   TEAMFARBE + LOGO
-   ========================================================= */
-
-.standing-broadcast-team {
-  position: relative;
-
-  isolation:
-    isolate;
-
-  display:
-    grid;
-
-  place-items:
-    center;
-
-  overflow:
-    hidden;
-
-  background:
-    radial-gradient(
-      circle at 50% 50%,
-
-      color-mix(
-        in srgb,
-        var(--standing-team-color) 68%,
-        #ffffff 4%
-      ),
-
-      color-mix(
-        in srgb,
-        var(--standing-team-color) 34%,
-        #0b1118
-      )
-      58%,
-
-      #0b1118
-      100%
-    );
-}
-
-
-.standing-broadcast-team::after {
-  content:
-    "";
-
-  position:
-    absolute;
-
-  z-index:
-    -1;
-
-  inset:
-    0;
-
-  background:
-    linear-gradient(
-      90deg,
-
-      rgba(
-        0,
-        0,
-        0,
-        0.28
-      ),
-
-      transparent
-      35%
-      65%,
-
-      rgba(
-        0,
-        0,
-        0,
-        0.25
-      )
-    );
-}
-
-
-.standing-broadcast-team img {
-  width:
-    92px;
-
-  height:
-    36px;
-
-  object-fit:
-    contain;
-
-  filter:
-    drop-shadow(
-      0
-      3px
-      6px
-      rgba(
-        0,
-        0,
-        0,
-        0.45
-      )
-    );
-}
-
-
-.standing-broadcast-team span {
-  max-width:
-    110px;
-
-  padding:
-    0
-    0.4rem;
-
-  overflow:
-    hidden;
-
-  color:
-    #fff;
-
-  font-family:
-    var(--display);
-
-  font-size:
-    0.8rem;
-
-  font-weight:
-    800;
-
-  text-overflow:
-    ellipsis;
-
-  white-space:
-    nowrap;
-}
-
-
-/* =========================================================
-   NAME
-   ========================================================= */
-
-.standing-broadcast-name {
-  min-width:
-    0;
-
-  display:
-    flex;
-
-  align-items:
-    center;
-
-  padding:
-    0
-    16px;
-
-  overflow:
-    hidden;
-
-  color:
-    #fff;
-
-  font-family:
-    var(--body);
-
-  font-size:
-    0.9rem;
-
-  font-weight:
-    800;
-
-  text-overflow:
-    ellipsis;
-
-  white-space:
-    nowrap;
-}
-
-
-/* =========================================================
-   PUNKTE
-   ========================================================= */
-
-.standing-broadcast-points {
-  display:
-    flex;
-
-  align-items:
-    center;
-
-  justify-content:
-    flex-end;
-
-  padding:
-    0
-    16px
-    0
-    8px;
-
-  color:
-    #fff;
-
-  font-family:
-    var(--display);
-
-  font-size:
-    1.2rem;
-
-  font-weight:
-    900;
-}
-
-
-/* Team-WM etwas stärker */
-
-.standing-broadcast-team-row
-.standing-broadcast-name {
-  font-family:
-    var(--display);
-
-  font-size:
-    1.05rem;
-
-  text-transform:
-    uppercase;
-}
-
-
-/* =========================================================
-   TOP 3
-   ========================================================= */
-
-.standing-broadcast-row:nth-child(1) {
-  border-color:
-    rgba(
-      246,
-      199,
-      68,
-      0.62
-    );
-}
-
-
-.standing-broadcast-row:nth-child(2) {
-  border-color:
-    rgba(
-      200,
-      208,
-      216,
-      0.46
-    );
-}
-
-
-.standing-broadcast-row:nth-child(3) {
-  border-color:
-    rgba(
-      201,
-      133,
-      75,
-      0.54
-    );
-}
-
-
-/* =========================================================
-   CAROUSEL PFEILE
-   ========================================================= */
-
-.standings-history-control {
-  position:
-    absolute;
-
-  top:
-    50%;
-
-  z-index:
-    5;
-
-  width:
-    44px;
-
-  height:
-    55px;
-
-  transform:
-    translateY(-50%);
-
-  border:
-    1px solid
-    var(
-      --accent,
-      var(--cyan)
-    );
-
-  background:
-    rgba(
-      5,
-      8,
-      10,
-      0.9
-    );
-
-  color:
-    var(
-      --accent,
-      var(--cyan)
-    );
-
-  font-size:
-    2rem;
-
-  cursor:
-    pointer;
-}
-
-
-.standings-history-control.prev {
-  left:
-    -22px;
-}
-
-
-.standings-history-control.next {
-  right:
-    -22px;
-}
-
-
-/* =========================================================
-   DOTS
-   ========================================================= */
-
-.standings-history-dots {
-  display:
-    flex;
-
-  justify-content:
-    center;
-
-  gap:
-    0.45rem;
-
-  margin-top:
-    1rem;
-}
-
-
-.standings-history-dots button {
-  width:
-    9px;
-
-  height:
-    9px;
-
-  padding:
-    0;
-
-  border:
-    1px solid
-    var(
-      --accent,
-      var(--cyan)
-    );
-
-  border-radius:
-    50%;
-
-  background:
-    transparent;
-
-  cursor:
-    pointer;
-}
-
-
-.standings-history-dots
-button.is-active {
-  background:
-    var(
-      --accent,
-      var(--cyan)
-    );
-}
-
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
-@media (max-width: 800px) {
-
-  .standing-gp-header {
-    grid-template-columns:
-      72px
-      minmax(0, 1fr)
-      72px;
-
-    gap:
-      10px;
-
-    padding:
-      16px
-      12px;
-  }
-
-
-  .standing-gp-league img,
-  .standing-gp-flag img {
-    width:
-      58px;
-
-    height:
-      58px;
-  }
-
-
-  .standing-gp-title h3 {
-    font-size:
-      clamp(
-        1.5rem,
-        5vw,
-        2.25rem
-      );
-  }
-
-
-  .standing-broadcast-ranking {
-    width:
-      calc(
-        100% - 18px
-      );
-  }
-
-
-  .standing-broadcast-row {
-    grid-template-columns:
-      44px
-      94px
-      minmax(0, 1fr)
-      68px;
-
-    min-height:
-      45px;
-  }
-
-
-  .standing-broadcast-team img {
-    width:
-      68px;
-
-    height:
-      31px;
-  }
-
-
-  .standing-broadcast-name {
-    padding:
-      0
-      10px;
-
-    font-size:
-      0.8rem;
-  }
-
-
-  .standing-broadcast-points {
-    padding-right:
-      10px;
-
-    font-size:
-      1.05rem;
-  }
-
-
-  .standings-history-control.prev {
-    left:
-      0;
-  }
-
-
-  .standings-history-control.next {
-    right:
-      0;
-  }
-
-}
-
-
-@media (max-width: 520px) {
-
-  .standing-gp-header {
-    grid-template-columns:
-      54px
-      minmax(0, 1fr)
-      54px;
-  }
-
-
-  .standing-gp-league img,
-  .standing-gp-flag img {
-    width:
-      46px;
-
-    height:
-      46px;
-  }
-
-
-  .standing-gp-title > span {
-    font-size:
-      0.52rem;
-  }
-
-
-  .standing-gp-title h3 {
-    font-size:
-      1.45rem;
-  }
-
-
-  .standing-gp-title small {
-    display:
-      none;
-  }
-
-
-  .standing-type-switch {
-    width:
-      calc(
-        100% - 18px
-      );
-  }
-
-
-  .standing-broadcast-row {
-    grid-template-columns:
-      38px
-      72px
-      minmax(0, 1fr)
-      54px;
-
-    min-height:
-      42px;
-  }
-
-
-  .standing-broadcast-position {
-    font-size:
-      1.12rem;
-  }
-
-
-  .standing-broadcast-team img {
-    width:
-      54px;
-
-    height:
-      27px;
-  }
-
-
-  .standing-broadcast-name {
-    padding:
-      0
-      7px;
-
-    font-size:
-      0.72rem;
-  }
-
-
-  .standing-broadcast-team-row
-  .standing-broadcast-name {
-    font-size:
-      0.82rem;
-  }
-
-
-  .standing-broadcast-points {
-    padding-right:
-      7px;
-
-    font-size:
-      0.92rem;
-  }
-
-}
-
-/* =========================================================
-   WM-STÄNDE
-   KOMPAKT · FAHRER + TEAM NEBENEINANDER
-   ========================================================= */
-
-.standings-history-carousel-compact {
-  width: min(100%, 1040px);
-}
-
-
-/* =========================================================
-   SLIDE
-   ========================================================= */
-
-.standings-history-slide-compact {
-  background: #0b1115;
-
-  border:
-    1px solid var(--line);
-
-  border-top:
-    3px solid
-    var(--accent);
-
-  box-shadow:
-    0 18px 45px
-      rgba(0, 0, 0, 0.28),
-    inset 0 1px 0
-      color-mix(
-        in srgb,
-        var(--accent) 12%,
-        transparent
-      );
-}
-
-
-/* =========================================================
-   HEADER
-   ========================================================= */
-
-.standing-gp-header-compact {
-  grid-template-columns:
-    72px
-    minmax(0, 1fr)
-    72px;
-
-  gap: 12px;
-
-  min-height: 92px;
-
-  padding:
-    12px
-    18px;
-
-  background:
-    radial-gradient(
-      circle at 50% 0,
-      color-mix(
-        in srgb,
-        var(--accent) 7%,
-        transparent
-      ),
-      transparent 55%
-    ),
-    #10171b;
-
-  box-shadow:
-    inset 0 -1px 0
-      color-mix(
-        in srgb,
-        var(--accent) 35%,
-        transparent
-      );
-}
-
-
-.standing-gp-header-compact
-.standing-gp-league img,
-.standing-gp-header-compact
-.standing-gp-flag img {
-  width: 54px;
-
-  height: 54px;
-
-  object-fit: contain;
-}
-
-
-/* =========================================================
-   HEADER-TITEL
-   ========================================================= */
-
-.standing-gp-title-compact > span {
-  margin-bottom: 2px;
-
-  color:
-    var(--accent);
-
-  font-size: 0.55rem;
-
-  font-weight: 900;
-
-  letter-spacing: 0.14em;
-}
-
-
-.standing-gp-title-compact h3 {
-  font-size:
-    clamp(
-      1.55rem,
-      3vw,
-      2.35rem
-    );
-
-  line-height: 0.95;
-}
-
-
-.standing-gp-title-compact small {
-  margin-top: 5px;
-
-  font-size: 0.57rem;
-}
-
-
-/* =========================================================
-   SPRINT
+   SPRINT-HINWEIS
    ========================================================= */
 
 .standing-weekend-note {
   padding:
-    6px
+    5px
     12px;
 
-  border-bottom:
-    1px solid var(--line);
+  color:
+    #ff8fbc;
 
   background:
     rgba(
@@ -9776,63 +8433,67 @@ button.is-active {
       0.08
     );
 
-  color: #ff8fbc;
+  border-bottom:
+    1px solid
+    #26333b;
 
-  font-size: 0.62rem;
+  font-size: 0.55rem;
 
-  font-weight: 800;
+  font-weight: 850;
 
   text-align: center;
 }
 
 
 /* =========================================================
-   FAHRER + TEAM NEBENEINANDER
+   FAHRER / TEAM HAUPTGRID
    ========================================================= */
 
-.standing-snapshot-grid {
+.standing-wide-grid {
   display: grid;
 
   grid-template-columns:
     minmax(0, 1fr)
     minmax(0, 1fr);
 
-  gap: 12px;
+  gap: 9px;
 
-  padding: 12px;
+  padding: 9px;
 }
 
 
 /* =========================================================
-   EINZELNE KARTE
+   KARTE
    ========================================================= */
 
-.standing-mini-card {
+.standing-wide-card {
   min-width: 0;
 
   overflow: hidden;
 
-  background: #090e12;
+  background:
+    #090e12;
 
   border:
-    1px solid #26333b;
+    1px solid
+    #29363e;
 
   border-top:
     2px solid
-      color-mix(
-        in srgb,
-        var(--accent) 70%,
-        #26333b
-      );
+    color-mix(
+      in srgb,
+      var(--accent) 72%,
+      #29363e
+    );
 }
 
 
 /* =========================================================
-   KARTENÜBERSCHRIFT
+   KARTENHEADER
    ========================================================= */
 
-.standing-mini-heading {
-  min-height: 56px;
+.standing-wide-heading {
+  min-height: 48px;
 
   display: flex;
 
@@ -9840,14 +8501,11 @@ button.is-active {
 
   justify-content: space-between;
 
-  gap: 12px;
+  gap: 10px;
 
   padding:
-    9px
-    12px;
-
-  border-bottom:
-    1px solid #26333b;
+    7px
+    10px;
 
   background:
     linear-gradient(
@@ -9857,34 +8515,36 @@ button.is-active {
         var(--accent) 8%,
         #10171b
       ),
-      #10171b 72%
+      #10171b 74%
     );
+
+  border-bottom:
+    1px solid
+    #29363e;
 }
 
 
-.standing-mini-heading > div {
+.standing-wide-heading > div {
   display: grid;
 
-  gap: 1px;
+  gap: 0;
 }
 
 
-.standing-mini-heading span {
+.standing-wide-heading span {
   color:
     var(--accent);
 
-  font-size:
-    0.5rem;
+  font-size: 0.48rem;
 
-  font-weight:
-    900;
+  font-weight: 900;
 
   letter-spacing:
     0.13em;
 }
 
 
-.standing-mini-heading h4 {
+.standing-wide-heading h4 {
   margin: 0;
 
   color: #fff;
@@ -9892,38 +8552,57 @@ button.is-active {
   font-family:
     var(--display);
 
-  font-size:
-    1.35rem;
+  font-size: 1.2rem;
 
   line-height: 1;
 }
 
 
-.standing-mini-heading > strong {
-  color: #7f9099;
+.standing-wide-heading > strong {
+  color:
+    #7d8b93;
 
-  font-size:
-    0.55rem;
+  font-size: 0.5rem;
 
-  white-space:
-    nowrap;
+  white-space: nowrap;
 }
 
 
 /* =========================================================
-   LISTE
+   ZWEI INTERNE SPALTEN
    ========================================================= */
 
-.standing-mini-ranking {
+.standing-wide-columns {
   display: grid;
 
-  gap: 3px;
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
 
-  padding: 6px;
+  gap: 4px;
+
+  padding: 5px;
 }
 
 
-.standing-mini-row {
+.standing-wide-column {
+  min-width: 0;
+
+  display: grid;
+
+  align-content: start;
+
+  gap: 3px;
+}
+
+
+/* =========================================================
+   RANKING-ZEILE
+   ========================================================= */
+
+.standing-wide-row {
   --standing-team-color:
     var(--accent);
 
@@ -9934,21 +8613,23 @@ button.is-active {
   display: grid;
 
   grid-template-columns:
-    34px
-    72px
+    31px
+    58px
     minmax(0, 1fr)
-    46px;
+    42px;
 
   align-items: stretch;
 
   overflow: hidden;
 
-  background: #111923;
+  background:
+    #111923;
 
   border:
-    1px solid #2e3b43;
+    1px solid
+    #2b3941;
 
-  border-radius: 5px;
+  border-radius: 3px;
 }
 
 
@@ -9956,36 +8637,34 @@ button.is-active {
    POSITION
    ========================================================= */
 
-.standing-mini-position {
+.standing-wide-position {
   display: grid;
 
   place-items: center;
 
-  background: #17212c;
+  color: #fff;
+
+  background:
+    #17212a;
 
   border-right:
-    1px solid #2e3b43;
-
-  color: #fff;
+    1px solid
+    #2b3941;
 
   font-family:
     var(--display);
 
-  font-size:
-    0.95rem;
+  font-size: 0.87rem;
 
-  font-weight:
-    900;
+  font-weight: 900;
 }
 
 
 /* =========================================================
-   TEAM-BEREICH
+   TEAMFARBE + LOGO
    ========================================================= */
 
-.standing-mini-team {
-  position: relative;
-
+.standing-wide-team {
   display: grid;
 
   place-items: center;
@@ -9993,30 +8672,25 @@ button.is-active {
   overflow: hidden;
 
   background:
-    radial-gradient(
-      circle at 50% 50%,
-
+    linear-gradient(
+      90deg,
       color-mix(
         in srgb,
-        var(--standing-team-color) 58%,
-        #fff 3%
+        var(--standing-team-color) 55%,
+        #080d11
       ),
-
       color-mix(
         in srgb,
-        var(--standing-team-color) 28%,
-        #0a1015
-      ) 62%,
-
-      #0a1015
+        var(--standing-team-color) 20%,
+        #090e12
+      )
     );
 }
 
 
-.standing-mini-team img {
-  width: 54px;
-
-  height: 24px;
+.standing-wide-team img {
+  width: 44px;
+  height: 23px;
 
   object-fit: contain;
 
@@ -10025,34 +8699,25 @@ button.is-active {
       0
       2px
       3px
-      rgba(
-        0,
-        0,
-        0,
-        0.45
-      )
+      rgba(0,0,0,.4)
     );
 }
 
 
-.standing-mini-team span {
-  max-width: 66px;
+.standing-wide-team span {
+  max-width: 52px;
 
   overflow: hidden;
 
   color: #fff;
 
-  font-size:
-    0.52rem;
+  font-size: 0.43rem;
 
-  font-weight:
-    800;
+  font-weight: 800;
 
-  text-overflow:
-    ellipsis;
+  text-overflow: ellipsis;
 
-  white-space:
-    nowrap;
+  white-space: nowrap;
 }
 
 
@@ -10060,7 +8725,7 @@ button.is-active {
    NAME
    ========================================================= */
 
-.standing-mini-name {
+.standing-wide-name {
   min-width: 0;
 
   display: flex;
@@ -10069,39 +8734,30 @@ button.is-active {
 
   padding:
     0
-    8px;
+    7px;
 
   overflow: hidden;
 
   color: #fff;
 
-  font-family:
-    var(--body);
+  font-size: 0.63rem;
 
-  font-size:
-    0.68rem;
+  font-weight: 800;
 
-  font-weight:
-    800;
+  text-overflow: ellipsis;
 
-  text-overflow:
-    ellipsis;
-
-  white-space:
-    nowrap;
+  white-space: nowrap;
 }
 
 
-.standing-mini-team-row
-.standing-mini-name {
+.standing-wide-team-row
+.standing-wide-name {
   font-family:
     var(--display);
 
-  font-size:
-    0.75rem;
+  font-size: 0.68rem;
 
-  text-transform:
-    uppercase;
+  text-transform: uppercase;
 }
 
 
@@ -10109,7 +8765,7 @@ button.is-active {
    PUNKTE
    ========================================================= */
 
-.standing-mini-points {
+.standing-wide-points {
   display: flex;
 
   align-items: center;
@@ -10118,56 +8774,79 @@ button.is-active {
 
   padding:
     0
-    8px
+    7px
     0
-    4px;
+    3px;
 
   color: #fff;
 
   font-family:
     var(--display);
 
-  font-size:
-    0.92rem;
+  font-size: 0.8rem;
 
-  font-weight:
-    900;
+  font-weight: 900;
 }
-
 
 
 /* =========================================================
    CAROUSEL
    ========================================================= */
 
-.standings-history-carousel-compact
+.standings-history-carousel-wide
 .standings-history-control {
-  width: 36px;
+  position: absolute;
 
-  height: 46px;
+  top: 50%;
 
-  font-size: 1.55rem;
+  z-index: 5;
 
-  border-color:
+  width: 34px;
+  height: 44px;
+
+  display: grid;
+
+  place-items: center;
+
+  padding: 0;
+
+  border:
+    1px solid
     var(--accent);
+
+  background:
+    rgba(
+      5,
+      9,
+      12,
+      .96
+    );
 
   color:
     var(--accent);
+
+  font-size: 1.5rem;
+
+  cursor: pointer;
+
+  transform:
+    translateY(-50%);
 }
 
 
-.standings-history-carousel-compact
+.standings-history-carousel-wide
 .standings-history-control.prev {
-  left: -18px;
+  left: -17px;
 }
 
 
-.standings-history-carousel-compact
+.standings-history-carousel-wide
 .standings-history-control.next {
-  right: -18px;
+  right: -17px;
 }
 
 
+.standings-history-carousel-wide
 .standings-history-control:hover {
   background:
     color-mix(
@@ -10182,23 +8861,39 @@ button.is-active {
    DOTS
    ========================================================= */
 
-.standings-history-carousel-compact
+.standings-history-carousel-wide
 .standings-history-dots {
-  margin-top: 0.7rem;
+  display: flex;
+
+  justify-content: center;
+
+  gap: 6px;
+
+  margin-top: 0.65rem;
 }
 
 
-.standings-history-carousel-compact
+.standings-history-carousel-wide
 .standings-history-dots button {
   width: 7px;
-
   height: 7px;
 
-  border-color:
+  padding: 0;
+
+  border:
+    1px solid
     var(--accent);
+
+  border-radius: 50%;
+
+  background:
+    transparent;
+
+  cursor: pointer;
 }
 
 
+.standings-history-carousel-wide
 .standings-history-dots
 button.is-active {
   background:
@@ -10207,119 +8902,1988 @@ button.is-active {
 
 
 /* =========================================================
-   RESPONSIVE
+   TABLET
    ========================================================= */
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
 
-  .standing-snapshot-grid {
-    grid-template-columns: 1fr;
-  }
-
-
-  .standings-history-carousel-compact {
-    width:
-      min(
-        100%,
-        650px
-      );
+  .standing-wide-grid {
+    grid-template-columns:
+      1fr;
   }
 
 }
 
 
-@media (max-width: 560px) {
+/* =========================================================
+   HANDY
+   ========================================================= */
 
-  .standing-gp-header-compact {
+@media (max-width: 650px) {
+
+  .standing-gp-header-wide {
     grid-template-columns:
-      50px
+      48px
       minmax(0, 1fr)
-      50px;
+      48px;
 
-    padding: 10px;
+    min-height: 72px;
+
+    padding:
+      8px
+      7px;
   }
 
 
-  .standing-gp-header-compact
+  .standing-gp-header-wide
   .standing-gp-league img,
-  .standing-gp-header-compact
+  .standing-gp-header-wide
   .standing-gp-flag img {
-    width: 42px;
-
-    height: 42px;
+    width: 40px;
+    height: 40px;
   }
 
 
-  .standing-gp-title-compact h3 {
+  .standing-gp-title h3 {
     font-size:
-      1.35rem;
+      1.3rem;
   }
 
 
-  .standing-gp-title-compact small {
+  .standing-gp-title small {
     display: none;
   }
 
 
-  .standing-snapshot-grid {
-    padding: 8px;
+  /*
+   * Auf Handy Fahrer nicht in
+   * zwei winzige Spalten quetschen.
+   */
 
-    gap: 8px;
-  }
-
-
-  .standing-mini-row {
+  .standing-wide-columns {
     grid-template-columns:
-      30px
-      58px
+      1fr;
+  }
+
+
+  .standing-wide-row {
+    min-height: 36px;
+
+    grid-template-columns:
+      31px
+      55px
       minmax(0, 1fr)
-      40px;
-
-    min-height:
-      32px;
+      42px;
   }
 
 
-  .standing-mini-team img {
-    width: 44px;
-
-    height: 21px;
+  .standing-wide-team img {
+    width: 42px;
+    height: 22px;
   }
 
 
-  .standing-mini-name {
-    padding:
-      0
-      6px;
-
-    font-size:
-      0.62rem;
+  .standing-wide-name {
+    font-size: 0.64rem;
   }
 
 
-  .standing-mini-team-row
-  .standing-mini-name {
-    font-size:
-      0.67rem;
-  }
-
-
-  .standing-mini-points,
-  .standing-mini-position {
-    font-size:
-      0.82rem;
-  }
-
-
-  .standings-history-carousel-compact
+  .standings-history-carousel-wide
   .standings-history-control.prev {
     left: 0;
   }
 
 
-  .standings-history-carousel-compact
+  .standings-history-carousel-wide
   .standings-history-control.next {
     right: 0;
+  }
+
+}
+
+
+
+/* =========================================================
+   F1 RENNKALENDER · COMPACT LESBAR V3
+   ========================================================= */
+
+.race-calendar-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+
+/* Karte etwas höher */
+.race-calendar-card {
+  min-height: 128px;
+
+  grid-template-columns:
+    54px
+    78px
+    minmax(0, 1fr);
+}
+
+
+/* Runde */
+.race-calendar-round span {
+  font-size: 0.5rem;
+}
+
+.race-calendar-round strong {
+  font-size: 1.55rem;
+}
+
+
+/* Datum */
+.race-calendar-card time {
+  padding: 7px;
+}
+
+.race-calendar-card time strong {
+  font-size: 1.85rem;
+}
+
+.race-calendar-card time span {
+  font-size: 0.88rem;
+}
+
+.race-calendar-card time small {
+  font-size: 0.52rem;
+}
+
+
+/* Rechte Inhaltsfläche */
+.race-calendar-info {
+  gap: 5px;
+
+  padding:
+    10px
+    11px;
+}
+
+
+/* Wochentag + Uhrzeit */
+.race-calendar-tags {
+  gap: 5px;
+}
+
+.race-calendar-tags > span {
+  font-size: 0.5rem;
+
+  letter-spacing: 0.03em;
+}
+
+
+/* Sprint / Geändert */
+.race-calendar-tags > strong {
+  padding:
+    2px
+    5px;
+
+  font-size: 0.46rem;
+}
+
+
+/* Flagge */
+.race-calendar-title {
+  gap: 7px;
+}
+
+.race-calendar-title img {
+  width: 32px;
+  height: 20px;
+}
+
+
+/* Rennname deutlich größer */
+.race-calendar-title h3 {
+  font-size: 1.12rem;
+
+  line-height: 1.05;
+}
+
+
+/* Zusatzinformation */
+.race-calendar-info p {
+  font-size: 0.56rem;
+}
+
+
+/* Watermark etwas zurücknehmen */
+.race-calendar-watermark {
+  width: 31%;
+
+  opacity: 0.045;
+}
+
+
+/* Altes Datum */
+.calendar-old-date {
+  font-size: 0.48rem;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+  .race-calendar-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+
+/* =========================================================
+   HANDY
+   ========================================================= */
+
+@media (max-width: 650px) {
+
+  .race-calendar-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .race-calendar-card {
+    min-height: 112px;
+
+    grid-template-columns:
+      50px
+      72px
+      minmax(0, 1fr);
+  }
+
+
+  .race-calendar-round strong {
+    font-size: 1.45rem;
+  }
+
+
+  .race-calendar-card time strong {
+    font-size: 1.65rem;
+  }
+
+
+  .race-calendar-title h3 {
+    font-size: 1.05rem;
+  }
+
+
+  .race-calendar-title img {
+    width: 30px;
+    height: 19px;
+  }
+
+}
+
+/* =========================================================
+   F1 RENNWOCHE · SCHRITT 2
+   ANWESENHEITSKONTROLLE · CLEAN FINAL
+   ========================================================= */
+
+
+/* =========================================================
+   BASIS
+   ========================================================= */
+
+.attendance-board {
+  display: grid;
+  gap: 1rem;
+}
+
+
+/* =========================================================
+   RACE CONTROL
+   ========================================================= */
+
+.attendance-race-control,
+.attendance-race-control-v2 {
+  width: 100%;
+  min-width: 0;
+
+  margin: 0 0 1rem;
+  padding: 1rem;
+
+  background:
+    linear-gradient(
+      145deg,
+      #0b1216,
+      #080d10
+    );
+
+  border: 1px solid #29383f;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.attendance-race-control-v2 > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.8rem;
+
+  border-bottom: 1px solid #25343b;
+}
+
+
+.attendance-race-control-v2 > header > div {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 0.08rem;
+}
+
+
+.attendance-race-control-v2 > header span {
+  color: var(--cyan);
+
+  font-size: 0.58rem;
+  font-weight: 900;
+
+  letter-spacing: 0.12em;
+
+  text-transform: uppercase;
+}
+
+
+.attendance-race-control-v2 > header strong {
+  color: #fff;
+
+  font-family: var(--display);
+  font-size: 1.5rem;
+
+  line-height: 1;
+}
+
+
+.attendance-race-control-v2 > header small {
+  margin-top: 0.2rem;
+
+  color: #829198;
+
+  font-size: 0.67rem;
+}
+
+
+.attendance-race-control-v2 > header .button {
+  flex: 0 0 auto;
+
+  min-height: 38px;
+
+  padding:
+    0.48rem
+    0.8rem;
+}
+
+
+/* =========================================================
+   SUMMARY
+   ========================================================= */
+
+.attendance-summary {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 0.4rem;
+
+  margin-bottom: 0.55rem;
+}
+
+
+.attendance-summary > div {
+  min-width: 0;
+  min-height: 54px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 0.75rem;
+
+  padding:
+    0.55rem
+    0.75rem;
+
+  background: #10181d;
+
+  border: 1px solid #2a3940;
+}
+
+
+.attendance-summary span {
+  color: #87969d;
+
+  font-size: 0.54rem;
+  font-weight: 900;
+
+  letter-spacing: 0.07em;
+
+  text-transform: uppercase;
+}
+
+
+.attendance-summary strong {
+  color: #fff;
+
+  font-family: var(--display);
+  font-size: 1.35rem;
+
+  line-height: 1;
+}
+
+
+.attendance-summary .has-warning {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(218, 203, 36, 0.05),
+      #10181d 58%
+    );
+
+  border-color:
+    rgba(218, 203, 36, 0.35);
+}
+
+
+.attendance-summary .has-warning span,
+.attendance-summary .has-warning strong {
+  color: #d8cc55;
+}
+
+
+/* =========================================================
+   FEHLENDE RÜCKMELDUNG
+   nur für Fahrer aus Schritt 1 mit Status UNSICHER
+   ========================================================= */
+
+.attendance-unresolved {
+  margin-bottom: 0.65rem;
+
+  padding: 0.6rem;
+
+  background: #0b1115;
+
+  border:
+    1px solid
+    rgba(218, 203, 36, 0.32);
+
+  border-left:
+    4px solid
+    #d8cc55;
+}
+
+
+.attendance-unresolved[hidden] {
+  display: none;
+}
+
+
+.attendance-unresolved.has-error {
+  border-color: #e9505d;
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(233, 80, 93, 0.28);
+}
+
+
+.attendance-unresolved > header {
+  margin-bottom: 0.5rem;
+
+  padding:
+    0.25rem
+    0.35rem
+    0.5rem;
+
+  border-bottom:
+    1px solid #29373e;
+}
+
+
+.attendance-unresolved > header > div {
+  display: grid;
+
+  gap: 0.05rem;
+}
+
+
+.attendance-unresolved > header span {
+  color: #d8cc55;
+
+  font-size: 0.52rem;
+  font-weight: 900;
+
+  letter-spacing: 0.08em;
+}
+
+
+.attendance-unresolved > header strong {
+  color: #fff;
+
+  font-family: var(--display);
+  font-size: 1.12rem;
+
+  line-height: 1;
+}
+
+
+.attendance-unresolved-list {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 0.4rem;
+}
+
+
+.attendance-unresolved-card {
+  min-width: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  gap: 0.5rem;
+
+  padding: 0.6rem;
+
+  background: #10181d;
+
+  border: 1px solid #344249;
+}
+
+
+.attendance-unresolved-driver,
+.attendance-unresolved-replacement {
+  min-width: 0;
+
+  display: grid;
+
+  align-content: center;
+
+  gap: 0.05rem;
+}
+
+
+.attendance-unresolved-driver span,
+.attendance-unresolved-replacement span {
+  color: #829198;
+
+  font-size: 0.46rem;
+  font-weight: 900;
+
+  letter-spacing: 0.06em;
+}
+
+
+.attendance-unresolved-driver span {
+  color: #d8cc55;
+}
+
+
+.attendance-unresolved-driver strong,
+.attendance-unresolved-replacement strong {
+  overflow: hidden;
+
+  color: #fff;
+
+  font-size: 0.76rem;
+  font-weight: 850;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+
+.attendance-unresolved-driver small,
+.attendance-unresolved-replacement small {
+  color: #74858c;
+
+  font-size: 0.5rem;
+}
+
+
+.attendance-unresolved-actions {
+  grid-column: 1 / -1;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 0.35rem;
+}
+
+
+.attendance-unresolved-actions button {
+  min-height: 37px;
+
+  padding:
+    0.42rem
+    0.55rem;
+
+  background: #131d22;
+
+  color: #fff;
+
+  border: 1px solid #3a4a52;
+
+  font-size: 0.6rem;
+  font-weight: 850;
+
+  cursor: pointer;
+
+  transition:
+    0.15s border-color,
+    0.15s color,
+    0.15s background;
+}
+
+
+.attendance-unresolved-actions button:hover {
+  color: var(--cyan);
+
+  background: #162127;
+
+  border-color: var(--cyan);
+}
+
+
+/* =========================================================
+   WORKSPACE
+   ========================================================= */
+
+.attendance-workspace {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.65fr)
+    minmax(280px, 0.75fr);
+
+  gap: 0.5rem;
+}
+
+
+.attendance-driver-panel,
+.attendance-target-panel {
+  min-width: 0;
+
+  overflow: hidden;
+
+  background: #090f13;
+
+  border: 1px solid #29383f;
+}
+
+
+/* =========================================================
+   PANEL HEADER
+   ========================================================= */
+
+.attendance-driver-panel > header,
+.attendance-target-panel > header {
+  min-height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 0.75rem;
+
+  padding:
+    0.5rem
+    0.7rem;
+
+  background: #0d1519;
+
+  border-bottom: 1px solid #29383f;
+}
+
+
+.attendance-driver-panel > header > div,
+.attendance-target-panel > header > div {
+  min-width: 0;
+
+  display: grid;
+}
+
+
+.attendance-driver-panel > header span,
+.attendance-target-panel > header span {
+  color: var(--cyan);
+
+  font-size: 0.48rem;
+  font-weight: 900;
+
+  letter-spacing: 0.1em;
+}
+
+
+.attendance-driver-panel > header strong,
+.attendance-target-panel > header strong {
+  color: #fff;
+
+  font-family: var(--display);
+  font-size: 1.08rem;
+
+  line-height: 1;
+}
+
+
+.attendance-driver-panel > header > span {
+  color: var(--cyan);
+
+  font-family: var(--display);
+  font-size: 1.1rem;
+}
+
+
+.attendance-target-panel > header small {
+  color: #718087;
+
+  font-size: 0.5rem;
+}
+
+
+/* =========================================================
+   FAHRERLISTE
+   ========================================================= */
+
+.attendance-driver-list {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 0.32rem;
+
+  padding: 0.4rem;
+}
+
+
+/* =========================================================
+   FAHRERKARTE
+   immer neutral dunkel
+   ========================================================= */
+
+.attendance-driver-card {
+  position: relative;
+
+  min-width: 0;
+  min-height: 48px;
+
+  display: grid;
+
+  grid-template-columns:
+    48px
+    minmax(0, 1fr)
+    auto;
+
+  align-items: center;
+
+  gap: 0.55rem;
+
+  overflow: hidden;
+
+  padding:
+    0.35rem
+    0.65rem;
+
+  background: #10181d !important;
+
+  color: #fff;
+
+  border: 1px solid #2c3b42;
+
+  cursor: grab;
+
+  text-align: left;
+
+  transition:
+    0.15s border-color,
+    0.15s background,
+    0.15s opacity,
+    0.15s transform;
+}
+
+
+.attendance-driver-card:hover {
+  background: #131d22 !important;
+
+  border-color: #4a5b63;
+}
+
+
+.attendance-driver-card:active {
+  cursor: grabbing;
+}
+
+
+.attendance-driver-card.is-selected {
+  border-color: var(--cyan);
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(110, 242, 242, 0.35);
+}
+
+
+.attendance-driver-card.is-dragging {
+  opacity: 0.45;
+
+  transform: scale(0.99);
+}
+
+
+/* =========================================================
+   STATUS DARF FAHRERKARTE NICHT FÄRBEN
+   ========================================================= */
+
+.attendance-driver-card.attendance-status-anwesend,
+.attendance-driver-card.attendance-status-zu_spaet_vorbesprechung,
+.attendance-driver-card.attendance-status-unabgemeldet,
+.attendance-driver-card.attendance-status-zu_spaet_abgemeldet {
+  background: #10181d !important;
+}
+
+
+/* alten Statusbalken nicht mehr verwenden */
+
+.attendance-driver-status {
+  display: none !important;
+}
+
+
+/* =========================================================
+   TEAMLOGO
+   ========================================================= */
+
+.attendance-driver-team {
+  width: 48px;
+  height: 32px;
+
+  display: grid;
+  place-items: center;
+}
+
+
+.attendance-driver-team img {
+  width: 42px;
+  height: 27px;
+
+  object-fit: contain;
+
+  filter:
+    drop-shadow(
+      0 2px 3px
+      rgba(0, 0, 0, 0.4)
+    );
+}
+
+
+/* =========================================================
+   FAHRERNAME
+   ========================================================= */
+
+.attendance-driver-copy {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 1px;
+}
+
+
+.attendance-driver-copy strong {
+  min-width: 0;
+
+  overflow: hidden;
+
+  color: #f4f7f8;
+
+  font-size: 0.76rem;
+  font-weight: 850;
+
+  line-height: 1.1;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.attendance-driver-copy small {
+  min-width: 0;
+
+  overflow: hidden;
+
+  color: #718188;
+
+  font-size: 0.49rem;
+
+  line-height: 1.1;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   STATUS TEXT RECHTS
+   NUR SCHRIFTFARBE
+   ========================================================= */
+
+.attendance-driver-state {
+  max-width: 120px;
+
+  overflow: hidden;
+
+  padding: 0;
+
+  background: transparent !important;
+
+  border: 0;
+
+  color: #829198;
+
+  font-size: 0.48rem;
+  font-weight: 900;
+
+  letter-spacing: 0.03em;
+
+  line-height: 1;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  text-transform: uppercase;
+}
+
+
+/* anwesend */
+
+.attendance-driver-card.attendance-status-anwesend
+.attendance-driver-state {
+  color: #20d77a;
+}
+
+
+/* zu spät Vorbesprechung */
+
+.attendance-driver-card.attendance-status-zu_spaet_vorbesprechung
+.attendance-driver-state {
+  color: #bd69e7;
+}
+
+
+/* nicht erschienen */
+
+.attendance-driver-card.attendance-status-unabgemeldet
+.attendance-driver-state {
+  color: #dc6571;
+}
+
+
+/* zu spät abgemeldet */
+
+.attendance-driver-card.attendance-status-zu_spaet_abgemeldet
+.attendance-driver-state {
+  color: #e69a52;
+}
+
+
+/* =========================================================
+   SPONTANER ERSATZ DIREKT IN DER FAHRERKARTE
+   ========================================================= */
+
+.attendance-inline-replacement {
+  grid-column: 1 / -1;
+
+  display: grid;
+
+  grid-template-columns:
+    auto
+    minmax(0, 1fr);
+
+  align-items: center;
+
+  gap: 0.45rem;
+
+  margin-top: 0.3rem;
+
+  padding-top: 0.4rem;
+
+  border-top: 1px solid #29383f;
+}
+
+
+.attendance-inline-replacement > span {
+  color: #829198;
+
+  font-size: 0.48rem;
+  font-weight: 900;
+
+  white-space: nowrap;
+}
+
+
+.attendance-inline-replacement select {
+  min-width: 0;
+
+  min-height: 32px;
+
+  padding:
+    0.3rem
+    0.42rem;
+
+  background: #0b1216;
+
+  color: #fff;
+
+  border: 1px solid #34434b;
+
+  font-size: 0.58rem;
+}
+
+
+/* =========================================================
+   STATUS-ZIELE
+   nur vier normale Ziele
+   ========================================================= */
+
+.attendance-target-grid {
+  display: grid;
+
+  gap: 0.3rem;
+
+  padding: 0.4rem;
+}
+
+
+.attendance-target {
+  --attendance-color: #74858c;
+
+  min-width: 0;
+  min-height: 57px;
+
+  display: grid;
+
+  grid-template-columns:
+    5px
+    minmax(0, 1fr)
+    34px;
+
+  align-items: center;
+
+  gap: 0.5rem;
+
+  overflow: hidden;
+
+  padding:
+    0
+    0.55rem
+    0
+    0;
+
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(
+        in srgb,
+        var(--attendance-color) 7%,
+        #11191e
+      ),
+      #11191e 45%
+    );
+
+  color: #fff;
+
+  border: 1px solid #2c3b42;
+
+  cursor: pointer;
+
+  text-align: left;
+
+  transition:
+    0.15s border-color,
+    0.15s background,
+    0.15s transform;
+}
+
+
+.attendance-target:hover {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--attendance-color) 58%,
+      #425159
+    );
+}
+
+
+.attendance-target.is-drop-target {
+  border-color: var(--attendance-color);
+
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(
+        in srgb,
+        var(--attendance-color) 13%,
+        #11191e
+      ),
+      #11191e 58%
+    );
+
+  transform: translateX(-2px);
+}
+
+
+/* =========================================================
+   STATUSFARBEN
+   ========================================================= */
+
+.attendance-target.attendance-status-anwesend {
+  --attendance-color: #20c878;
+}
+
+
+.attendance-target.attendance-status-zu_spaet_vorbesprechung {
+  --attendance-color: #aa56d6;
+}
+
+
+.attendance-target.attendance-status-unabgemeldet {
+  --attendance-color: #c84d5b;
+}
+
+
+.attendance-target.attendance-status-zu_spaet_abgemeldet {
+  --attendance-color: #df8735;
+}
+
+
+/* =========================================================
+   LINKER STATUSSTRICH
+   ========================================================= */
+
+.attendance-target-icon {
+  align-self: stretch;
+
+  background: var(--attendance-color);
+}
+
+
+/* =========================================================
+   STATUSZIEL TEXT
+   ========================================================= */
+
+.attendance-target-copy {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 0.05rem;
+}
+
+
+.attendance-target-copy strong {
+  overflow: hidden;
+
+  color: var(--attendance-color);
+
+  font-size: 0.61rem;
+  font-weight: 900;
+
+  line-height: 1.15;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.attendance-target-copy small {
+  overflow: hidden;
+
+  color: #74858c;
+
+  font-size: 0.47rem;
+
+  line-height: 1.2;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* =========================================================
+   STATUS COUNT
+   ========================================================= */
+
+.attendance-target > b {
+  width: 30px;
+  height: 30px;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--attendance-color);
+
+  background: #0a1014;
+
+  border:
+    1px solid
+    color-mix(
+      in srgb,
+      var(--attendance-color) 32%,
+      #34434b
+    );
+
+  font-family: var(--display);
+  font-size: 0.88rem;
+}
+
+
+/* =========================================================
+   FEHLER
+   ========================================================= */
+
+.attendance-target.has-error {
+  border-color: #e9505d;
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(233, 80, 93, 0.36);
+}
+
+
+.attendance-team-row.has-error,
+.attendance-active-driver.has-error {
+  outline: 2px solid #e9505d;
+
+  outline-offset: -2px;
+}
+
+
+/* =========================================================
+   DETAILANSICHT EIN-/AUSBLENDEN
+   ========================================================= */
+
+.has-race-control-attendance:not(.show-attendance-details)
+> .lineup-team-grid {
+  display: none;
+}
+
+
+.has-race-control-attendance.show-attendance-details
+> .lineup-team-grid {
+  display: grid;
+}
+
+
+/* =========================================================
+   DETAILANSICHT TEAMGRID
+   ========================================================= */
+
+.attendance-board .lineup-team-grid {
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 0.75rem;
+}
+
+
+.attendance-board .lineup-team-card {
+  overflow: hidden;
+
+  background: #10171b;
+
+  border: 1px solid #29383f;
+
+  border-top:
+    3px solid
+    var(--team-color, var(--cyan));
+}
+
+
+.attendance-board
+.lineup-team-card > header {
+  min-height: 64px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 0.7rem;
+
+  padding:
+    0.65rem
+    0.8rem;
+
+  background: #090f12;
+
+  border-bottom:
+    1px solid
+    #29383f;
+}
+
+
+.attendance-board
+.lineup-team-card > header img,
+.attendance-board
+.lineup-team-card > header
+.roster-logo-fallback {
+  width: 56px;
+  height: 39px;
+
+  object-fit: contain;
+}
+
+
+.attendance-board
+.lineup-team-card > header span {
+  color:
+    var(--team-color, var(--cyan));
+
+  font-size: 0.55rem;
+  font-weight: 900;
+}
+
+
+.attendance-board
+.lineup-team-card h3 {
+  margin: 0;
+
+  color: #fff;
+
+  font-family: var(--display);
+  font-size: 1.25rem;
+
+  line-height: 1;
+}
+
+
+/* =========================================================
+   DETAIL FAHRERZEILE
+   ========================================================= */
+
+.attendance-team-row {
+  display: grid;
+
+  gap: 0.65rem;
+
+  padding:
+    0.75rem
+    0.8rem;
+
+  background: #0d1418;
+
+  border-bottom:
+    1px solid
+    #25343a;
+}
+
+
+.attendance-team-row:last-child {
+  border-bottom: 0;
+}
+
+
+.attendance-team-row.is-replacement {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(
+        in srgb,
+        var(--team-color) 7%,
+        #0d1418
+      ),
+      #0d1418 55%
+    );
+
+  box-shadow:
+    inset 3px 0 0
+    var(--team-color);
+}
+
+
+/* =========================================================
+   DETAIL FAHRERNAME
+   ========================================================= */
+
+.attendance-driver-head {
+  min-width: 0;
+}
+
+
+.attendance-driver-head
+.lineup-driver-name {
+  display: grid;
+
+  gap: 0.08rem;
+}
+
+
+.attendance-driver-head
+.lineup-driver-name strong {
+  color: #fff;
+
+  font-size: 0.8rem;
+}
+
+
+.attendance-driver-head
+.lineup-driver-name small {
+  color: #83939a;
+
+  font-size: 0.62rem;
+}
+
+
+/* =========================================================
+   DETAIL CONTROLS
+   ========================================================= */
+
+.attendance-main-controls {
+  display: grid;
+
+  grid-template-columns:
+    minmax(180px, 280px);
+
+  gap: 0.65rem;
+}
+
+
+.attendance-control {
+  display: grid;
+
+  gap: 0.3rem;
+}
+
+
+.attendance-control > span {
+  color: #7f8f96;
+
+  font-size: 0.62rem;
+  font-weight: 900;
+
+  letter-spacing: 0.05em;
+
+  text-transform: uppercase;
+}
+
+
+.attendance-control select {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+
+  padding:
+    0.5rem
+    0.65rem;
+
+  background: #10181d;
+
+  color: #fff;
+
+  border: 1px solid #34434b;
+
+  font-weight: 700;
+}
+
+
+.attendance-control select:focus {
+  outline: 2px solid var(--cyan);
+
+  border-color: transparent;
+}
+
+
+/* =========================================================
+   DROPDOWN STATUSFARBEN
+   Farbe dezent als linker Rand
+   ========================================================= */
+
+select.attendance-select-anwesend {
+  border-left:
+    4px solid
+    #20c878;
+}
+
+
+select.attendance-select-zu_spaet_vorbesprechung {
+  border-left:
+    4px solid
+    #aa56d6;
+}
+
+
+select.attendance-select-unabgemeldet {
+  border-left:
+    4px solid
+    #c84d5b;
+}
+
+
+select.attendance-select-zu_spaet_abgemeldet {
+  border-left:
+    4px solid
+    #df8735;
+}
+
+
+/* =========================================================
+   SPONTANER / WEITERER ERSATZ
+   ========================================================= */
+
+.attendance-replacement-panel {
+  display: grid;
+
+  grid-template-columns:
+    minmax(180px, 320px)
+    minmax(0, 1fr);
+
+  gap: 0.7rem;
+
+  align-items: end;
+
+  padding-top: 0.7rem;
+
+  border-top:
+    1px solid
+    #25343a;
+}
+
+
+.attendance-replacement-panel[hidden] {
+  display: none;
+}
+
+
+.attendance-replacement-hint {
+  align-self: center;
+
+  color: #7d8d94;
+
+  font-size: 0.62rem;
+
+  line-height: 1.35;
+}
+
+
+/* =========================================================
+   UNSICHER DETAILANSICHT
+   ========================================================= */
+
+.uncertain-seat-choice {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 0.8rem;
+
+  padding: 0.7rem;
+
+  background:
+    rgba(
+      218,
+      203,
+      36,
+      0.04
+    );
+
+  border:
+    1px solid
+    rgba(
+      218,
+      203,
+      36,
+      0.25
+    );
+}
+
+
+.uncertain-seat-choice > div {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 0.1rem;
+}
+
+
+.uncertain-seat-choice
+> div > span {
+  color: #d8cc55;
+
+  font-size: 0.58rem;
+  font-weight: 900;
+
+  letter-spacing: 0.06em;
+}
+
+
+.uncertain-seat-choice
+> div > strong {
+  color: #fff;
+
+  font-size: 0.77rem;
+}
+
+
+.uncertain-seat-choice small {
+  color: #839198;
+
+  font-size: 0.59rem;
+}
+
+
+.uncertain-seat-toggle {
+  flex: 0 0 auto;
+
+  display: flex;
+  align-items: center;
+
+  gap: 0.5rem;
+
+  padding:
+    0.5rem
+    0.65rem;
+
+  background: #10181d;
+
+  border: 1px solid #34434b;
+
+  font-size: 0.7rem;
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+
+.uncertain-seat-toggle input {
+  width: 18px;
+  height: 18px;
+
+  accent-color: var(--cyan);
+}
+
+
+/* =========================================================
+   AKTIVER FAHRER
+   ========================================================= */
+
+.attendance-active-driver {
+  display: grid;
+
+  gap: 0.6rem;
+}
+
+
+.attendance-active-driver[hidden] {
+  display: none;
+}
+
+
+.attendance-active-driver.is-replacement {
+  padding-left: 0.7rem;
+
+  border-left:
+    3px solid
+    var(--team-color);
+}
+
+
+/* =========================================================
+   BUTTON
+   ========================================================= */
+
+.attendance-submit {
+  justify-self: end;
+
+  min-width: 220px;
+}
+
+
+/* =========================================================
+   KORREKTUREN
+   ========================================================= */
+
+.attendance-corrections {
+  margin-top: 1rem;
+
+  padding: 1rem;
+
+  background: #0b1115;
+
+  border:
+    1px solid
+    #34434b;
+
+  border-left:
+    4px solid
+    #df8735;
+}
+
+
+.attendance-corrections[hidden] {
+  display: none;
+}
+
+
+.attendance-corrections-heading {
+  margin-bottom: 1rem;
+}
+
+
+.attendance-corrections-heading > span {
+  color: #df8735;
+
+  font-size: 0.6rem;
+  font-weight: 900;
+
+  letter-spacing: 0.1em;
+}
+
+
+.attendance-corrections-heading h3 {
+  margin:
+    0.15rem
+    0;
+
+  color: #fff;
+
+  font-family: var(--display);
+  font-size: 1.5rem;
+}
+
+
+.attendance-corrections-heading p {
+  margin: 0;
+
+  color: #84949b;
+
+  font-size: 0.72rem;
+}
+
+
+.attendance-correction-form {
+  display: grid;
+
+  gap: 1rem;
+}
+
+
+.attendance-current-replacement {
+  display: grid;
+
+  gap: 0.1rem;
+
+  padding: 0.65rem;
+
+  background:
+    rgba(
+      110,
+      242,
+      242,
+      0.04
+    );
+
+  border-left:
+    3px solid
+    var(--cyan);
+}
+
+
+.attendance-current-replacement span {
+  color: var(--cyan);
+
+  font-size: 0.56rem;
+  font-weight: 900;
+}
+
+
+.attendance-current-replacement strong {
+  color: #fff;
+}
+
+
+.attendance-current-replacement small {
+  color: #829299;
+
+  font-size: 0.62rem;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 950px) {
+
+  .attendance-workspace {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-target-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+
+  .attendance-unresolved-list {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-board
+  .lineup-team-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+}
+
+
+/* =========================================================
+   HANDY
+   ========================================================= */
+
+@media (max-width: 650px) {
+
+  .attendance-race-control,
+  .attendance-race-control-v2 {
+    padding: 0.7rem;
+  }
+
+
+  .attendance-race-control-v2
+  > header {
+    align-items: stretch;
+
+    flex-direction: column;
+  }
+
+
+  .attendance-race-control-v2
+  > header .button {
+    width: 100%;
+  }
+
+
+  .attendance-summary {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-driver-list {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-target-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-unresolved-card {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-unresolved-actions {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-driver-card {
+    min-height: 50px;
+
+    grid-template-columns:
+      46px
+      minmax(0, 1fr)
+      auto;
+  }
+
+
+  .attendance-driver-team {
+    width: 46px;
+  }
+
+
+  .attendance-driver-state {
+    max-width: 96px;
+
+    font-size: 0.46rem;
+  }
+
+
+  .attendance-inline-replacement {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-target {
+    min-height: 58px;
+  }
+
+
+  .attendance-main-controls {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .attendance-replacement-panel {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .uncertain-seat-choice {
+    align-items: stretch;
+
+    flex-direction: column;
+  }
+
+
+  .uncertain-seat-toggle {
+    justify-content: center;
+  }
+
+
+  .attendance-submit {
+    width: 100%;
+    min-width: 0;
   }
 
 }

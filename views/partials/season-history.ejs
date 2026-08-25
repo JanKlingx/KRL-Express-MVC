@@ -1,111 +1,997 @@
 <%
-  const statusOf = (result) => String(result?.status || '').trim().toUpperCase();
-  const numberOf = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
-  const hasResult = (result) => Boolean(result && (result.position || result.status || result.fastestLap || numberOf(result.points)));
+  const statusOf = (result) =>
+    String(result?.status || '')
+      .trim()
+      .toUpperCase();
+
+  const numberOf = (value) =>
+    Number.isFinite(Number(value))
+      ? Number(value)
+      : 0;
+
+  const hasResult = (result) =>
+    Boolean(
+      result &&
+      (
+        result.position ||
+        result.status ||
+        result.fastestLap ||
+        numberOf(result.points)
+      )
+    );
+
   const podiumClass = (result) => {
     const position = Number(result?.position);
-    return position >= 1 && position <= 3 ? `season-race-position-${position}` : '';
+
+    return position >= 1 && position <= 3
+      ? `season-race-position-${position}`
+      : '';
   };
-  const resultLabel = (result, mode, race) => {
-    if (mode === 'reserve' && result?.outsideStint) return { text: '–', kind: 'inactive' };
-    if (mode === 'regular' && result?.outsideStint) return { text: 'DNS', kind: 'dns' };
-    if (!race?.isCompleted) return { text: '–', kind: 'future' };
-    const status = statusOf(result);
-    if (status === 'DNF' || status === 'DSQ') return { text: status, kind: status.toLowerCase() };
-    if (status === 'DNS' || !hasResult(result)) return { text: 'DNS', kind: 'dns' };
-    return { text: String(numberOf(result.points)), kind: 'points' };
+
+  const resultLabel = (
+    result,
+    mode,
+    race
+  ) => {
+
+    /*
+     * Ersatzfahrer außerhalb seines
+     * Reserve-Stints:
+     *
+     * immer "-"
+     *
+     * Beispiel:
+     * Reserve bis R4,
+     * ab R5 Stammfahrer
+     *
+     * Reservewertung ab R5 = "-"
+     */
+    if (
+      mode === 'reserve' &&
+      result?.outsideStint
+    ) {
+      return {
+        text: '–',
+        kind: 'inactive'
+      };
+    }
+
+
+    /*
+     * Stammfahrer außerhalb seines
+     * Stammfahrer-Stints:
+     *
+     * DNS
+     */
+    if (
+      mode === 'regular' &&
+      result?.outsideStint
+    ) {
+      return {
+        text: 'DNS',
+        kind: 'dns'
+      };
+    }
+
+
+    /*
+     * Zukünftiges Rennen
+     */
+    if (!race?.isCompleted) {
+      return {
+        text: '–',
+        kind: 'future'
+      };
+    }
+
+
+    const status =
+      statusOf(result);
+
+
+    /*
+     * DNF / DSQ explizit anzeigen
+     */
+    if (
+      status === 'DNF' ||
+      status === 'DSQ'
+    ) {
+      return {
+        text: status,
+        kind: status.toLowerCase()
+      };
+    }
+
+
+    /*
+     * Vergangenes Rennen ohne Resultat
+     */
+    if (
+      status === 'DNS' ||
+      !hasResult(result)
+    ) {
+      return {
+        text: 'DNS',
+        kind: 'dns'
+      };
+    }
+
+
+    /*
+     * Normales Ergebnis:
+     * Punkte anzeigen
+     */
+    return {
+      text: String(
+        numberOf(result.points)
+      ),
+      kind: 'points'
+    };
   };
-  const activeSeason = typeof selectedSeason === 'undefined' ? null : selectedSeason;
-  const game = activeSeason?.f1Game;
-  const gameLabel = game?.name || activeSeason?.gameName || '';
+
+
+  const activeSeason =
+    typeof selectedSeason === 'undefined'
+      ? null
+      : selectedSeason;
+
+
+  const game =
+    activeSeason?.f1Game;
+
+
+  const gameLabel =
+    game?.name ||
+    activeSeason?.gameName ||
+    '';
 %>
 
-<% if (history.seasons.length && selectedHistory) { %>
-  <header class="season-sheet-hero" style="--season-accent:<%= activeSeason?.accentColor || league.accentColor || '#6ef2f2' %>">
+
+<% if (
+  history.seasons.length &&
+  selectedHistory
+) { %>
+
+
+  <!-- ================================================= -->
+  <!-- SAISONHEADER -->
+  <!-- ================================================= -->
+
+  <header
+    class="season-sheet-hero"
+    style="--season-accent:<%= activeSeason?.accentColor || league.accentColor || '#6ef2f2' %>"
+  >
+
+
+    <!-- LIGA -->
+
     <div class="season-sheet-brand">
-      <% if (league.logoPath) { %><img src="<%= league.logoPath %>" alt="Logo <%= league.name %>"><% } else { %><span>KRL</span><% } %>
+
+      <% if (league.logoPath) { %>
+
+        <img
+          src="<%= league.logoPath %>"
+          alt="Logo <%= league.name %>"
+        >
+
+      <% } else { %>
+
+        <span>
+          KRL
+        </span>
+
+      <% } %>
+
     </div>
+
+
+    <!-- SAISON -->
+
     <div>
-      <span>MEISTERSCHAFTSVERLAUF</span>
-      <h3><%= selectedHistory.name %></h3>
-      <small><%= league.name %> · Punkte je Rennwochenende</small>
+
+      <span>
+        MEISTERSCHAFTSVERLAUF
+      </span>
+
+      <h3>
+        <%= selectedHistory.name %>
+      </h3>
+
+      <small>
+        <%= league.name %>
+        ·
+        Punkte je Rennwochenende
+      </small>
+
     </div>
+
+
+    <!-- F1-SPIEL -->
+
     <div class="season-sheet-game">
-      <% if (game?.logoPath) { %><img src="<%= game.logoPath %>" alt="<%= game.name %>"><% } else if (gameLabel) { %><strong><%= gameLabel %></strong><% } %>
+
+      <% if (game?.logoPath) { %>
+
+        <img
+          src="<%= game.logoPath %>"
+          alt="<%= game.name %>"
+        >
+
+      <% } else if (gameLabel) { %>
+
+        <strong>
+          <%= gameLabel %>
+        </strong>
+
+      <% } %>
+
     </div>
+
   </header>
 
-  <% if (history.warning && isAdmin) { %><div class="history-notice" role="status"><%= history.warning %></div><% } %>
 
-  <div class="season-history-switch" role="tablist" aria-label="Wertung auswählen">
-    <button type="button" class="season-history-tab is-active" data-history-tab="regular" role="tab" aria-selected="true">
-      <span>STAMM</span><strong>Fahrer-WM</strong><small><%= selectedHistory.drivers.length %> Fahrer</small>
+  <!-- ================================================= -->
+  <!-- ADMIN-HINWEIS -->
+  <!-- ================================================= -->
+
+  <% if (
+    history.warning &&
+    isAdmin
+  ) { %>
+
+    <div
+      class="history-notice"
+      role="status"
+    >
+      <%= history.warning %>
+    </div>
+
+  <% } %>
+
+
+  <!-- ================================================= -->
+  <!-- WERTUNGS-TABS -->
+  <!-- ================================================= -->
+
+  <div
+    class="season-history-switch"
+    role="tablist"
+    aria-label="Wertung auswählen"
+  >
+
+
+    <!-- STAMM -->
+
+    <button
+      type="button"
+      class="season-history-tab is-active"
+      data-history-tab="regular"
+      role="tab"
+      aria-selected="true"
+    >
+
+      <span>
+        STAMM
+      </span>
+
+      <strong>
+        Fahrer-WM
+      </strong>
+
+      <small>
+        <%= selectedHistory.drivers.length %>
+        Fahrer
+      </small>
+
     </button>
-    <button type="button" class="season-history-tab" data-history-tab="reserve" role="tab" aria-selected="false">
-      <span>ERSATZ</span><strong>Ersatzfahrer</strong><small><%= (selectedHistory.reserveDrivers || []).length %> Fahrer</small>
+
+
+    <!-- ERSATZ -->
+
+    <button
+      type="button"
+      class="season-history-tab"
+      data-history-tab="reserve"
+      role="tab"
+      aria-selected="false"
+    >
+
+      <span>
+        ERSATZ
+      </span>
+
+      <strong>
+        Ersatzfahrer
+      </strong>
+
+      <small>
+        <%= (selectedHistory.reserveDrivers || []).length %>
+        Fahrer
+      </small>
+
     </button>
+
   </div>
 
-  <% const renderSheet = (drivers, mode) => { %>
-    <div class="season-sheet-wrap" data-season-rounds="<%= selectedHistory.races.length %>">
-      <table class="season-sheet-table">
+
+  <!-- ================================================= -->
+  <!-- GEMEINSAME TABELLEN-FUNKTION -->
+  <!-- ================================================= -->
+
+  <%
+    const renderSheet = (
+      drivers,
+      mode
+    ) => {
+  %>
+
+
+    <div
+      class="
+        season-sheet-wrap
+        <%= mode === 'reserve'
+          ? 'season-sheet-wrap-reserve'
+          : 'season-sheet-wrap-regular'
+        %>
+      "
+      data-season-rounds="<%= selectedHistory.races.length %>"
+    >
+
+
+      <table
+        class="
+          season-sheet-table
+          <%= mode === 'reserve'
+            ? 'season-sheet-table-reserve'
+            : 'season-sheet-table-regular'
+          %>
+        "
+      >
+
+
+        <!-- ============================================= -->
+        <!-- SPALTEN -->
+        <!-- ============================================= -->
+
         <colgroup>
-          <col class="col-position"><col class="col-driver"><col class="col-team">
-          <% selectedHistory.races.forEach(() => { %><col class="col-race"><% }) %>
-          <col class="col-stat"><col class="col-stat"><col class="col-stat"><col class="col-rate"><col class="col-rate">
+
+
+          <!-- POSITION -->
+
+          <col class="col-position">
+
+
+          <!-- FAHRER -->
+
+          <col class="col-driver">
+
+
+          <!-- TEAM NUR BEI STAMMFAHRERN -->
+
+          <% if (mode === 'regular') { %>
+
+            <col class="col-team">
+
+          <% } %>
+
+
+          <!-- RENNEN -->
+
+          <% selectedHistory.races.forEach(() => { %>
+
+            <col class="col-race">
+
+          <% }) %>
+
+
+          <!-- STATISTIK -->
+
+          <col class="col-stat">
+
+          <col class="col-stat">
+
+          <col class="col-stat">
+
+          <col class="col-rate">
+
+          <col class="col-rate">
+
         </colgroup>
-        <thead><tr>
-          <th class="sheet-sticky sheet-position">#</th><th class="sheet-sticky sheet-driver">FAHRER</th><th class="sheet-sticky sheet-team">TEAM</th>
-          <% selectedHistory.races.forEach((race) => { %>
-            <th class="sheet-race-head <%= race.isCompleted ? 'is-completed' : 'is-upcoming' %> <%= race.hasSprint ? 'has-sprint' : '' %>" title="Runde <%= race.round %> · <%= race.title %>">
-              <span class="sheet-flag"><% if (race.countryFlagPath) { %><img src="<%= race.countryFlagPath %>" alt="<%= race.countryName || '' %>"><% } else { %><b><%= race.code %></b><% } %></span>
-              <strong>R<%= race.round %></strong><% if (race.hasSprint) { %><small>SPR</small><% } %>
+
+
+        <!-- ============================================= -->
+        <!-- HEADER -->
+        <!-- ============================================= -->
+
+        <thead>
+
+          <tr>
+
+
+            <!-- POSITION -->
+
+            <th
+              class="sheet-sticky sheet-position"
+            >
+              #
             </th>
-          <% }) %>
-          <th class="sheet-stat-head">Σ</th><th class="sheet-stat-head">Δ</th><th class="sheet-stat-head">Ø</th>
-          <th class="sheet-stat-head sheet-rate-head" title="Startquote">START</th><th class="sheet-stat-head sheet-rate-head" title="Ausfallquote">DNF</th>
-        </tr></thead>
+
+
+            <!-- FAHRER -->
+
+            <th
+              class="sheet-sticky sheet-driver"
+            >
+              FAHRER
+            </th>
+
+
+            <!-- TEAM NUR BEI STAMMFAHRERN -->
+
+            <% if (mode === 'regular') { %>
+
+              <th
+                class="sheet-sticky sheet-team"
+              >
+                TEAM
+              </th>
+
+            <% } %>
+
+
+            <!-- RENNEN -->
+
+            <% selectedHistory.races.forEach((race) => { %>
+
+              <th
+                class="
+                  sheet-race-head
+                  <%= race.isCompleted
+                    ? 'is-completed'
+                    : 'is-upcoming'
+                  %>
+                  <%= race.hasSprint
+                    ? 'has-sprint'
+                    : ''
+                  %>
+                "
+                title="
+                  Runde <%= race.round %>
+                  ·
+                  <%= race.title %>
+                "
+              >
+
+
+                <!-- FLAGGE -->
+
+                <span class="sheet-flag">
+
+                  <% if (race.countryFlagPath) { %>
+
+                    <img
+                      src="<%= race.countryFlagPath %>"
+                      alt="<%= race.countryName || '' %>"
+                    >
+
+                  <% } else { %>
+
+                    <b>
+                      <%= race.code %>
+                    </b>
+
+                  <% } %>
+
+                </span>
+
+
+                <!-- RUNDE -->
+
+                <strong>
+                  R<%= race.round %>
+                </strong>
+
+
+                <!-- SPRINT -->
+
+                <% if (race.hasSprint) { %>
+
+                  <small>
+                    SPR
+                  </small>
+
+                <% } %>
+
+              </th>
+
+            <% }) %>
+
+
+            <!-- STATISTIK -->
+
+            <th class="sheet-stat-head">
+              Σ
+            </th>
+
+            <th class="sheet-stat-head">
+              Δ
+            </th>
+
+            <th class="sheet-stat-head">
+              Ø
+            </th>
+
+            <th
+              class="sheet-stat-head sheet-rate-head"
+              title="Startquote"
+            >
+              START
+            </th>
+
+            <th
+              class="sheet-stat-head sheet-rate-head"
+              title="Ausfallquote"
+            >
+              DNF
+            </th>
+
+          </tr>
+
+        </thead>
+
+
+        <!-- ============================================= -->
+        <!-- FAHRER -->
+        <!-- ============================================= -->
+
         <tbody>
+
+
           <% drivers.forEach((driver) => { %>
-            <tr class="<%= driver.isFormerDriver ? 'is-former-driver' : '' %> <%= mode === 'reserve' ? 'is-reserve-driver' : '' %>">
-              <td class="sheet-sticky sheet-position"><strong><%= driver.position %></strong></td>
-              <td class="sheet-sticky sheet-driver">
-                <strong title="<%= driver.name %>"><%= driver.name %></strong>
-                <% if (driver.isFormerDriver) { %><small>Ehemalig<%= driver.regularToRound ? ` · bis R${driver.regularToRound}` : '' %></small><% } %>
-                <% if (!driver.isFormerDriver && driver.regularFromRound > 1) { %><small>ab R<%= driver.regularFromRound %></small><% } %>
-                <% if (mode === 'reserve' && driver.promotedToRegular) { %><small>ab R<%= driver.promotedFromRound %> Stammfahrer</small><% } %>
+
+
+            <tr
+              class="
+                <%= driver.isFormerDriver
+                  ? 'is-former-driver'
+                  : ''
+                %>
+
+                <%= mode === 'reserve'
+                  ? 'is-reserve-driver'
+                  : ''
+                %>
+              "
+            >
+
+
+              <!-- ======================================= -->
+              <!-- POSITION -->
+              <!-- ======================================= -->
+
+              <td
+                class="sheet-sticky sheet-position"
+              >
+
+                <strong>
+                  <%= driver.position %>
+                </strong>
+
               </td>
-              <td class="sheet-sticky sheet-team">
-                <% if (driver.teamLogoPath) { %><img src="<%= driver.teamLogoPath %>" alt="<%= driver.team || 'Team' %>" title="<%= driver.team || '' %>"><% } else { %><span title="<%= driver.team || '' %>"><%= (driver.team || '–').slice(0, 3).toUpperCase() %></span><% } %>
+
+
+              <!-- ======================================= -->
+              <!-- FAHRER -->
+              <!-- ======================================= -->
+
+              <td
+                class="sheet-sticky sheet-driver"
+              >
+
+
+                <strong
+                  title="<%= driver.name %>"
+                >
+                  <%= driver.name %>
+                </strong>
+
+
+                <!-- EHEMALIGER STAMMFAHRER -->
+
+                <% if (driver.isFormerDriver) { %>
+
+                  <small>
+
+                    Ehemalig
+
+                    <% if (driver.regularToRound) { %>
+
+                      · bis R<%= driver.regularToRound %>
+
+                    <% } %>
+
+                  </small>
+
+                <% } %>
+
+
+                <!-- NEUER STAMMFAHRER -->
+
+                <% if (
+                  !driver.isFormerDriver &&
+                  driver.regularFromRound > 1
+                ) { %>
+
+                  <small>
+                    ab R<%= driver.regularFromRound %>
+                  </small>
+
+                <% } %>
+
+
+                <!-- BEFÖRDERTER ERSATZFAHRER -->
+
+                <% if (
+                  mode === 'reserve' &&
+                  driver.promotedToRegular
+                ) { %>
+
+                  <small>
+                    ab R<%= driver.promotedFromRound %>
+                    Stammfahrer
+                  </small>
+
+                <% } %>
+
+
               </td>
-              <% driver.results.forEach((weekend, index) => {
-                const race = selectedHistory.races[index];
-                const main = weekend.main || (!Object.prototype.hasOwnProperty.call(weekend, 'main') ? weekend : null);
-                const sprint = weekend.sprint;
-                const mainView = resultLabel(main, mode, race);
-                const sprintView = resultLabel(sprint, mode, race);
-              %>
-                <td class="sheet-result <%= race?.hasSprint ? 'has-sprint' : '' %>">
-                  <% if (race?.hasSprint) { %>
-                    <span class="sheet-result-part is-sprint <%= `is-${sprintView.kind}` %> <%= podiumClass(sprint) %>"><i>S</i><b><%= sprintView.text %></b></span>
-                    <span class="sheet-result-part is-main <%= `is-${mainView.kind}` %> <%= podiumClass(main) %>"><i>GP</i><b><%= mainView.text %></b></span>
-                  <% } else { %><span class="sheet-result-single <%= `is-${mainView.kind}` %> <%= podiumClass(main) %>"><%= mainView.text %></span><% } %>
+
+
+              <!-- ======================================= -->
+              <!-- TEAM -->
+              <!-- NUR STAMMFAHRER -->
+              <!-- ======================================= -->
+
+              <% if (mode === 'regular') { %>
+
+                <td
+                  class="sheet-sticky sheet-team"
+                >
+
+
+                  <% if (driver.teamLogoPath) { %>
+
+                    <img
+                      src="<%= driver.teamLogoPath %>"
+                      alt="<%= driver.team || 'Team' %>"
+                      title="<%= driver.team || '' %>"
+                    >
+
+                  <% } else { %>
+
+                    <span
+                      title="<%= driver.team || '' %>"
+                    >
+
+                      <%= (driver.team || '–')
+                        .slice(0, 3)
+                        .toUpperCase()
+                      %>
+
+                    </span>
+
+                  <% } %>
+
+
                 </td>
+
+              <% } %>
+
+
+              <!-- ======================================= -->
+              <!-- RENNWOCHENENDEN -->
+              <!-- ======================================= -->
+
+              <% driver.results.forEach(
+                (
+                  weekend,
+                  index
+                ) => {
+
+                  const race =
+                    selectedHistory.races[index];
+
+
+                  const main =
+                    weekend.main ||
+                    (
+                      !Object.prototype
+                        .hasOwnProperty
+                        .call(
+                          weekend,
+                          'main'
+                        )
+                        ? weekend
+                        : null
+                    );
+
+
+                  const sprint =
+                    weekend.sprint;
+
+
+                  const mainView =
+                    resultLabel(
+                      main,
+                      mode,
+                      race
+                    );
+
+
+                  const sprintView =
+                    resultLabel(
+                      sprint,
+                      mode,
+                      race
+                    );
+              %>
+
+
+                <td
+                  class="
+                    sheet-result
+                    <%= race?.hasSprint
+                      ? 'has-sprint'
+                      : ''
+                    %>
+                  "
+                >
+
+
+                  <!-- ================================= -->
+                  <!-- SPRINT + GP -->
+                  <!-- ================================= -->
+
+                  <% if (race?.hasSprint) { %>
+
+
+                    <!-- SPRINT -->
+
+                    <span
+                      class="
+                        sheet-result-part
+                        is-sprint
+                        <%= `is-${sprintView.kind}` %>
+                        <%= podiumClass(sprint) %>
+                      "
+                    >
+
+                      <i>
+                        S
+                      </i>
+
+                      <b>
+                        <%= sprintView.text %>
+                      </b>
+
+                    </span>
+
+
+                    <!-- HAUPTRENNEN -->
+
+                    <span
+                      class="
+                        sheet-result-part
+                        is-main
+                        <%= `is-${mainView.kind}` %>
+                        <%= podiumClass(main) %>
+                      "
+                    >
+
+                      <i>
+                        GP
+                      </i>
+
+                      <b>
+                        <%= mainView.text %>
+                      </b>
+
+                    </span>
+
+
+                  <% } else { %>
+
+
+                    <!-- NORMALES RENNEN -->
+
+                    <span
+                      class="
+                        sheet-result-single
+                        <%= `is-${mainView.kind}` %>
+                        <%= podiumClass(main) %>
+                      "
+                    >
+
+                      <%= mainView.text %>
+
+                    </span>
+
+
+                  <% } %>
+
+
+                </td>
+
+
               <% }) %>
-              <td class="sheet-total"><strong><%= numberOf(driver.total) %></strong></td>
-              <td class="sheet-stat"><%= driver.position === 1 ? '—' : `+${Math.abs(numberOf(driver.gap))}` %></td>
-              <td class="sheet-stat"><%= numberOf(driver.average).toFixed(1).replace('.', ',') %></td>
-              <td class="sheet-stat sheet-rate"><%= numberOf(driver.startRate).toFixed(0) %>%</td>
-              <td class="sheet-stat sheet-rate"><%= numberOf(driver.failureRate).toFixed(0) %>%</td>
+
+
+              <!-- ======================================= -->
+              <!-- GESAMTPUNKTE -->
+              <!-- ======================================= -->
+
+              <td class="sheet-total">
+
+                <strong>
+                  <%= numberOf(driver.total) %>
+                </strong>
+
+              </td>
+
+
+              <!-- ======================================= -->
+              <!-- RÜCKSTAND -->
+              <!-- ======================================= -->
+
+              <td class="sheet-stat">
+
+                <%= driver.position === 1
+                  ? '—'
+                  : `+${Math.abs(
+                      numberOf(driver.gap)
+                    )}`
+                %>
+
+              </td>
+
+
+              <!-- ======================================= -->
+              <!-- DURCHSCHNITT -->
+              <!-- ======================================= -->
+
+              <td class="sheet-stat">
+
+                <%= numberOf(
+                  driver.average
+                )
+                  .toFixed(1)
+                  .replace(
+                    '.',
+                    ','
+                  )
+                %>
+
+              </td>
+
+
+              <!-- ======================================= -->
+              <!-- STARTQUOTE -->
+              <!-- ======================================= -->
+
+              <td
+                class="sheet-stat sheet-rate"
+              >
+
+                <%= numberOf(
+                  driver.startRate
+                ).toFixed(0) %>%
+
+              </td>
+
+
+              <!-- ======================================= -->
+              <!-- AUSFALLQUOTE -->
+              <!-- ======================================= -->
+
+              <td
+                class="sheet-stat sheet-rate"
+              >
+
+                <%= numberOf(
+                  driver.failureRate
+                ).toFixed(0) %>%
+
+              </td>
+
+
             </tr>
+
+
           <% }) %>
+
+
         </tbody>
+
+
       </table>
+
     </div>
+
+
   <% }; %>
 
-  <section class="season-history-panel" data-history-panel="regular" role="tabpanel"><% renderSheet(selectedHistory.drivers, 'regular'); %></section>
-  <section class="season-history-panel" data-history-panel="reserve" role="tabpanel" hidden>
-    <% if ((selectedHistory.reserveDrivers || []).length) { renderSheet(selectedHistory.reserveDrivers, 'reserve'); } else { %><div class="empty-state">In dieser Saison wurde bisher kein Ersatzfahrer eingesetzt.</div><% } %>
+
+  <!-- ================================================= -->
+  <!-- STAMMFAHRER -->
+  <!-- ================================================= -->
+
+  <section
+    class="season-history-panel"
+    data-history-panel="regular"
+    role="tabpanel"
+  >
+
+    <%
+      renderSheet(
+        selectedHistory.drivers,
+        'regular'
+      );
+    %>
+
   </section>
-<% } else { %><div class="empty-state">Noch keine Ergebnisse eingetragen.</div><% } %>
+
+
+  <!-- ================================================= -->
+  <!-- ERSATZFAHRER -->
+  <!-- ================================================= -->
+
+  <section
+    class="season-history-panel"
+    data-history-panel="reserve"
+    role="tabpanel"
+    hidden
+  >
+
+
+    <% if (
+      (selectedHistory.reserveDrivers || [])
+        .length
+    ) { %>
+
+
+      <%
+        renderSheet(
+          selectedHistory.reserveDrivers,
+          'reserve'
+        );
+      %>
+
+
+    <% } else { %>
+
+
+      <div class="empty-state">
+
+        In dieser Saison wurde bisher
+        kein Ersatzfahrer eingesetzt.
+
+      </div>
+
+
+    <% } %>
+
+
+  </section>
+
+
+<% } else { %>
+
+
+  <div class="empty-state">
+
+    Noch keine Ergebnisse eingetragen.
+
+  </div>
+
+
+<% } %>
