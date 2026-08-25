@@ -70,6 +70,7 @@ async function ensureSchema() {
 
   const resultEntryTable = await queryInterface.describeTable('grand_prix_result_entries');
   await addMissingColumn('grand_prix_result_entries', resultEntryTable, 'pole_position', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('grand_prix_result_entries', resultEntryTable, 'driver_of_the_day', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
 
   const pointsSchemeTable = await queryInterface.describeTable('points_schemes');
   await addMissingColumn('points_schemes', pointsSchemeTable, 'pole_position_enabled', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
@@ -252,6 +253,8 @@ async function ensureSchema() {
   const lineupTable = await queryInterface.describeTable('f1_race_lineup_entries');
   await addMissingColumn('f1_race_lineup_entries', lineupTable, 'attendance_status', { type: DataTypes.STRING, allowNull: true });
   await addMissingColumn('f1_race_lineup_entries', lineupTable, 'include_in_results', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('f1_race_lineup_entries', lineupTable, 'uncertain_present', { type: DataTypes.BOOLEAN, allowNull: true });
+  await addMissingColumn('f1_race_lineup_entries', lineupTable, 'responded_in_time', { type: DataTypes.BOOLEAN, allowNull: true });
 
   const standardPoints = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
   for (let index = 0; index < standardPoints.length; index += 1) {

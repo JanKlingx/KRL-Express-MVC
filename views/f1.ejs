@@ -105,6 +105,44 @@
 
   </section>
 
+  <!-- ================================================= -->
+  <!-- KOMPAKTE RENNSTATISTIK -->
+  <!-- ================================================= -->
+
+  <section class="section container f1-race-statistics-section">
+    <div class="section-heading">
+      <span>SAISON AUF EINEN BLICK</span>
+      <h2>RENNSTATISTIK</h2>
+    </div>
+
+    <% const publicRaceStatistics = typeof raceStatistics === 'undefined' ? [] : raceStatistics; %>
+    <% if (publicRaceStatistics.length) { %>
+      <div class="f1-race-statistics-wrap">
+        <table class="f1-race-statistics">
+          <thead><tr><th>#</th><th>Strecke</th><th>Flagge</th><th>Datum</th><th>Driver of the Day</th><th>1. Platz</th><th>2. Platz</th><th>3. Platz</th><th>Poleposition</th><th>Schnellste Runde</th></tr></thead>
+          <tbody>
+            <% publicRaceStatistics.forEach((stat) => { %>
+              <tr>
+                <td>R<%= stat.round %></td>
+                <td><strong><%= stat.track %></strong></td>
+                <td><% if (stat.flagPath) { %><img src="<%= stat.flagPath %>" alt=""><% } else { %>–<% } %></td>
+                <td><%= stat.date ? new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(stat.date)) : '–' %></td>
+                <td><%= stat.driverOfTheDay?.driverName || '–' %></td>
+                <td><%= stat.podium[0]?.driverName || '–' %></td>
+                <td><%= stat.podium[1]?.driverName || '–' %></td>
+                <td><%= stat.podium[2]?.driverName || '–' %></td>
+                <td><%= stat.polePosition?.driverName || '–' %></td>
+                <td><%= stat.fastestLap?.driverName || '–' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="empty-state">Nach dem ersten Hauptrennen erscheint hier die kompakte Rennstatistik.</div>
+    <% } %>
+  </section>
+
 
   <!-- ================================================= -->
   <!-- SAISON -->

@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (kind === 'position') return driver.row.querySelector(`[data-result-position="${raceType}"]`);
     if (kind === 'fastest') return driver.row.querySelector(`[data-result-fastest="${raceType}"]`);
     if (kind === 'pole') return driver.row.querySelector(`[data-result-pole="${raceType}"]`);
+    if (kind === 'dotd') return driver.row.querySelector(`[data-result-dotd="${raceType}"]`);
     return null;
   }
 
@@ -44,7 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
     card.dataset.driverId = driver.id;
     card.draggable = true;
     const status = driver.status?.value || '';
-    card.innerHTML = `${driver.logo ? `<img src="${escapeHtml(driver.logo)}" alt="">` : '<span class="result-control-logo">KRL</span>'}<span><strong>${escapeHtml(driver.name)}</strong><small>${driver.reserve ? 'ERSATZ · ' : ''}${escapeHtml(driver.team || 'Team')}</small></span><b data-result-card-status>${escapeHtml(status || 'GEWERTET')}</b>`;
+    const visualLogo = driver.reserve ? config.leagueLogo : driver.logo;
+    const bonuses = [
+      inputFor(driver, raceType, 'pole')?.checked ? 'POLE' : '',
+      inputFor(driver, raceType, 'fastest')?.checked ? 'SCHNELLSTE RUNDE' : '',
+      raceType === 'main' && inputFor(driver, raceType, 'dotd')?.checked ? 'DRIVER OF THE DAY' : '',
+    ].filter(Boolean);
+    card.innerHTML = `${visualLogo ? `<img src="${escapeHtml(visualLogo)}" alt="">` : '<span class="result-control-logo">KRL</span>'}<span><strong>${escapeHtml(driver.name)}</strong><small>${driver.reserve ? 'ERSATZ · ' : ''}${escapeHtml(driver.team || 'Team')}</small><em>${bonuses.map(escapeHtml).join(' · ')}</em></span><b data-result-card-status>${escapeHtml(status || 'GEWERTET')}</b>`;
     const statusBadge = card.querySelector('[data-result-card-status]');
     statusBadge.title = 'Status wechseln: Gewertet → DNF → DSQ';
     statusBadge.addEventListener('click', (event) => {
@@ -54,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
       driver.status.dispatchEvent(new Event('change', { bubbles: true }));
     });
     card.addEventListener('dragstart', (event) => event.dataTransfer.setData('text/plain', driver.id));
+    card.addEventListener('dragover', (event) => {
+      if (event.dataTransfer?.types?.includes('application/x-result-bonus')) event.preventDefault();
+    });
     card.addEventListener('click', () => {
       activeDriver = activeDriver === driver.id ? null : driver.id;
       mount.querySelectorAll('.result-control-driver').forEach((item) => item.classList.toggle('is-selected', item.dataset.driverId === activeDriver));
@@ -69,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const section = document.createElement('section');
     section.className = `result-control-board result-control-${raceType}`;
     section.dataset.resultBoard = raceType;
-    section.innerHTML = `<header><div><span>${raceType === 'sprint' ? 'SPRINT' : 'HAUPTRENNEN'}</span><strong>Positionsturm</strong></div><div class="result-control-badges"><button type="button" draggable="true" data-bonus="pole">POLE</button><button type="button" draggable="true" data-bonus="fastest">SCHNELLSTE RUNDE</button></div></header><div class="result-control-workspace"><div class="result-position-tower" data-position-tower></div><aside class="result-driver-pool" data-driver-pool><header><strong>FAHRERPOOL</strong><small>Fahrer auf eine Position ziehen</small></header><div data-pool-cards></div></aside></div><div class="result-control-summary" data-result-summary></div>`;
+    section.innerHTML = `<header><div><span>${raceType === 'sprint' ? 'SPRINT' : 'HAUPTRENNEN'}</span><strong>Positionsturm</strong></div><div class="result-control-badges"><button type="button" draggable="true" data-bonus="pole">POLE</button><button type="button" draggable="true" data-bonus="fastest">SCHNELLSTE RUNDE</button>${raceType === 'main' ? '<button type="button" draggable="true" data-bonus="dotd">DRIVER OF THE DAY</button>' : ''}</div></header><div class="result-control-workspace"><div class="result-position-tower" data-position-tower></div><aside class="result-driver-pool" data-driver-pool><header><strong>FAHRERPOOL</strong><small>Fahrer auf eine Position ziehen</small></header><div data-pool-cards></div></aside></div><div class="result-control-summary" data-result-summary></div>`;
     const tower = section.querySelector('[data-position-tower]');
     const pool = section.querySelector('[data-pool-cards]');
 

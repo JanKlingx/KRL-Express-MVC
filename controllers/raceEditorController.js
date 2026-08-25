@@ -1777,6 +1777,17 @@ exports.save = async (
     }
   }
 
+  const driverOfTheDayCount = driverRows.filter(({ driver }) =>
+    getSubmittedRow(submittedRows, driver.id).driverOfTheDay === "on",
+  ).length;
+  if (driverOfTheDayCount > 1) {
+    req.session.flash = {
+      type: "error",
+      message: "Der Driver of the Day darf im Hauptrennen nur einmal vergeben werden.",
+    };
+    return res.redirect(`${requestedEditorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
+  }
+
 
   /*
    * =====================================================
@@ -1974,6 +1985,10 @@ exports.save = async (
               const polePosition =
                 eventRace.pointsMode === "database" && submitted[poleField] === "on";
 
+              // Driver of the Day ist eine reine Auszeichnung des
+              // Hauptrennens und verändert die bestehende Punkteberechnung nie.
+              const driverOfTheDay = !prefix && submitted.driverOfTheDay === "on";
+
 
               /*
                * Punkte zuerst regulär berechnen.
@@ -2043,6 +2058,8 @@ exports.save = async (
                 fastestLap,
 
                 polePosition,
+
+                driverOfTheDay,
 
                 sortOrder:
                   position ||
