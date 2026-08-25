@@ -505,7 +505,8 @@
             fastestLapEnabled: Boolean(editorPointsScheme?.fastestLapEnabled),
             fastestLapPoints: Number(editorPointsScheme?.fastestLapPoints || 0),
             polePositionEnabled: Boolean(editorPointsScheme?.polePositionEnabled),
-            polePositionPoints: Number(editorPointsScheme?.polePositionPoints || 0)
+            polePositionPoints: Number(editorPointsScheme?.polePositionPoints || 0),
+            leagueLogo: selectedRace.league?.logoPath || '/images/krl-placeholder.svg'
           }).replace(/</g, '\\u003c');
         %>
           <div data-result-control-mount></div>
@@ -865,6 +866,11 @@
                               <span>Pole Position</span>
                             </label>
                           <% } %>
+
+                          <label class="result-checkbox result-driver-of-the-day">
+                            <input type="checkbox" name="rows[d<%= driver.id %>][driverOfTheDay]" data-result-dotd="main" <%= entry?.driverOfTheDay ? 'checked' : '' %>>
+                            <span>Driver of the Day</span>
+                          </label>
 
                         </div>
 

@@ -208,7 +208,9 @@ async function loadPlanningRows(league, race) {
       driver,
       entry: saved || null,
 
-      status: normalizeReserveStatus(saved?.status),
+      // Neue F1-Ersatzfahrer beginnen als anwesend. Der Systemstatus
+      // "auf_abruf" wird erst beim Speichern ohne Cockpit gesetzt.
+      status: saved ? normalizeReserveStatus(saved.status) : "anwesend",
 
       assignedTo: replacementForDriverId
         ? regularById.get(replacementForDriverId) || null
@@ -326,10 +328,6 @@ exports.save = async (req, res) => {
     ...(regularInput[`d${driverId}`] || {}),
   });
 
-  console.log("=== REGULAR INPUT ===", JSON.stringify(regularInput, null, 2));
-
-  console.log("=== RESERVE INPUT ===", JSON.stringify(reserveInput, null, 2));
-
   const usedReserves = new Set();
 
   const replacementByReserve = new Map();
@@ -423,9 +421,8 @@ exports.save = async (req, res) => {
        *
        * anwesend
        * unsicher
-       * auf Abruf
        */
-      if (!["anwesend", "unsicher", "auf_abruf"].includes(reserveStatus)) {
+      if (!["anwesend", "unsicher"].includes(reserveStatus)) {
         throw new Error(
           `${reserve.name} kann mit dem Status „${reserveStatus}“ nicht als Ersatzfahrer eingesetzt werden.`,
         );
@@ -495,6 +492,8 @@ exports.save = async (req, res) => {
 
       const input = reserveInput[`d${driverId}`] || {};
 
+      const submittedStatus = normalizeReserveStatus(input.status);
+
       const replacement = replacementByReserve.get(driverId);
 
       records.push({
@@ -510,7 +509,13 @@ exports.save = async (req, res) => {
 
         roleType: "reserve",
 
-        status: normalizeReserveStatus(input.status),
+        // Ein anwesender, aber nicht eingeteilter Ersatzfahrer steht nach dem
+        // Speichern automatisch auf Abruf. Unsicher/angefragt/abgemeldet
+        // bleiben dagegen exakt im vom Admin gepflegten Status.
+        status:
+          !replacement && submittedStatus === "anwesend"
+            ? "auf_abruf"
+            : submittedStatus,
 
         sortOrder: index,
       });
@@ -521,11 +526,6 @@ exports.save = async (req, res) => {
      * SPEICHERN
      * =====================================================
      */
-
-    console.log(
-      "=== RECORDS DIE GESPEICHERT WERDEN ===",
-      JSON.stringify(records, null, 2),
-    );
 
     const driverIds = records.map((record) => Number(record.DriverId));
     if (new Set(driverIds).size !== driverIds.length)
@@ -547,8 +547,18 @@ exports.save = async (req, res) => {
           await existing.update({
             ...record,
             ...(assignmentUnchanged
-              ? { attendanceStatus: existing.attendanceStatus, includeInResults: existing.includeInResults }
-              : { attendanceStatus: null, includeInResults: false }),
+              ? {
+                  attendanceStatus: existing.attendanceStatus,
+                  includeInResults: existing.includeInResults,
+                  uncertainPresent: existing.uncertainPresent,
+                  respondedInTime: existing.respondedInTime,
+                }
+              : {
+                  attendanceStatus: null,
+                  includeInResults: false,
+                  uncertainPresent: null,
+                  respondedInTime: null,
+                }),
           }, { transaction });
         } else {
           await F1RaceLineupEntry.create(record, { transaction });

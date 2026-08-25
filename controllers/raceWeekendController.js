@@ -1,5 +1,4 @@
-const { Op } = require("sequelize");
-
+const { Op } = require('sequelize');
 const {
   sequelize,
   League,
@@ -8,715 +7,190 @@ const {
   GrandPrixResult,
   GrandPrixResultEntry,
   F1RaceLineupEntry,
-  Driver,
   PenaltyRule,
   PenaltyEntry,
-} = require("../models");
-
+} = require('../models');
 const {
   ATTENDANCE_STATUSES,
   REGULAR_STATUSES,
   RESERVE_STATUSES,
   normalizeAttendanceStatus,
-} = require("../services/raceLineup");
+} = require('../services/raceLineup');
+const { loadSeasonStructure } = require('../services/f1Season');
+const f1RaceLineupController = require('./f1RaceLineupController');
 
-const {
-  loadSeasonStructure,
-} = require("../services/f1Season");
-
-const f1RaceLineupController =
-  require("./f1RaceLineupController");
-
-
-/*
- * =========================================================
- * ANWESENHEITS- / STRAFLOGIK
- * =========================================================
- */
+const STARTING_ATTENDANCE = new Set(['anwesend', 'zu_spaet_vorbesprechung']);
+const ABSENT_ATTENDANCE = new Set(['unabgemeldet', 'zu_spaet_abgemeldet']);
+const ELIGIBLE_RESERVE_STATUS = new Set(['anwesend', 'unsicher', 'auf_abruf']);
 
 const attendanceReason = {
-  unabgemeldet: "Unabgemeldet",
-  zu_spaet_abgemeldet: "Zu spät abgemeldet",
-  zu_spaet_vorbesprechung: "Zu spät Vorbesprechung",
+  unabgemeldet: 'Unabgemeldet',
+  zu_spaet_abgemeldet: 'Zu spät abgemeldet',
+  zu_spaet_vorbesprechung: 'Zu spät Vorbesprechung',
 };
 
 const ruleStatus = {
-  unabgemeldet: "unabgemeldet",
-  zu_spaet_abgemeldet: "late-cancellation",
-  zu_spaet_vorbesprechung: "late-briefing",
+  unabgemeldet: 'unabgemeldet',
+  zu_spaet_abgemeldet: 'late-cancellation',
+  zu_spaet_vorbesprechung: 'late-briefing',
 };
 
+function berlinDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
 
-/*
- * =========================================================
- * AUTOMATISCHE ANWESENHEITSSTRAFE
- * =========================================================
- */
+function selectCurrentEvent(events, now = new Date()) {
+  const normalEvents = events.filter((event) => !event.isTestDay);
+  if (!normalEvents.length) return null;
+  const today = berlinDateKey(now);
+  const todayEvent = normalEvents.find((event) => berlinDateKey(event.startsAt) === today);
+  if (todayEvent) return todayEvent;
+  const future = normalEvents
+    .filter((event) => new Date(event.startsAt).getTime() > now.getTime())
+    .sort((left, right) => new Date(left.startsAt) - new Date(right.startsAt));
+  if (future.length) return future[0];
+  return normalEvents
+    .slice()
+    .sort((left, right) => new Date(right.startsAt) - new Date(left.startsAt))[0];
+}
 
-async function syncAutomaticAttendancePenalty({
-  race,
-  entry,
-  attendanceStatus,
-  ruleByStatus,
-  transaction,
-}) {
-  const automaticReason =
-    attendanceReason[attendanceStatus];
+async function syncAutomaticAttendancePenalty({ race, entry, attendanceStatus, ruleByStatus, transaction }) {
+  const automaticReason = attendanceReason[attendanceStatus];
+  const rule = ruleByStatus.get(ruleStatus[attendanceStatus]);
+  const existing = await PenaltyEntry.findOne({
+    where: { GrandPrixResultId: race.id, DriverId: entry.DriverId, isAutomatic: true },
+    transaction,
+  });
 
-  const rule =
-    ruleByStatus.get(
-      ruleStatus[attendanceStatus],
-    );
-
-  const existingAutomatic =
-    await PenaltyEntry.findOne({
-      where: {
-        GrandPrixResultId: race.id,
-        DriverId: entry.DriverId,
-        isAutomatic: true,
-      },
-
-      transaction,
-    });
-
-
-  if (
-    automaticReason &&
-    rule &&
-    Number(rule.points) > 0
-  ) {
-    const date =
-      race.raceDate ||
-      new Date()
-        .toISOString()
-        .slice(0, 10);
-
-    const expiry =
-      new Date(
-        `${date}T12:00:00Z`,
-      );
-
-    expiry.setUTCFullYear(
-      expiry.getUTCFullYear() + 1,
-    );
-
+  if (automaticReason && rule && Number(rule.points) > 0) {
+    const awardedOn = race.raceDate || new Date().toISOString().slice(0, 10);
+    const expiry = new Date(`${awardedOn}T12:00:00Z`);
+    expiry.setUTCFullYear(expiry.getUTCFullYear() + 1);
     const values = {
       LeagueId: race.LeagueId,
       DriverId: entry.DriverId,
       GrandPrixResultId: race.id,
-
       points: rule.points,
-
-      reason:
-        automaticReason,
-
-      comment:
-        `${race.title} · automatisch aus Anwesenheitskontrolle`,
-
-      awardedOn:
-        date,
-
-      expiresOn:
-        expiry
-          .toISOString()
-          .slice(0, 10),
-
+      reason: automaticReason,
+      comment: `${race.title} · automatisch aus Anwesenheitskontrolle`,
+      awardedOn,
+      expiresOn: expiry.toISOString().slice(0, 10),
       isAutomatic: true,
       isRaceBan: false,
     };
-
-
-    if (existingAutomatic) {
-      await existingAutomatic.update(
-        values,
-        {
-          transaction,
-        },
-      );
-    } else {
-      await PenaltyEntry.create(
-        values,
-        {
-          transaction,
-        },
-      );
-    }
-
+    if (existing) await existing.update(values, { transaction });
+    else await PenaltyEntry.create(values, { transaction });
     return;
   }
 
-
-  /*
-   * Keine automatische Strafe mehr nötig.
-   */
-  if (existingAutomatic) {
-    await existingAutomatic.destroy({
-      transaction,
-    });
-  }
+  if (existing) await existing.destroy({ transaction });
 }
 
+function displayTeamMap(structure) {
+  const result = new Map();
+  structure.teams?.forEach((team) => {
+    team.drivers.forEach((driver) => result.set(Number(driver.id), team));
+  });
+  return result;
+}
 
-/*
- * =========================================================
- * F1-DATEN LADEN
- * =========================================================
- */
+async function loadF1Data(query = {}) {
+  const leagues = await League.findAll({
+    where: { type: 'f1', slug: { [Op.in]: ['freitag', 'samstag', 'sonntag'] } },
+    order: [['sortOrder', 'ASC'], ['id', 'ASC']],
+  });
+  const league = leagues.find((item) => Number(item.id) === Number(query.league)) || leagues[0] || null;
+  const seasons = league
+    ? await Season.findAll({
+        where: { scopeSlug: league.slug, leagueType: 'f1', status: 'active', isPublished: true },
+        order: [['id', 'DESC']],
+      })
+    : [];
+  const season = seasons.find((item) => Number(item.id) === Number(query.season)) || seasons[0] || null;
+  const events = season
+    ? await RaceEvent.findAll({
+        where: { LeagueId: league.id, SeasonId: season.id },
+        include: [
+          { association: 'grandPrixResult' },
+          { association: 'track', required: false, include: [{ association: 'countryRecord', required: false }] },
+        ],
+        order: [['sortOrder', 'ASC'], ['startsAt', 'ASC']],
+      })
+    : [];
 
-async function loadF1Data(
-  query = {},
-) {
-  /*
-   * LIGEN
-   */
+  const manuallySelected = events.find((item) => Number(item.id) === Number(query.event)) ||
+    events.find((item) => Number(item.GrandPrixResultId) === Number(query.race));
+  const event = manuallySelected || selectCurrentEvent(events) || events[0] || null;
+  const race = event?.grandPrixResult || (event?.GrandPrixResultId ? await GrandPrixResult.findByPk(event.GrandPrixResultId) : null);
 
-  const leagues =
-    await League.findAll({
-      where: {
-        type: "f1",
-
-        slug: {
-          [Op.in]: [
-            "freitag",
-            "samstag",
-            "sonntag",
-          ],
-        },
-      },
-
-      order: [
-        ["sortOrder", "ASC"],
-        ["id", "ASC"],
-      ],
-    });
-
-
-  const league =
-    leagues.find(
-      (item) =>
-        Number(item.id) ===
-        Number(query.league),
-    ) ||
-    leagues[0] ||
-    null;
-
-
-  /*
-   * SAISON
-   */
-
-  const seasons =
-    league
-      ? await Season.findAll({
-          where: {
-            scopeSlug:
-              league.slug,
-
-            leagueType:
-              "f1",
-
-            status:
-              "active",
-
-            isPublished:
-              true,
-          },
-
-          order: [
-            ["id", "DESC"],
-          ],
-        })
-      : [];
-
-
-  const season =
-    seasons.find(
-      (item) =>
-        Number(item.id) ===
-        Number(query.season),
-    ) ||
-    seasons[0] ||
-    null;
-
-
-  /*
-   * RENNEN
-   */
-
-  const events =
-    season
-      ? await RaceEvent.findAll({
-          where: {
-            LeagueId:
-              league.id,
-
-            SeasonId:
-              season.id,
-          },
-
-          include: [
-            {
-              association:
-                "grandPrixResult",
-            },
-          ],
-
-          order: [
-            ["sortOrder", "ASC"],
-            ["startsAt", "ASC"],
-          ],
-        })
-      : [];
-
-
-  const event =
-    events.find(
-      (item) =>
-        Number(item.id) ===
-        Number(query.event),
-    ) ||
-    events.find(
-      (item) =>
-        Number(
-          item.GrandPrixResultId,
-        ) ===
-        Number(query.race),
-    ) ||
-    events[0] ||
-    null;
-
-
-  const race =
-    event?.grandPrixResult ||
-    (
-      event?.GrandPrixResultId
-        ? await GrandPrixResult.findByPk(
-            event.GrandPrixResultId,
-          )
-        : null
-    );
-
-
-  /*
-   * LINE-UP + SAISONSTRUKTUR
-   */
-
-  const [
-    entries,
-    structure,
-  ] = await Promise.all([
+  const [entries, structure] = await Promise.all([
     race
       ? F1RaceLineupEntry.findAll({
-          where: {
-            GrandPrixResultId:
-              race.id,
-          },
-
+          where: { GrandPrixResultId: race.id },
           include: [
-            {
-              association:
-                "driver",
-            },
-            {
-              association:
-                "replacementFor",
-            },
-            {
-              association:
-                "team",
-            },
+            { association: 'driver' },
+            { association: 'replacementFor' },
+            { association: 'team' },
           ],
-
-          order: [
-            ["roleType", "ASC"],
-            ["sortOrder", "ASC"],
-            ["id", "ASC"],
-          ],
+          order: [['roleType', 'ASC'], ['sortOrder', 'ASC'], ['id', 'ASC']],
         })
       : [],
-
-    season
-      ? loadSeasonStructure(
-          season.id,
-        )
-      : {
-          teams: [],
-          unassignedDrivers: [],
-        },
+    season ? loadSeasonStructure(season.id) : { teams: [], unassignedDrivers: [] },
   ]);
 
-
-  /*
-   * SAISONTEAM JE STAMMFAHRER
-   */
-
-  const seasonTeamByDriver =
-    new Map();
-
-
-  structure.teams?.forEach(
-    (team) => {
-      team.drivers.forEach(
-        (driver) => {
-          seasonTeamByDriver.set(
-            Number(driver.id),
-            team,
-          );
-        },
-      );
-    },
+  const teamsByDriver = displayTeamMap(structure);
+  const regularEntries = entries.filter((entry) => entry.roleType === 'regular');
+  const regularById = new Map(regularEntries.map((entry) => [Number(entry.DriverId), entry]));
+  const replacementByRegular = new Map(
+    entries
+      .filter((entry) => entry.roleType === 'reserve' && entry.ReplacementForDriverId)
+      .map((entry) => [Number(entry.ReplacementForDriverId), entry]),
   );
 
+  const attendanceRows = regularEntries
+    .filter((entry) => entry.status !== 'rennsperre')
+    .map((entry) => ({
+      entry,
+      displayTeam: teamsByDriver.get(Number(entry.DriverId)) || entry.team,
+      plannedReplacement: replacementByRegular.get(Number(entry.DriverId)) || null,
+    }));
 
-  /*
-   * STAMMFAHRER LOOKUP
-   */
+  const excludedAttendanceRows = entries
+    .filter((entry) => ABSENT_ATTENDANCE.has(entry.attendanceStatus))
+    .map((entry) => ({
+      entry,
+      displayTeam: teamsByDriver.get(Number(entry.roleType === 'regular' ? entry.DriverId : entry.ReplacementForDriverId)) || entry.team,
+      currentReplacement: entries.find(
+        (candidate) => candidate.roleType === 'reserve' && Number(candidate.ReplacementForDriverId) === Number(entry.DriverId),
+      ) || null,
+    }));
 
-  const regularById =
-    new Map(
-      entries
-        .filter(
-          (entry) =>
-            entry.roleType ===
-            "regular",
-        )
-        .map(
-          (entry) => [
-            Number(entry.DriverId),
-            entry,
-          ],
-        ),
-    );
-
-
-  /*
-   * VORGEMERKTER ERSATZ PRO STAMMFAHRER
-   */
-
-  const replacementByRegular =
-    new Map(
-      entries
-        .filter(
-          (entry) =>
-            entry.roleType ===
-              "reserve" &&
-            entry.ReplacementForDriverId,
-        )
-        .map(
-          (entry) => [
-            Number(
-              entry
-                .ReplacementForDriverId,
-            ),
-            entry,
-          ],
-        ),
-    );
-
-
-  /*
-   * =====================================================
-   * NORMALE ANWESENHEITSKONTROLLE
-   * =====================================================
-   *
-   * WICHTIG:
-   *
-   * abgemeldet
-   * -> wurde bereits in Schritt 1 entschieden
-   * -> nicht hier anzeigen
-   *
-   * rennsperre
-   * -> kein Teilnehmer
-   *
-   * unsicher
-   * -> bleibt sichtbar
-   * -> "Fehlende Rückmeldung"
-   *
-   * unabgemeldet / zu spät abgemeldet
-   * -> nach Speicherung aus Hauptansicht entfernen
-   */
-
-  const attendanceRows =
-    entries
-      .filter(
-        (entry) => {
-          /*
-           * STAMMFAHRER
-           */
-
-          if (
-            entry.roleType ===
-            "regular"
-          ) {
-            if (
-              entry.status ===
-              "unsicher"
-            ) {
-              return true;
-            }
-
-            if (
-              [
-                "abgemeldet",
-                "rennsperre",
-              ].includes(
-                entry.status,
-              )
-            ) {
-              return false;
-            }
-
-            const effectiveStatus =
-              entry.attendanceStatus ||
-              entry.status;
-
-            return [
-              "anwesend",
-              "zu_spaet_vorbesprechung",
-            ].includes(
-              effectiveStatus,
-            );
-          }
-
-
-          /*
-           * ERSATZFAHRER
-           */
-
-          if (
-            entry.roleType ===
-              "reserve" &&
-            entry.ReplacementForDriverId
-          ) {
-            const regular =
-              regularById.get(
-                Number(
-                  entry
-                    .ReplacementForDriverId,
-                ),
-              );
-
-
-            /*
-             * Bei unsicherem Stammfahrer
-             * wird der vorgemerkte Ersatz
-             * innerhalb desselben Unsicher-Falls behandelt.
-             */
-            if (
-              regular?.status ===
-              "unsicher"
-            ) {
-              return false;
-            }
-
-
-            const effectiveStatus =
-              entry.attendanceStatus ||
-              entry.status;
-
-
-            return [
-              "anwesend",
-              "zu_spaet_vorbesprechung",
-            ].includes(
-              effectiveStatus,
-            );
-          }
-
-
-          return false;
-        },
-      )
-      .map(
-        (entry) => {
-          const regularDriverId =
-            entry.roleType ===
-            "regular"
-              ? Number(
-                  entry.DriverId,
-                )
-              : Number(
-                  entry
-                    .ReplacementForDriverId,
-                );
-
-
-          const plannedReplacement =
-            entry.roleType ===
-              "regular" &&
-            entry.status ===
-              "unsicher"
-              ? replacementByRegular.get(
-                  Number(
-                    entry.DriverId,
-                  ),
-                ) || null
-              : null;
-
-
-          return {
-            entry,
-
-            displayTeam:
-              seasonTeamByDriver.get(
-                regularDriverId,
-              ) ||
-              entry.team,
-
-            plannedReplacement,
-          };
-        },
-      );
-
-
-  /*
-   * =====================================================
-   * AUSGESCHIEDENE FAHRER / KORREKTUR
-   * =====================================================
-   */
-
-  const excludedAttendanceRows =
-    entries
-      .filter(
-        (entry) =>
-          [
-            "unabgemeldet",
-            "zu_spaet_abgemeldet",
-          ].includes(
-            entry.attendanceStatus,
-          ),
-      )
-      .map(
-        (entry) => {
-          const regularDriverId =
-            entry.roleType ===
-            "regular"
-              ? Number(
-                  entry.DriverId,
-                )
-              : Number(
-                  entry
-                    .ReplacementForDriverId,
-                );
-
-
-          const currentReplacement =
-            entries.find(
-              (candidate) =>
-                candidate.roleType ===
-                  "reserve" &&
-                Number(
-                  candidate
-                    .ReplacementForDriverId,
-                ) ===
-                  Number(
-                    entry.DriverId,
-                  ),
-            ) || null;
-
-
-          return {
-            entry,
-
-            displayTeam:
-              seasonTeamByDriver.get(
-                regularDriverId,
-              ) ||
-              entry.team,
-
-            currentReplacement,
-          };
-        },
-      );
-
-
-  /*
-   * =====================================================
-   * VERFÜGBARE ERSATZFAHRER
-   * =====================================================
-   *
-   * Wichtig:
-   *
-   * Ein nur VORGEMERKTER Ersatz eines unsicheren
-   * Stammfahrers gilt zunächst weiterhin als verfügbar.
-   *
-   * Erst wenn in Schritt 2 tatsächlich:
-   *
-   * "Ersatz übernimmt"
-   *
-   * entschieden wird, wird dieser Fahrer gebunden.
-   */
-
-  const availableReplacements =
-    entries
-      .filter(
-        (entry) => {
-          if (
-            entry.roleType !==
-              "reserve" ||
-            ![
-              "anwesend",
-              "unsicher",
-              "auf_abruf",
-            ].includes(
-              entry.status,
-            )
-          ) {
-            return false;
-          }
-
-
-          /*
-           * Komplett frei.
-           */
-          if (
-            !entry
-              .ReplacementForDriverId
-          ) {
-            return true;
-          }
-
-
-          /*
-           * Nur vorgemerkt für unsicheren Stammfahrer.
-           */
-          const regular =
-            regularById.get(
-              Number(
-                entry
-                  .ReplacementForDriverId,
-              ),
-            );
-
-
-          return (
-            regular?.status ===
-            "unsicher"
-          );
-        },
-      )
-      .map(
-        (entry) => ({
-          id:
-            entry.driver.id,
-
-          name:
-            entry.driver.name,
-
-          plannedForDriverId:
-            entry
-              .ReplacementForDriverId
-              ? Number(
-                  entry
-                    .ReplacementForDriverId,
-                )
-              : null,
-
-          entryId:
-            Number(entry.id),
-        }),
-      );
-
+  const availableReplacements = entries
+    .filter((entry) => {
+      if (entry.roleType !== 'reserve' || !ELIGIBLE_RESERVE_STATUS.has(entry.status) || entry.includeInResults) return false;
+      if (!entry.ReplacementForDriverId) return true;
+      const regular = regularById.get(Number(entry.ReplacementForDriverId));
+      return regular?.status === 'unsicher' && regular.uncertainPresent === true;
+    })
+    .map((entry) => ({
+      id: Number(entry.DriverId),
+      entryId: Number(entry.id),
+      name: entry.driver?.name || `Fahrer ${entry.DriverId}`,
+      status: entry.status,
+    }))
+    .sort((left, right) => {
+      const rank = (status) => status === 'auf_abruf' ? 0 : status === 'anwesend' ? 1 : 2;
+      return rank(left.status) - rank(right.status) || left.name.localeCompare(right.name, 'de');
+    });
 
   return {
     leagues,
@@ -730,1042 +204,296 @@ async function loadF1Data(
     attendanceRows,
     excludedAttendanceRows,
     availableReplacements,
+    selectionMode: manuallySelected ? 'manual' : 'automatic',
   };
 }
 
-
-/*
- * =========================================================
- * SEITE ANZEIGEN
- * =========================================================
- */
-
-exports.show = async (
-  req,
-  res,
-) => {
-  if (
-    req.params.discipline !==
-    "f1"
-  ) {
-    req.session.flash = {
-      type:
-        "error",
-
-      message:
-        "Der neue Rennwochenenden-Assistent ist zunächst für Formel 1 verfügbar.",
-    };
-
-
-    return res.redirect(
-      "/admin",
-    );
+exports.show = async (req, res) => {
+  if (req.params.discipline !== 'f1') {
+    req.session.flash = { type: 'error', message: 'Der Rennwochenenden-Assistent ist aktuell für Formel 1 verfügbar.' };
+    return res.redirect('/admin');
   }
 
+  const data = await loadF1Data(req.query);
+  const planning = data.league && data.race
+    ? await f1RaceLineupController.loadPlanningRows(data.league, data.race)
+    : { teamCards: [], reserveRows: [], hasSavedPlan: false };
+  const resultCount = data.race
+    ? await GrandPrixResultEntry.count({ where: { GrandPrixResultId: data.race.id } })
+    : 0;
 
-  const data =
-    await loadF1Data(
-      req.query,
-    );
-
-
-  const planning =
-    data.league &&
-    data.race
-      ? await f1RaceLineupController.loadPlanningRows(
-          data.league,
-          data.race,
-        )
-      : {
-          teamCards: [],
-          reserveRows: [],
-          hasSavedPlan: false,
-        };
-
-
-  const resultCount =
-    data.race
-      ? await GrandPrixResultEntry.count({
-          where: {
-            GrandPrixResultId:
-              data.race.id,
-          },
-        })
-      : 0;
-
-
-  const lineupHref =
-    `/admin/f1-race-lineup?league=${data.league?.id || ""}&race=${data.race?.id || ""}`;
-
-
-  const resultsHref =
-    `/admin/current-season-progress?league=${data.league?.id || ""}&race=${data.race?.id || ""}`;
-
-
-  return res.render(
-    "admin/race-weekend",
-    {
-      title:
-        "Rennwochenende Formel 1",
-
-      requested:
-        "f1",
-
-      ...data,
-
-      attendanceStatuses:
-        ATTENDANCE_STATUSES,
-
-      regularStatuses:
-        REGULAR_STATUSES,
-
-      reserveStatuses:
-        RESERVE_STATUSES,
-
-      selectedRace:
-        data.race,
-
-      resultCount,
-
-      ...planning,
-
-      lineupHref,
-      resultsHref,
-    },
-  );
+  return res.render('admin/race-weekend', {
+    title: 'Rennwochenende Formel 1',
+    requested: 'f1',
+    ...data,
+    attendanceStatuses: ATTENDANCE_STATUSES,
+    regularStatuses: REGULAR_STATUSES,
+    reserveStatuses: RESERVE_STATUSES,
+    selectedRace: data.race,
+    resultCount,
+    ...planning,
+    resultsHref: `/admin/current-season-progress?league=${data.league?.id || ''}&race=${data.race?.id || ''}`,
+  });
 };
 
+function formRow(collection, entryId) {
+  return collection?.[`d${entryId}`] || collection?.[String(entryId)] || {};
+}
 
-/*
- * =========================================================
- * ANWESENHEIT SPEICHERN
- * =========================================================
- */
+function parseUncertainDecision(uncertainInput, entry) {
+  const value = formRow(uncertainInput, entry.id).present;
+  if (value === 'yes') return true;
+  if (value === 'no') return false;
+  return null;
+}
 
-exports.saveAttendance = async (
-  req,
-  res,
-) => {
-  /*
-   * RENNEN LADEN
-   */
-
-  const race =
-    await GrandPrixResult.findByPk(
-      Number(
-        req.params.raceId,
-      ),
-      {
-        include: [
-          {
-            association:
-              "seasonRecord",
-          },
-          {
-            association:
-              "league",
-          },
-        ],
-      },
-    );
-
-
-  if (
-    !race ||
-    race.discipline !==
-      "f1" ||
-    race.seasonRecord?.status !==
-      "active"
-  ) {
-    throw new Error(
-      "Aktuelles Formel-1-Rennen wurde nicht gefunden.",
-    );
+exports.saveAttendance = async (req, res) => {
+  const race = await GrandPrixResult.findByPk(Number(req.params.raceId), {
+    include: [{ association: 'seasonRecord' }, { association: 'league' }],
+  });
+  if (!race || race.discipline !== 'f1' || race.seasonRecord?.status !== 'active') {
+    throw new Error('Aktuelles Formel-1-Rennen wurde nicht gefunden.');
   }
 
-
-  /*
-   * LINE-UP LADEN
-   */
-
-  const entries =
-    await F1RaceLineupEntry.findAll({
-      where: {
-        GrandPrixResultId:
-          race.id,
-      },
-    });
-
-
-  /*
-   * FORMULARDATEN
-   */
-
-  const input =
-    req.body.attendance ||
-    {};
-
-  const correctionInput =
-    req.body.correction ||
-    {};
-
-  const uncertainPresentInput =
-    req.body
-      .uncertainPresent ||
-    {};
-
-  const uncertainDecisionInput =
-    req.body
-      .uncertainDecision ||
-    {};
-
-
-  /*
-   * =====================================================
-   * UNSICHER-ENTSCHEIDUNG
-   * =====================================================
-   *
-   * Werte:
-   *
-   * unresolved
-   * regular
-   * replacement
-   */
-
-  const uncertainDecisionFor =
-    (entry) => {
-      const posted =
-        uncertainDecisionInput[
-          `d${entry.id}`
-        ];
-
-
-      if (
-        [
-          "regular",
-          "replacement",
-          "unresolved",
-        ].includes(
-          posted,
-        )
-      ) {
-        return posted;
-      }
-
-
-      /*
-       * Legacy-Fallback.
-       */
-      if (
-        uncertainPresentInput[
-          `d${entry.id}`
-        ] === "on"
-      ) {
-        return "regular";
-      }
-
-
-      return "unresolved";
-    };
-
-
-  /*
-   * STRAFREGELN
-   */
-
-  const rules =
-    await PenaltyRule.findAll({
-      where: {
-        discipline:
-          "f1",
-      },
-    });
-
-
-  const ruleByStatus =
-    new Map(
-      rules.map(
-        (rule) => [
-          rule.status,
-          rule,
-        ],
-      ),
-    );
-
-
-  /*
-   * STAMMFAHRER LOOKUP
-   */
-
-  const regularEntriesByDriverId =
-    new Map(
-      entries
-        .filter(
-          (entry) =>
-            entry.roleType ===
-            "regular",
-        )
-        .map(
-          (entry) => [
-            Number(
-              entry.DriverId,
-            ),
-            entry,
-          ],
-        ),
-    );
-
-
-  /*
-   * UNSICHERE STAMMFAHRER
-   */
-
-  const regularUncertainEntries =
-    entries.filter(
-      (entry) =>
-        entry.roleType ===
-          "regular" &&
-        entry.status ===
-          "unsicher",
-    );
-
-
-  /*
-   * =====================================================
-   * ALLE UNSICHEREN MÜSSEN GEKLÄRT SEIN
-   * =====================================================
-   */
-
-  const unresolvedEntries =
-    regularUncertainEntries.filter(
-      (entry) =>
-        uncertainDecisionFor(
-          entry,
-        ) ===
-        "unresolved",
-    );
-
-
-  if (
-    unresolvedEntries.length
-  ) {
-    req.session.flash = {
-      type: "error",
-
-      message:
-        `${unresolvedEntries.length} unsichere Teilnahme(n) besitzen noch eine fehlende Rückmeldung.`,
-    };
-
-
-    return res.redirect(
-      `/admin/race-weekend/f1?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}#anwesenheit`,
-    );
-  }
-
-
-  /*
-   * =====================================================
-   * ERSATZFAHRER VERFÜGBARKEIT
-   * =====================================================
-   */
-
-  const allowedReplacementIds =
-    new Set();
-
-
-  const releasedPlannedReplacementIds =
-    new Set();
-
-
-  for (
-    const reserveEntry
-    of entries
-  ) {
-    if (
-      reserveEntry.roleType !==
-        "reserve" ||
-      ![
-        "anwesend",
-        "unsicher",
-        "auf_abruf",
-      ].includes(
-        reserveEntry.status,
-      )
-    ) {
-      continue;
-    }
-
-
-    /*
-     * Komplett frei.
-     */
-    if (
-      !reserveEntry
-        .ReplacementForDriverId
-    ) {
-      allowedReplacementIds.add(
-        Number(
-          reserveEntry.DriverId,
-        ),
-      );
-
-      continue;
-    }
-
-
-    /*
-     * Vorgemerkt für unsicheren Stammfahrer.
-     */
-    const regularEntry =
-      regularEntriesByDriverId.get(
-        Number(
-          reserveEntry
-            .ReplacementForDriverId,
-        ),
-      );
-
-
-    if (
-      !regularEntry ||
-      regularEntry.status !==
-        "unsicher"
-    ) {
-      continue;
-    }
-
-
-    const decision =
-      uncertainDecisionFor(
-        regularEntry,
-      );
-
-
-    /*
-     * Solange nur vorgemerkt:
-     * weiterhin frei.
-     */
-    if (
-      decision ===
-      "unresolved"
-    ) {
-      allowedReplacementIds.add(
-        Number(
-          reserveEntry.DriverId,
-        ),
-      );
-
-      continue;
-    }
-
-
-    /*
-     * Stammfahrer fährt:
-     * Ersatz komplett freigeben.
-     */
-    if (
-      decision ===
-      "regular"
-    ) {
-      allowedReplacementIds.add(
-        Number(
-          reserveEntry.DriverId,
-        ),
-      );
-
-
-      releasedPlannedReplacementIds.add(
-        Number(
-          reserveEntry.DriverId,
-        ),
-      );
-    }
-
-
-    /*
-     * decision === replacement
-     *
-     * Nicht in allowedReplacementIds aufnehmen.
-     * Er ist jetzt fest für dieses Cockpit vorgesehen.
-     */
-  }
-
-
-  const usedReplacementIds =
-    new Set();
-
-
-  const inactiveUncertainEntryIds =
-    new Set();
-
-
-  /*
-   * =====================================================
-   * TRANSACTION
-   * =====================================================
-   */
-
-  await sequelize.transaction(
-    async (transaction) => {
-      /*
-       * =================================================
-       * 0. KORREKTUREN
-       * =================================================
-       */
-
-      for (
-        const entry
-        of entries
-      ) {
-        const correction =
-          correctionInput[
-            `d${entry.id}`
-          ];
-
-
-        if (!correction) {
-          continue;
-        }
-
-
-        const newAttendanceStatus =
-          normalizeAttendanceStatus(
-            correction.status,
-          );
-
-
-        const mayStartAgain =
-          [
-            "anwesend",
-            "zu_spaet_vorbesprechung",
-          ].includes(
-            newAttendanceStatus,
-          );
-
-
-        await entry.update(
-          {
-            attendanceStatus:
-              newAttendanceStatus,
-
-            includeInResults:
-              mayStartAgain,
-          },
-          {
-            transaction,
-          },
-        );
-
-
-        /*
-         * Fahrer wird wieder aktiv.
-         */
-        if (mayStartAgain) {
-          const replacements =
-            entries.filter(
-              (candidate) =>
-                candidate.roleType ===
-                  "reserve" &&
-                Number(
-                  candidate
-                    .ReplacementForDriverId,
-                ) ===
-                  Number(
-                    entry.DriverId,
-                  ),
-            );
-
-
-          for (
-            const replacement
-            of replacements
-          ) {
-            await replacement.update(
-              {
-                ReplacementForDriverId:
-                  null,
-
-                TeamId:
-                  null,
-
-                attendanceStatus:
-                  null,
-
-                includeInResults:
-                  false,
-              },
-              {
-                transaction,
-              },
-            );
+  const entries = await F1RaceLineupEntry.findAll({
+    where: { GrandPrixResultId: race.id },
+    include: [{ association: 'driver' }],
+    order: [['roleType', 'ASC'], ['sortOrder', 'ASC'], ['id', 'ASC']],
+  });
+  const attendanceInput = req.body.attendance || {};
+  const correctionInput = req.body.correction || {};
+  const uncertainInput = req.body.uncertain || {};
+  const rules = await PenaltyRule.findAll({ where: { discipline: 'f1' } });
+  const ruleByStatus = new Map(rules.map((rule) => [rule.status, rule]));
+
+  try {
+    await sequelize.transaction(async (transaction) => {
+      if (Object.keys(correctionInput).length) {
+        for (const entry of entries) {
+          const correction = formRow(correctionInput, entry.id);
+          if (!correction.status) continue;
+          const status = normalizeAttendanceStatus(correction.status);
+          if (![...STARTING_ATTENDANCE, ...ABSENT_ATTENDANCE].includes(status)) {
+            throw new Error('Ungültiger Korrekturstatus.');
           }
+          await entry.update({ attendanceStatus: status, includeInResults: STARTING_ATTENDANCE.has(status) }, { transaction });
+          if (STARTING_ATTENDANCE.has(status)) {
+            const replacements = entries.filter(
+              (candidate) => candidate.roleType === 'reserve' && Number(candidate.ReplacementForDriverId) === Number(entry.DriverId),
+            );
+            for (const replacement of replacements) {
+              await replacement.update({
+                ReplacementForDriverId: null,
+                TeamId: null,
+                attendanceStatus: null,
+                includeInResults: false,
+                uncertainPresent: null,
+                respondedInTime: null,
+              }, { transaction });
+            }
+          }
+          await syncAutomaticAttendancePenalty({ race, entry, attendanceStatus: status, ruleByStatus, transaction });
         }
-
-
-        await syncAutomaticAttendancePenalty({
-          race,
-          entry,
-
-          attendanceStatus:
-            newAttendanceStatus,
-
-          ruleByStatus,
-          transaction,
-        });
+        return;
       }
 
+      const regularEntries = entries.filter((entry) => entry.roleType === 'regular');
+      const reserveEntries = entries.filter((entry) => entry.roleType === 'reserve');
+      const reserveByDriver = new Map(reserveEntries.map((entry) => [Number(entry.DriverId), entry]));
+      const plannedByRegular = new Map(
+        reserveEntries.filter((entry) => entry.ReplacementForDriverId)
+          .map((entry) => [Number(entry.ReplacementForDriverId), entry]),
+      );
+      const regularDecision = new Map();
+      const releasedReserveIds = new Set();
 
-      /*
-       * =================================================
-       * 1. UNSICHERE STAMMFAHRER AUFLÖSEN
-       * =================================================
-       */
-
-      for (
-        const regularEntry
-        of regularUncertainEntries
-      ) {
-        const decision =
-          uncertainDecisionFor(
-            regularEntry,
-          );
-
-
-        if (
-          decision ===
-          "unresolved"
-        ) {
-          throw new Error(
-            "Eine fehlende Rückmeldung wurde noch nicht geklärt.",
-          );
-        }
-
-
-        const plannedReplacement =
-          entries.find(
-            (candidate) =>
-              candidate.roleType ===
-                "reserve" &&
-              Number(
-                candidate
-                  .ReplacementForDriverId,
-              ) ===
-                Number(
-                  regularEntry.DriverId,
-                ),
-          );
-
-
-        /*
-         * Kein vorgemerkter Ersatz.
-         * Der Stammfahrer wird normal über
-         * attendance[...] verarbeitet.
-         */
-        if (
-          !plannedReplacement
-        ) {
-          continue;
-        }
-
-
-        const regularTakesSeat =
-          decision ===
-          "regular";
-
-
-        const inactiveEntry =
-          regularTakesSeat
-            ? plannedReplacement
-            : regularEntry;
-
-
-        inactiveUncertainEntryIds.add(
-          Number(
-            inactiveEntry.id,
-          ),
-        );
-
-
-        /*
-         * Nicht eingesetzter Fahrer
-         * kommt nicht ins Ergebnis.
-         */
-        await inactiveEntry.update(
-          {
-            attendanceStatus:
-              null,
-
-            includeInResults:
-              false,
-          },
-          {
-            transaction,
-          },
-        );
-
-
-        await PenaltyEntry.destroy({
-          where: {
-            GrandPrixResultId:
-              race.id,
-
-            DriverId:
-              inactiveEntry.DriverId,
-
-            isAutomatic:
-              true,
-          },
-
-          transaction,
-        });
-
-
-        /*
-         * Wenn Stammfahrer selbst fährt,
-         * vorgemerkte Reserve-Zuordnung lösen.
-         *
-         * Dadurch kann der Ersatz spontan
-         * ein anderes Cockpit übernehmen.
-         */
-        if (
-          regularTakesSeat
-        ) {
-          await plannedReplacement.update(
-            {
-              ReplacementForDriverId:
-                null,
-
-              TeamId:
-                null,
-
-              attendanceStatus:
-                null,
-
-              includeInResults:
-                false,
-            },
-            {
-              transaction,
-            },
-          );
+      for (const regular of regularEntries.filter((entry) => entry.status === 'unsicher')) {
+        const decision = parseUncertainDecision(uncertainInput, regular);
+        if (decision === null) throw new Error(`${regular.driver?.name || 'Ein Stammfahrer'}: Bitte „Ist der Fahrer da?“ mit Ja oder Nein beantworten.`);
+        regularDecision.set(Number(regular.id), decision);
+        const planned = plannedByRegular.get(Number(regular.DriverId));
+        if (decision && planned) {
+          if (planned.includeInResults && STARTING_ATTENDANCE.has(planned.attendanceStatus)) {
+            throw new Error(`${planned.driver?.name || 'Der Ersatzfahrer'} ist bereits als Starter bestätigt. Bitte zuerst eine ausdrückliche Anwesenheitskorrektur durchführen.`);
+          }
+          releasedReserveIds.add(Number(planned.DriverId));
         }
       }
 
+      const usedReserveIds = new Set();
+      const finalReserveDrivers = new Set();
+      let followUpRequired = false;
 
-      /*
-       * =================================================
-       * 2. NORMALE ANWESENHEIT
-       * =================================================
-       */
-
-      for (
-        const entry
-        of entries
-      ) {
-        if (
-          inactiveUncertainEntryIds.has(
-            Number(entry.id),
-          )
-        ) {
-          continue;
+      async function storeAttendance(entry, status) {
+        const normalized = normalizeAttendanceStatus(status);
+        if (![...STARTING_ATTENDANCE, ...ABSENT_ATTENDANCE].includes(normalized)) {
+          throw new Error(`${entry.driver?.name || 'Fahrer'}: Ungültiger Anwesenheitsstatus.`);
         }
+        await entry.update({ attendanceStatus: normalized, includeInResults: STARTING_ATTENDANCE.has(normalized) }, { transaction });
+        await syncAutomaticAttendancePenalty({ race, entry, attendanceStatus: normalized, ruleByStatus, transaction });
+        return normalized;
+      }
 
+      function requestedReplacement(entry) {
+        return Number(formRow(attendanceInput, entry.id).ReplacementDriverId || 0) || null;
+      }
 
-        const row =
-          input[
-            `d${entry.id}`
-          ];
-
-
-        if (!row) {
-          continue;
+      function ensureReserveAvailable(reserve, rootRegular) {
+        if (!reserve || reserve.roleType !== 'reserve' || !ELIGIBLE_RESERVE_STATUS.has(reserve.status)) {
+          throw new Error('Der gewählte Ersatzfahrer ist nicht verfügbar.');
         }
-
-
-        const attendanceStatus =
-          normalizeAttendanceStatus(
-            row.status,
-          );
-
-
-        /*
-         * Schritt 2 akzeptiert hier nur:
-         *
-         * anwesend
-         * zu spät Vorbesprechung
-         * unabgemeldet / nicht erschienen
-         * zu spät abgemeldet
-         */
-
-        if (
-          ![
-            "anwesend",
-            "zu_spaet_vorbesprechung",
-            "unabgemeldet",
-            "zu_spaet_abgemeldet",
-          ].includes(
-            attendanceStatus,
-          )
-        ) {
-          throw new Error(
-            "Ungültiger Status in der Anwesenheitskontrolle.",
-          );
+        if (usedReserveIds.has(Number(reserve.DriverId))) {
+          throw new Error(`${reserve.driver?.name || 'Der Ersatzfahrer'} ist in diesem Rennwochenende bereits eingesetzt.`);
         }
-
-
-        const mayStart =
-          [
-            "anwesend",
-            "zu_spaet_vorbesprechung",
-          ].includes(
-            attendanceStatus,
-          );
-
-
-        await entry.update(
-          {
-            attendanceStatus,
-
-            includeInResults:
-              mayStart,
-          },
-          {
-            transaction,
-          },
-        );
-
-
-        await syncAutomaticAttendancePenalty({
-          race,
-          entry,
-          attendanceStatus,
-          ruleByStatus,
-          transaction,
-        });
-
-
-        /*
-         * =================================================
-         * 3. SPONTANER ERSATZ
-         * =================================================
-         */
-
-        const replacementId =
-          Number(
-            row
-              .ReplacementDriverId ||
-              0,
-          );
-
-
-        if (!replacementId) {
-          continue;
+        const currentTarget = Number(reserve.ReplacementForDriverId || 0);
+        if (reserve.includeInResults && currentTarget && currentTarget !== Number(rootRegular.DriverId)) {
+          throw new Error(`${reserve.driver?.name || 'Der Ersatzfahrer'} ist bereits als Starter für ein anderes Cockpit bestätigt.`);
         }
-
-
-        /*
-         * Nur:
-         *
-         * nicht erschienen
-         * zu spät abgemeldet
-         */
-        if (
-          ![
-            "unabgemeldet",
-            "zu_spaet_abgemeldet",
-          ].includes(
-            attendanceStatus,
-          )
-        ) {
-          throw new Error(
-            "Ein spontaner Ersatz ist nur bei „Nicht erschienen“ oder „Zu spät abgemeldet“ möglich.",
-          );
+        if (currentTarget && currentTarget !== Number(rootRegular.DriverId) && !releasedReserveIds.has(Number(reserve.DriverId))) {
+          throw new Error(`${reserve.driver?.name || 'Der Ersatzfahrer'} ist für einen anderen unsicheren Fahrer reserviert.`);
         }
+      }
 
+      async function resolveReserve(startReserve, rootRegular, freshlySelected = false) {
+        let reserve = startReserve;
+        let isFresh = freshlySelected;
+        const chain = new Set();
 
-        if (
-          !allowedReplacementIds.has(
-            replacementId,
-          ) ||
-          usedReplacementIds.has(
-            replacementId,
-          )
-        ) {
-          throw new Error(
-            "Der gewählte Ersatzfahrer ist nicht verfügbar oder bereits zugeteilt.",
-          );
-        }
+        while (reserve) {
+          ensureReserveAvailable(reserve, rootRegular);
+          if (chain.has(Number(reserve.DriverId))) throw new Error('Die Ersatzfahrerkette enthält eine ungültige Schleife.');
+          chain.add(Number(reserve.DriverId));
+          usedReserveIds.add(Number(reserve.DriverId));
+          finalReserveDrivers.add(Number(reserve.DriverId));
 
+          await reserve.update({
+            ReplacementForDriverId: rootRegular.DriverId,
+            TeamId: rootRegular.TeamId,
+            ...(reserve.status === 'auf_abruf' ? { status: 'anwesend' } : {}),
+          }, { transaction });
 
-        const replacement =
-          await Driver.findByPk(
-            replacementId,
-            {
-              transaction,
-            },
-          );
-
-
-        if (!replacement) {
-          throw new Error(
-            "Ersatzfahrer wurde nicht gefunden.",
-          );
-        }
-
-
-        usedReplacementIds.add(
-          replacementId,
-        );
-
-
-        /*
-         * Bereits vorhandener Ersatz
-         * für dieses Cockpit?
-         */
-
-        const existingTargetReplacement =
-          entries.find(
-            (candidate) =>
-              candidate.roleType ===
-                "reserve" &&
-              Number(
-                candidate
-                  .ReplacementForDriverId,
-              ) ===
-                Number(
-                  entry.DriverId,
-                ) &&
-              Number(
-                candidate.DriverId,
-              ) !==
-                replacementId,
-          );
-
-
-        if (
-          existingTargetReplacement
-        ) {
-          throw new Error(
-            "Für dieses Cockpit ist bereits ein anderer Ersatzfahrer eingeteilt.",
-          );
-        }
-
-
-        const existingReserve =
-          entries.find(
-            (candidate) =>
-              Number(
-                candidate.DriverId,
-              ) ===
-              replacementId,
-          );
-
-
-        const replacementValues = {
-          ReplacementForDriverId:
-            entry.DriverId,
-
-          TeamId:
-            entry.TeamId,
-
-          roleType:
-            "reserve",
-
-          status:
-            "anwesend",
-
-          attendanceStatus:
-            "anwesend",
-
-          includeInResults:
-            true,
-
-          sortOrder:
-            entries.length +
-            usedReplacementIds.size,
-        };
-
-
-        if (existingReserve) {
-          /*
-           * Ist der Ersatz noch einem anderen
-           * Cockpit zugeordnet?
-           */
-
-          if (
-            existingReserve
-              .ReplacementForDriverId &&
-            Number(
-              existingReserve
-                .ReplacementForDriverId,
-            ) !==
-              Number(
-                entry.DriverId,
-              )
-          ) {
-            const mayBeReassigned =
-              releasedPlannedReplacementIds.has(
-                Number(
-                  existingReserve.DriverId,
-                ),
-              );
-
-
-            if (!mayBeReassigned) {
-              throw new Error(
-                "Der Ersatzfahrer ist bereits einem anderen Cockpit zugeteilt.",
-              );
+          if (reserve.status === 'unsicher') {
+            const present = parseUncertainDecision(uncertainInput, reserve);
+            if (present === null) {
+              if (!isFresh) throw new Error(`${reserve.driver?.name || 'Der Ersatzfahrer'} ist unsicher und muss vor der Ergebnisübernahme geprüft werden.`);
+              await reserve.update({ attendanceStatus: null, includeInResults: false }, { transaction });
+              followUpRequired = true;
+              return null;
+            }
+            await reserve.update({
+              uncertainPresent: present,
+              respondedInTime: formRow(uncertainInput, reserve.id).respondedInTime === 'on',
+            }, { transaction });
+            if (!present) {
+              await storeAttendance(reserve, formRow(attendanceInput, reserve.id).status || 'unabgemeldet');
+              await reserve.update({ includeInResults: false }, { transaction });
+              const nextId = requestedReplacement(reserve);
+              if (!nextId) return null;
+              finalReserveDrivers.delete(Number(reserve.DriverId));
+              await reserve.update({ ReplacementForDriverId: null, TeamId: null }, { transaction });
+              reserve = reserveByDriver.get(nextId);
+              isFresh = true;
+              continue;
             }
           }
 
+          const status = await storeAttendance(reserve, formRow(attendanceInput, reserve.id).status || 'anwesend');
+          if (STARTING_ATTENDANCE.has(status)) return reserve;
 
-          await existingReserve.update(
-            replacementValues,
-            {
-              transaction,
-            },
-          );
+          const nextId = requestedReplacement(reserve);
+          if (!nextId) return null;
+          finalReserveDrivers.delete(Number(reserve.DriverId));
+          await reserve.update({ ReplacementForDriverId: null, TeamId: null }, { transaction });
+          reserve = reserveByDriver.get(nextId);
+          isFresh = true;
+        }
+        return null;
+      }
+
+      for (const regular of regularEntries) {
+        const planned = plannedByRegular.get(Number(regular.DriverId)) || null;
+        if (regular.status === 'rennsperre') {
+          await regular.update({ attendanceStatus: null, includeInResults: false }, { transaction });
+          continue;
+        }
+
+        let regularTakesSeat = regular.status === 'anwesend';
+        if (regular.status === 'unsicher') {
+          regularTakesSeat = regularDecision.get(Number(regular.id));
+          await regular.update({
+            uncertainPresent: regularTakesSeat,
+            respondedInTime: formRow(uncertainInput, regular.id).respondedInTime === 'on',
+          }, { transaction });
+        }
+
+        if (regularTakesSeat) {
+          const status = await storeAttendance(regular, formRow(attendanceInput, regular.id).status || 'anwesend');
+          if (STARTING_ATTENDANCE.has(status)) {
+            if (planned && !planned.includeInResults) releasedReserveIds.add(Number(planned.DriverId));
+            continue;
+          }
+          const spontaneousId = requestedReplacement(regular);
+          if (spontaneousId) await resolveReserve(reserveByDriver.get(spontaneousId), regular, true);
+          continue;
+        }
+
+        await regular.update({
+          includeInResults: false,
+          ...(regular.status === 'abgemeldet' ? { attendanceStatus: null } : {}),
+        }, { transaction });
+        if (regular.status === 'unsicher') {
+          const absentStatus = formRow(attendanceInput, regular.id).status || 'unabgemeldet';
+          if (!ABSENT_ATTENDANCE.has(absentStatus)) {
+            throw new Error(`${regular.driver?.name || 'Stammfahrer'}: Bei „Nein“ muss „Nicht erschienen“ oder „Zu spät abgemeldet“ gewählt werden.`);
+          }
+          await storeAttendance(regular, absentStatus);
+        }
+
+        if (planned) {
+          await resolveReserve(planned, regular, false);
         } else {
-          await F1RaceLineupEntry.create(
-            {
-              GrandPrixResultId:
-                race.id,
-
-              DriverId:
-                replacement.id,
-
-              ...replacementValues,
-            },
-            {
-              transaction,
-            },
-          );
+          const spontaneousId = requestedReplacement(regular);
+          if (spontaneousId) await resolveReserve(reserveByDriver.get(spontaneousId), regular, true);
         }
       }
-    },
-  );
 
+      for (const reserve of reserveEntries) {
+        if (!releasedReserveIds.has(Number(reserve.DriverId)) || finalReserveDrivers.has(Number(reserve.DriverId))) continue;
+        if (reserve.includeInResults && STARTING_ATTENDANCE.has(reserve.attendanceStatus)) {
+          throw new Error(`${reserve.driver?.name || 'Ein Ersatzfahrer'} ist bereits bestätigt und kann nicht stillschweigend freigegeben werden.`);
+        }
+        await reserve.update({
+          ReplacementForDriverId: null,
+          TeamId: null,
+          attendanceStatus: null,
+          includeInResults: false,
+          uncertainPresent: null,
+          respondedInTime: null,
+        }, { transaction });
+      }
 
-  /*
-   * ERFOLG
-   */
+      if (followUpRequired) {
+        req.session.flash = {
+          type: 'warning',
+          message: 'Ein neu gewählter Ersatzfahrer ist unsicher. Bitte seine Ja/Nein-Prüfung jetzt abschließen.',
+        };
+      }
+    });
 
-  req.session.flash = {
-    type:
-      "success",
+    if (!req.session.flash) {
+      req.session.flash = {
+        type: 'success',
+        message: Object.keys(correctionInput).length
+          ? 'Anwesenheitskorrekturen wurden gespeichert.'
+          : 'Anwesenheitskontrolle gespeichert. Nur bestätigte Starter werden in Schritt 3 übernommen.',
+      };
+    }
+  } catch (error) {
+    req.session.flash = { type: 'error', message: error.message };
+  }
 
-    message:
-      Object.keys(
-        correctionInput,
-      ).length
-        ? "Anwesenheitskorrekturen wurden gespeichert."
-        : "Anwesenheitskontrolle wurde gespeichert. Die tatsächlichen Starter wurden automatisch für die Ergebnisse übernommen.",
-  };
-
-
-  return res.redirect(
-    `/admin/race-weekend/f1?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}#anwesenheit`,
-  );
+  return res.redirect(`/admin/race-weekend/f1?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}#anwesenheit`);
 };
 
-
-module.exports.loadF1Data =
-  loadF1Data;
+module.exports.loadF1Data = loadF1Data;
+module.exports.selectCurrentEvent = selectCurrentEvent;

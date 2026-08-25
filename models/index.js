@@ -338,6 +338,7 @@ const GrandPrixResultEntry = sequelize.define('GrandPrixResultEntry', {
   status: DataTypes.STRING,
   fastestLap: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   polePosition: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  driverOfTheDay: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   ...commonSort
 });
 
@@ -346,6 +347,8 @@ const F1RaceLineupEntry = sequelize.define('F1RaceLineupEntry', {
   status: { type: DataTypes.STRING, allowNull: false },
   attendanceStatus: DataTypes.STRING,
   includeInResults: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  uncertainPresent: { type: DataTypes.BOOLEAN, allowNull: true },
+  respondedInTime: { type: DataTypes.BOOLEAN, allowNull: true },
   ...commonSort
 }, {
   indexes: [

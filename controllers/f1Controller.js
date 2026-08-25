@@ -622,6 +622,36 @@ async function loadLeagueData(slug, requestedSeasonId) {
   });
 
   /*
+   * Kompakte öffentliche Rennstatistik. Sie verwendet ausschließlich die
+   * vorhandenen RaceEvent-/GrandPrixResult-Daten und erzeugt keine zweite
+   * Ergebnisquelle.
+   */
+  const raceStatistics = decoratedGpResults
+    .filter((race) => race.raceType === "main")
+    .map((race) => {
+      const calendarEvent = calendarForRace(race);
+      if (calendarEvent?.isTestDay) return null;
+      const classified = (race.entries || []).slice().sort(
+        (left, right) => Number(left.position || 999) - Number(right.position || 999),
+      );
+      const podium = [1, 2, 3].map((position) =>
+        classified.find((entry) => Number(entry.position) === position) || null,
+      );
+      return {
+        round: Number(calendarEvent?.sortOrder || race.sortOrder || 0),
+        track: race.displayCircuit || race.circuit || race.displayTitle,
+        flagPath: race.countryFlagPath || null,
+        date: race.raceDate || calendarEvent?.startsAt || null,
+        driverOfTheDay: classified.find((entry) => entry.driverOfTheDay) || null,
+        podium,
+        polePosition: classified.find((entry) => entry.polePosition) || null,
+        fastestLap: classified.find((entry) => entry.fastestLap) || null,
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.round - right.round);
+
+  /*
    * =====================================================
    * STANDINGS
    * =====================================================
@@ -725,6 +755,8 @@ if (standingsData.selectedHistory?.races) {
     drivers,
 
     gpResults: decoratedGpResults,
+
+    raceStatistics,
 
     calendar,
 
