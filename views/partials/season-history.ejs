@@ -21,12 +21,30 @@
     );
 
   const podiumClass = (result) => {
-    const position = Number(result?.position);
+    const position = Number(
+      result?.position
+    );
 
-    return position >= 1 && position <= 3
+    return position >= 1 &&
+      position <= 3
       ? `season-race-position-${position}`
       : '';
   };
+
+
+  /*
+   * =====================================================
+   * SCHNELLSTE RUNDE
+   * =====================================================
+   */
+
+  const hasFastestLap = (result) =>
+    Boolean(
+      result?.fastestLap ||
+      result?.fastest_lap ||
+      result?.awardedFastestLapPoint
+    );
+
 
   const resultLabel = (
     result,
@@ -39,12 +57,6 @@
      * Reserve-Stints:
      *
      * immer "-"
-     *
-     * Beispiel:
-     * Reserve bis R4,
-     * ab R5 Stammfahrer
-     *
-     * Reservewertung ab R5 = "-"
      */
     if (
       mode === 'reserve' &&
@@ -147,10 +159,128 @@
 %>
 
 
-<% if (
+<style>
+
+/* =========================================================
+   SCHNELLSTE RUNDE
+   ========================================================= */
+
+.sheet-result-single,
+.sheet-result-part {
+  position: relative;
+}
+
+
+/*
+ * Dezente Hervorhebung der Zelle
+ */
+
+.sheet-result-single.has-fastest-lap,
+.sheet-result-part.has-fastest-lap {
+  box-shadow:
+    inset 0 0 0 1px
+      rgba(255, 214, 10, 0.82),
+    0 0 8px
+      rgba(255, 214, 10, 0.12);
+}
+
+
+/*
+ * Kleiner goldener Akzent
+ */
+
+.sheet-result-single.has-fastest-lap::before,
+.sheet-result-part.has-fastest-lap::before {
+  content: "";
+
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 214, 10, 0.13),
+      rgba(255, 214, 10, 0.03) 48%,
+      transparent 70%
+    );
+}
+
+
+/*
+ * FL Badge
+ */
+
+.sheet-fastest-lap-badge {
+  position: absolute;
+
+  top: 2px;
+  right: 2px;
+
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  min-width: 15px;
+  height: 11px;
+
+  padding: 0 3px;
+
+  border-radius: 2px;
+
+  background: #ffd60a;
+
+  color: #071014;
+
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+
+  line-height: 1;
+
+  letter-spacing: 0.02em;
+
+  z-index: 2;
+}
+
+
+/*
+ * Punktzahl bei schnellster Runde
+ */
+
+.sheet-result-single.has-fastest-lap,
+.sheet-result-part.has-fastest-lap b {
+  font-weight: 900;
+}
+
+
+/*
+ * Sprint-Zelle etwas kompakter
+ */
+
+.sheet-result-part.has-fastest-lap
+.sheet-fastest-lap-badge {
+  min-width: 13px;
+
+  height: 10px;
+
+  padding: 0 2px;
+
+  font-size: 6px;
+}
+
+</style>
+
+
+<%
+if (
   history.seasons.length &&
   selectedHistory
-) { %>
+) {
+%>
 
 
   <!-- ================================================= -->
@@ -234,10 +364,12 @@
   <!-- ADMIN-HINWEIS -->
   <!-- ================================================= -->
 
-  <% if (
+  <%
+  if (
     history.warning &&
     isAdmin
-  ) { %>
+  ) {
+  %>
 
     <div
       class="history-notice"
@@ -426,7 +558,7 @@
             </th>
 
 
-            <!-- TEAM NUR BEI STAMMFAHRERN -->
+            <!-- TEAM -->
 
             <% if (mode === 'regular') { %>
 
@@ -455,11 +587,7 @@
                     : ''
                   %>
                 "
-                title="
-                  Runde <%= race.round %>
-                  ·
-                  <%= race.title %>
-                "
+                title="Runde <%= race.round %> · <%= race.title %>"
               >
 
 
@@ -617,10 +745,12 @@
 
                 <!-- NEUER STAMMFAHRER -->
 
-                <% if (
+                <%
+                if (
                   !driver.isFormerDriver &&
                   driver.regularFromRound > 1
-                ) { %>
+                ) {
+                %>
 
                   <small>
                     ab R<%= driver.regularFromRound %>
@@ -631,10 +761,12 @@
 
                 <!-- BEFÖRDERTER ERSATZFAHRER -->
 
-                <% if (
+                <%
+                if (
                   mode === 'reserve' &&
                   driver.promotedToRegular
-                ) { %>
+                ) {
+                %>
 
                   <small>
                     ab R<%= driver.promotedFromRound %>
@@ -649,7 +781,6 @@
 
               <!-- ======================================= -->
               <!-- TEAM -->
-              <!-- NUR STAMMFAHRER -->
               <!-- ======================================= -->
 
               <% if (mode === 'regular') { %>
@@ -692,14 +823,17 @@
               <!-- RENNWOCHENENDEN -->
               <!-- ======================================= -->
 
-              <% driver.results.forEach(
+              <%
+              driver.results.forEach(
                 (
                   weekend,
                   index
                 ) => {
 
                   const race =
-                    selectedHistory.races[index];
+                    selectedHistory.races[
+                      index
+                    ];
 
 
                   const main =
@@ -734,6 +868,22 @@
                       mode,
                       race
                     );
+
+
+                  /*
+                   * Schnellste Runde
+                   */
+
+                  const mainFastestLap =
+                    hasFastestLap(
+                      main
+                    );
+
+
+                  const sprintFastestLap =
+                    hasFastestLap(
+                      sprint
+                    );
               %>
 
 
@@ -763,6 +913,10 @@
                         is-sprint
                         <%= `is-${sprintView.kind}` %>
                         <%= podiumClass(sprint) %>
+                        <%= sprintFastestLap
+                          ? 'has-fastest-lap'
+                          : ''
+                        %>
                       "
                     >
 
@@ -773,6 +927,18 @@
                       <b>
                         <%= sprintView.text %>
                       </b>
+
+
+                      <% if (sprintFastestLap) { %>
+
+                        <em
+                          class="sheet-fastest-lap-badge"
+                          title="Schnellste Runde"
+                        >
+                          FL
+                        </em>
+
+                      <% } %>
 
                     </span>
 
@@ -785,6 +951,10 @@
                         is-main
                         <%= `is-${mainView.kind}` %>
                         <%= podiumClass(main) %>
+                        <%= mainFastestLap
+                          ? 'has-fastest-lap'
+                          : ''
+                        %>
                       "
                     >
 
@@ -795,6 +965,18 @@
                       <b>
                         <%= mainView.text %>
                       </b>
+
+
+                      <% if (mainFastestLap) { %>
+
+                        <em
+                          class="sheet-fastest-lap-badge"
+                          title="Schnellste Runde"
+                        >
+                          FL
+                        </em>
+
+                      <% } %>
 
                     </span>
 
@@ -809,10 +991,26 @@
                         sheet-result-single
                         <%= `is-${mainView.kind}` %>
                         <%= podiumClass(main) %>
+                        <%= mainFastestLap
+                          ? 'has-fastest-lap'
+                          : ''
+                        %>
                       "
                     >
 
                       <%= mainView.text %>
+
+
+                      <% if (mainFastestLap) { %>
+
+                        <em
+                          class="sheet-fastest-lap-badge"
+                          title="Schnellste Runde"
+                        >
+                          FL
+                        </em>
+
+                      <% } %>
 
                     </span>
 
@@ -823,7 +1021,10 @@
                 </td>
 
 
-              <% }) %>
+              <%
+                }
+              );
+              %>
 
 
               <!-- ======================================= -->
@@ -848,7 +1049,9 @@
                 <%= driver.position === 1
                   ? '—'
                   : `+${Math.abs(
-                      numberOf(driver.gap)
+                      numberOf(
+                        driver.gap
+                      )
                     )}`
                 %>
 
@@ -953,10 +1156,14 @@
   >
 
 
-    <% if (
-      (selectedHistory.reserveDrivers || [])
-        .length
-    ) { %>
+    <%
+    if (
+      (
+        selectedHistory.reserveDrivers ||
+        []
+      ).length
+    ) {
+    %>
 
 
       <%
@@ -983,7 +1190,60 @@
 
   </section>
 
+<div class="season-sheet-legend">
 
+  <div class="season-sheet-legend__title">
+    LEGENDE
+  </div>
+
+  <div class="season-sheet-legend__items">
+
+    <div class="season-sheet-legend__item">
+      <span class="season-sheet-legend__code is-dns">
+        DNS
+      </span>
+
+      <span>
+        Did Not Start
+      </span>
+    </div>
+
+
+    <div class="season-sheet-legend__item">
+      <span class="season-sheet-legend__code is-dna">
+        DNA
+      </span>
+
+      <span>
+        Did Not Attend
+      </span>
+    </div>
+
+
+    <div class="season-sheet-legend__item">
+      <span class="season-sheet-legend__code is-dnf">
+        DNF
+      </span>
+
+      <span>
+        Did Not Finish
+      </span>
+    </div>
+
+
+    <div class="season-sheet-legend__item">
+      <span class="season-sheet-legend__code is-fl">
+        FL
+      </span>
+
+      <span>
+        Fastest Lap · Schnellste Runde
+      </span>
+    </div>
+
+  </div>
+
+</div>
 <% } else { %>
 
 
@@ -995,3 +1255,4 @@
 
 
 <% } %>
+

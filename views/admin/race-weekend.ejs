@@ -4,11 +4,26 @@
   const allowedAttendance = (attendanceStatuses || []).filter((status) =>
     ['anwesend', 'zu_spaet_vorbesprechung', 'unabgemeldet', 'zu_spaet_abgemeldet'].includes(status.value)
   );
+
+  const startingAttendance = allowedAttendance.filter((status) =>
+    ['anwesend', 'zu_spaet_vorbesprechung'].includes(status.value)
+  );
+
+  const correctionAttendance = [
+    ...allowedAttendance,
+    { value: 'abgemeldet', label: 'Rechtzeitig abgemeldet' },
+  ];
+
   const attendanceValue = (entry, fallback = 'anwesend') =>
     allowedAttendance.some((status) => status.value === entry?.attendanceStatus)
       ? entry.attendanceStatus
       : fallback;
-  const attendanceLabel = (status) => status.value === 'unabgemeldet' ? 'Nicht erschienen' : status.label;
+
+  const attendanceLabel = (status) => {
+    if (status.value === 'unabgemeldet') return 'Unabgemeldet';
+    if (status.value === 'abgemeldet') return 'Rechtzeitig abgemeldet';
+    return status.label;
+  };
   const currentSelectionMode = typeof selectionMode === 'undefined' ? 'manual' : selectionMode;
   const savedResultCount = typeof resultCount === 'undefined' ? 0 : resultCount;
   const matrixTeamCards = typeof teamCards === 'undefined' ? [] : teamCards;
@@ -77,6 +92,104 @@
         <a href="#ergebnisse" class="<%= savedResultCount ? 'complete' : '' %>"><span>3</span><strong>Ergebnis</strong><small><%= savedResultCount ? '✓ gespeichert' : 'offen' %></small></a>
       </nav>
 
+      <section class="weekend-reset-panel">
+
+  <div class="weekend-reset-panel__copy">
+    <span>VERWALTUNG</span>
+
+    <strong>
+      Rennwochenende zurücksetzen
+    </strong>
+
+    <small>
+      Einzelne Schritte oder das gesamte
+      operative Rennwochenende zurücksetzen.
+    </small>
+  </div>
+
+
+  <div class="weekend-reset-panel__actions">
+
+    <% if (entries.length) { %>
+
+      <form
+        method="post"
+        action="/admin/race-weekend/f1/<%= race.id %>/reset-lineup"
+        onsubmit="return confirm(
+          'Aufstellung wirklich zurücksetzen?\n\nDadurch werden auch Anwesenheit und Ergebnis dieses Rennens zurückgesetzt.'
+        );"
+      >
+        <button
+          type="submit"
+          class="button button-ghost"
+        >
+          AUFSTELLUNG RESETTEN
+        </button>
+      </form>
+
+
+      <form
+        method="post"
+        action="/admin/race-weekend/f1/<%= race.id %>/reset-attendance"
+        onsubmit="return confirm(
+          'Anwesenheit wirklich zurücksetzen?\n\nDie Aufstellung bleibt bestehen. Anwesenheitsdaten und Ergebnis werden zurückgesetzt.'
+        );"
+      >
+        <button
+          type="submit"
+          class="button button-ghost"
+        >
+          ANWESENHEIT RESETTEN
+        </button>
+      </form>
+
+    <% } %>
+
+
+    <% if (savedResultCount) { %>
+
+      <form
+        method="post"
+        action="/admin/race-weekend/f1/<%= race.id %>/reset-results"
+        onsubmit="return confirm(
+          'Rennergebnis wirklich zurücksetzen?\n\nAufstellung und Anwesenheit bleiben bestehen.'
+        );"
+      >
+        <button
+          type="submit"
+          class="button button-ghost"
+        >
+          ERGEBNIS RESETTEN
+        </button>
+      </form>
+
+    <% } %>
+
+
+    <% if (entries.length || savedResultCount) { %>
+
+      <form
+        method="post"
+        action="/admin/race-weekend/f1/<%= race.id %>/reset-all"
+        onsubmit="return confirm(
+          'ACHTUNG!\n\nDas gesamte Rennwochenende wirklich zurücksetzen?\n\nAufstellung, Anwesenheit und Ergebnis werden gelöscht.\n\nKalender, Saison, Teams und Fahrer bleiben erhalten.'
+        );"
+      >
+        <button
+          type="submit"
+          class="button button-danger"
+        >
+          ALLES RESETTEN
+        </button>
+      </form>
+
+    <% } %>
+
+  </div>
+
+</section>
+
+
       <section class="weekend-step" id="aufstellung">
         <div class="weekend-step-number">01</div>
         <div>
@@ -89,171 +202,797 @@
 
       <section class="weekend-step" id="anwesenheit">
         <div class="weekend-step-number">02</div>
+
         <div>
           <span>VOR DEM START</span>
           <h2>ANWESENHEITSKONTROLLE</h2>
-          <p>Unsichere Fahrer werden zuerst mit Ja/Nein geklärt. „Rechtzeitig zurückgemeldet“ wird unabhängig davon gespeichert.</p>
+
+          <p>
+            Normale Fahrer können auf Anwesend, Zu spät Vorbesprechung,
+            Zu spät abgemeldet oder Unabgemeldet gesetzt werden. Bei unsicheren
+            Fahrern sind „Ist der Fahrer da?“ und „Rechtzeitig zurückgemeldet?“
+            Pflichtfelder; bei „JA, Fahrer ist da“ bleiben nur Anwesend und
+            Zu spät Vorbesprechung möglich.
+          </p>
 
           <% if (!entries.length) { %>
-            <div class="empty-state">Bitte zuerst Schritt 1 speichern.</div>
+
+            <div class="empty-state">
+              Bitte zuerst Schritt 1 speichern.
+            </div>
+
           <% } else { %>
-            <form method="post" action="/admin/race-weekend/f1/<%= race.id %>/attendance" class="f1-attendance" data-f1-attendance>
+
+            <form
+              method="post"
+              action="/admin/race-weekend/f1/<%= race.id %>/attendance"
+              class="f1-attendance"
+              data-f1-attendance
+            >
+
               <div class="f1-attendance__summary">
-                <span><strong><%= attendanceRows.length %></strong> Cockpits</span>
-                <span><strong><%= attendanceRows.filter((row) => row.entry.status === 'unsicher' || row.plannedReplacement?.status === 'unsicher').length %></strong> Unsicher-Fälle</span>
-                <span><strong><%= availableReplacements.filter((row) => row.status === 'auf_abruf').length %></strong> Auf Abruf</span>
+                <span>
+                  <strong><%= attendanceRows.length %></strong>
+                  Cockpits
+                </span>
+
+                <span>
+                  <strong>
+                    <%= attendanceRows.filter((row) =>
+                      row.entry.status === 'unsicher' ||
+                      row.plannedReplacement?.status === 'unsicher'
+                    ).length %>
+                  </strong>
+                  Unsicher-Fälle
+                </span>
+
+                <span>
+                  <strong>
+                    <%= availableReplacements.filter((row) => row.status === 'auf_abruf').length %>
+                  </strong>
+                  Auf Abruf
+                </span>
               </div>
 
+
               <div class="f1-attendance__teams">
+
                 <% attendanceRows.forEach(({ entry: regular, displayTeam, plannedReplacement }) => {
-                  const regularIsUncertain = regular.status === 'unsicher';
-                  const regularPresent = regular.uncertainPresent === true;
-                  const regularAbsent = regular.uncertainPresent === false;
-                  const regularAttendance = attendanceValue(regular, regularAbsent ? 'unabgemeldet' : 'anwesend');
-                  const showRegular = regular.status === 'anwesend' || regularPresent;
-                  const showReplacement = regular.status === 'abgemeldet' || regularAbsent;
+
+                  const regularIsUncertain =
+                    regular.status === 'unsicher';
+
+                  const regularPresent =
+                    regular.uncertainPresent === true;
+
+                  const regularAbsent =
+                    regular.uncertainPresent === false;
+
+                  const regularAttendance =
+                    attendanceValue(regular, 'anwesend');
+
+                  const regularAttendanceOptions =
+                    regularIsUncertain
+                      ? startingAttendance
+                      : allowedAttendance;
+
+                  const showRegular =
+                    regular.status === 'anwesend' ||
+                    regularPresent;
+
+                  const showReplacement =
+                    regular.status === 'abgemeldet' ||
+                    regularAbsent;
+
                 %>
-                  <article class="f1-attendance-seat" style="--team-color:<%= displayTeam?.accentColor || '#6ef2f2' %>" data-seat-row>
-                    <input type="hidden" name="attendance[<%= regular.id %>][includeInResults]" value="automatic" disabled>
+
+                  <article
+                    class="f1-attendance-seat"
+                    style="--team-color:<%= displayTeam?.accentColor || '#6ef2f2' %>"
+                    data-seat-row
+                  >
+
                     <header>
-                      <% if (displayTeam?.logoPath) { %><img src="<%= displayTeam.logoPath %>" alt=""><% } %>
-                      <div><span><%= displayTeam?.name || 'Saisonteam' %></span><strong><%= regular.driver.name %></strong></div>
-                      <span class="f1-lineup-chip" data-tone="<%= regular.status %>"><%= regular.status.toUpperCase() %></span>
+                      <% if (displayTeam?.logoPath) { %>
+                        <img src="<%= displayTeam.logoPath %>" alt="">
+                      <% } %>
+
+                      <div>
+                        <span>
+                          <%= displayTeam?.name || 'Saisonteam' %>
+                        </span>
+
+                        <strong>
+                          <%= regular.driver.name %>
+                        </strong>
+                      </div>
+
+                      <span
+                        class="f1-lineup-chip"
+                        data-tone="<%= regular.status %>"
+                      >
+                        <%= regular.status.toUpperCase() %>
+                      </span>
                     </header>
 
+
                     <% if (regularIsUncertain) { %>
-                      <section class="f1-uncertain" data-uncertain-case data-entry-id="<%= regular.id %>">
-                        <div>
+
+                      <section
+                        class="f1-uncertain"
+                        data-uncertain-case
+                        data-entry-id="<%= regular.id %>"
+                      >
+
+                        <div class="f1-uncertain__question">
                           <span>UNSICHERE TEILNAHME</span>
-                          <strong>Ist <%= regular.driver.name %> da?</strong>
+
+                          <strong>
+                            Ist <%= regular.driver.name %> da?
+                          </strong>
                         </div>
+
+
                         <div class="f1-uncertain__choices">
-                          <label><input type="radio" name="uncertain[d<%= regular.id %>][present]" value="yes" <%= regularPresent ? 'checked' : '' %> data-uncertain-present> JA</label>
-                          <label><input type="radio" name="uncertain[d<%= regular.id %>][present]" value="no" <%= regularAbsent ? 'checked' : '' %> data-uncertain-present> NEIN</label>
+                          <label>
+                            <input
+                              type="radio"
+                              name="uncertain[d<%= regular.id %>][present]"
+                              value="yes"
+                              <%= regularPresent ? 'checked' : '' %>
+                              data-uncertain-present
+                            >
+                            JA
+                          </label>
+
+                          <label>
+                            <input
+                              type="radio"
+                              name="uncertain[d<%= regular.id %>][present]"
+                              value="no"
+                              <%= regularAbsent ? 'checked' : '' %>
+                              data-uncertain-present
+                            >
+                            NEIN
+                          </label>
                         </div>
-                        <label class="f1-uncertain__response"><input type="checkbox" name="uncertain[d<%= regular.id %>][respondedInTime]" <%= regular.respondedInTime ? 'checked' : '' %>> Rechtzeitig zurückgemeldet</label>
+
+
+                        <div class="f1-uncertain__question">
+                          <span>PFLICHTFELD</span>
+
+                          <strong>
+                            Rechtzeitig zurückgemeldet?
+                          </strong>
+                        </div>
+
+
+                        <div class="f1-uncertain__choices">
+                          <label>
+                            <input
+                              type="radio"
+                              name="uncertain[d<%= regular.id %>][respondedInTime]"
+                              value="yes"
+                              <%= regular.respondedInTime === true ? 'checked' : '' %>
+                              data-uncertain-responded
+                            >
+                            JA
+                          </label>
+
+                          <label>
+                            <input
+                              type="radio"
+                              name="uncertain[d<%= regular.id %>][respondedInTime]"
+                              value="no"
+                              <%= regular.respondedInTime === false ? 'checked' : '' %>
+                              data-uncertain-responded
+                            >
+                            NEIN
+                          </label>
+                        </div>
+
+
+                        <small
+                          class="f1-uncertain__required-error"
+                          data-uncertain-required-error
+                          hidden
+                        ></small>
+
                       </section>
+
                     <% } %>
 
-                    <div class="f1-attendance-person" data-present-panel="yes" <%= showRegular ? '' : 'hidden' %>>
-                      <div><span>STAMMFAHRER</span><strong><%= regular.driver.name %></strong></div>
-                      <label>Anwesenheit
-                        <select name="attendance[d<%= regular.id %>][status]" data-attendance-status>
-                          <% allowedAttendance.forEach((status) => { %><option value="<%= status.value %>" <%= regularAttendance === status.value ? 'selected' : '' %>><%= attendanceLabel(status) %></option><% }) %>
-                        </select>
-                      </label>
-                      <label class="f1-attendance-replacement" data-spontaneous-replacement <%= ['unabgemeldet', 'zu_spaet_abgemeldet'].includes(regularAttendance) ? '' : 'hidden' %>>Spontaner Ersatz
-                        <select name="attendance[d<%= regular.id %>][ReplacementDriverId]" data-replacement-choice>
-                          <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                          <% availableReplacements.forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                        </select>
-                      </label>
-                    </div>
 
-                    <div class="f1-attendance-person is-absent" data-present-panel="no" <%= regularIsUncertain && regularAbsent ? '' : 'hidden' %>>
-                      <div><span>STAMMFAHRER FÄHRT NICHT</span><strong><%= regular.driver.name %></strong></div>
-                      <label>Abwesenheit
-                        <select name="attendance[d<%= regular.id %>][status]" data-attendance-status <%= showRegular ? 'disabled' : '' %>>
-                          <option value="unabgemeldet" <%= regularAttendance === 'unabgemeldet' ? 'selected' : '' %>>Nicht erschienen</option>
-                          <option value="zu_spaet_abgemeldet" <%= regularAttendance === 'zu_spaet_abgemeldet' ? 'selected' : '' %>>Zu spät abgemeldet</option>
+                    <!-- =========================================
+                         FAHRER IST DA
+                         Nur Anwesend / Zu spät Vorbesprechung
+                         ========================================= -->
+
+                    <div
+                      class="f1-attendance-person"
+                      data-present-panel="yes"
+                      <%= showRegular ? '' : 'hidden' %>
+                    >
+
+                      <div>
+                        <span>STAMMFAHRER</span>
+                        <strong><%= regular.driver.name %></strong>
+                      </div>
+
+
+                      <label>
+                        Vorbesprechung
+
+                        <select
+                          name="attendance[d<%= regular.id %>][status]"
+                          data-attendance-status
+                          <%= showRegular ? '' : 'disabled' %>
+                        >
+
+                          <% regularAttendanceOptions.forEach((status) => { %>
+
+                            <option
+                              value="<%= status.value %>"
+                              <%= regularAttendance === status.value ? 'selected' : '' %>
+                            >
+                              <%= attendanceLabel(status) %>
+                            </option>
+
+                          <% }) %>
+
                         </select>
                       </label>
-                      <% if (!plannedReplacement) { %>
-                        <label class="f1-attendance-replacement">Ersatz benötigt
-                          <select name="attendance[d<%= regular.id %>][ReplacementDriverId]" data-replacement-choice <%= showRegular ? 'disabled' : '' %>>
-                            <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                            <% availableReplacements.forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
+
+                      <% if (!regularIsUncertain) { %>
+                        <label
+                          class="f1-attendance-replacement"
+                          data-spontaneous-replacement
+                          <%= ['unabgemeldet', 'zu_spaet_abgemeldet'].includes(regularAttendance) ? '' : 'hidden' %>
+                        >
+                          Spontaner Ersatz
+
+                          <select
+                            name="attendance[d<%= regular.id %>][ReplacementDriverId]"
+                            data-replacement-choice
+                          >
+                            <option value="">
+                              Kein Ersatz verfügbar / Cockpit leer
+                            </option>
+
+                            <% availableReplacements.forEach((driver) => { %>
+                              <option value="<%= driver.id %>">
+                                <%= driver.name %> · <%= replacementLabel(driver) %>
+                              </option>
+                            <% }) %>
                           </select>
                         </label>
                       <% } %>
+
                     </div>
 
-                    <% if (plannedReplacement) {
-                      const replacementUncertain = plannedReplacement.status === 'unsicher';
-                      const replacementPresent = plannedReplacement.uncertainPresent === true;
-                      const replacementAbsent = plannedReplacement.uncertainPresent === false;
-                      const replacementAttendance = attendanceValue(plannedReplacement, replacementAbsent ? 'unabgemeldet' : 'anwesend');
-                    %>
-                      <section class="f1-attendance-reserve" data-planned-replacement data-visible-when-regular-absent <%= showReplacement ? '' : 'hidden' %>>
-                        <header><span>VORGEMERKTER ERSATZ</span><strong><%= plannedReplacement.driver.name %></strong><small>Ersatz für <%= regular.driver.name %></small></header>
 
-                        <% if (replacementUncertain) { %>
-                          <section class="f1-uncertain" data-uncertain-case data-entry-id="<%= plannedReplacement.id %>">
-                            <div><span>ERSATZFAHRER UNSICHER</span><strong>Ist <%= plannedReplacement.driver.name %> da?</strong></div>
-                            <div class="f1-uncertain__choices">
-                              <label><input type="radio" name="uncertain[d<%= plannedReplacement.id %>][present]" value="yes" <%= replacementPresent ? 'checked' : '' %> data-uncertain-present> JA</label>
-                              <label><input type="radio" name="uncertain[d<%= plannedReplacement.id %>][present]" value="no" <%= replacementAbsent ? 'checked' : '' %> data-uncertain-present> NEIN</label>
-                            </div>
-                            <label class="f1-uncertain__response"><input type="checkbox" name="uncertain[d<%= plannedReplacement.id %>][respondedInTime]" <%= plannedReplacement.respondedInTime ? 'checked' : '' %>> Rechtzeitig zurückgemeldet</label>
-                          </section>
+                    <!-- =========================================
+                         FAHRER IST NICHT DA
+                         Kein Status-Dropdown mehr.
+                         Status ergibt sich automatisch aus
+                         "Rechtzeitig zurückgemeldet?"
+                         ========================================= -->
+
+                    <% if (regularIsUncertain) { %>
+
+                      <div
+                        class="f1-attendance-person is-absent"
+                        data-present-panel="no"
+                        <%= regularAbsent ? '' : 'hidden' %>
+                      >
+
+                        <div>
+                          <span>STAMMFAHRER FÄHRT NICHT</span>
+                          <strong><%= regular.driver.name %></strong>
+                        </div>
+
+
+                        <div class="f1-attendance-derived-status">
+
+     <% if (regular.respondedInTime === true) { %>
+
+  <span>
+    STATUS · AUTOMATISCH
+  </span>
+
+  <strong class="is-unsicher-response">
+    RÜCKMELDUNG BEI UNSICHER
+  </strong>
+
+<% } else if (regular.respondedInTime === false) { %>
+
+  <span>
+    STATUS · AUTOMATISCH
+  </span>
+
+  <strong class="is-missing-response">
+    FEHLENDE RÜCKMELDUNG BEI UNSICHER
+  </strong>
+
+<% } else { %>
+
+  <span>
+    STATUS
+  </span>
+
+  <strong>
+    Wird aus der Rückmeldung automatisch ermittelt
+  </strong>
+
+<% } %>
+
+                        </div>
+
+
+                        <% if (!plannedReplacement) { %>
+
+                          <label class="f1-attendance-replacement">
+                            Ersatz benötigt
+
+                            <select
+                              name="attendance[d<%= regular.id %>][ReplacementDriverId]"
+                              data-replacement-choice
+                              <%= regularAbsent ? '' : 'disabled' %>
+                            >
+                              <option value="">
+                                Kein Ersatz verfügbar / Cockpit leer
+                              </option>
+
+                              <% availableReplacements.forEach((driver) => { %>
+                                <option value="<%= driver.id %>">
+                                  <%= driver.name %> · <%= replacementLabel(driver) %>
+                                </option>
+                              <% }) %>
+                            </select>
+                          </label>
+
                         <% } %>
 
-                        <div class="f1-attendance-person" data-present-panel="yes" <%= !replacementUncertain || replacementPresent ? '' : 'hidden' %>>
-                          <div><span>COCKPITFAHRER</span><strong><%= plannedReplacement.driver.name %></strong></div>
-                          <label>Anwesenheit
-                            <select name="attendance[d<%= plannedReplacement.id %>][status]" data-attendance-status>
-                              <% allowedAttendance.forEach((status) => { %><option value="<%= status.value %>" <%= replacementAttendance === status.value ? 'selected' : '' %>><%= attendanceLabel(status) %></option><% }) %>
-                            </select>
-                          </label>
-                          <label class="f1-attendance-replacement" data-spontaneous-replacement <%= ['unabgemeldet', 'zu_spaet_abgemeldet'].includes(replacementAttendance) ? '' : 'hidden' %>>Weiterer Ersatz
-                            <select name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]" data-replacement-choice>
-                              <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                              <% availableReplacements.filter((driver) => Number(driver.id) !== Number(plannedReplacement.DriverId)).forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                            </select>
-                          </label>
+                      </div>
+
+                    <% } %>
+
+
+                    <!-- =========================================
+                         VORGEMERKTER ERSATZ
+                         ========================================= -->
+
+                    <% if (plannedReplacement) {
+
+                      const replacementUncertain =
+                        plannedReplacement.status === 'unsicher';
+
+                      const replacementPresent =
+                        plannedReplacement.uncertainPresent === true;
+
+                      const replacementAbsent =
+                        plannedReplacement.uncertainPresent === false;
+
+                      const replacementAttendance =
+                        attendanceValue(plannedReplacement, 'anwesend');
+
+                    %>
+
+                      <section
+                        class="f1-attendance-reserve"
+                        data-planned-replacement
+                        data-visible-when-regular-absent
+                        <%= showReplacement ? '' : 'hidden' %>
+                      >
+
+                        <header>
+                          <span>VORGEMERKTER ERSATZ</span>
+
+                          <strong>
+                            <%= plannedReplacement.driver.name %>
+                          </strong>
+
+                          <small>
+                            Ersatz für <%= regular.driver.name %>
+                          </small>
+                        </header>
+
+
+                        <% if (replacementUncertain) { %>
+
+                          <section
+                            class="f1-uncertain"
+                            data-uncertain-case
+                            data-entry-id="<%= plannedReplacement.id %>"
+                          >
+
+                            <div class="f1-uncertain__question">
+                              <span>ERSATZFAHRER UNSICHER</span>
+
+                              <strong>
+                                Ist <%= plannedReplacement.driver.name %> da?
+                              </strong>
+                            </div>
+
+
+                            <div class="f1-uncertain__choices">
+
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="uncertain[d<%= plannedReplacement.id %>][present]"
+                                  value="yes"
+                                  <%= replacementPresent ? 'checked' : '' %>
+                                  data-uncertain-present
+                                >
+                                JA
+                              </label>
+
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="uncertain[d<%= plannedReplacement.id %>][present]"
+                                  value="no"
+                                  <%= replacementAbsent ? 'checked' : '' %>
+                                  data-uncertain-present
+                                >
+                                NEIN
+                              </label>
+
+                            </div>
+
+
+                            <div class="f1-uncertain__question">
+                              <span>PFLICHTFELD</span>
+
+                              <strong>
+                                Rechtzeitig zurückgemeldet?
+                              </strong>
+                            </div>
+
+
+                            <div class="f1-uncertain__choices">
+
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="uncertain[d<%= plannedReplacement.id %>][respondedInTime]"
+                                  value="yes"
+                                  <%= plannedReplacement.respondedInTime === true ? 'checked' : '' %>
+                                  data-uncertain-responded
+                                >
+                                JA
+                              </label>
+
+                              <label>
+                                <input
+                                  type="radio"
+                                  name="uncertain[d<%= plannedReplacement.id %>][respondedInTime]"
+                                  value="no"
+                                  <%= plannedReplacement.respondedInTime === false ? 'checked' : '' %>
+                                  data-uncertain-responded
+                                >
+                                NEIN
+                              </label>
+
+                            </div>
+
+
+                            <small
+                              class="f1-uncertain__required-error"
+                              data-uncertain-required-error
+                              hidden
+                            ></small>
+
+                          </section>
+
+                        <% } %>
+
+
+                        <!-- Ersatzfahrer ist da -->
+
+                       <!-- =====================================================
+     VORGEMERKTER ERSATZFAHRER
+     
+     Normaler Ersatzfahrer:
+     - Anwesend
+     - Zu spät Vorbesprechung
+     - Zu spät abgemeldet
+     - Unabgemeldet
+     
+     Unsicherer Ersatzfahrer:
+     Wenn "Ist Fahrer da? = JA", bleiben weiterhin
+     nur die beiden Anwesenheitsstatus sinnvoll.
+     ===================================================== -->
+
+<%
+  const replacementAttendanceOptions =
+    replacementUncertain
+      ? startingAttendance
+      : allowedAttendance;
+%>
+
+<div
+  class="f1-attendance-person"
+  data-present-panel="yes"
+  <%= !replacementUncertain || replacementPresent ? '' : 'hidden' %>
+>
+
+  <div>
+    <span>COCKPITFAHRER</span>
+
+    <strong>
+      <%= plannedReplacement.driver.name %>
+    </strong>
+  </div>
+
+
+  <label>
+    Anwesenheit
+
+    <select
+      name="attendance[d<%= plannedReplacement.id %>][status]"
+      data-attendance-status
+      <%= !replacementUncertain || replacementPresent ? '' : 'disabled' %>
+    >
+
+      <% replacementAttendanceOptions.forEach((status) => { %>
+
+        <option
+          value="<%= status.value %>"
+          <%= replacementAttendance === status.value ? 'selected' : '' %>
+        >
+          <%= attendanceLabel(status) %>
+        </option>
+
+      <% }) %>
+
+    </select>
+  </label>
+
+
+  <!--
+    Wenn der Ersatzfahrer selbst nicht fährt,
+    muss der nächste freie Ersatzfahrer gewählt
+    werden können.
+  -->
+
+  <label
+    class="f1-attendance-replacement"
+    data-spontaneous-replacement
+    <%= ['unabgemeldet', 'zu_spaet_abgemeldet'].includes(replacementAttendance)
+      ? ''
+      : 'hidden'
+    %>
+  >
+    Weiterer Ersatz
+
+    <select
+      name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]"
+      data-replacement-choice
+    >
+
+      <option value="">
+        Kein Ersatz verfügbar / Cockpit leer
+      </option>
+
+
+      <% availableReplacements
+        .filter(
+          (driver) =>
+            Number(driver.id) !==
+            Number(plannedReplacement.DriverId)
+        )
+        .forEach((driver) => { %>
+
+        <option value="<%= driver.id %>">
+          <%= driver.name %>
+          ·
+          <%= replacementLabel(driver) %>
+        </option>
+
+      <% }) %>
+
+    </select>
+  </label>
+
+</div>
+
+
+                        <!-- Ersatzfahrer ist nicht da -->
+
+                        <% if (replacementUncertain) { %>
+
+                          <div
+                            class="f1-attendance-person is-absent"
+                            data-present-panel="no"
+                            <%= replacementAbsent ? '' : 'hidden' %>
+                          >
+
+                            <div>
+                              <span>ERSATZ FÄHRT NICHT</span>
+
+                              <strong>
+                                <%= plannedReplacement.driver.name %>
+                              </strong>
+                            </div>
+
+
+                            <div class="f1-attendance-derived-status">
+
+                              <% if (plannedReplacement.respondedInTime === true) { %>
+
+                                <span>STATUS</span>
+                                <strong>RECHTZEITIG ABGEMELDET</strong>
+
+                              <% } else if (plannedReplacement.respondedInTime === false) { %>
+
+                                <span>STATUS</span>
+                                <strong class="is-unabgemeldet">
+                                  UNABGEMELDET
+                                </strong>
+
+                              <% } else { %>
+
+                                <span>STATUS</span>
+                                <strong>
+                                  Wird aus der Rückmeldung automatisch ermittelt
+                                </strong>
+
+                              <% } %>
+
+                            </div>
+
+
+                            <label class="f1-attendance-replacement">
+                              Nächster freier Ersatz
+
+                              <select
+                                name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]"
+                                data-replacement-choice
+                                <%= replacementAbsent ? '' : 'disabled' %>
+                              >
+                                <option value="">
+                                  Kein Ersatz verfügbar / Cockpit leer
+                                </option>
+
+                                <% availableReplacements
+                                  .filter((driver) =>
+                                    Number(driver.id) !== Number(plannedReplacement.DriverId)
+                                  )
+                                  .forEach((driver) => { %>
+
+                                  <option value="<%= driver.id %>">
+                                    <%= driver.name %> · <%= replacementLabel(driver) %>
+                                  </option>
+
+                                <% }) %>
+                              </select>
+                            </label>
+
+                          </div>
+
+                        <% } %>
+
+                      </section>
+
+
+                    <% } else if (regular.status === 'abgemeldet') { %>
+
+                      <div class="f1-attendance-person is-absent">
+
+                        <div>
+                          <span>ERSATZ BENÖTIGT</span>
+                          <strong>Kein Fahrer vorgemerkt</strong>
                         </div>
 
-                        <div class="f1-attendance-person is-absent" data-present-panel="no" <%= replacementUncertain && replacementAbsent ? '' : 'hidden' %>>
-                          <div><span>ERSATZ FÄHRT NICHT</span><strong><%= plannedReplacement.driver.name %></strong></div>
-                          <label>Abwesenheit
-                            <select name="attendance[d<%= plannedReplacement.id %>][status]" data-attendance-status <%= replacementPresent ? 'disabled' : '' %>>
-                              <option value="unabgemeldet">Nicht erschienen</option>
-                              <option value="zu_spaet_abgemeldet">Zu spät abgemeldet</option>
-                            </select>
-                          </label>
-                          <label class="f1-attendance-replacement">Nächster freier Ersatz
-                            <select name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]" data-replacement-choice <%= replacementPresent ? 'disabled' : '' %>>
-                              <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                              <% availableReplacements.filter((driver) => Number(driver.id) !== Number(plannedReplacement.DriverId)).forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                            </select>
-                          </label>
-                        </div>
-                      </section>
-                    <% } else if (regular.status === 'abgemeldet') { %>
-                      <div class="f1-attendance-person is-absent">
-                        <div><span>ERSATZ BENÖTIGT</span><strong>Kein Fahrer vorgemerkt</strong></div>
-                        <label>Freier Ersatz
-                          <select name="attendance[d<%= regular.id %>][ReplacementDriverId]" data-replacement-choice>
-                            <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                            <% availableReplacements.forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
+
+                        <label class="f1-attendance-replacement">
+                          Freier Ersatz
+
+                          <select
+                            name="attendance[d<%= regular.id %>][ReplacementDriverId]"
+                            data-replacement-choice
+                          >
+                            <option value="">
+                              Kein Ersatz verfügbar / Cockpit leer
+                            </option>
+
+                            <% availableReplacements.forEach((driver) => { %>
+
+                              <option value="<%= driver.id %>">
+                                <%= driver.name %> · <%= replacementLabel(driver) %>
+                              </option>
+
+                            <% }) %>
                           </select>
                         </label>
+
                       </div>
+
                     <% } %>
+
                   </article>
+
                 <% }) %>
+
               </div>
 
-              <div class="f1-attendance__feedback" data-attendance-feedback role="alert"></div>
-              <button class="button f1-attendance__submit" type="submit">ANWESENHEIT BESTÄTIGEN</button>
+
+              <div
+                class="f1-attendance__feedback"
+                data-attendance-feedback
+                role="alert"
+              ></div>
+
+
+              <button
+                class="button f1-attendance__submit"
+                type="submit"
+              >
+                ANWESENHEIT BESTÄTIGEN
+              </button>
+
             </form>
 
+
             <% if (correctionRows.length) { %>
+
               <details class="f1-attendance-corrections">
-                <summary>Ausgeschiedene Fahrer ausdrücklich korrigieren</summary>
-                <form method="post" action="/admin/race-weekend/f1/<%= race.id %>/attendance">
+
+                <summary>
+                  Ausgeschiedene Fahrer ausdrücklich korrigieren
+                </summary>
+
+
+                <form
+                  method="post"
+                  action="/admin/race-weekend/f1/<%= race.id %>/attendance"
+                >
+
                   <% correctionRows.forEach(({ entry: row }) => { %>
-                    <label><strong><%= row.driver.name %></strong>
-                      <select name="correction[d<%= row.id %>][status]">
-                        <% allowedAttendance.forEach((status) => { %><option value="<%= status.value %>" <%= row.attendanceStatus === status.value ? 'selected' : '' %>><%= attendanceLabel(status) %></option><% }) %>
+
+                    <label>
+                      <strong>
+                        <%= row.driver.name %>
+                      </strong>
+
+                      <select
+                        name="correction[d<%= row.id %>][status]"
+                      >
+
+                        <% correctionAttendance.forEach((status) => { %>
+
+                          <option
+                            value="<%= status.value %>"
+                            <%= row.attendanceStatus === status.value ? 'selected' : '' %>
+                          >
+                            <%= attendanceLabel(status) %>
+                          </option>
+
+                        <% }) %>
+
                       </select>
                     </label>
+
                   <% }) %>
-                  <button class="button button-small" type="submit">KORREKTUR SPEICHERN</button>
+
+
+                  <button
+                    class="button button-small"
+                    type="submit"
+                  >
+                    KORREKTUR SPEICHERN
+                  </button>
+
                 </form>
+
               </details>
+
             <% } %>
+
           <% } %>
+
         </div>
       </section>
 

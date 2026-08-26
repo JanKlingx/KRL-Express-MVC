@@ -1,50 +1,177 @@
 <%- include('../partials/header', { title }) %>
 
-<section class="admin-shell" style="--accent:<%= selectedLeague?.accentColor || '#6ef2f2' %>">
+<section
+  class="admin-shell"
+  style="--accent:<%= selectedLeague?.accentColor || '#6ef2f2' %>"
+>
   <div class="container">
+
     <div class="admin-heading">
       <div>
-        <a class="back-link" href="/admin">← Dashboard</a>
-        <span class="form-kicker">FORMEL 1 · OPERATIVER PROZESS</span>
-        <h1>FAHREREINTEILUNG</h1>
-        <p class="admin-intro">Kompakte Einsatzmatrix für genau ein Rennwochenende.</p>
+        <a class="back-link" href="/admin">
+          ← Dashboard
+        </a>
+
+        <span class="form-kicker">
+          FORMEL 1 · OPERATIVER PROZESS
+        </span>
+
+        <h1>
+          FAHREREINTEILUNG
+        </h1>
+
+        <p class="admin-intro">
+          Kompakte Einsatzmatrix für genau ein Rennwochenende.
+        </p>
       </div>
     </div>
 
-    <form class="race-selector" method="get">
-      <label>Liga
+
+    <form
+      class="race-selector"
+      method="get"
+      data-f1-lineup-selector
+    >
+
+      <label>
+        Liga
+
         <select name="league">
-          <% leagues.forEach((league) => { %><option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= league.name %></option><% }) %>
+          <% leagues.forEach((league) => { %>
+
+            <option
+              value="<%= league.id %>"
+              <%= Number(selectedLeague?.id) === Number(league.id) ? 'selected' : '' %>
+            >
+              <%= league.name %>
+            </option>
+
+          <% }) %>
         </select>
       </label>
-      <label>Rennen
+
+
+      <label>
+        Rennen
+
         <select name="race">
-          <% races.forEach((race) => { %><option value="<%= race.id %>" <%= selectedRace?.id === race.id ? 'selected' : '' %>>R<%= race.sortOrder %> · <%= race.title %></option><% }) %>
+          <% races.forEach((race) => { %>
+
+            <option
+              value="<%= race.id %>"
+              <%= Number(selectedRace?.id) === Number(race.id) ? 'selected' : '' %>
+            >
+              R<%= race.sortOrder %> · <%= race.title %>
+            </option>
+
+          <% }) %>
         </select>
       </label>
-      <noscript><button class="button button-small" type="submit">Öffnen</button></noscript>
+
+
+      <noscript>
+        <button
+          class="button button-small"
+          type="submit"
+        >
+          Öffnen
+        </button>
+      </noscript>
+
     </form>
 
+
     <% if (!activeSeason) { %>
-      <div class="empty-state">Für diese Liga ist keine aktuelle Saison angelegt.</div>
-    <% } else if (!selectedRace) { %>
-      <div class="empty-state">In <%= activeSeason.name %> ist noch kein Rennen vorhanden.</div>
-    <% } else { %>
-      <div class="f1-weekend-current">
-        <span>AKTUELLES RENNEN · <%= activeSeason.name %></span>
-        <strong>R<%= selectedRace.sortOrder %> · <%= selectedRace.title %></strong>
-        <small><%= selectedRace.raceDate || 'Datum offen' %> · <%= hasSavedPlan ? 'Aufstellung gespeichert' : 'Aufstellung offen' %></small>
+
+      <div class="empty-state">
+        Für diese Liga ist keine aktuelle Saison angelegt.
       </div>
 
-      <%- include('partials/f1-lineup-board', { selectedRace, teamCards, reserveRows, regularStatuses, reserveStatuses }) %>
+    <% } else if (!selectedRace) { %>
+
+      <div class="empty-state">
+        In <%= activeSeason.name %> ist noch kein Rennen vorhanden.
+      </div>
+
+    <% } else { %>
+
+      <div class="f1-weekend-current">
+
+        <span>
+          AKTUELLES RENNEN · <%= activeSeason.name %>
+        </span>
+
+        <strong>
+          R<%= selectedRace.sortOrder %> ·
+          <%= selectedRace.title %>
+        </strong>
+
+        <small>
+          <%= selectedRace.raceDate || 'Datum offen' %>
+          ·
+          <%= hasSavedPlan ? 'Aufstellung gespeichert' : 'Aufstellung offen' %>
+        </small>
+
+      </div>
+
+
+      <div id="aufstellung">
+
+        <%- include('partials/f1-lineup-board', {
+          selectedRace,
+          teamCards,
+          reserveRows,
+          regularStatuses,
+          reserveStatuses
+        }) %>
+
+      </div>
+
 
       <div class="workflow-hint">
-        <strong>Nächster Schritt:</strong>
-        <a href="/admin/race-weekend/f1?league=<%= selectedLeague.id %>&season=<%= activeSeason.id %>&race=<%= selectedRace.id %>#anwesenheit">Anwesenheitskontrolle öffnen →</a>
+
+        <strong>
+          Nächster Schritt:
+        </strong>
+
+        <a
+          href="/admin/race-weekend/f1?league=<%= selectedLeague.id %>&season=<%= activeSeason.id %>&race=<%= selectedRace.id %>#anwesenheit"
+        >
+          Anwesenheitskontrolle öffnen →
+        </a>
+
       </div>
+
     <% } %>
+
   </div>
 </section>
 
+
 <script src="/js/f1-race-lineup.js" defer></script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const selector =
+      document.querySelector(
+        "[data-f1-lineup-selector]"
+      );
+
+    if (!selector) {
+      return;
+    }
+
+    selector
+      .querySelectorAll("select")
+      .forEach((select) => {
+        select.addEventListener(
+          "change",
+          () => {
+            selector.requestSubmit();
+          }
+        );
+      });
+  });
+</script>
+
 <%- include('../partials/footer') %>

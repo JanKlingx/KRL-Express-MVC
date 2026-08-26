@@ -11139,3 +11139,595 @@ select.attendance-select-zu_spaet_abgemeldet {
   }
 
 }
+/* =========================================================
+   F1 AUFSTELLUNG · ERSATZFAHRER SELECT
+   ========================================================= */
+
+.f1-lineup-driver__replacement select {
+  min-height: 42px;
+
+  background: #081014 !important;
+  color: #eef4f5 !important;
+
+  border: 1px solid #34474e !important;
+  border-left: 4px solid #52616a !important;
+
+  font-weight: 800;
+}
+
+
+/* Eingeteilter Ersatz */
+
+.f1-lineup-driver.has-replacement
+.f1-lineup-driver__replacement select {
+  border-left-color: var(--team-color, #6ef2f2) !important;
+
+  background:
+    color-mix(
+      in srgb,
+      var(--team-color, #6ef2f2) 8%,
+      #081014
+    ) !important;
+
+  color: #fff !important;
+}
+
+
+/* Status des Ersatzfahrers */
+
+.f1-lineup-driver__replacement
+select.replacement-status-anwesend {
+  border-left-color: #2bd17d !important;
+  color: #70e8aa !important;
+}
+
+
+.f1-lineup-driver__replacement
+select.replacement-status-auf_abruf {
+  border-left-color: #188653 !important;
+  color: #69d59e !important;
+}
+
+
+.f1-lineup-driver__replacement
+select.replacement-status-unsicher {
+  border-left-color: #e9dd35 !important;
+  color: #f1e976 !important;
+}
+
+
+/* Leeres Feld nicht unsichtbar wirken lassen */
+
+.f1-lineup-driver__replacement
+select option {
+  background: #0b1317;
+  color: #fff;
+}
+
+/* =========================================================
+   F1 ANWESENHEIT · PFLICHTFRAGEN & UNABGEMELDET
+   ========================================================= */
+
+.f1-uncertain {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.f1-uncertain__question {
+  display: grid;
+  gap: .12rem;
+}
+
+.f1-uncertain__question > span {
+  color: #e9dd35;
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.f1-uncertain__question > strong {
+  color: #fff;
+}
+
+.f1-uncertain__required-error {
+  grid-column: 1 / -1;
+  display: block;
+  padding: .5rem .65rem;
+  border-left: 3px solid #b8323e;
+  background: #190d10;
+  color: #ff8f97;
+  font-weight: 800;
+}
+
+.f1-uncertain__required-error[hidden] {
+  display: none;
+}
+
+.f1-uncertain.has-required-error {
+  border-color: #8e3038;
+  box-shadow: inset 4px 0 0 #b8323e;
+}
+
+.f1-attendance-derived-status {
+  display: grid;
+  gap: .15rem;
+  align-self: stretch;
+  padding: .55rem .7rem;
+  background: #10181d;
+  border: 1px solid #34434b;
+}
+
+.f1-attendance-derived-status > span {
+  color: #8fa1a8;
+  font-size: .56rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+
+.f1-attendance-derived-status > strong {
+  color: #d8e1e5;
+  font-size: .78rem;
+}
+
+.f1-attendance-derived-status > strong.is-unabgemeldet {
+  padding: .32rem .45rem;
+  border-left: 4px solid #b8323e;
+  background: #190d10;
+  color: #ff828c;
+}
+
+/*
+ * Technischer Altwert "unabgemeldet" wird in der UI
+ * ausschließlich als "Unabgemeldet" dargestellt.
+ */
+.status-unabgemeldet,
+[data-status="unabgemeldet"] {
+  background: #190d10 !important;
+  color: #ff828c !important;
+  border-color: #63252c !important;
+  border-left-color: #b8323e !important;
+}
+
+.f1-attendance select[data-status="unabgemeldet"] {
+  background: #190d10 !important;
+  color: #ff828c !important;
+  border-left-color: #b8323e !important;
+}
+
+@media (max-width: 650px) {
+  .f1-uncertain {
+    grid-template-columns: 1fr;
+  }
+
+  .f1-uncertain__required-error {
+    grid-column: auto;
+  }
+}
+
+/* =========================================================
+   F1 ANWESENHEIT · PFLICHTFRAGEN & UNABGEMELDET
+   ========================================================= */
+
+.f1-uncertain {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.f1-uncertain__question {
+  display: grid;
+  gap: .12rem;
+}
+
+.f1-uncertain__question > span {
+  color: #e9dd35;
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.f1-uncertain__question > strong {
+  color: #fff;
+}
+
+.f1-uncertain__required-error {
+  grid-column: 1 / -1;
+  display: block;
+  padding: .5rem .65rem;
+  border-left: 3px solid #b8323e;
+  background: #190d10;
+  color: #ff8f97;
+  font-weight: 800;
+}
+
+.f1-uncertain__required-error[hidden] {
+  display: none;
+}
+
+.f1-uncertain.has-required-error {
+  border-color: #8e3038;
+  box-shadow: inset 4px 0 0 #b8323e;
+}
+
+.f1-attendance-derived-status {
+  display: grid;
+  gap: .15rem;
+  align-self: stretch;
+  padding: .55rem .7rem;
+  background: #10181d;
+  border: 1px solid #34434b;
+}
+
+.f1-attendance-derived-status > span {
+  color: #8fa1a8;
+  font-size: .56rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+
+.f1-attendance-derived-status > strong {
+  color: #d8e1e5;
+  font-size: .78rem;
+}
+
+.f1-attendance-derived-status > strong.is-unabgemeldet {
+  padding: .32rem .45rem;
+  border-left: 4px solid #b8323e;
+  background: #190d10;
+  color: #ff828c;
+}
+
+/*
+ * Technischer Altwert "unabgemeldet" wird in der UI
+ * ausschließlich als "Unabgemeldet" dargestellt.
+ */
+.status-unabgemeldet,
+[data-status="unabgemeldet"] {
+  background: #190d10 !important;
+  color: #ff828c !important;
+  border-color: #63252c !important;
+  border-left-color: #b8323e !important;
+}
+
+.f1-attendance select[data-status="unabgemeldet"] {
+  background: #190d10 !important;
+  color: #ff828c !important;
+  border-left-color: #b8323e !important;
+}
+
+@media (max-width: 650px) {
+  .f1-uncertain {
+    grid-template-columns: 1fr;
+  }
+
+  .f1-uncertain__required-error {
+    grid-column: auto;
+  }
+}
+/* =========================================================
+   F1 ANWESENHEIT · PFLICHTFRAGEN & UNABGEMELDET
+   ========================================================= */
+
+.f1-uncertain {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.f1-uncertain__question {
+  display: grid;
+  gap: .12rem;
+}
+
+.f1-uncertain__question > span {
+  color: #e9dd35;
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.f1-uncertain__question > strong {
+  color: #fff;
+}
+
+.f1-uncertain__required-error {
+  grid-column: 1 / -1;
+  display: block;
+  padding: .5rem .65rem;
+  border-left: 3px solid #b8323e;
+  background: #190d10;
+  color: #ff8f97;
+  font-weight: 800;
+}
+
+.f1-uncertain__required-error[hidden] {
+  display: none;
+}
+
+.f1-uncertain.has-required-error {
+  border-color: #8e3038;
+  box-shadow: inset 4px 0 0 #b8323e;
+}
+
+.f1-attendance-derived-status {
+  display: grid;
+  gap: .15rem;
+  align-self: stretch;
+  padding: .55rem .7rem;
+  background: #10181d;
+  border: 1px solid #34434b;
+}
+
+.f1-attendance-derived-status > span {
+  color: #8fa1a8;
+  font-size: .56rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+
+.f1-attendance-derived-status > strong {
+  color: #d8e1e5;
+  font-size: .78rem;
+}
+
+.f1-attendance-derived-status > strong.is-unabgemeldet {
+  padding: .32rem .45rem;
+  border-left: 4px solid #b8323e;
+  background: #190d10;
+  color: #ff828c;
+}
+
+/*
+ * Technischer Altwert "unabgemeldet" wird in der UI
+ * ausschließlich als "Unabgemeldet" dargestellt.
+ */
+.status-unabgemeldet,
+[data-status="unabgemeldet"] {
+  background: #190d10 !important;
+  color: #ff828c !important;
+  border-color: #63252c !important;
+  border-left-color: #b8323e !important;
+}
+
+.f1-attendance select[data-status="unabgemeldet"] {
+  background: #190d10 !important;
+  color: #ff828c !important;
+  border-left-color: #b8323e !important;
+}
+
+@media (max-width: 650px) {
+  .f1-uncertain {
+    grid-template-columns: 1fr;
+  }
+
+  .f1-uncertain__required-error {
+    grid-column: auto;
+  }
+}
+
+.f1-attendance-derived-status
+.is-unsicher-response {
+  padding: .32rem .45rem;
+  border-left: 4px solid #d0ae25;
+  background: #19170c;
+  color: #f0dc68;
+}
+
+.f1-attendance-derived-status
+.is-missing-response {
+  padding: .32rem .45rem;
+  border-left: 4px solid #a82f39;
+  background: #190d10;
+  color: #ff828c;
+}
+
+/* ============================================
+   RESULT CONTROL · FAHRERSUCHE
+   ============================================ */
+
+.result-driver-pool > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.result-driver-search-count {
+  color: #71838b;
+  font-size: .52rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.result-driver-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+
+  margin: .55rem 0;
+  min-height: 40px;
+
+  background: #080f12;
+  border: 1px solid #304148;
+}
+
+.result-driver-search:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    inset 3px 0 0 var(--accent);
+}
+
+.result-driver-search__icon {
+  padding-left: .7rem;
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.result-driver-search input {
+  width: 100%;
+  min-width: 0;
+
+  padding: .6rem .7rem;
+
+  border: 0 !important;
+  outline: 0 !important;
+
+  background: transparent !important;
+  color: #fff !important;
+
+  font: inherit;
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+.result-driver-search input::placeholder {
+  color: #65777e;
+}
+
+.result-driver-search button {
+  width: 38px;
+  height: 38px;
+
+  border: 0;
+  background: transparent;
+
+  color: #84969d;
+  font-size: 1.1rem;
+  font-weight: 900;
+
+  cursor: pointer;
+}
+
+.result-driver-search button:hover {
+  color: #fff;
+}
+
+.result-driver-search-empty {
+  padding: 1rem;
+
+  border: 1px dashed #304148;
+
+  color: #71838b;
+  font-size: .65rem;
+  font-weight: 700;
+  text-align: center;
+}
+/* ========================================================= 
+   LEGENDE 
+   ========================================================= */ 
+ 
+.season-sheet-legend { 
+  margin-top: 14px; 
+  padding: 12px 14px; 
+ 
+  display: flex; 
+  align-items: center; 
+  gap: 20px; 
+ 
+  border: 1px solid rgba(255, 255, 255, 0.09); 
+ 
+  background: rgba(5, 15, 20, 0.72); 
+} 
+ 
+.season-sheet-legend__title { 
+  flex: 0 0 auto; 
+ 
+  color: rgba(255, 255, 255, 0.48); 
+ 
+  font-size: 9px; 
+  font-weight: 900; 
+ 
+  letter-spacing: 0.14em; 
+} 
+ 
+.season-sheet-legend__items { 
+  display: flex; 
+  align-items: center; 
+  flex-wrap: wrap; 
+ 
+  gap: 10px 20px; 
+} 
+ 
+.season-sheet-legend__item { 
+  display: inline-flex; 
+  align-items: center; 
+ 
+  gap: 7px; 
+ 
+  color: rgba(255, 255, 255, 0.6); 
+ 
+  font-size: 10px; 
+} 
+ 
+.season-sheet-legend__code { 
+  min-width: 28px; 
+  padding: 3px 5px; 
+ 
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center; 
+ 
+  border: 1px solid currentColor; 
+ 
+  font-size: 8px; 
+  font-weight: 900; 
+ 
+  letter-spacing: 0.04em; 
+} 
+ 
+ 
+/* DNS */ 
+ 
+.season-sheet-legend__code.is-dns { 
+  color: #6f7d83; 
+} 
+ 
+ 
+/* DNA */ 
+ 
+.season-sheet-legend__code.is-dna { 
+  color: #9aa4a8; 
+} 
+ 
+ 
+/* DNF */ 
+ 
+.season-sheet-legend__code.is-dnf { 
+  color: #ff315f; 
+} 
+ 
+ 
+/* FASTEST LAP */ 
+ 
+.season-sheet-legend__code.is-fl { 
+  color: #c56ef2; 
+ 
+  background: rgba(
+    197,
+    110,
+    242,
+    0.10
+  );
+
+  box-shadow:
+    0 0 8px rgba(
+      197,
+      110,
+      242,
+      0.16
+    );
+} 
+ 
+ 
+/* MOBIL */ 
+ 
+@media (max-width: 760px) { 
+ 
+  .season-sheet-legend { 
+    align-items: flex-start; 
+    flex-direction: column; 
+ 
+    gap: 10px; 
+  } 
+ 
+  .season-sheet-legend__items { 
+    gap: 8px 14px; 
+  } 
+ 
+}
