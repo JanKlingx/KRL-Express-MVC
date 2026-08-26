@@ -102,7 +102,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
     gpResults,
     activeCalendar,
     seasonCarAssignments,
-    seasonStructure,
+    storedSeasonStructure,
   ] = await Promise.all([
     /*
      * Legacy Team-Roster
@@ -239,6 +239,16 @@ async function loadLeagueData(slug, requestedSeasonId) {
      */
     loadSeasonStructure(selectedSeason?.id),
   ]);
+
+  const completedMainRound = gpResults
+    .filter((race) => race.raceType === "main" && race.entries?.length)
+    .reduce((maximum, race) => Math.max(maximum, Number(race.sortOrder) || 0), 0);
+  const structureRound = selectedSeason?.status === "historical"
+    ? Math.max(1, completedMainRound)
+    : completedMainRound + 1;
+  const seasonStructure = selectedSeason
+    ? await loadSeasonStructure(selectedSeason.id, structureRound)
+    : storedSeasonStructure;
 
   /*
    * =====================================================
@@ -602,6 +612,8 @@ async function loadLeagueData(slug, requestedSeasonId) {
        */
       trackLogoPath: track?.logoPath || country?.flagPath || null,
 
+      isTestDay: Boolean(calendarEvent?.isTestDay),
+
       entries: (race.entries || []).map(plain).map((entry) => {
         const lineup = lineupForEntry(race, entry);
 
@@ -620,6 +632,25 @@ async function loadLeagueData(slug, requestedSeasonId) {
       }),
     };
   });
+
+  const raceStatistics = decoratedGpResults
+    .filter((race) => race.raceType === 'main' && !race.isTestDay)
+    .map((race) => {
+      const ordered = [...(race.entries || [])].sort((left, right) => Number(left.position || 999) - Number(right.position || 999));
+      return {
+        round: race.sortOrder,
+        circuit: race.displayCircuit || race.circuit || race.displayTitle,
+        flagPath: race.countryFlagPath,
+        countryName: race.countryName,
+        date: race.raceDate,
+        driverOfTheDay: ordered.find((entry) => entry.driverOfTheDay)?.driverName || null,
+        first: ordered.find((entry) => Number(entry.position) === 1)?.driverName || null,
+        second: ordered.find((entry) => Number(entry.position) === 2)?.driverName || null,
+        third: ordered.find((entry) => Number(entry.position) === 3)?.driverName || null,
+        pole: ordered.find((entry) => entry.polePosition)?.driverName || null,
+        fastestLap: ordered.find((entry) => entry.fastestLap)?.driverName || null
+      };
+    });
 
   /*
    * Kompakte öffentliche Rennstatistik. Sie verwendet ausschließlich die
@@ -922,3 +953,4 @@ exports.downloadGpResults = async (req, res) => {
  * Für andere Controller / Tests verfügbar.
  */
 module.exports.loadLeagueData = loadLeagueData;
+

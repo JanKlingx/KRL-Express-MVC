@@ -24,6 +24,7 @@
     typeof standingsHistory === 'undefined'
       ? []
       : standingsHistory;
+  const safeRaceStatistics = typeof raceStatistics === 'undefined' ? [] : raceStatistics;
 %>
 
 
@@ -943,6 +944,14 @@
   </div>
 
 </section>
+  <section class="section container f1-race-statistics" id="rennstatistik">
+    <div class="section-heading"><span>HAUPTRENNEN · <%= selectedSeason?.name || league.currentSeason %></span><h2>RENNSTATISTIK</h2></div>
+    <div class="f1-race-statistics__scroll"><table><thead><tr><th>#</th><th>Strecke</th><th>Flagge</th><th>Datum</th><th>Driver of the Day</th><th>1. Platz</th><th>2. Platz</th><th>3. Platz</th><th>Poleposition</th><th>Schnellste Runde</th></tr></thead><tbody>
+      <% safeRaceStatistics.forEach((row) => { %><tr><td>R<%= row.round %></td><th><%= row.circuit %></th><td><% if (row.flagPath) { %><img src="<%= row.flagPath %>" alt="<%= row.countryName || '' %>"><% } else { %>–<% } %></td><td><%= row.date ? new Intl.DateTimeFormat('de-DE').format(new Date(`${row.date}T12:00:00Z`)) : '–' %></td><td><%= row.driverOfTheDay || '–' %></td><td><%= row.first || '–' %></td><td><%= row.second || '–' %></td><td><%= row.third || '–' %></td><td><%= row.pole || '–' %></td><td><%= row.fastestLap || '–' %></td></tr><% }) %>
+      <% if (!safeRaceStatistics.length) { %><tr><td colspan="10">Noch keine Hauptrennenergebnisse vorhanden.</td></tr><% } %>
+    </tbody></table></div>
+  </section>
+
   <!-- ================================================= -->
   <!-- GP RESULTS -->
   <!-- ================================================= -->
@@ -1091,3 +1100,4 @@
 ></script>
 
 <%- include('partials/footer') %>
+

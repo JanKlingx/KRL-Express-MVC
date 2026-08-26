@@ -26,6 +26,11 @@
       ? []
       : f1Games;
 
+  const setupLineupProtected =
+    typeof lineupProtected === 'undefined'
+      ? false
+      : lineupProtected;
+
 const setupDriverRankFilter =
   typeof driverRankFilter === 'undefined'
     ? 'all'
@@ -171,6 +176,13 @@ const setupDriverRankFilter =
       </a>
 
     </nav>
+
+    <% if (selectedSeason && setupLineupProtected) { %>
+      <aside class="season-lineup-lock" role="status">
+        <div><strong>SAISON-LINE-UP GESCHÜTZT</strong><span>Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.</span></div>
+        <a class="button button-small" href="/admin/season-driver-change?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>">FAHRERWECHSEL ÖFFNEN</a>
+      </aside>
+    <% } %>
 
 
     <!-- ================================================= -->
@@ -848,7 +860,8 @@ const setupDriverRankFilter =
 
 <section
   id="setup-drivers"
-  class="setup-panel"
+  class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
+  <%= setupLineupProtected ? 'inert' : '' %>
 >
 
   <div class="setup-panel-number">
@@ -1014,7 +1027,8 @@ const setupDriverRankFilter =
 
       <section
         id="setup-teams"
-        class="setup-panel"
+        class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
+        <%= setupLineupProtected ? 'inert' : '' %>
       >
 
         <div class="setup-panel-number">
@@ -1159,7 +1173,8 @@ const setupDriverRankFilter =
 
       <section
         id="setup-lineup"
-        class="setup-panel"
+        class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
+        <%= setupLineupProtected ? 'inert' : '' %>
       >
 
         <div class="setup-panel-number">
@@ -1280,11 +1295,12 @@ const setupDriverRankFilter =
                             <%= slot + 1 %>
                           </span>
 
-                        <select
+<select
   class="season-lineup-driver-select"
   name="lineup[<%= team.id %>][]"
   data-team-id="<%= team.id %>"
   data-slot="<%= slot + 1 %>"
+  <%= setupLineupProtected ? 'disabled' : '' %>
 >
 
                             <option value="">
@@ -1327,12 +1343,11 @@ const setupDriverRankFilter =
                   als Ersatzfahrer gespeichert.
                 </p>
 
-                <button
-                  type="submit"
-                  class="button setup-save-step"
-                >
-                  Line-up speichern
-                </button>
+                <% if (setupLineupProtected) { %>
+                  <a class="button setup-save-step" href="/admin/season-driver-change?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>">FAHRERWECHSEL ÖFFNEN</a>
+                <% } else { %>
+                  <button type="submit" class="button setup-save-step">Line-up speichern</button>
+                <% } %>
 
               </div>
 
@@ -1801,3 +1816,4 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 <%- include('../partials/footer') %>
+

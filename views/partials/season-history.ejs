@@ -63,8 +63,9 @@
       result?.outsideStint
     ) {
       return {
-        text: '–',
-        kind: 'inactive'
+        text: 'DNA',
+        kind: 'dna',
+        title: 'In dieser Runde kein Ersatzfahrer'
       };
     }
 
@@ -80,8 +81,9 @@
       result?.outsideStint
     ) {
       return {
-        text: 'DNS',
-        kind: 'dns'
+        text: 'DNA',
+        kind: 'dna',
+        title: 'In dieser Runde kein Stammfahrer'
       };
     }
 
@@ -918,6 +920,7 @@ if (
                           : ''
                         %>
                       "
+                      title="<%= sprintView.title || '' %>"
                     >
 
                       <i>
@@ -956,6 +959,7 @@ if (
                           : ''
                         %>
                       "
+                      title="<%= mainView.title || '' %>"
                     >
 
                       <i>
@@ -996,6 +1000,7 @@ if (
                           : ''
                         %>
                       "
+                      title="<%= mainView.title || '' %>"
                     >
 
                       <%= mainView.text %>
@@ -1255,4 +1260,5 @@ if (
 
 
 <% } %>
+
 

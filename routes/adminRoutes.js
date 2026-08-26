@@ -1,274 +1,110 @@
-const express = require("express");
-const asyncHandler = require("../services/asyncHandler");
-const adminController = require("../controllers/adminController");
-const raceEditorController = require("../controllers/raceEditorController");
-const seriesEditorController = require("../controllers/seriesEditorController");
-const teamRosterController = require("../controllers/teamRosterController");
-const f1RaceLineupController = require("../controllers/f1RaceLineupController");
-const lmuRaceLineupController = require("../controllers/lmuRaceLineupController");
-const lmuCarAssignmentController = require("../controllers/lmuCarAssignmentController");
-const seasonSetupController = require("../controllers/seasonSetupController");
-const tableHubController = require("../controllers/tableHubController");
-const seasonCalendarController = require("../controllers/seasonCalendarController");
-const seasonManagerController = require("../controllers/seasonManagerController");
-const seasonDriverChangeController = require("../controllers/seasonDriverChangeController");
-const penaltyLedgerController = require("../controllers/penaltyLedgerController");
-const raceWeekendController = require("../controllers/raceWeekendController");
-const krlTeamPlanningController = require("../controllers/krlTeamPlanningController");
-const f1ContentController = require("../controllers/f1ContentController");
-const f1GameController = require("../controllers/f1GameController");
-const { requireAdmin } = require("../middleware/auth");
-const upload = require("../middleware/upload");
-const pdfUpload = require("../middleware/pdfUpload");
+const express = require('express');
+const asyncHandler = require('../services/asyncHandler');
+const adminController = require('../controllers/adminController');
+const raceEditorController = require('../controllers/raceEditorController');
+const seriesEditorController = require('../controllers/seriesEditorController');
+const teamRosterController = require('../controllers/teamRosterController');
+const f1RaceLineupController = require('../controllers/f1RaceLineupController');
+const lmuRaceLineupController = require('../controllers/lmuRaceLineupController');
+const lmuCarAssignmentController = require('../controllers/lmuCarAssignmentController');
+const seasonSetupController = require('../controllers/seasonSetupController');
+const tableHubController = require('../controllers/tableHubController');
+const seasonCalendarController = require('../controllers/seasonCalendarController');
+const seasonManagerController = require('../controllers/seasonManagerController');
+const seasonDriverChangeController = require('../controllers/seasonDriverChangeController');
+const penaltyLedgerController = require('../controllers/penaltyLedgerController');
+const raceWeekendController = require('../controllers/raceWeekendController');
+const krlTeamPlanningController = require('../controllers/krlTeamPlanningController');
+const f1ContentController = require('../controllers/f1ContentController');
+const f1GameController = require('../controllers/f1GameController');
+const { requireAdmin } = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const pdfUpload = require('../middleware/pdfUpload');
 
 const router = express.Router();
 router.use(requireAdmin);
-router.get("/", asyncHandler(adminController.dashboard));
-router.get("/f1-games", asyncHandler(f1GameController.index));
+router.get('/', asyncHandler(adminController.dashboard));
+router.get('/f1-games', asyncHandler(f1GameController.index));
+router.post('/f1-games', upload.single('image'), asyncHandler(f1GameController.create));
+router.put('/f1-games/:id', upload.single('image'), asyncHandler(f1GameController.update));
+router.delete('/f1-games/:id', asyncHandler(f1GameController.remove));
+router.get('/krl-team-planning', asyncHandler(krlTeamPlanningController.show));
+router.post('/krl-team-planning/assign', asyncHandler(krlTeamPlanningController.assign));
+router.post('/krl-team-planning/move/:assignmentId', asyncHandler(krlTeamPlanningController.move));
+router.delete('/krl-team-planning/:assignmentId', asyncHandler(krlTeamPlanningController.remove));
+router.get('/race-director-notes', asyncHandler(f1ContentController.manageDocuments));
+router.post('/race-director-notes', pdfUpload.single('document'), asyncHandler(f1ContentController.uploadDocument));
+router.delete('/race-director-notes/:id', asyncHandler(f1ContentController.removeDocument));
+router.get('/team-rosters/:discipline(f1|lmu)', asyncHandler(teamRosterController.show));
+router.post('/team-rosters/:discipline(f1|lmu)', asyncHandler(teamRosterController.create));
+router.post('/team-rosters/:discipline(f1|lmu)/:rosterId/drivers', asyncHandler(teamRosterController.addDriver));
+router.delete('/team-rosters/:discipline(f1|lmu)/assignments/:assignmentId', asyncHandler(teamRosterController.removeDriver));
+router.delete('/team-rosters/:discipline(f1|lmu)/:rosterId', asyncHandler(teamRosterController.removeRoster));
+router.get('/f1-race-lineup', asyncHandler(f1RaceLineupController.show));
+router.post('/f1-race-lineup/:raceId', asyncHandler(f1RaceLineupController.save));
+router.get('/lmu-race-lineup', asyncHandler(lmuRaceLineupController.show));
+router.post('/lmu-race-lineup/:raceId', asyncHandler(lmuRaceLineupController.save));
+router.get('/lmu-car-assignments', (req, res) => res.redirect('/admin/drivers?rank=lmu-regular'));
+router.post('/lmu-car-assignments', (req, res) => res.redirect('/admin/drivers?rank=lmu-regular'));
+router.get('/season-setup', asyncHandler(seasonSetupController.show));
+router.post('/season-setup/seasons', asyncHandler(seasonSetupController.createSeason));
+router.post('/season-setup/:seasonId/profile', asyncHandler(seasonSetupController.updateSeasonProfile));
+router.post('/season-setup/:seasonId/calendar', asyncHandler(seasonSetupController.addCalendarEvent));
+
 router.post(
-  "/f1-games",
-  upload.single("image"),
-  asyncHandler(f1GameController.create),
-);
-router.put(
-  "/f1-games/:id",
-  upload.single("image"),
-  asyncHandler(f1GameController.update),
-);
-router.delete("/f1-games/:id", asyncHandler(f1GameController.remove));
-router.get("/krl-team-planning", asyncHandler(krlTeamPlanningController.show));
-router.post(
-  "/krl-team-planning/assign",
-  asyncHandler(krlTeamPlanningController.assign),
-);
-router.post(
-  "/krl-team-planning/move/:assignmentId",
-  asyncHandler(krlTeamPlanningController.move),
-);
-router.delete(
-  "/krl-team-planning/:assignmentId",
-  asyncHandler(krlTeamPlanningController.remove),
-);
-router.get(
-  "/race-director-notes",
-  asyncHandler(f1ContentController.manageDocuments),
-);
-router.post(
-  "/race-director-notes",
-  pdfUpload.single("document"),
-  asyncHandler(f1ContentController.uploadDocument),
-);
-router.delete(
-  "/race-director-notes/:id",
-  asyncHandler(f1ContentController.removeDocument),
-);
-router.get(
-  "/team-rosters/:discipline(f1|lmu)",
-  asyncHandler(teamRosterController.show),
-);
-router.post(
-  "/team-rosters/:discipline(f1|lmu)",
-  asyncHandler(teamRosterController.create),
-);
-router.post(
-  "/team-rosters/:discipline(f1|lmu)/:rosterId/drivers",
-  asyncHandler(teamRosterController.addDriver),
-);
-router.delete(
-  "/team-rosters/:discipline(f1|lmu)/assignments/:assignmentId",
-  asyncHandler(teamRosterController.removeDriver),
-);
-router.delete(
-  "/team-rosters/:discipline(f1|lmu)/:rosterId",
-  asyncHandler(teamRosterController.removeRoster),
-);
-router.get("/f1-race-lineup", asyncHandler(f1RaceLineupController.show));
-router.post(
-  "/f1-race-lineup/:raceId",
-  asyncHandler(f1RaceLineupController.save),
-);
-router.get("/lmu-race-lineup", asyncHandler(lmuRaceLineupController.show));
-router.post(
-  "/lmu-race-lineup/:raceId",
-  asyncHandler(lmuRaceLineupController.save),
-);
-router.get("/lmu-car-assignments", (req, res) =>
-  res.redirect("/admin/drivers?rank=lmu-regular"),
-);
-router.post("/lmu-car-assignments", (req, res) =>
-  res.redirect("/admin/drivers?rank=lmu-regular"),
-);
-router.get("/season-setup", asyncHandler(seasonSetupController.show));
-router.post(
-  "/season-setup/seasons",
-  asyncHandler(seasonSetupController.createSeason),
-);
-router.post(
-  "/season-setup/:seasonId/profile",
-  asyncHandler(seasonSetupController.updateSeasonProfile),
-);
-router.post(
-  "/season-setup/:seasonId/calendar",
-  asyncHandler(seasonSetupController.addCalendarEvent),
+  '/season-setup/:seasonId/calendar/reorder',
+  asyncHandler(seasonCalendarController.reorder)
 );
 
 router.post(
-  "/season-setup/:seasonId/calendar/reorder",
-  asyncHandler(seasonCalendarController.reorder),
+  '/season-setup/:seasonId/calendar/:eventId/update',
+  asyncHandler(seasonCalendarController.update)
 );
 
 router.post(
-  "/season-setup/:seasonId/calendar/:eventId/update",
-  asyncHandler(seasonCalendarController.update),
+  '/season-setup/:seasonId/calendar/:eventId/delete',
+  asyncHandler(seasonCalendarController.remove)
 );
 
-router.post(
-  "/season-setup/:seasonId/calendar/:eventId/delete",
-  asyncHandler(seasonCalendarController.remove),
-);
 
-router.post(
-  "/season-setup/:seasonId/drivers",
-  asyncHandler(seasonSetupController.assignDrivers),
-);
-router.post(
-  "/season-setup/:seasonId/teams",
-  asyncHandler(seasonSetupController.assignTeams),
-);
-router.post(
-  "/season-setup/:seasonId/lineup",
-  asyncHandler(seasonSetupController.assignLineup),
-);
-router.post(
-  "/season-setup/:seasonId/finish",
-  asyncHandler(seasonSetupController.finish),
-);
-router.get("/table-hub", asyncHandler(tableHubController.show));
-router.get("/season-calendar", asyncHandler(seasonCalendarController.show));
-router.post(
-  "/season-calendar/events",
-  asyncHandler(seasonCalendarController.create),
-);
-router.post(
-  "/season-calendar/reorder",
-  asyncHandler(seasonCalendarController.reorder),
-);
-router.put(
-  "/season-calendar/events/:eventId",
-  asyncHandler(seasonCalendarController.update),
-);
-router.delete(
-  "/season-calendar/events/:eventId",
-  asyncHandler(seasonCalendarController.remove),
-);
-router.get("/season-manager", asyncHandler(seasonManagerController.show));
-router.post(
-  "/season-manager/:seasonId",
-  asyncHandler(seasonManagerController.update),
-);
-router.delete(
-  "/season-manager/:seasonId",
-  asyncHandler(seasonManagerController.remove),
-);
-router.get(
-  "/season-driver-change",
-  asyncHandler(seasonDriverChangeController.show),
-);
-router.post(
-  "/season-driver-change",
-  asyncHandler(seasonDriverChangeController.save),
-);
-router.get("/penalty-ledger", asyncHandler(penaltyLedgerController.show));
-router.post("/penalty-ledger", asyncHandler(penaltyLedgerController.create));
-router.delete(
-  "/penalty-ledger/:id",
-  asyncHandler(penaltyLedgerController.remove),
-);
-router.get(
-  "/race-weekend/:discipline(f1|lmu|wdl)",
-  asyncHandler(raceWeekendController.show),
-);
-router.post(
-  "/race-weekend/f1/:raceId/attendance",
-  asyncHandler(raceWeekendController.saveAttendance),
-);
-
-router.post(
-  "/race-weekend/f1/:raceId/reset-lineup",
-  asyncHandler(raceWeekendController.resetLineup),
-);
-
-router.post(
-  "/race-weekend/f1/:raceId/reset-attendance",
-  asyncHandler(raceWeekendController.resetAttendance),
-);
-
-router.post(
-  "/race-weekend/f1/:raceId/reset-results",
-  asyncHandler(raceWeekendController.resetResults),
-);
-
-router.post(
-  "/race-weekend/f1/:raceId/reset-all",
-  asyncHandler(raceWeekendController.resetAll),
-);
-
-router.get("/race-editor", asyncHandler(raceEditorController.show));
-router.get(
-  "/current-season-progress",
-  asyncHandler(raceEditorController.showCurrent),
-);
-router.post(
-  "/race-editor/:raceId/settings",
-  asyncHandler(raceEditorController.updateRace),
-);
-router.delete(
-  "/race-editor/:raceId",
-  asyncHandler(raceEditorController.removeRace),
-);
-router.post("/race-editor/:raceId", asyncHandler(raceEditorController.save));
-router.get(
-  "/season-progress/:discipline(lmu|wdl)",
-  asyncHandler(seriesEditorController.show),
-);
-router.post(
-  "/season-progress/:discipline(lmu|wdl)/seasons",
-  asyncHandler(seriesEditorController.createSeason),
-);
-router.post(
-  "/season-progress/:discipline(lmu|wdl)/races",
-  asyncHandler(seriesEditorController.createRace),
-);
-router.post(
-  "/season-progress/:discipline(lmu|wdl)/import-calendar",
-  asyncHandler(seriesEditorController.importCalendar),
-);
-router.post(
-  "/season-progress/:discipline(lmu|wdl)/:raceId/settings",
-  asyncHandler(seriesEditorController.updateRace),
-);
-router.delete(
-  "/season-progress/:discipline(lmu|wdl)/:raceId",
-  asyncHandler(seriesEditorController.removeRace),
-);
-router.post(
-  "/season-progress/:discipline(lmu|wdl)/:raceId",
-  asyncHandler(seriesEditorController.save),
-);
-router.get("/:resource", asyncHandler(adminController.list));
-router.get("/:resource/new", asyncHandler(adminController.createForm));
-router.post(
-  "/:resource",
-  upload.single("image"),
-  asyncHandler(adminController.create),
-);
-router.get("/:resource/:id/edit", asyncHandler(adminController.editForm));
-router.put(
-  "/:resource/:id",
-  upload.single("image"),
-  asyncHandler(adminController.update),
-);
-router.delete("/:resource/bulk", asyncHandler(adminController.bulkRemove));
-router.delete("/:resource/:id", asyncHandler(adminController.remove));
+router.post('/season-setup/:seasonId/drivers', asyncHandler(seasonSetupController.assignDrivers));
+router.post('/season-setup/:seasonId/teams', asyncHandler(seasonSetupController.assignTeams));
+router.post('/season-setup/:seasonId/lineup', asyncHandler(seasonSetupController.assignLineup));
+router.post('/season-setup/:seasonId/finish', asyncHandler(seasonSetupController.finish));
+router.get('/table-hub', asyncHandler(tableHubController.show));
+router.get('/season-calendar', asyncHandler(seasonCalendarController.show));
+router.post('/season-calendar/events', asyncHandler(seasonCalendarController.create));
+router.post('/season-calendar/reorder', asyncHandler(seasonCalendarController.reorder));
+router.put('/season-calendar/events/:eventId', asyncHandler(seasonCalendarController.update));
+router.delete('/season-calendar/events/:eventId', asyncHandler(seasonCalendarController.remove));
+router.get('/season-manager', asyncHandler(seasonManagerController.show));
+router.post('/season-manager/:seasonId', asyncHandler(seasonManagerController.update));
+router.delete('/season-manager/:seasonId', asyncHandler(seasonManagerController.remove));
+router.get('/season-driver-change', asyncHandler(seasonDriverChangeController.show));
+router.post('/season-driver-change', asyncHandler(seasonDriverChangeController.save));
+router.get('/penalty-ledger', asyncHandler(penaltyLedgerController.show));
+router.post('/penalty-ledger', asyncHandler(penaltyLedgerController.create));
+router.delete('/penalty-ledger/:id', asyncHandler(penaltyLedgerController.remove));
+router.get('/race-weekend/:discipline(f1|lmu|wdl)', asyncHandler(raceWeekendController.show));
+router.post('/race-weekend/f1/:raceId/attendance', asyncHandler(raceWeekendController.saveAttendance));
+router.get('/race-editor', asyncHandler(raceEditorController.show));
+router.get('/current-season-progress', asyncHandler(raceEditorController.showCurrent));
+router.post('/race-editor/:raceId/settings', asyncHandler(raceEditorController.updateRace));
+router.delete('/race-editor/:raceId', asyncHandler(raceEditorController.removeRace));
+router.post('/race-editor/:raceId', asyncHandler(raceEditorController.save));
+router.get('/season-progress/:discipline(lmu|wdl)', asyncHandler(seriesEditorController.show));
+router.post('/season-progress/:discipline(lmu|wdl)/seasons', asyncHandler(seriesEditorController.createSeason));
+router.post('/season-progress/:discipline(lmu|wdl)/races', asyncHandler(seriesEditorController.createRace));
+router.post('/season-progress/:discipline(lmu|wdl)/import-calendar', asyncHandler(seriesEditorController.importCalendar));
+router.post('/season-progress/:discipline(lmu|wdl)/:raceId/settings', asyncHandler(seriesEditorController.updateRace));
+router.delete('/season-progress/:discipline(lmu|wdl)/:raceId', asyncHandler(seriesEditorController.removeRace));
+router.post('/season-progress/:discipline(lmu|wdl)/:raceId', asyncHandler(seriesEditorController.save));
+router.get('/:resource', asyncHandler(adminController.list));
+router.get('/:resource/new', asyncHandler(adminController.createForm));
+router.post('/:resource', upload.single('image'), asyncHandler(adminController.create));
+router.get('/:resource/:id/edit', asyncHandler(adminController.editForm));
+router.put('/:resource/:id', upload.single('image'), asyncHandler(adminController.update));
+router.delete('/:resource/bulk', asyncHandler(adminController.bulkRemove));
+router.delete('/:resource/:id', asyncHandler(adminController.remove));
 
 module.exports = router;

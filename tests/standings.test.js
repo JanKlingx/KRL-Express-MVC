@@ -136,7 +136,7 @@ function driverChangeScenario(reservePoints = [6, 10]) {
   return { drivers, races, lineups, stints };
 }
 
-test('Fahrerwechsel historisiert ausgeschiedene und neue Stammfahrer mit DNS', () => {
+test('Fahrerwechsel historisiert ausgeschiedene und neue Stammfahrer mit DNA', () => {
   const scenario = driverChangeScenario();
   const data = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
   const marcel = data.selectedHistory.drivers.find((driver) => driver.name === 'Marcel');
@@ -144,12 +144,12 @@ test('Fahrerwechsel historisiert ausgeschiedene und neue Stammfahrer mit DNS', (
 
   assert.equal(marcel.isFormerDriver, true);
   assert.equal(marcel.regularToRound, 4);
-  assert.deepEqual(marcel.results.map((row) => row.main.value), ['P4', 'P8', 'P5', 'P7', 'DNS', 'DNS']);
+  assert.deepEqual(marcel.results.map((row) => row.main.value), ['P4', 'P8', 'P5', 'P7', 'DNA', 'DNA']);
   assert.equal(tobi.regularFromRound, 5);
-  assert.deepEqual(tobi.results.map((row) => row.main.value), ['DNS', 'DNS', 'DNS', 'DNS', 'P5', 'P3']);
+  assert.deepEqual(tobi.results.map((row) => row.main.value), ['DNA', 'DNA', 'DNA', 'DNA', 'P5', 'P3']);
 });
 
-test('Beförderter Ersatzfahrer bleibt in Ersatzwertung und übernimmt Punkte dynamisch', () => {
+test('Beförderter Ersatzfahrer bleibt in Ersatzwertung und behält echte Punkte in der Fahrer-WM', () => {
   const scenario = driverChangeScenario();
   const data = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
   const regular = data.driverStandings.find((row) => row.driver.name === 'Tobi');
@@ -159,7 +159,7 @@ test('Beförderter Ersatzfahrer bleibt in Ersatzwertung und übernimmt Punkte dy
   assert.equal(reserve.total, 16);
   assert.equal(reserve.promotedToRegular, true);
   assert.equal(reserve.promotedFromRound, 5);
-  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNS', 'P7', 'DNS', 'P5', 'DNS', 'DNS']);
+  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNS', 'P7', 'DNS', 'P5', 'DNA', 'DNA']);
 
   scenario.races[1].entries.find((entry) => entry.DriverId === 2).points = 8;
   const corrected = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
@@ -167,7 +167,7 @@ test('Beförderter Ersatzfahrer bleibt in Ersatzwertung und übernimmt Punkte dy
   assert.equal(corrected.reserveStandings.find((row) => row.driver.name === 'Tobi').points, 18);
 });
 
-test('Ersatzpunkte eines anderen Teams werden nicht in die Stammfahrer-WM übertragen', () => {
+test('Fahrer-WM behält echte Ersatzpunkte auch vor einem späteren Teamwechsel', () => {
   const mercedes = { id: 10, name: 'Mercedes', sourceType: 'current', sourceId: 100 };
   const williams = { id: 20, name: 'Williams', sourceType: 'current', sourceId: 200 };
   const driver = { id: 3, name: 'Alex', team: mercedes };
@@ -185,7 +185,7 @@ test('Ersatzpunkte eines anderen Teams werden nicht in die Stammfahrer-WM übert
   ];
   const data = buildSeasonData(league, races, [driver], lineups, {}, stints);
 
-  assert.equal(data.driverStandings.find((row) => row.driver.name === 'Alex').points, 15);
+  assert.equal(data.driverStandings.find((row) => row.driver.name === 'Alex').points, 25);
   assert.equal(data.reserveStandings.find((row) => row.driver.name === 'Alex').points, 10);
   assert.equal(data.teamStandings.find((row) => row.team.name === 'Williams').points, 10);
   assert.equal(data.teamStandings.find((row) => row.team.name === 'Mercedes').points, 15);
@@ -207,3 +207,4 @@ test('LMU-Punktesystem addiert schnellste Runde und Poleposition saisonbezogen',
     PointAllocation.findOne = originals.allocation;
   }
 });
+

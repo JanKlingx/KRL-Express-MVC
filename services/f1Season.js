@@ -38,8 +38,27 @@ async function loadEligibleSeasonDrivers() {
   });
 }
 
+function lineupForRound(lineup, stints, round) {
+  const effectiveRound = Number(round);
+  if (!Number.isInteger(effectiveRound) || effectiveRound < 1 || !stints.length) return lineup;
+  return stints
+    .filter((stint) =>
+      effectiveRound >= Number(stint.fromRound) &&
+      (stint.toRound == null || effectiveRound <= Number(stint.toRound))
+    )
+    .map((stint) => ({
+      id: `stint-${stint.id}`,
+      SeasonId: stint.SeasonId,
+      SeasonTeamId: stint.SeasonTeamId,
+      DriverId: stint.DriverId,
+      roleType: stint.roleType,
+      sortOrder: stint.fromRound,
+      driver: stint.driver
+    }));
+}
 
-async function loadSeasonStructure(seasonId) {
+
+async function loadSeasonStructure(seasonId, round = null) {
 
   if (!seasonId) {
     return {
@@ -130,6 +149,8 @@ async function loadSeasonStructure(seasonId) {
   ]);
 
 
+  const effectiveLineup = lineupForRound(lineup, stints, round);
+
   const byTeam = new Map(
     seasonTeams.map((team) => [
       Number(team.id),
@@ -142,7 +163,7 @@ async function loadSeasonStructure(seasonId) {
   );
 
 
-  lineup.forEach((entry) => {
+  effectiveLineup.forEach((entry) => {
 
     if (
       !entry.SeasonTeamId ||
@@ -209,7 +230,7 @@ async function loadSeasonStructure(seasonId) {
 
   const assigned =
     new Set(
-      lineup
+      effectiveLineup
         .filter(
           (entry) =>
             entry.SeasonTeamId &&
@@ -238,7 +259,7 @@ async function loadSeasonStructure(seasonId) {
 
     allDrivers,
 
-    lineup,
+    lineup: effectiveLineup,
     stints
   };
 }
@@ -345,7 +366,9 @@ async function resolveTeamToken(token) {
 
 module.exports = {
   eligibleSeasonDriverWhere,
+  lineupForRound,
   loadEligibleSeasonDrivers,
   loadSeasonStructure,
   resolveTeamToken
 };
+

@@ -1,11 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
+const fs = require('fs');
 const ejs = require('ejs');
 const {
   REGULAR_STATUSES, RESERVE_STATUSES, ATTENDANCE_STATUSES,
-  regularStarts, regularRoleField, reserveRoleField, reserveStarts
+  regularStarts, regularRoleField, reserveRoleField, reserveStarts,
 } = require('../services/raceLineup');
+const { selectCurrentRaceEvent, buildCockpitRows, availableReplacementRows } = require('../services/raceWeekend');
 
 const layout = { currentPath: '/admin/f1-race-lineup', isAdmin: true, flash: null };
 
@@ -24,6 +26,69 @@ test('Statuslogik übernimmt nur bestätigte Fahrer in den aktuellen Saisonverla
   assert.equal(reserveRoleField('samstag'), 'roleF1ReserveSaturday');
   assert.equal(reserveRoleField('sonntag'), 'roleF1ReserveSunday');
   assert.equal(regularRoleField('samstag'), 'roleF1Saturday');
+});
+
+test('Auf-Abruf-Automatik und Ersatz-Zulässigkeit bleiben serverseitig eindeutig', () => {
+  assert.deepEqual(RESERVE_STATUSES.map((status) => status.value), [
+    'angefragt', 'abgemeldet', 'unsicher', 'anwesend', 'auf_abruf'
+  ]);
+  assert.equal(reserveStarts('anwesend'), true);
+  assert.equal(reserveStarts('auf_abruf'), true);
+  assert.equal(reserveStarts('angefragt'), false);
+  assert.equal(ATTENDANCE_STATUSES.some((status) => status.value === 'unsicher'), true);
+});
+
+test('Aktuelles Rennen priorisiert heute, Zukunft und Vergangenheit und ignoriert Testtage', () => {
+  const event = (id, date, isTestDay = false) => ({ id, GrandPrixResultId: id + 100, startsAt: `${date}T18:00:00+02:00`, isTestDay });
+  const events = [event(1, '2026-08-20'), event(2, '2026-08-25', true), event(3, '2026-08-25'), event(4, '2026-09-01')];
+  assert.equal(selectCurrentRaceEvent(events, { today: '2026-08-25' }).id, 3);
+  assert.equal(selectCurrentRaceEvent(events, { today: '2026-08-26' }).id, 4);
+  assert.equal(selectCurrentRaceEvent(events, { today: '2026-09-02' }).id, 4);
+  assert.equal(selectCurrentRaceEvent(events, { event: 1, today: '2026-08-25' }).id, 1);
+});
+
+test('Driver of the Day ist migrationssicher, exklusiv und nur dem Hauptrennen zugeordnet', () => {
+  const models = fs.readFileSync(path.join(__dirname, '..', 'models', 'index.js'), 'utf8');
+  const schema = fs.readFileSync(path.join(__dirname, '..', 'services', 'schema.js'), 'utf8');
+  const editor = fs.readFileSync(path.join(__dirname, '..', 'controllers', 'raceEditorController.js'), 'utf8');
+  const control = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'f1-result-control.js'), 'utf8');
+  assert.match(models, /driverOfTheDay: \{ type: DataTypes\.BOOLEAN, allowNull: false, defaultValue: false \}/);
+  assert.match(schema, /driver_of_the_day/);
+  assert.match(editor, /driverOfTheDayCount > 1/);
+  assert.match(editor, /!prefix && submitted\.driverOfTheDay/);
+  assert.match(control, /DRIVER OF THE DAY/);
+});
+
+test('Unsicher-Kette reserviert den vorgemerkten Ersatz und endet ohne Schleife beim freien Starter', () => {
+  const regular = { id: 1, DriverId: 10, TeamId: 7, roleType: 'regular', status: 'unsicher', uncertainPresent: false, driver: { name: 'Stamm' } };
+  const planned = { id: 2, DriverId: 20, ReplacementForDriverId: 10, TeamId: 7, roleType: 'reserve', status: 'unsicher', uncertainPresent: null, driver: { name: 'Vorgemerkt' } };
+  const next = { id: 3, DriverId: 30, ReplacementForDriverId: 20, TeamId: 7, roleType: 'reserve', status: 'auf_abruf', uncertainPresent: null, driver: { name: 'Auf Abruf' } };
+  let cockpit = buildCockpitRows([regular, planned, next])[0];
+  assert.equal(cockpit.pending, planned);
+  assert.equal(cockpit.current, null);
+  planned.uncertainPresent = false;
+  cockpit = buildCockpitRows([regular, planned, next])[0];
+  assert.equal(cockpit.current, next);
+  assert.deepEqual(cockpit.chain.map((entry) => entry.DriverId), [10, 20, 30]);
+});
+
+test('Eine Rennsperre öffnet auch in der Anwesenheitskontrolle kein Ersatzcockpit', () => {
+  const regular = { id: 1, DriverId: 10, TeamId: 7, roleType: 'regular', status: 'rennsperre', driver: { name: 'Gesperrt' } };
+  const cockpit = buildCockpitRows([regular])[0];
+  assert.equal(cockpit.current, null);
+  assert.equal(cockpit.replacementBlocked, true);
+  assert.equal(cockpit.needsReplacement, false);
+});
+
+test('Spontane Ersatzliste bevorzugt Auf Abruf und schließt reservierte oder bestätigte Fahrer aus', () => {
+  const entry = (id, status, extra = {}) => ({ id, DriverId: id, roleType: 'reserve', status, driver: { name: `F${id}` }, ...extra });
+  const rows = availableReplacementRows([
+    entry(1, 'unsicher'), entry(2, 'anwesend'), entry(3, 'auf_abruf'),
+    entry(4, 'auf_abruf', { ReplacementForDriverId: 99 }),
+    entry(5, 'auf_abruf', { includeInResults: true }),
+    entry(6, 'abgemeldet')
+  ]);
+  assert.deepEqual(rows.map((row) => row.DriverId), [3, 2, 1]);
 });
 
 test('Fahrereinteilung zeigt Team, Stammfahrer, Ersatzfahrer und alle Statusfarben', async () => {
@@ -47,7 +112,7 @@ test('Fahrereinteilung zeigt Team, Stammfahrer, Ersatzfahrer und alle Statusfarb
   assert.match(html, /für Stammfahrer/);
   assert.match(html, /status-rennsperre/);
   assert.match(html, /status-auf_abruf/);
-  assert.match(html, /name="regular\[7\]\[ReplacementDriverId\]"/);
+  assert.match(html, /name="regular\[d7\]\[ReplacementDriverId\]"/);
   assert.match(html, /nur für dieses Rennen der aktuellen Saison/);
 });
 
@@ -87,3 +152,4 @@ test('LMU-Fahrereinteilung nutzt LMU-Anzeigename, persönliches Auto und Ersatzs
   assert.match(html, /LMU-FAHRERFELD/);
   assert.match(html, /LMU-Fahrereinteilung speichern/);
 });
+

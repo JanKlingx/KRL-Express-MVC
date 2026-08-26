@@ -26,7 +26,7 @@ const {
   loadSeasonStructure,
   resolveTeamToken,
 } = require("../services/f1Season");
-const { seedSeasonDriverStints } = require("../services/seasonDriverStints");
+const { seedSeasonDriverStints, seasonLineupIsProtected } = require("../services/seasonDriverStints");
 
 function disciplineForLeague(league) {
   return league?.type === "competition" ? "wdl" : league?.type;
@@ -244,6 +244,7 @@ async function loadData(query = {}) {
 
     hasSprint: sprintKeys.has(`${event.circuit}::${event.sortOrder}`),
   }));
+  const lineupProtected = await seasonLineupIsProtected(selectedSeason);
 
   return {
     leagues,
@@ -260,6 +261,7 @@ async function loadData(query = {}) {
     structure,
     driverRankFilter,
     f1Games,
+    lineupProtected,
 
     carAssignmentMap: Object.fromEntries(
       carAssignments.map((assignment) => [
@@ -626,8 +628,8 @@ exports.assignDrivers = async (req, res) => {
   try {
     if (!season || !league)
       throw new Error("Saison oder Liga wurde nicht gefunden.");
-    if (season.isPublished && await SeasonDriverStint.count({ where: { SeasonId: season.id } })) {
-      throw new Error("Der veröffentlichte Fahrerkader besitzt bereits eine Historie. Stammfahrer bitte nur über „Fahrerwechsel“ ändern.");
+    if (await seasonLineupIsProtected(season)) {
+      throw new Error("Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.");
     }
     const ids = [
       ...new Set(
@@ -689,8 +691,8 @@ exports.assignTeams = async (req, res) => {
   try {
     if (!season || !league)
       throw new Error("Saison oder Liga wurde nicht gefunden.");
-    if (season.isPublished && await SeasonDriverStint.count({ where: { SeasonId: season.id } })) {
-      throw new Error("Die veröffentlichten Saisonteams sind historisch verknüpft und können hier nicht neu aufgebaut werden.");
+    if (await seasonLineupIsProtected(season)) {
+      throw new Error("Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.");
     }
     const tokens = [
       ...new Set([].concat(req.body.teamTokens || []).filter(Boolean)),
@@ -748,12 +750,9 @@ exports.assignLineup = async (req, res) => {
       throw new Error("Saison oder Liga wurde nicht gefunden.");
     }
 
-    const existingHistory = await SeasonDriverStint.count({
-      where: { SeasonId: season.id },
-    });
-    if (season.isPublished && existingHistory) {
+    if (await seasonLineupIsProtected(season)) {
       throw new Error(
-        "Das veröffentlichte Line-up besitzt bereits eine Historie. Bitte Änderungen über „Fahrerwechsel“ durchführen.",
+        "Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.",
       );
     }
 
@@ -1053,3 +1052,4 @@ exports.finish = async (req, res) => {
 };
 
 module.exports.loadData = loadData;
+

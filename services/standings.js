@@ -417,53 +417,12 @@ function buildSeasonData(
           ) ||
           `name:${entry.driverName}`;
 
-  const stintById = new Map(stints.map((stint) => [Number(stint.id), stint]));
-  const transferWindowsByDriver = new Map();
-
-  stints
-    .filter((stint) => stint.roleType === "regular" && stint.carryReservePoints === true)
-    .forEach((regularStint) => {
-      const previous = stintById.get(Number(regularStint.previousStintId));
-      if (!previous || previous.roleType !== "reserve" ||
-          Number(previous.DriverId) !== Number(regularStint.DriverId) ||
-          Number(previous.SeasonTeamId) !== Number(regularStint.SeasonTeamId)) {
-        return;
-      }
-      const driverId = Number(regularStint.DriverId);
-      if (!transferWindowsByDriver.has(driverId)) transferWindowsByDriver.set(driverId, []);
-      transferWindowsByDriver.get(driverId).push({
-        promotionRound: Number(regularStint.fromRound),
-        reserveStint: previous,
-        team: plain(previous.seasonTeam) || plain(regularStint.seasonTeam) || null,
-      });
-    });
-
-  function entryMatchesStintTeam(entry, window) {
-    const team = window.team;
-    if (!team) return false;
-    if (entry.teamName && team.name) {
-      return String(entry.teamName).trim().toLowerCase() ===
-        String(team.name).trim().toLowerCase();
-    }
-    return team.sourceType === "current" &&
-      Number(entry.TeamId) === Number(team.sourceId);
-  }
-
-  function transferredReservePoints(driverId, upToRound) {
-    const windows = transferWindowsByDriver.get(Number(driverId)) || [];
-    return windows.reduce((sum, window) => {
-      if (Number(upToRound) < window.promotionRound) return sum;
-      return sum + races.reduce((raceSum, race) => {
-        if (!isRoundInStint(window.reserveStint, race.sortOrder)) return raceSum;
-        const entry = (race.entries || []).map(plain).find(
-          (candidate) => Number(candidate.DriverId) === Number(driverId)
-        );
-        if (!entry || !entryMatchesStintTeam(entry, window)) return raceSum;
-        const lineupEntry = lineupEntryForResult(race, entry);
-        if (lineupEntry?.roleType !== "reserve") return raceSum;
-        return raceSum + number(entry.points);
-      }, 0);
-    }, 0);
+  function actualEntryFor(driver, race) {
+    return (race.entries || []).map(plain).find((entry) =>
+      entry.DriverId
+        ? Number(entry.DriverId) === Number(driver.id)
+        : keyForEntry(entry) === (driver.id ? `id:${driver.id}` : `name:${driver.name}`)
+    ) || null;
   }
 
   /*
@@ -479,8 +438,8 @@ function buildSeasonData(
     ] of drivers.entries()
   ) {
     let cumulative = 0;
-    let appliedTransfer = 0;
     const regularStints = stintsFor(driver.id, "regular");
+    driver.roleTotal = 0;
 
     driver.results =
       races.map(
@@ -493,22 +452,14 @@ function buildSeasonData(
                 )
               : race;
 
-          const availableTransfer = transferredReservePoints(driver.id, race.sortOrder);
-          if (availableTransfer > appliedTransfer) {
-            const delta = availableTransfer - appliedTransfer;
-            cumulative += delta;
-            driver.total += delta;
-            appliedTransfer = availableTransfer;
-          }
-
           const isRegularInRound = !regularStints.length ||
             regularStints.some((stint) => isRoundInStint(stint, race.sortOrder));
           if (!isRegularInRound) {
             return {
-              value: "DNS",
+              value: "DNA",
               points: 0,
               cumulative,
-              status: "DNS",
+              status: "DNA",
               position: null,
               fastestLap: false,
               outsideStint: true,
@@ -589,7 +540,7 @@ function buildSeasonData(
           cumulative +=
             points;
 
-          driver.total +=
+          driver.roleTotal +=
             points;
 
           if (
@@ -637,6 +588,10 @@ function buildSeasonData(
           };
         },
       );
+    driver.total = races.reduce((sum, race) => sum + number(actualEntryFor(driver, race)?.points), 0);
+    driver.wins = races.filter((race) =>
+      race.raceType !== "sprint" && Number(actualEntryFor(driver, race)?.position) === 1
+    ).length;
   }
 
   /*
@@ -679,8 +634,8 @@ function buildSeasonData(
         .map((race, raceIndex) => ({ race, raceIndex }))
         .filter(({ race }) => race.raceType === "main" && Array.isArray(race.entries) && race.entries.length);
       const startedMainResults = completedMainIndexes
-        .map(({ raceIndex }) => driver.results[raceIndex])
-        .filter((result) => result && !result.outsideStint && !result.replaced && result.status !== "DNS" && (result.position || result.status));
+        .map(({ race }) => actualEntryFor(driver, race))
+        .filter(Boolean);
       driver.starts = startedMainResults.length;
       driver.failures = startedMainResults.filter((result) => result.status === "DNF").length;
       driver.startRate = completedMainIndexes.length
@@ -791,10 +746,10 @@ function buildSeasonData(
             reserveStints.some((stint) => isRoundInStint(stint, race.sortOrder));
           if (!isReserveInRound) {
             return {
-              value: "DNS",
+              value: "DNA",
               points: 0,
               cumulative,
-              status: "DNS",
+              status: "DNA",
               position: null,
               fastestLap: false,
               outsideStint: true,
@@ -1358,6 +1313,8 @@ function buildSeasonData(
       (driver) => ({
         ...driver,
 
+        total: driver.roleTotal,
+
         results:
           weekends.map(
             (weekend) =>
@@ -1417,35 +1374,11 @@ function buildSeasonData(
     return rankedDrivers
       .map(
         (driver) => {
-          const result =
-            fullWeekendIndex >= 0
-              ? weekendResult(
-                  driver,
-                  weekends[
-                    fullWeekendIndex
-                  ],
-                )
-              : null;
-
-          let wins = 0;
-
-          for (
-            let i = 0;
-            i <= fullWeekendIndex;
-            i += 1
-          ) {
-            if (
-              Number(
-                resultForRace(
-                  driver,
-                  weekends[i]
-                    ?.main,
-                )?.position,
-              ) === 1
-            ) {
-              wins += 1;
-            }
-          }
+          const includedRaces = races.filter((race) => number(race.sortOrder) <= number(targetWeekend.round));
+          const points = includedRaces.reduce((sum, race) => sum + number(actualEntryFor(driver, race)?.points), 0);
+          const wins = includedRaces.filter((race) =>
+            race.raceType !== "sprint" && Number(actualEntryFor(driver, race)?.position) === 1
+          ).length;
 
           return {
             name:
@@ -1457,10 +1390,7 @@ function buildSeasonData(
             teamLogoPath:
               driver.teamLogoPath,
 
-            points:
-              number(
-                result?.cumulative,
-              ),
+            points,
 
             wins,
           };
@@ -1719,3 +1649,4 @@ module.exports = {
   buildSeasonData,
   raceCode,
 };
+

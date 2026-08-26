@@ -47,6 +47,7 @@ async function loadRosterTeams(
     const structure =
       await loadSeasonStructure(
         race.SeasonId,
+        race.sortOrder,
       );
 
     if (structure.teams.length) {
@@ -222,6 +223,7 @@ async function loadPlanningRows(
     race?.SeasonId
       ? await loadSeasonStructure(
           race.SeasonId,
+          race.sortOrder,
         )
       : null;
 
@@ -1921,3 +1923,4 @@ exports.save = async (
 
 module.exports.loadPlanningRows =
   loadPlanningRows;
+

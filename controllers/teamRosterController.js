@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
-const { League, Team, Driver, TeamRoster, TeamRosterDriver } = require('../models');
+const { League, Season, Team, Driver, TeamRoster, TeamRosterDriver } = require('../models');
 const { regularRoleField } = require('../services/raceLineup');
+const { seasonLineupIsProtected } = require('../services/seasonDriverStints');
 
 const configs = {
   f1: {
@@ -19,6 +20,26 @@ function redirectPath(discipline, leagueId) {
 
 async function loadRoster(id) {
   return TeamRoster.findByPk(id, { include: [{ association: 'league' }, { association: 'team' }] });
+}
+
+async function protectedSeasonForLeague(leagueId) {
+  const league = await League.findByPk(leagueId);
+  if (!league || league.type !== 'f1') return null;
+  const seasons = await Season.findAll({
+    where: { leagueType: 'f1', scopeSlug: league.slug, status: 'active' },
+    order: [['status', 'ASC'], ['id', 'DESC']]
+  });
+  for (const season of seasons) {
+    if (await seasonLineupIsProtected(season)) return season;
+  }
+  return null;
+}
+
+async function assertRosterWritable(discipline, leagueId) {
+  if (discipline !== 'f1') return;
+  if (await protectedSeasonForLeague(leagueId)) {
+    throw new Error('Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.');
+  }
 }
 
 function driverWhere(discipline) {
@@ -59,7 +80,8 @@ exports.show = async (req, res, next) => {
       order: [['sortOrder', 'ASC'], ['id', 'ASC'], [{ model: TeamRosterDriver, as: 'assignments' }, 'sortOrder', 'ASC']]
     }) : []
   ]);
-  res.render('admin/team-rosters', { title: config.title, discipline, config, leagues, selectedLeague, teams, drivers, rosters, driverFitsRoster });
+  const protectedSeason = discipline === 'f1' && selectedLeague ? await protectedSeasonForLeague(selectedLeague.id) : null;
+  res.render('admin/team-rosters', { title: config.title, discipline, config, leagues, selectedLeague, teams, drivers, rosters, driverFitsRoster, protectedSeason });
 };
 
 exports.create = async (req, res, next) => {
@@ -67,6 +89,7 @@ exports.create = async (req, res, next) => {
   const config = configs[discipline];
   if (!config) return next();
   try {
+    await assertRosterWritable(discipline, req.body.LeagueId);
     const [league, team] = await Promise.all([
       League.findByPk(req.body.LeagueId), Team.findByPk(req.body.TeamId)
     ]);
@@ -92,6 +115,7 @@ exports.addDriver = async (req, res, next) => {
   let roster;
   try {
     roster = await loadRoster(req.params.rosterId);
+    await assertRosterWritable(discipline, roster?.LeagueId);
     const driver = await resolveDriver(req.body);
     if (!roster || roster.discipline !== discipline || !driver) throw new Error('Aufstellung oder Fahrer wurde nicht gefunden.');
     if (!driverFitsRoster(driver, roster)) throw new Error(`${driver.name} besitzt nicht die passende Fahrerrolle für ${roster.league.name}.`);
@@ -121,8 +145,11 @@ exports.removeDriver = async (req, res, next) => {
   if (!configs[discipline]) return next();
   const assignment = await TeamRosterDriver.findByPk(req.params.assignmentId, { include: [{ association: 'roster' }] });
   const leagueId = assignment?.roster?.LeagueId;
-  if (assignment?.roster?.discipline === discipline) await assignment.destroy();
-  req.session.flash = { type: 'success', message: 'Fahrer wurde aus der Aufstellung entfernt.' };
+  try {
+    await assertRosterWritable(discipline, leagueId);
+    if (assignment?.roster?.discipline === discipline) await assignment.destroy();
+    req.session.flash = { type: 'success', message: 'Fahrer wurde aus der Aufstellung entfernt.' };
+  } catch (error) { req.session.flash = { type: 'error', message: error.message }; }
   res.redirect(redirectPath(discipline, leagueId));
 };
 
@@ -131,9 +158,13 @@ exports.removeRoster = async (req, res, next) => {
   if (!configs[discipline]) return next();
   const roster = await TeamRoster.findOne({ where: { id: req.params.rosterId, discipline } });
   const leagueId = roster?.LeagueId;
-  if (roster) await roster.destroy();
-  req.session.flash = { type: 'success', message: 'Aufstellung wurde entfernt. Das zentrale Team bleibt erhalten.' };
+  try {
+    await assertRosterWritable(discipline, leagueId);
+    if (roster) await roster.destroy();
+    req.session.flash = { type: 'success', message: 'Aufstellung wurde entfernt. Das zentrale Team bleibt erhalten.' };
+  } catch (error) { req.session.flash = { type: 'error', message: error.message }; }
   res.redirect(redirectPath(discipline, leagueId));
 };
 
 module.exports.configs = configs;
+

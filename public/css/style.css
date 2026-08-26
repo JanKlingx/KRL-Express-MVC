@@ -11731,3 +11731,11 @@ select option {
   } 
  
 }
+
+/* Rollen-DNA ist kein echtes DNS und bleibt bewusst dezent. */
+.season-sheet-table .is-dna {
+  color: #8e9a9f;
+  background: rgba(142, 154, 159, 0.08);
+  opacity: 0.68;
+}
+

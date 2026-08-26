@@ -7,14 +7,17 @@
       ? driver.roleF1Friday
       : roster.league?.slug === 'samstag'
         ? driver.roleF1Saturday
-        : driver.roleF1Sunday); %>
+      : driver.roleF1Sunday);
+   const rosterProtectedSeason = typeof protectedSeason === 'undefined' ? null : protectedSeason; %>
 <section class="admin-shell"><div class="container">
   <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker"><%= discipline.toUpperCase() %> · Teams</span><h1><%= config.title.toUpperCase() %></h1><p class="admin-intro"><%= config.description %> Weitere Fahrer können jederzeit ergänzt werden.</p></div><a class="button button-ghost" href="/admin/<%= discipline === 'lmu' ? 'lmuTeams' : 'teams' %>"><%= discipline === 'lmu' ? 'LMU-Teams' : 'Formel-1-Teams' %> pflegen</a></div>
 
   <% if (leagues.length) { %><form class="admin-filter roster-league-filter" method="get"><label>Fahrerfeld der Liga anzeigen<select name="league"><% leagues.forEach((league) => { %><option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= league.name %></option><% }) %></select></label></form><% } %>
 
+  <% if (discipline === 'f1' && rosterProtectedSeason) { %><aside class="season-lineup-lock"><div><strong>STAMMPLÄTZE GESCHÜTZT</strong><span>Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.</span></div><a class="button button-small" href="/admin/season-driver-change?league=<%= selectedLeague.id %>&season=<%= rosterProtectedSeason.id %>">FAHRERWECHSEL ÖFFNEN</a></aside><% } %>
+
   <% if (selectedLeague && discipline === 'f1') { const assignedTeamIds = new Set(rosters.map((roster) => Number(roster.TeamId || roster.team?.id))); %>
-    <section class="team-choice-panel"><header><div><span>TEAMS FÜR DIESE LIGA</span><h2><%= selectedLeague.name %></h2><p>Helle Teams sind bereits zugeordnet. Graue Teams können direkt hinzugefügt werden.</p></div><strong><%= rosters.length %> / <%= teams.length %> aktiv</strong></header>
+    <section class="team-choice-panel <%= rosterProtectedSeason ? 'is-season-locked' : '' %>" <%= rosterProtectedSeason ? 'inert' : '' %>><header><div><span>TEAMS FÜR DIESE LIGA</span><h2><%= selectedLeague.name %></h2><p>Helle Teams sind bereits zugeordnet. Graue Teams können direkt hinzugefügt werden.</p></div><strong><%= rosters.length %> / <%= teams.length %> aktiv</strong></header>
       <% if (teams.length) { %><div class="team-choice-grid"><% teams.forEach((team, index) => { const isAssigned = assignedTeamIds.has(Number(team.id)); const assignedRoster = isAssigned ? rosters.find((roster) => Number(roster.TeamId || roster.team?.id) === Number(team.id)) : null; %>
         <% if (isAssigned) { %><article class="team-choice-card team-choice-assigned" style="--team-color:<%= team.accentColor || '#6ef2f2' %>"><span class="team-choice-state">✓ In der Liga</span><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt="Logo <%= team.name %>"><% } else { %><div class="team-choice-logo-fallback"><%= team.name.slice(0, 2).toUpperCase() %></div><% } %><strong><%= team.name %></strong><div class="team-choice-assigned-actions"><a href="#roster-<%= assignedRoster.id %>">Fahrer anzeigen</a><form method="post" action="/admin/team-rosters/<%= discipline %>/<%= assignedRoster.id %>?_method=DELETE" data-confirm="<%= team.name %> aus <%= selectedLeague.name %> entfernen? Die zentralen Team-Stammdaten bleiben erhalten."><button type="submit">− Team entfernen</button></form></div></article>
         <% } else { %><form class="team-choice-card team-choice-available" style="--team-color:<%= team.accentColor || '#6ef2f2' %>" method="post" action="/admin/team-rosters/<%= discipline %>"><input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="TeamId" value="<%= team.id %>"><input type="hidden" name="sortOrder" value="<%= index %>"><span class="team-choice-state">Noch nicht zugeordnet</span><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt="Logo <%= team.name %>"><% } else { %><div class="team-choice-logo-fallback"><%= team.name.slice(0, 2).toUpperCase() %></div><% } %><strong><%= team.name %></strong><button type="submit">+ Team hinzufügen</button></form><% } %>
@@ -30,7 +33,7 @@
   <% } else { %><div class="empty-state">Lege zuerst eine passende Liga an.</div><% } %>
 
   <% if (!rosters.length) { %><div class="empty-state">Noch keine Aufstellung vorhanden. Wähle oben ein zentrales Team und eine Liga aus.</div><% } %>
-  <div class="roster-card-grid">
+  <div class="roster-card-grid <%= rosterProtectedSeason ? 'is-season-locked' : '' %>" <%= rosterProtectedSeason ? 'inert' : '' %>>
     <% rosters.forEach((roster) => { const requiredDrivers = config.minimum; const assignedDriverIds = new Set(roster.assignments.map((assignment) => Number(assignment.DriverId))); const eligibleDrivers = drivers.filter((driver) => !assignedDriverIds.has(Number(driver.id)) && fitsRoster(driver, roster)); %>
       <article id="roster-<%= roster.id %>" class="roster-card <%= roster.assignments.length < requiredDrivers ? 'roster-incomplete' : '' %>" style="--team-color:<%= roster.team.accentColor || '#6ef2f2' %>">
         <header><div><span><%= roster.league.name %></span><h2><%= roster.team.name %></h2></div><% if (roster.team.logoPath) { %><img src="<%= roster.team.logoPath %>" alt="Logo <%= roster.team.name %>"><% } else { %><div class="roster-logo-fallback"><%= roster.team.name.slice(0, 2).toUpperCase() %></div><% } %></header>
@@ -43,3 +46,4 @@
   </div>
 </div></section>
 <%- include('../partials/footer') %>
+

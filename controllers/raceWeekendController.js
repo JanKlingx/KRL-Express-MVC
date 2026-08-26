@@ -205,7 +205,7 @@ async function loadF1Data(query = {}) {
         })
       : [],
     season
-      ? loadSeasonStructure(season.id)
+      ? loadSeasonStructure(season.id, race?.sortOrder || event?.sortOrder)
       : { teams: [], unassignedDrivers: [] },
   ]);
 
@@ -1211,3 +1211,4 @@ exports.resetAll = async (req, res) => {
 
 module.exports.loadF1Data = loadF1Data;
 module.exports.selectCurrentEvent = selectCurrentEvent;
+

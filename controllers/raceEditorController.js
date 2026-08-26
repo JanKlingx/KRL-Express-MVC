@@ -192,10 +192,12 @@ function findDriverEntry(
 async function loadTeams(
   leagueId,
   seasonId,
+  round = null,
 ) {
   const structure =
     await loadSeasonStructure(
       seasonId,
+      round,
     );
 
 
@@ -1008,6 +1010,7 @@ async function showEditor(
       ? await loadTeams(
           selectedLeague.id,
           selectedSeason.id,
+          selectedRace?.sortOrder,
         )
       : [];
 
@@ -1454,6 +1457,7 @@ exports.save = async (
     await loadTeams(
       race.LeagueId,
       race.SeasonId,
+      race.sortOrder,
     );
 
 
@@ -2644,3 +2648,4 @@ exports.removeRace =
       );
     }
   };
+

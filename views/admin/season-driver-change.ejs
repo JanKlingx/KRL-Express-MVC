@@ -1,160 +1,51 @@
 <%- include('../partials/header', { title }) %>
+<% const safeEligible = typeof eligibleMemberships === 'undefined' ? (memberships || []) : eligibleMemberships;
+   const safeTeamSlots = typeof teamSlots === 'undefined' ? (teams || []).map((team) => ({ team, regulars: (lineup || []).filter((row) => row.roleType === 'regular' && Number(row.SeasonTeamId) === Number(team.id)), freeSeats: 0 })) : teamSlots;
+   const safeRounds = typeof rounds === 'undefined' ? [] : rounds;
+   const safeSelectedRound = typeof selectedRound === 'undefined' ? Number(completedRound || 0) + 1 : selectedRound;
+   const safePreview = typeof preview === 'undefined' ? null : preview;
+   const safePreviewError = typeof previewError === 'undefined' ? null : previewError; %>
+<section class="admin-shell season-driver-change-shell"><div class="container">
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">FORMEL 1 · SAISONHISTORIE</span><h1>FAHRERWECHSEL</h1><p class="admin-intro">Der einzige Schreibweg für Stammplätze laufender Saisons. Stints und offene Zukunfts-Line-ups werden atomar angepasst; vergangene Renn- und Punktedaten bleiben unverändert.</p></div><a class="button button-ghost" href="/admin/season-setup">Saison-Line-up ansehen</a></div>
 
-<section class="admin-shell season-driver-change-shell">
-  <div class="container">
-    <div class="admin-heading">
-      <div>
-        <a class="back-link" href="/admin">← Dashboard</a>
-        <span class="form-kicker">FORMEL 1 · SAISONHISTORIE</span>
-        <h1>FAHRERWECHSEL</h1>
-        <p class="admin-intro">Ein geführter Wechsel schließt den bisherigen Stint und aktualisiert nur den aktuellen Saison-Kader. Rennergebnisse und frühere Teamzuordnungen bleiben unverändert.</p>
-      </div>
-      <a class="button button-ghost" href="/admin/season-setup">Saison-Line-up ansehen</a>
-    </div>
+  <section class="setup-panel"><div class="setup-panel-number">01</div><div class="setup-panel-content"><span>KONTEXT</span><h2>LIGA UND SAISON</h2>
+    <form method="get" action="/admin/season-driver-change" class="setup-form driver-change-context">
+      <label>Liga<select name="league" required><option value="">Liga auswählen …</option><% leagues.forEach((item) => { %><option value="<%= item.id %>" <%= selectedLeague?.id === item.id ? 'selected' : '' %>><%= item.name %></option><% }) %></select></label>
+      <label>Saison<select name="season" required><% seasons.forEach((item) => { %><option value="<%= item.id %>" <%= selectedSeason?.id === item.id ? 'selected' : '' %>><%= item.name %> · <%= item.status === 'active' ? 'aktuell' : 'historisch' %></option><% }) %></select></label>
+      <button class="button" type="submit">Auswahl übernehmen</button>
+    </form>
+  </div></section>
 
-    <nav class="setup-steps driver-change-steps" aria-label="Fahrerwechsel-Schritte">
-      <a href="#change-context" class="<%= selectedLeague ? 'is-complete' : '' %>"><span>1</span><strong>Liga</strong></a>
-      <a href="#change-context" class="<%= selectedSeason ? 'is-complete' : '' %>"><span>2</span><strong>Saison</strong></a>
-      <a href="#change-form" class="<%= selectedSeason ? '' : 'is-disabled' %>"><span>3</span><strong>Wechsel</strong></a>
-      <a href="#change-history" class="<%= stints.length ? 'is-complete' : '' %>"><span>4</span><strong>Historie</strong></a>
-    </nav>
+  <% if (selectedSeason) { %>
+    <section class="setup-panel driver-change-panel" id="change-form"><div class="setup-panel-number">02</div><div class="setup-panel-content"><span>PLANEN UND PRÜFEN</span><h2>STAMMPLATZ-TRANSAKTION</h2>
+      <div class="change-safety-note"><strong>Historisch sicher</strong><span>R1–R<%= completedRound %> sind gesperrt. GrandPrixResultEntry und vergangene F1RaceLineupEntry werden nicht verändert.</span></div>
+      <form method="get" action="/admin/season-driver-change" class="setup-form driver-change-form" data-driver-change-form>
+        <input type="hidden" name="league" value="<%= selectedLeague.id %>"><input type="hidden" name="season" value="<%= selectedSeason.id %>"><input type="hidden" name="check" value="1">
+        <label>Aktion<select name="operation" data-change-operation><option value="replace" <%= safePreview?.operation === 'replace' ? 'selected' : '' %>>Direkter Fahrerwechsel</option><option value="release" <%= safePreview?.operation === 'release' ? 'selected' : '' %>>Stammplatz freigeben</option><option value="fill" <%= safePreview?.operation === 'fill' ? 'selected' : '' %>>Freien Stammplatz besetzen</option></select></label>
+        <label>Wechsel ab Runde<select name="round" data-change-round required><% safeRounds.filter((row) => row.round > completedRound).forEach((row) => { %><option value="<%= row.round %>" <%= Number(safeSelectedRound) === Number(row.round) ? 'selected' : '' %>>R<%= row.round %> · <%= row.title %></option><% }) %></select></label>
+        <label>Team<select name="team" data-change-team required><option value="">Team auswählen …</option><% safeTeamSlots.forEach((slot) => { %><option value="<%= slot.team.id %>" data-free-seats="<%= slot.freeSeats %>" <%= Number(selectedTeamId) === Number(slot.team.id) ? 'selected' : '' %>><%= slot.team.name %> · <%= slot.freeSeats %> Stammplatz<%= slot.freeSeats === 1 ? '' : 'e' %> frei</option><% }) %></select></label>
+        <label data-old-driver-field>Bisheriger Stammfahrer<select name="oldDriver" data-old-driver><option value="">Fahrer auswählen …</option><% stints.filter((row) => row.roleType === 'regular').forEach((stint) => { %><option value="<%= stint.DriverId %>" data-team-id="<%= stint.SeasonTeamId %>" data-from-round="<%= stint.fromRound %>" data-to-round="<%= stint.toRound == null ? '' : stint.toRound %>" <%= Number(safePreview?.oldStint?.DriverId) === Number(stint.DriverId) ? 'selected' : '' %>><%= stint.driver?.name || `Fahrer ${stint.DriverId}` %></option><% }) %></select></label>
+        <label data-new-driver-field>Neuer Stammfahrer<select name="newDriver" data-new-driver><option value="">Fahrer auswählen …</option><% safeEligible.forEach((membership) => { const reserve = stints.find((row) => row.roleType === 'reserve' && row.toRound == null && Number(row.DriverId) === Number(membership.DriverId)); %><option value="<%= membership.DriverId %>" data-is-reserve="<%= reserve ? 'true' : 'false' %>" data-reserve-team-id="<%= reserve?.SeasonTeamId || '' %>" <%= Number(safePreview?.membership?.DriverId) === Number(membership.DriverId) ? 'selected' : '' %>><%= membership.driver?.name || `Fahrer ${membership.DriverId}` %><%= reserve ? ' · Ersatzfahrer' : '' %></option><% }) %></select></label>
+        <button class="button" type="submit">WECHSEL PRÜFEN</button>
+      </form>
+      <% if (safePreviewError) { %><div class="change-conflict"><strong>PRÜFUNG NICHT ERFOLGREICH</strong><span><%= safePreviewError %></span></div><% } %>
+    </div></section>
 
-    <section id="change-context" class="setup-panel">
-      <div class="setup-panel-number">01</div>
-      <div class="setup-panel-content">
-        <span>KONTEXT FESTLEGEN</span>
-        <h2>LIGA UND SAISON</h2>
-        <form method="get" action="/admin/season-driver-change" class="setup-form driver-change-context">
-          <label>Liga *
-            <select name="league" required>
-              <option value="">Liga auswählen …</option>
-              <% leagues.forEach((league) => { %>
-                <option value="<%= league.id %>" <%= selectedLeague?.id === league.id ? 'selected' : '' %>><%= league.name %></option>
-              <% }) %>
-            </select>
-          </label>
-          <label>Saison *
-            <select name="season" <%= selectedLeague ? 'required' : 'disabled' %>>
-              <option value=""><%= selectedLeague ? 'Saison auswählen …' : 'Zuerst Liga auswählen' %></option>
-              <% seasons.forEach((season) => { %>
-                <option value="<%= season.id %>" <%= selectedSeason?.id === season.id ? 'selected' : '' %>><%= season.name %> · <%= season.status === 'active' ? 'aktuell' : 'historisch' %></option>
-              <% }) %>
-            </select>
-          </label>
-          <button class="button" type="submit">Auswahl übernehmen</button>
+    <% if (safePreview) { const oldName = safePreview.oldStint?.driver?.name || stints.find((row) => Number(row.id) === Number(safePreview.oldStint?.id))?.driver?.name; const newName = safePreview.membership?.driver?.name; %>
+      <section class="setup-panel driver-change-confirm"><div class="setup-panel-number">03</div><div class="setup-panel-content"><span>GEPRÜFTE ZUSAMMENFASSUNG</span><h2><%= safePreview.team.name %></h2>
+        <div class="driver-change-preview"><strong><% if (safePreview.operation !== 'fill') { %><%= oldName %> endet nach R<%= safePreview.effectiveRound - 1 %><% } else { %>Stammplatz ist vor R<%= safePreview.effectiveRound %> frei<% } %></strong><small><% if (safePreview.operation !== 'release') { %><%= newName %> beginnt ab R<%= safePreview.effectiveRound %><% } else { %>Ab R<%= safePreview.effectiveRound %> bleibt dieser Stammplatz frei.<% } %></small></div>
+        <form method="post" action="/admin/season-driver-change" class="setup-form">
+          <input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><input type="hidden" name="SeasonTeamId" value="<%= safePreview.team.id %>"><input type="hidden" name="operation" value="<%= safePreview.operation %>"><input type="hidden" name="effectiveRound" value="<%= safePreview.effectiveRound %>"><input type="hidden" name="OldDriverId" value="<%= safePreview.oldStint?.DriverId || '' %>"><input type="hidden" name="NewDriverId" value="<%= safePreview.membership?.DriverId || '' %>">
+          <label>Grund<select name="endReason"><% reasons.forEach(([value, label]) => { %><option value="<%= value %>"><%= label %></option><% }) %></select></label>
+          <% if (safePreview.carryHistory.length) { %><div class="driver-change-carry-list"><header><strong>VORHERIGE EINSÄTZE FÜR <%= safePreview.team.name.toUpperCase() %></strong><span>Nur historische Stammplatzzuordnung – keine erneute Punktebuchung.</span></header><table><thead><tr><th>Anrechnen</th><th>Runde</th><th>Grand Prix</th><th>Datum</th><th>Rolle</th><th>GP</th><th>Sprint</th><th>Gesamt</th></tr></thead><tbody><% safePreview.carryHistory.forEach((race) => { %><tr><td><input type="checkbox" name="carryResultIds" value="<%= race.GrandPrixResultId %>"></td><td>R<%= race.round %></td><td><%= race.title %></td><td><%= race.raceDate || '–' %></td><td>Ersatzfahrer</td><td><%= race.mainPoints %></td><td><%= race.sprintPoints %></td><td><strong><%= race.totalPoints %></strong></td></tr><% }) %></tbody></table><p>Ersatzfahrer-Punkte aus diesem Team können einzeln für die Stammplatzhistorie markiert werden.</p></div><% } %>
+          <button class="button" type="submit"><%= safePreview.operation === 'release' ? 'STAMMPLATZ FREIGEBEN' : safePreview.operation === 'fill' ? 'STAMMPLATZ BESETZEN' : 'FAHRERWECHSEL DURCHFÜHREN' %></button>
         </form>
-      </div>
-    </section>
-
-    <% if (selectedSeason) {
-      const activeRegulars = lineup.filter((row) => row.roleType === 'regular' && row.SeasonTeamId);
-      const reserveStintByDriver = new Map(stints.filter((row) => row.roleType === 'reserve' && row.toRound == null).map((row) => [Number(row.DriverId), row]));
-    %>
-      <section id="change-form" class="setup-panel driver-change-panel">
-        <div class="setup-panel-number">02</div>
-        <div class="setup-panel-content">
-          <span>WIRKSAM AB RUNDE <%= completedRound + 1 %></span>
-          <h2>WECHSEL DURCHFÜHREN</h2>
-
-          <div class="change-safety-note">
-            <strong>Historisch sicher</strong>
-            <span>Bis Runde <%= completedRound %> gespeicherte GP- und Sprint-Ergebnisse werden weder geändert noch gelöscht.</span>
-          </div>
-
-          <form method="post" action="/admin/season-driver-change" class="setup-form driver-change-form" data-driver-change-form>
-            <input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>">
-            <input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>">
-
-            <label>Saisonteam *
-              <select name="SeasonTeamId" required data-change-team>
-                <option value="">Team auswählen …</option>
-                <% teams.forEach((team) => { %>
-                  <option value="<%= team.id %>" <%= Number(selectedTeamId) === Number(team.id) ? 'selected' : '' %>><%= team.name %></option>
-                <% }) %>
-              </select>
-            </label>
-
-            <label>Wirksam ab Runde *
-              <input type="number" name="effectiveRound" min="<%= completedRound + 1 %>" value="<%= completedRound + 1 %>" required>
-              <small>Bereits gefahrene Runden sind gesperrt.</small>
-            </label>
-
-            <label>Alter Stammfahrer *
-              <select name="OldDriverId" required data-old-driver>
-                <option value="">Zuerst Team auswählen …</option>
-                <% activeRegulars.forEach((entry) => { %>
-                  <option value="<%= entry.DriverId %>" data-team-id="<%= entry.SeasonTeamId %>"><%= entry.driver?.name || `Fahrer ${entry.DriverId}` %></option>
-                <% }) %>
-              </select>
-            </label>
-
-            <label>Neuer Stammfahrer *
-              <select name="NewDriverId" required data-new-driver>
-                <option value="">Fahrer auswählen …</option>
-                <% memberships.forEach((membership) => {
-                  const reserveStint = reserveStintByDriver.get(Number(membership.DriverId));
-                %>
-                  <option value="<%= membership.DriverId %>" data-is-reserve="<%= reserveStint ? 'true' : 'false' %>" data-reserve-team-id="<%= reserveStint?.SeasonTeamId || '' %>"><%= membership.driver?.name || `Fahrer ${membership.DriverId}` %><%= reserveStint ? ' · Ersatzfahrer' : '' %></option>
-                <% }) %>
-              </select>
-            </label>
-
-            <label>Grund *
-              <select name="endReason" required>
-                <% reasons.forEach(([value, label]) => { %><option value="<%= value %>"><%= label %></option><% }) %>
-              </select>
-            </label>
-
-            <label class="checkbox-control setup-option-card driver-change-carry" data-carry-option hidden>
-              <input type="checkbox" name="carryReservePoints" disabled>
-              <span>
-                <strong>Ersatzfahrer-Punkte aus diesem Team in die Fahrer-WM übernehmen</strong>
-                <small>Nur möglich, wenn der neue Fahrer zuvor Ersatzfahrer genau dieses Saisonteams war. Die Rennresultate werden nicht umgeschrieben.</small>
-              </span>
-            </label>
-
-            <div class="driver-change-preview" data-change-preview>
-              <span>VORSCHAU</span>
-              <strong>Team, alter und neuer Fahrer auswählen</strong>
-              <small>Danach wird der historische Zeitraum vor dem Speichern zusammengefasst.</small>
-            </div>
-
-            <button class="button" type="submit">Fahrerwechsel verbindlich speichern</button>
-          </form>
-        </div>
-      </section>
-
-      <section id="change-history" class="setup-panel">
-        <div class="setup-panel-number">03</div>
-        <div class="setup-panel-content">
-          <span>DAUERHAFTE SAISONHISTORIE</span>
-          <h2>FAHRER-STINTS</h2>
-          <% if (!stints.length) { %>
-            <div class="empty-state">Noch keine Stints vorhanden. Das aktuelle Line-up wird beim Öffnen automatisch einmalig übernommen.</div>
-          <% } else { %>
-            <div class="table-wrap">
-              <table class="driver-stint-table">
-                <thead><tr><th>Fahrer</th><th>Team</th><th>Rolle</th><th>Zeitraum</th><th>Ende</th><th>Punkteübertrag</th></tr></thead>
-                <tbody>
-                  <% stints.forEach((stint) => { %>
-                    <tr class="<%= stint.toRound == null ? 'is-active-stint' : '' %>">
-                      <td><strong><%= stint.driver?.name || `Fahrer ${stint.DriverId}` %></strong></td>
-                      <td><%= stint.seasonTeam?.name || 'Teamoffener Ersatzfahrer' %></td>
-                      <td><span class="stint-role stint-role-<%= stint.roleType %>"><%= stint.roleType === 'regular' ? 'Stamm' : 'Ersatz' %></span></td>
-                      <td>R<%= stint.fromRound %> – <%= stint.toRound == null ? 'offen' : `R${stint.toRound}` %></td>
-                      <td><%= stint.endReason || '–' %></td>
-                      <td><%= stint.carryReservePoints ? 'Ja, dynamisch' : 'Nein' %></td>
-                    </tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-          <% } %>
-        </div>
-      </section>
+      </div></section>
     <% } %>
-  </div>
-</section>
 
+    <section class="setup-panel" id="change-history"><div class="setup-panel-number">04</div><div class="setup-panel-content"><span>DAUERHAFTE SAISONHISTORIE</span><h2>FAHRER-STINTS</h2><div class="table-wrap"><table class="driver-stint-table"><thead><tr><th>Fahrer</th><th>Team</th><th>Rolle</th><th>Zeitraum</th><th>Ende</th><th>Carry-over</th></tr></thead><tbody><% stints.forEach((stint) => { %><tr class="<%= stint.toRound == null ? 'is-active-stint' : '' %>"><td><strong><%= stint.driver?.name || `Fahrer ${stint.DriverId}` %></strong></td><td><%= stint.seasonTeam?.name || 'Teamoffener Ersatzfahrer' %></td><td><span class="stint-role stint-role-<%= stint.roleType %>"><%= stint.roleType === 'regular' ? 'Stamm' : 'Ersatz' %></span></td><td>R<%= stint.fromRound %> – <%= stint.toRound == null ? 'offen' : `R${stint.toRound}` %></td><td><%= stint.endReason || '–' %></td><td><%= stint.carryOvers?.length || 0 %> Rennen</td></tr><% }) %></tbody></table></div></div></section>
+  <% } %>
+</div></section>
 <script src="/js/season-driver-change.js" defer></script>
 <%- include('../partials/footer') %>
+

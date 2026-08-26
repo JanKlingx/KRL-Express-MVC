@@ -291,6 +291,16 @@ const SeasonDriverStint = sequelize.define('SeasonDriverStint', {
   ]
 });
 
+const SeasonDriverCarryOver = sequelize.define('SeasonDriverCarryOver', {
+  selected: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true }
+}, {
+  indexes: [{
+    name: 'uq_sdc_stint_race',
+    unique: true,
+    fields: ['season_driver_stint_id', 'grand_prix_result_id']
+  }]
+});
+
 const DriverAlias = sequelize.define('DriverAlias', {
   alias: { type: DataTypes.STRING, allowNull: false },
   ...commonSort
@@ -529,6 +539,16 @@ SeasonDriverStint.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverI
 SeasonTeam.hasMany(SeasonDriverStint, { as: 'driverStints', foreignKey: { name: 'SeasonTeamId', allowNull: true }, onDelete: 'SET NULL' });
 SeasonDriverStint.belongsTo(SeasonTeam, { as: 'seasonTeam', foreignKey: { name: 'SeasonTeamId', allowNull: true } });
 SeasonDriverStint.belongsTo(SeasonDriverStint, { as: 'previousStint', foreignKey: { name: 'previousStintId', allowNull: true }, onDelete: 'SET NULL' });
+Season.hasMany(SeasonDriverCarryOver, { as: 'driverCarryOvers', foreignKey: { name: 'SeasonId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonDriverCarryOver.belongsTo(Season, { as: 'season', foreignKey: { name: 'SeasonId', allowNull: false } });
+Driver.hasMany(SeasonDriverCarryOver, { as: 'seasonCarryOvers', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonDriverCarryOver.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
+SeasonTeam.hasMany(SeasonDriverCarryOver, { as: 'driverCarryOvers', foreignKey: { name: 'SeasonTeamId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonDriverCarryOver.belongsTo(SeasonTeam, { as: 'seasonTeam', foreignKey: { name: 'SeasonTeamId', allowNull: false } });
+SeasonDriverStint.hasMany(SeasonDriverCarryOver, { as: 'carryOvers', foreignKey: { name: 'SeasonDriverStintId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonDriverCarryOver.belongsTo(SeasonDriverStint, { as: 'regularStint', foreignKey: { name: 'SeasonDriverStintId', allowNull: false } });
+GrandPrixResult.hasMany(SeasonDriverCarryOver, { as: 'driverCarryOvers', foreignKey: { name: 'GrandPrixResultId', allowNull: false }, onDelete: 'CASCADE' });
+SeasonDriverCarryOver.belongsTo(GrandPrixResult, { as: 'grandPrixResult', foreignKey: { name: 'GrandPrixResultId', allowNull: false } });
 Driver.hasMany(DriverAlias, { as: 'aliases', foreignKey: { name: 'DriverId', allowNull: false }, onDelete: 'CASCADE' });
 DriverAlias.belongsTo(Driver, { as: 'driver', foreignKey: { name: 'DriverId', allowNull: false } });
 League.hasMany(DriverStanding, { as: 'driverStandings', foreignKey: { name: 'LeagueId', allowNull: false }, onDelete: 'CASCADE' });
@@ -631,6 +651,7 @@ module.exports = {
   SeasonTeam,
   SeasonLineupEntry,
   SeasonDriverStint,
+  SeasonDriverCarryOver,
   F1CalendarRound,
   DriverStanding,
   TeamStanding,
@@ -649,3 +670,4 @@ module.exports = {
   F1RuleSection,
   RaceDirectorDocument
 };
+
