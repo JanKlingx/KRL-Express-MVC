@@ -13,6 +13,7 @@ function extractLeagueTime(value, fallback = "20:00") {
 }
 
 function roundNumber(round) {
+  if (round.isTestDay) return null;
   return Number(round.roundNumber || round.sortOrder || 0);
 }
 
@@ -25,6 +26,9 @@ function eventSortOrder(round) {
 
 function titleForRound(round) {
   const country = round.track?.countryRecord?.name || round.track?.country;
+  if (round.isTestDay) {
+    return `Testtag · ${country || round.track?.name || round.circuit}`;
+  }
   return `Großer Preis von ${country || round.track?.name || round.circuit}`;
 }
 
@@ -122,7 +126,7 @@ async function findRaceEvent(season, round, transaction) {
 
 async function syncSeasonRound({ season, league, round, date, transaction }) {
   const order = roundNumber(round);
-  if (!Number.isInteger(order) || order < 1 || !round.track) {
+  if ((!round.isTestDay && (!Number.isInteger(order) || order < 1)) || !round.track) {
     throw new Error("Der zentrale Kalender enthält eine ungültige Runde oder Strecke.");
   }
 
@@ -199,11 +203,11 @@ async function syncSeasonCalendar({ season, league, calendarId, dates, transacti
   const seen = new Set();
   for (const round of calendar.rounds) {
     const number = roundNumber(round);
-    if (!Number.isInteger(number) || number < 1 || !round.F1TrackId || !round.track) {
+    if ((!round.isTestDay && (!Number.isInteger(number) || number < 1)) || !round.F1TrackId || !round.track) {
       throw new Error("Der zentrale F1-Kalender enthält eine ungültige Runde oder Strecke.");
     }
-    if (seen.has(number)) throw new Error(`R${number} ist im zentralen Kalender doppelt vorhanden.`);
-    seen.add(number);
+    if (!round.isTestDay && seen.has(number)) throw new Error(`R${number} ist im zentralen Kalender doppelt vorhanden.`);
+    if (!round.isTestDay) seen.add(number);
     await syncSeasonRound({ season, league, round, date: dates[round.id], transaction });
   }
   await season.update({ F1CalendarId: calendar.id, calendarMode: "automatic" }, { transaction });
@@ -221,13 +225,13 @@ async function validateSeasonCalendar(calendarId, transaction) {
   const seen = new Set();
   for (const round of calendar.rounds) {
     const number = roundNumber(round);
-    if (!Number.isInteger(number) || number < 1 || !round.F1TrackId || !round.track) {
-      throw new Error("Jede Kalenderrunde benötigt eine eindeutige Rundennummer und eine F1-Strecke.");
+    if ((!round.isTestDay && (!Number.isInteger(number) || number < 1)) || !round.F1TrackId || !round.track) {
+      throw new Error("Jedes Rennen benötigt eine eindeutige Rundennummer und jede Kalenderposition eine F1-Strecke.");
     }
-    if (seen.has(number)) {
+    if (!round.isTestDay && seen.has(number)) {
       throw new Error(`R${number} ist im zentralen Kalender doppelt vorhanden.`);
     }
-    seen.add(number);
+    if (!round.isTestDay) seen.add(number);
   }
   return calendar;
 }

@@ -1810,6 +1810,7 @@ exports.publicPenaltyLedger =
     const globalLedgers =
       await buildGlobalLedgers(
         ledgers,
+        req.query.kalender,
       );
 
     return res.render(
@@ -1875,6 +1876,12 @@ exports.publicPenaltyLedger =
 
         formerLedger:
           globalLedgers.former,
+
+        globalCalendars:
+          globalLedgers.calendars,
+
+        selectedGlobalCalendar:
+          globalLedgers.selectedCalendar,
 
         /*
          * Community-Design

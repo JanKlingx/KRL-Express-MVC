@@ -1,92 +1,406 @@
 <%- include('../partials/header', { title }) %>
 
+<%
+  const selectedRounds = Array.isArray(selectedCalendar?.rounds) ? selectedCalendar.rounds : [];
+  const officialRounds = selectedRounds.filter((round) => !round.isTestDay);
+  const nextOfficialRound = officialRounds.reduce(
+    (highest, round) => Math.max(highest, Number(round.roundNumber || 0)),
+    0
+  ) + 1;
+%>
+
 <style>
-  .calendar-master-grid{display:grid;grid-template-columns:minmax(230px,.7fr) minmax(0,2.3fr);gap:1.25rem;align-items:start}
-  .calendar-master-list{display:grid;gap:.65rem}.calendar-master-list a{display:grid;gap:.2rem;padding:.9rem 1rem;border:1px solid rgba(255,255,255,.12);border-radius:12px;color:inherit;text-decoration:none}.calendar-master-list a.is-selected{border-color:#6ef2f2;background:rgba(110,242,242,.08)}
-  .calendar-sheet{width:100%;border-collapse:collapse}.calendar-sheet th,.calendar-sheet td{padding:.65rem;border-bottom:1px solid rgba(255,255,255,.12);vertical-align:middle}.calendar-sheet th{text-align:left;font-size:.75rem;letter-spacing:.08em}.calendar-sheet select,.calendar-sheet input[type=number]{min-width:90px}.calendar-sheet .round-track{min-width:220px}.calendar-sheet img{width:26px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:.45rem}
-  .calendar-inline-form{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}.calendar-actions{display:flex;gap:.4rem;align-items:center}.calendar-help{color:rgba(255,255,255,.65);font-size:.9rem}
-  @media(max-width:900px){.calendar-master-grid{grid-template-columns:1fr}.calendar-sheet-wrap{overflow:auto}}
+  .f1-calendar-layout {
+    display: grid;
+    grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .f1-calendar-sidebar,
+  .f1-calendar-workspace {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .f1-calendar-card {
+    border: 1px solid rgba(255,255,255,.12);
+    background: linear-gradient(145deg, rgba(18,28,32,.96), rgba(8,13,16,.98));
+    box-shadow: 0 18px 45px rgba(0,0,0,.18);
+  }
+
+  .f1-calendar-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.15rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+
+  .f1-calendar-card__header span,
+  .f1-calendar-field > span {
+    color: var(--cyan);
+    font-size: .68rem;
+    font-weight: 900;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .f1-calendar-card__header h2,
+  .f1-calendar-card__header h3 {
+    margin: .25rem 0 0;
+  }
+
+  .f1-calendar-card__body { padding: 1.25rem; }
+
+  .f1-calendar-list {
+    display: grid;
+    gap: .6rem;
+  }
+
+  .f1-calendar-list a {
+    display: grid;
+    gap: .3rem;
+    padding: .85rem .95rem;
+    border: 1px solid rgba(255,255,255,.12);
+    color: inherit;
+    text-decoration: none;
+    background: rgba(255,255,255,.025);
+  }
+
+  .f1-calendar-list a:hover,
+  .f1-calendar-list a.is-selected {
+    border-color: var(--cyan);
+    background: rgba(110,242,242,.075);
+  }
+
+  .f1-calendar-list small,
+  .f1-calendar-help {
+    color: var(--muted);
+  }
+
+  .f1-calendar-form,
+  .f1-calendar-meta-form,
+  .f1-calendar-round-form {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .f1-calendar-field {
+    display: grid;
+    gap: .4rem;
+    margin: 0;
+  }
+
+  .f1-calendar-field input,
+  .f1-calendar-field select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .f1-calendar-meta-form {
+    grid-template-columns: minmax(220px, 1fr) minmax(120px, .35fr) auto auto;
+    align-items: end;
+  }
+
+  .f1-calendar-round-form {
+    grid-template-columns: minmax(100px, .35fr) minmax(280px, 1.4fr) auto auto auto;
+    align-items: end;
+  }
+
+  .f1-calendar-options {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .f1-calendar-options .checkbox-control { margin: 0; }
+
+  .f1-calendar-transaction-note {
+    display: flex;
+    gap: .75rem;
+    align-items: flex-start;
+    margin-top: 1rem;
+    padding: .8rem .9rem;
+    border-left: 3px solid var(--cyan);
+    background: rgba(110,242,242,.05);
+    color: var(--muted);
+    font-size: .8rem;
+  }
+
+  .f1-calendar-transaction-note strong { color: #fff; }
+
+  .f1-calendar-table-wrap { overflow-x: auto; }
+
+  .f1-calendar-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+  }
+
+  .f1-calendar-table th,
+  .f1-calendar-table td {
+    padding: .75rem .65rem;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    vertical-align: middle;
+  }
+
+  .f1-calendar-table th {
+    color: var(--cyan);
+    font-size: .66rem;
+    letter-spacing: .09em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .f1-calendar-table tr.is-test {
+    background: rgba(233,30,99,.055);
+    box-shadow: inset 3px 0 #e91e63;
+  }
+
+  .f1-calendar-table img {
+    width: 28px;
+    height: 18px;
+    margin-right: .5rem;
+    border-radius: 2px;
+    object-fit: cover;
+    vertical-align: middle;
+  }
+
+  .f1-calendar-table .round-track { min-width: 280px; }
+  .f1-calendar-round-field { width: 110px; }
+  .f1-calendar-round-field input { width: 100%; }
+
+  .f1-calendar-test-label {
+    display: grid;
+    gap: .15rem;
+    color: #ff80ac;
+  }
+
+  .f1-calendar-test-label small { color: var(--muted); }
+
+  .f1-calendar-row-actions {
+    display: flex;
+    gap: .45rem;
+    white-space: nowrap;
+  }
+
+  .f1-calendar-drag {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: grab;
+    font-size: 1.15rem;
+  }
+
+  .f1-calendar-table tr.is-dragging { opacity: .45; }
+
+  .f1-calendar-reorder {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: .85rem;
+    border: 1px dashed rgba(255,255,255,.2);
+    background: rgba(255,255,255,.02);
+  }
+
+  @media (max-width: 1100px) {
+    .f1-calendar-layout { grid-template-columns: 1fr; }
+    .f1-calendar-sidebar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .f1-calendar-meta-form,
+    .f1-calendar-round-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 680px) {
+    .f1-calendar-sidebar { grid-template-columns: 1fr; }
+    .f1-calendar-meta-form,
+    .f1-calendar-round-form { grid-template-columns: 1fr; }
+    .f1-calendar-reorder { align-items: stretch; flex-direction: column; }
+  }
 </style>
 
 <section class="admin-shell">
   <div class="container">
     <div class="admin-heading">
-      <div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">FORMEL 1 · STAMMDATEN</span><h1>ZENTRALE F1-RENNKALENDER</h1><p class="admin-intro">Streckenfolge, Sprint und Testtag werden einmal gepflegt. Konkrete Termine bleiben je Liga-Saison im RaceEvent.</p></div>
+      <div>
+        <a class="back-link" href="/admin">← Dashboard</a>
+        <span class="form-kicker">FORMEL 1 · STAMMDATEN</span>
+        <h1>ZENTRALE F1-RENNKALENDER</h1>
+        <p class="admin-intro">Hier wird nur die gemeinsame Reihenfolge aus Strecke, Sprint und Testtag gepflegt. Datum und feste Startzeit folgen später im Saison-Assistenten.</p>
+      </div>
       <a class="button button-ghost" href="/admin/season-setup">Saison-Assistent</a>
     </div>
 
-    <div class="calendar-master-grid">
-      <aside class="setup-panel">
-        <div class="setup-panel-content">
-          <h2>KALENDER</h2>
-          <div class="calendar-master-list">
-            <% calendars.forEach((calendar) => { %>
-              <a href="/admin/f1-calendars?calendar=<%= calendar.id %>" class="<%= selectedCalendar?.id === calendar.id ? 'is-selected' : '' %>"><strong><%= calendar.name %></strong><small><%= calendar.rounds?.length || 0 %> Runden · <%= calendar.isActive ? 'aktiv' : 'inaktiv' %></small></a>
-            <% }) %>
+    <div class="f1-calendar-layout">
+      <aside class="f1-calendar-sidebar">
+        <section class="f1-calendar-card">
+          <header class="f1-calendar-card__header"><div><span>Vorlagen</span><h2>Kalender auswählen</h2></div></header>
+          <div class="f1-calendar-card__body">
+            <div class="f1-calendar-list">
+              <% calendars.forEach((calendar) => { %>
+                <a href="/admin/f1-calendars?calendar=<%= calendar.id %>" class="<%= selectedCalendar?.id === calendar.id ? 'is-selected' : '' %>">
+                  <strong><%= calendar.name %></strong>
+                  <small><%= (calendar.rounds || []).filter((round) => !round.isTestDay).length %> Rennen<%= (calendar.rounds || []).some((round) => round.isTestDay) ? ' · mit Testtag' : '' %> · <%= calendar.isActive ? 'aktiv' : 'inaktiv' %></small>
+                </a>
+              <% }) %>
+              <% if (!calendars.length) { %><div class="empty-state">Noch kein Kalender vorhanden.</div><% } %>
+            </div>
           </div>
-          <form method="post" action="/admin/f1-calendars" class="setup-form">
-            <label>Name<input name="name" placeholder="KRL F1 Kalender Saison 17" required></label>
-            <label>Reihenfolge<input type="number" name="sortOrder" value="0"></label>
-            <label class="checkbox-control"><input type="checkbox" name="isActive" checked><span>Aktiv</span></label>
-            <button class="button">Kalender anlegen</button>
-          </form>
-        </div>
+        </section>
+
+        <section class="f1-calendar-card">
+          <header class="f1-calendar-card__header"><div><span>Neue Vorlage</span><h2>Kalender anlegen</h2></div></header>
+          <div class="f1-calendar-card__body">
+            <form method="post" action="/admin/f1-calendars" class="f1-calendar-form">
+              <label class="f1-calendar-field"><span>Name</span><input name="name" placeholder="z. B. Saison 18 Rennkalender" required></label>
+              <label class="f1-calendar-field"><span>Sortierung der Vorlage</span><input type="number" name="sortOrder" value="0"></label>
+              <label class="checkbox-control"><input type="checkbox" name="isActive" checked><span>Direkt zur Saisonwahl freigeben</span></label>
+              <button class="button" type="submit">Kalender anlegen</button>
+            </form>
+          </div>
+        </section>
       </aside>
 
-      <main>
+      <main class="f1-calendar-workspace">
         <% if (selectedCalendar) { %>
-          <section class="setup-panel">
-            <div class="setup-panel-content">
-              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>" class="calendar-inline-form">
-                <label>Name<input name="name" value="<%= selectedCalendar.name %>" required></label>
-                <label>Reihenfolge<input type="number" name="sortOrder" value="<%= selectedCalendar.sortOrder %>"></label>
+          <section class="f1-calendar-card">
+            <header class="f1-calendar-card__header"><div><span>Ausgewählte Vorlage</span><h2><%= selectedCalendar.name %></h2></div></header>
+            <div class="f1-calendar-card__body">
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>" class="f1-calendar-meta-form">
+                <label class="f1-calendar-field"><span>Name</span><input name="name" value="<%= selectedCalendar.name %>" required></label>
+                <label class="f1-calendar-field"><span>Sortierung</span><input type="number" name="sortOrder" value="<%= selectedCalendar.sortOrder %>"></label>
                 <label class="checkbox-control"><input type="checkbox" name="isActive" <%= selectedCalendar.isActive ? 'checked' : '' %>><span>Aktiv</span></label>
-                <button class="button button-small">Speichern</button>
+                <button class="button button-small" type="submit">Speichern</button>
               </form>
-              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/delete" data-confirm="Nur unbenutzte Kalender können gelöscht werden."><button class="button button-ghost button-small">Kalender löschen</button></form>
-            </div>
-          </section>
-
-          <section class="setup-panel">
-            <div class="setup-panel-content">
-              <span>RUNDE HINZUFÜGEN</span>
-              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds" class="calendar-inline-form">
-                <label>Runde<input type="number" name="roundNumber" min="1" value="<%= (selectedCalendar.rounds?.length || 0) + 1 %>" required></label>
-                <label>Strecke<select class="round-track" name="F1TrackId" required><option value="">Strecke wählen …</option><% tracks.forEach((track) => { %><option value="<%= track.id %>"><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></label>
-                <label class="checkbox-control"><input type="checkbox" name="hasSprint"><span>Sprint</span></label>
-                <label class="checkbox-control"><input type="checkbox" name="isTestDay"><span>Testtag</span></label>
-                <button class="button button-small">Hinzufügen</button>
+              <div class="f1-calendar-transaction-note"><span>✓</span><div><strong>Sicher gespeichert:</strong> Jede Änderung läuft vollständig in einer Datenbank-Transaktion. Bereits verwendete oder abgeschlossene Rennen werden geschützt.</div></div>
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/delete" data-confirm="Dieser Kalender kann nur gelöscht werden, wenn ihn keine Saison und kein Rennen verwendet.">
+                <button class="button button-ghost button-small" type="submit">Unbenutzten Kalender löschen</button>
               </form>
             </div>
           </section>
 
-          <section class="setup-panel">
-            <div class="setup-panel-content calendar-sheet-wrap">
-              <h2>RUNDEN</h2>
-              <p class="calendar-help">Land und Flagge stammen live aus dem Streckenstamm. Verwendete Runden und abgeschlossene Rennen werden vor destruktiven Änderungen geschützt.</p>
-              <% if (selectedCalendar.rounds?.length) { %>
-                <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/reorder" class="calendar-inline-form"><% selectedCalendar.rounds.forEach((round) => { %><input type="hidden" name="roundIds" value="<%= round.id %>"><% }) %><button class="button button-ghost button-small">Angezeigte Reihenfolge als R1–R<%= selectedCalendar.rounds.length %> speichern</button></form>
+          <section class="f1-calendar-card">
+            <header class="f1-calendar-card__header"><div><span>Neuer Eintrag</span><h2>Rennen oder Testtag hinzufügen</h2></div></header>
+            <div class="f1-calendar-card__body">
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds" class="f1-calendar-round-form" data-calendar-entry-form>
+                <label class="f1-calendar-field" data-round-number-field><span>Rennnummer</span><input type="number" name="roundNumber" min="1" value="<%= nextOfficialRound %>" required></label>
+                <label class="f1-calendar-field"><span>Strecke</span><select class="round-track" name="F1TrackId" required><option value="">Strecke wählen …</option><% tracks.forEach((track) => { %><option value="<%= track.id %>"><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></label>
+                <div class="f1-calendar-options"><label class="checkbox-control"><input type="checkbox" name="hasSprint" data-sprint-toggle><span>Sprint</span></label></div>
+                <div class="f1-calendar-options"><label class="checkbox-control"><input type="checkbox" name="isTestDay" data-test-toggle><span>Testtag</span></label></div>
+                <button class="button button-small" type="submit">Hinzufügen</button>
+              </form>
+              <p class="f1-calendar-help">Ein Testtag ist kein offizielles Rennen. Sobald „Testtag“ aktiv ist, verschwindet die Rennnummer und Sprint wird deaktiviert.</p>
+            </div>
+          </section>
+
+          <section class="f1-calendar-card">
+            <header class="f1-calendar-card__header">
+              <div><span>Kalenderstruktur</span><h2><%= officialRounds.length %> Rennen<%= selectedRounds.some((round) => round.isTestDay) ? ' + Testtag' : '' %></h2></div>
+            </header>
+            <div class="f1-calendar-card__body">
+              <% if (selectedRounds.length) { %>
+                <form id="calendar-reorder-form" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/reorder" class="f1-calendar-reorder">
+                  <div><strong>Reihenfolge ändern</strong><div class="f1-calendar-help">Zeilen am Griff ziehen; nummeriert werden nur offizielle Rennen.</div></div>
+                  <div data-reorder-inputs><% selectedRounds.forEach((round) => { %><input type="hidden" name="roundIds" value="<%= round.id %>"><% }) %></div>
+                  <button class="button button-ghost button-small" type="submit">Reihenfolge speichern</button>
+                </form>
               <% } %>
-              <table class="calendar-sheet"><thead><tr><th>Runde</th><th>Land / Strecke</th><th>Sprint</th><th>Testtag</th><th>Aktion</th></tr></thead><tbody>
-                <% (selectedCalendar.rounds || []).forEach((round) => { %>
-                  <tr>
-                    <td><input form="round-<%= round.id %>" type="number" name="roundNumber" min="1" value="<%= round.roundNumber || round.sortOrder %>" required><input form="round-<%= round.id %>" type="hidden" name="sortOrder" value="<%= round.sortOrder %>"></td>
-                    <td><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt=""><% } %><select form="round-<%= round.id %>" class="round-track" name="F1TrackId" required><% tracks.forEach((track) => { %><option value="<%= track.id %>" <%= Number(round.F1TrackId) === Number(track.id) ? 'selected' : '' %>><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></td>
-                    <td><input form="round-<%= round.id %>" type="checkbox" name="hasSprint" <%= round.hasSprint ? 'checked' : '' %>></td>
-                    <td><input form="round-<%= round.id %>" type="checkbox" name="isTestDay" <%= round.isTestDay ? 'checked' : '' %>></td>
-                    <td class="calendar-actions"><form id="round-<%= round.id %>" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>"><button class="button button-small">Speichern</button></form><form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>/delete" data-confirm="Nur unbenutzte Runden können gelöscht werden."><button class="button button-ghost button-small">Löschen</button></form></td>
-                  </tr>
-                <% }) %>
-              </tbody></table>
-              <% if (!selectedCalendar.rounds?.length) { %><div class="empty-state">Noch keine Runden vorhanden.</div><% } %>
+
+              <div class="f1-calendar-table-wrap">
+                <table class="f1-calendar-table">
+                  <thead><tr><th></th><th>Rennnummer</th><th>Land / Strecke</th><th>Sprint</th><th>Testtag</th><th>Aktionen</th></tr></thead>
+                  <tbody data-round-list>
+                    <% selectedRounds.forEach((round) => { %>
+                      <tr data-round-row data-round-id="<%= round.id %>" draggable="true" class="<%= round.isTestDay ? 'is-test' : '' %>">
+                        <td><button class="f1-calendar-drag" type="button" title="Zum Verschieben ziehen" aria-label="Eintrag verschieben">↕</button></td>
+                        <td class="f1-calendar-round-field">
+                          <label data-round-number-field <%= round.isTestDay ? 'hidden' : '' %>><input form="round-<%= round.id %>" type="number" name="roundNumber" min="1" value="<%= round.roundNumber || '' %>" <%= round.isTestDay ? 'disabled' : 'required' %>></label>
+                          <div class="f1-calendar-test-label" data-test-label <%= round.isTestDay ? '' : 'hidden' %>><strong>TESTTAG</strong><small>keine Rennnummer</small></div>
+                        </td>
+                        <td><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt=""><% } %><select form="round-<%= round.id %>" class="round-track" name="F1TrackId" required><% tracks.forEach((track) => { %><option value="<%= track.id %>" <%= Number(round.F1TrackId) === Number(track.id) ? 'selected' : '' %>><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></td>
+                        <td><input form="round-<%= round.id %>" type="checkbox" name="hasSprint" data-sprint-toggle <%= round.hasSprint ? 'checked' : '' %> <%= round.isTestDay ? 'disabled' : '' %>></td>
+                        <td><input form="round-<%= round.id %>" type="checkbox" name="isTestDay" data-test-toggle <%= round.isTestDay ? 'checked' : '' %>></td>
+                        <td><div class="f1-calendar-row-actions"><form id="round-<%= round.id %>" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>"><button class="button button-small" type="submit">Speichern</button></form><form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>/delete" data-confirm="Nur ein noch nicht verwendeter Eintrag kann gelöscht werden."><button class="button button-ghost button-small" type="submit">Löschen</button></form></div></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+              <% if (!selectedRounds.length) { %><div class="empty-state">Dieser Kalender ist noch leer. Füge oben das erste Rennen oder einen Testtag hinzu.</div><% } %>
             </div>
           </section>
         <% } else { %>
-          <div class="empty-state">Lege zuerst einen zentralen F1-Kalender an.</div>
+          <div class="empty-state">Lege links zuerst einen zentralen F1-Rennkalender an.</div>
         <% } %>
       </main>
     </div>
   </div>
 </section>
+
+<script>
+  (() => {
+    function syncTestState(scope) {
+      const testToggle = scope.querySelector('[data-test-toggle]');
+      const sprintToggle = scope.querySelector('[data-sprint-toggle]');
+      const numberField = scope.querySelector('[data-round-number-field]');
+      const numberInput = numberField?.querySelector('input[name="roundNumber"]');
+      const testLabel = scope.querySelector('[data-test-label]');
+      if (!testToggle) return;
+      const isTest = testToggle.checked;
+      if (numberField) numberField.hidden = isTest;
+      if (numberInput) {
+        numberInput.disabled = isTest;
+        numberInput.required = !isTest;
+      }
+      if (testLabel) testLabel.hidden = !isTest;
+      if (sprintToggle) {
+        sprintToggle.disabled = isTest;
+        if (isTest) sprintToggle.checked = false;
+      }
+      scope.classList?.toggle('is-test', isTest);
+    }
+
+    document.querySelectorAll('[data-calendar-entry-form], [data-round-row]').forEach((scope) => {
+      syncTestState(scope);
+      scope.querySelector('[data-test-toggle]')?.addEventListener('change', () => syncTestState(scope));
+    });
+
+    const list = document.querySelector('[data-round-list]');
+    const inputHost = document.querySelector('[data-reorder-inputs]');
+    let dragged = null;
+    function syncOrderInputs() {
+      if (!list || !inputHost) return;
+      inputHost.innerHTML = '';
+      list.querySelectorAll('[data-round-row]').forEach((row) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'roundIds';
+        input.value = row.dataset.roundId;
+        inputHost.appendChild(input);
+      });
+    }
+    list?.addEventListener('dragstart', (event) => {
+      dragged = event.target.closest('[data-round-row]');
+      dragged?.classList.add('is-dragging');
+    });
+    list?.addEventListener('dragend', () => {
+      dragged?.classList.remove('is-dragging');
+      dragged = null;
+      syncOrderInputs();
+    });
+    list?.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      const target = event.target.closest('[data-round-row]');
+      if (!dragged || !target || dragged === target) return;
+      const box = target.getBoundingClientRect();
+      target.parentNode.insertBefore(dragged, event.clientY < box.top + box.height / 2 ? target : target.nextSibling);
+    });
+  })();
+</script>
 
 <%- include('../partials/footer') %>
