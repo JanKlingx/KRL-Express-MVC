@@ -17,6 +17,7 @@ const raceWeekendController = require("../controllers/raceWeekendController");
 const krlTeamPlanningController = require("../controllers/krlTeamPlanningController");
 const f1ContentController = require("../controllers/f1ContentController");
 const f1GameController = require("../controllers/f1GameController");
+const f1CalendarController = require("../controllers/f1CalendarController");
 const { requireAdmin } = require("../middleware/auth");
 const upload = require("../middleware/upload");
 const pdfUpload = require("../middleware/pdfUpload");
@@ -36,6 +37,14 @@ router.put(
   asyncHandler(f1GameController.update),
 );
 router.delete("/f1-games/:id", asyncHandler(f1GameController.remove));
+router.get("/f1-calendars", asyncHandler(f1CalendarController.index));
+router.post("/f1-calendars", asyncHandler(f1CalendarController.create));
+router.post("/f1-calendars/:calendarId", asyncHandler(f1CalendarController.update));
+router.post("/f1-calendars/:calendarId/delete", asyncHandler(f1CalendarController.remove));
+router.post("/f1-calendars/:calendarId/rounds", asyncHandler(f1CalendarController.createRound));
+router.post("/f1-calendars/:calendarId/rounds/reorder", asyncHandler(f1CalendarController.reorder));
+router.post("/f1-calendars/:calendarId/rounds/:roundId", asyncHandler(f1CalendarController.updateRound));
+router.post("/f1-calendars/:calendarId/rounds/:roundId/delete", asyncHandler(f1CalendarController.removeRound));
 router.get("/krl-team-planning", asyncHandler(krlTeamPlanningController.show));
 router.post(
   "/krl-team-planning/assign",
@@ -110,6 +119,10 @@ router.post(
 router.post(
   "/season-setup/:seasonId/calendar",
   asyncHandler(seasonSetupController.addCalendarEvent),
+);
+router.post(
+  "/season-setup/:seasonId/central-calendar",
+  asyncHandler(seasonSetupController.saveCentralCalendar),
 );
 
 router.post(

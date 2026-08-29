@@ -2,7 +2,6 @@ const { Op } = require('sequelize');
 const {
   sequelize,
   Driver,
-  F1CalendarRound,
   GrandPrixResult,
   GrandPrixResultEntry,
   League,
@@ -17,6 +16,7 @@ const {
   WdlResultEntry
 } = require('../models');
 const { centralTeamDriverIds } = require('./teamRosters');
+const { syncLinkedRaceEvents } = require('./f1Calendar');
 
 function dateOnly(value) {
   const date = value ? new Date(value) : new Date();
@@ -83,10 +83,6 @@ async function activateSeason(season) {
     const active = related.status === 'active';
     await GrandPrixResult.update({ isHistorical: !active }, { where: { SeasonId: related.id } });
     await RaceEvent.update({ isPublished: active && related.isPublished !== false }, { where: { SeasonId: related.id } });
-  }
-  if (season.status === 'active' && season.leagueType === 'f1' && season.calendarMode === 'automatic') {
-    const rounds = await F1CalendarRound.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
-    for (const round of rounds) await syncF1CalendarRound(round);
   }
 }
 
@@ -160,70 +156,14 @@ function combineDateAndTime(date, time, fallback = '20:00') {
 }
 
 async function syncF1CalendarRound(round) {
-  const leagues = await League.findAll({ where: { slug: { [Op.in]: ['freitag', 'samstag', 'sonntag'] }, type: 'f1' } });
-  for (const league of leagues) {
-    const season = await Season.findOne({ where: { leagueType: 'f1', scopeSlug: league.slug, status: 'active' } });
-    if (!season) continue;
-    const isFriday = league.slug === 'freitag';
-    const date = isFriday ? round.fridayDate : round.sundayDate;
-    if (!date) continue;
-    const time = isFriday ? round.fridayTime : round.sundayTime;
-    const startsAt = combineDateAndTime(date, time, league.raceTime?.match(/\d{2}:\d{2}/)?.[0]);
-    const [race] = await GrandPrixResult.findOrCreate({
-      where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit, raceType: 'main' },
-      defaults: {
-        SeasonId: season.id,
-        LeagueId: league.id,
-        season: season.name,
-        title: `Großer Preis von ${round.circuit}`,
-        circuit: round.circuit,
-        raceDate: date,
-        discipline: 'f1',
-        raceType: 'main',
-        isHistorical: season.status === 'historical',
-        sortOrder: round.sortOrder
-      }
-    });
-    await race.update({ season: season.name, raceDate: date, raceType: 'main', sortOrder: round.sortOrder, isHistorical: season.status === 'historical' });
-    const [event] = await RaceEvent.findOrCreate({
-      where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit },
-      defaults: {
-        SeasonId: season.id,
-        LeagueId: league.id,
-        GrandPrixResultId: race.id,
-        title: race.title,
-        circuit: round.circuit,
-        startsAt,
-        durationMinutes: 120,
-        isPublished: season.status === 'active',
-        isTestDay: round.isTestDay,
-        sortOrder: round.sortOrder
-      }
-    });
-    await event.update({ GrandPrixResultId: race.id, title: race.title, startsAt, isPublished: season.status === 'active', isTestDay: round.isTestDay, sortOrder: round.sortOrder });
-    if (round.hasSprint) {
-      const [sprint] = await GrandPrixResult.findOrCreate({
-        where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit, raceType: 'sprint' },
-        defaults: {
-          SeasonId: season.id, LeagueId: league.id, season: season.name,
-          title: `Sprint · ${round.circuit}`, circuit: round.circuit, raceDate: date,
-          discipline: 'f1', raceType: 'sprint', isHistorical: false, sortOrder: round.sortOrder
-        }
-      });
-      await sprint.update({ season: season.name, title: `Sprint · ${round.circuit}`, raceDate: date, raceType: 'sprint', isHistorical: false, sortOrder: round.sortOrder });
-    } else {
-      await GrandPrixResult.destroy({ where: { SeasonId: season.id, LeagueId: league.id, circuit: round.circuit, raceType: 'sprint' } });
-    }
-  }
+  if (!round.F1CalendarId) return { updated: 0, skippedCompleted: 0 };
+  return sequelize.transaction((transaction) => syncLinkedRaceEvents(round, transaction));
 }
 
 async function removeF1CalendarRound(round) {
-  const seasons = await Season.findAll({ where: { leagueType: 'f1', status: 'active' }, attributes: ['id'] });
-  const seasonIds = seasons.map((season) => season.id);
-  const events = await RaceEvent.findAll({ where: { circuit: round.circuit, SeasonId: { [Op.in]: seasonIds } } });
-  await RaceEvent.destroy({ where: { id: { [Op.in]: events.map((event) => event.id) } } });
-  await GrandPrixResult.destroy({ where: { circuit: round.circuit, SeasonId: { [Op.in]: seasonIds }, discipline: 'f1' } });
-  await recalculateDriverRaceCounts();
+  if (await RaceEvent.count({ where: { F1CalendarRoundId: round.id } })) {
+    throw new Error('Eine verwendete zentrale Kalenderrunde kann nicht gelöscht werden.');
+  }
 }
 
 async function removeSeriesCalendarEvent(event) {

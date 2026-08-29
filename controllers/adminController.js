@@ -88,6 +88,7 @@ exports.dashboard = async (req, res) => {
     return result;
   }, []);
   const progressModules = [
+    ['f1Calendars', { group: 'Formel 1 Stammdaten', href: '/admin/f1-calendars', title: 'Zentrale F1-Rennkalender', description: 'Runden, Strecken, Sprint und Testtage einmal für Freitag, Samstag und Sonntag pflegen.' }],
     ['f1Games', { group: 'Formel 1 Stammdaten', href: '/admin/f1-games', title: 'F1-Spiele', description: 'Spielname, Logo, Aktivstatus und Reihenfolge zentral für alle F1-Saisons pflegen.' }],
     ['krlTeamPlanning', { group: 'Unser-Team-Stammdaten', href: '/admin/krl-team-planning', title: 'Mitglieder in Teams pflegen', description: 'Mitgliedersuche, Sammelauswahl und Drag-and-Drop-Zuordnung zu Planungsgruppen.' }],
     ['seasonManager', { group: 'Formel 1 Operativer Bereich', href: '/admin/season-manager', title: 'Saison bearbeiten / löschen', description: 'F1-Liga wählen, Saison bearbeiten, im Frontend ausblenden oder vollständig löschen.' }],

@@ -3,13 +3,13 @@
 <%
   const safeLedgers = Array.isArray(ledgers) ? ledgers : [];
 
-  const safeReserveLedger = reserveLedger || {
+  const safeReserveLedger = typeof reserveLedger !== 'undefined' && reserveLedger ? reserveLedger : {
     columnGroups: [],
     columns: [],
     rows: []
   };
 
-  const safeFormerLedger = formerLedger || {
+  const safeFormerLedger = typeof formerLedger !== 'undefined' && formerLedger ? formerLedger : {
     columnGroups: [],
     columns: [],
     rows: []
@@ -729,7 +729,8 @@
                                   : ''
                             );
 
-                          const cellColor = cell?.cellColor || '';
+                      const cellColor = cell?.cellColor || '';
+                      const aggregateLocked = Array.isArray(cell?.entries) && cell.entries.length > 1;
                         %>
                           <td
                             class="penalty-cell <%= cellValue === 'S' ? 'is-ban-cell' : '' %>"
@@ -824,43 +825,14 @@
             <table class="penalty-global-matrix">
               <thead>
                 <tr>
-                  <th class="penalty-global-driver-column" rowspan="2">
+                  <th class="penalty-global-driver-column">
                     FAHRER
                   </th>
-
-                  <% reserveColumnGroups.forEach((group) => {
-                    const groupColumns = Array.isArray(group.columns)
-                      ? group.columns
-                      : [];
-                  %>
-                    <% if (groupColumns.length) { %>
-                      <th
-                        class="penalty-global-league-head"
-                        colspan="<%= groupColumns.length %>"
-                        style="--group-color:<%= group.league?.accentColor || '#6ef2f2' %>"
-                      >
-                        <span class="penalty-global-league-name">
-                          <%= group.league?.name || '' %>
-                        </span>
-                      </th>
-                    <% } %>
-                  <% }) %>
-
-                  <th class="penalty-global-total" rowspan="2">SP</th>
-                  <th class="penalty-global-status" rowspan="2">STATUS</th>
-                </tr>
-
-                <tr>
-                  <% reserveColumnGroups.forEach((group) => {
-                    const groupColumns = Array.isArray(group.columns)
-                      ? group.columns
-                      : [];
-                  %>
-                    <% groupColumns.forEach((column) => { %>
+                  <% reserveColumns.forEach((column) => { %>
                       <th
                         class="penalty-global-round-column"
                         style="--column-color:<%= column.leagueColor || '#6ef2f2' %>"
-                        title="<%= column.leagueName || '' %> · R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
+                        title="R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
                       >
                         <div class="penalty-round-head">
                           <strong>R<%= column.roundNumber %></strong>
@@ -876,8 +848,9 @@
                           <% } %>
                         </div>
                       </th>
-                    <% }) %>
                   <% }) %>
+                  <th class="penalty-global-total">SP</th>
+                  <th class="penalty-global-status">STATUS</th>
                 </tr>
               </thead>
 
@@ -895,12 +868,7 @@
                       <%= row.name %>
                     </td>
 
-                    <% reserveColumnGroups.forEach((group) => {
-                      const groupColumns = Array.isArray(group.columns)
-                        ? group.columns
-                        : [];
-                    %>
-                      <% groupColumns.forEach((column) => {
+                    <% reserveColumns.forEach((column) => {
                         const cell = row.cells?.[column.key] || null;
 
                         const cellValue =
@@ -925,7 +893,7 @@
                               : ''
                           %>"
                         >
-                          <input
+                          <% if (aggregateLocked) { %><strong title="Mehrere Ligaeinträge sind hier addiert und werden in den jeweiligen Liga-Tabellen bearbeitet."><%= cellValue %></strong><% } else { %><input
                             class="penalty-cell-input"
                             type="text"
                             value="<%= cellValue %>"
@@ -936,14 +904,14 @@
                             inputmode="text"
                             data-saved-value="<%= cellValue %>"
                             data-saved-color="<%= cellColor %>"
-                            data-league-id="<%= column.LeagueId %>"
-                            data-season-id="<%= column.SeasonId %>"
+                            data-league-id="<%= cell?.LeagueId || column.LeagueId %>"
+                            data-season-id="<%= cell?.SeasonId || column.SeasonId %>"
                             data-driver-id="<%= row.id %>"
                             data-round-number="<%= column.roundNumber %>"
-                            aria-label="<%= row.name %>, <%= column.leagueName || '' %>, Runde <%= column.roundNumber %>"
+                            aria-label="<%= row.name %>, Runde <%= column.roundNumber %>"
                           >
+                          <% } %>
                         </td>
-                      <% }) %>
                     <% }) %>
 
                     <td class="penalty-global-total" data-global-row-total>
@@ -952,10 +920,10 @@
 
                     <td class="penalty-global-status">
                       <span
-                        class="penalty-status <%= row.hasBan ? 'is-banned' : 'is-free' %>"
+                        class="penalty-status <%= row.suspended ? 'is-banned' : 'is-free' %>"
                         data-global-row-status
                       >
-                        <%= row.hasBan ? 'SPERRE' : 'AKTIV' %>
+                        <%= row.suspended ? 'GESPERRT' : 'FREI' %>
                       </span>
                     </td>
                   </tr>
@@ -977,7 +945,7 @@
       <header class="penalty-global-header">
         <div>
           <span>FORMEL 1 · RESTSTRAFEN</span>
-          <h2>EHEMALIGE FAHRER</h2>
+          <h2>EHEMALIGE FAHRER MIT SP</h2>
         </div>
 
         <strong class="penalty-limit">
@@ -1005,43 +973,14 @@
             <table class="penalty-global-matrix">
               <thead>
                 <tr>
-                  <th class="penalty-global-driver-column" rowspan="2">
+                  <th class="penalty-global-driver-column">
                     FAHRER
                   </th>
-
-                  <% formerColumnGroups.forEach((group) => {
-                    const groupColumns = Array.isArray(group.columns)
-                      ? group.columns
-                      : [];
-                  %>
-                    <% if (groupColumns.length) { %>
-                      <th
-                        class="penalty-global-league-head"
-                        colspan="<%= groupColumns.length %>"
-                        style="--group-color:<%= group.league?.accentColor || '#6ef2f2' %>"
-                      >
-                        <span class="penalty-global-league-name">
-                          <%= group.league?.name || '' %>
-                        </span>
-                      </th>
-                    <% } %>
-                  <% }) %>
-
-                  <th class="penalty-global-total" rowspan="2">SP</th>
-                  <th class="penalty-global-status" rowspan="2">STATUS</th>
-                </tr>
-
-                <tr>
-                  <% formerColumnGroups.forEach((group) => {
-                    const groupColumns = Array.isArray(group.columns)
-                      ? group.columns
-                      : [];
-                  %>
-                    <% groupColumns.forEach((column) => { %>
+                  <% formerColumns.forEach((column) => { %>
                       <th
                         class="penalty-global-round-column"
                         style="--column-color:<%= column.leagueColor || '#6ef2f2' %>"
-                        title="<%= column.leagueName || '' %> · R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
+                        title="R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
                       >
                         <div class="penalty-round-head">
                           <strong>R<%= column.roundNumber %></strong>
@@ -1057,8 +996,9 @@
                           <% } %>
                         </div>
                       </th>
-                    <% }) %>
                   <% }) %>
+                  <th class="penalty-global-total">SP</th>
+                  <th class="penalty-global-status">STATUS</th>
                 </tr>
               </thead>
 
@@ -1077,12 +1017,7 @@
                       <%= row.name %>
                     </td>
 
-                    <% formerColumnGroups.forEach((group) => {
-                      const groupColumns = Array.isArray(group.columns)
-                        ? group.columns
-                        : [];
-                    %>
-                      <% groupColumns.forEach((column) => {
+                    <% formerColumns.forEach((column) => {
                         const cell = row.cells?.[column.key] || null;
 
                         const cellValue =
@@ -1095,7 +1030,8 @@
                                 : ''
                           );
 
-                        const cellColor = cell?.cellColor || '';
+                      const cellColor = cell?.cellColor || '';
+                      const aggregateLocked = Array.isArray(cell?.entries) && cell.entries.length > 1;
                       %>
                         <td
                           class="penalty-cell <%= cellValue === 'S' ? 'is-ban-cell' : '' %>"
@@ -1107,7 +1043,7 @@
                               : ''
                           %>"
                         >
-                          <input
+                          <% if (aggregateLocked) { %><strong title="Mehrere Ligaeinträge sind hier addiert und werden in den jeweiligen Liga-Tabellen bearbeitet."><%= cellValue %></strong><% } else { %><input
                             class="penalty-cell-input"
                             type="text"
                             value="<%= cellValue %>"
@@ -1118,14 +1054,14 @@
                             inputmode="text"
                             data-saved-value="<%= cellValue %>"
                             data-saved-color="<%= cellColor %>"
-                            data-league-id="<%= column.LeagueId %>"
-                            data-season-id="<%= column.SeasonId %>"
+                            data-league-id="<%= cell?.LeagueId || column.LeagueId %>"
+                            data-season-id="<%= cell?.SeasonId || column.SeasonId %>"
                             data-driver-id="<%= row.id %>"
                             data-round-number="<%= column.roundNumber %>"
-                            aria-label="<%= row.name %>, <%= column.leagueName || '' %>, Runde <%= column.roundNumber %>"
+                            aria-label="<%= row.name %>, Runde <%= column.roundNumber %>"
                           >
+                          <% } %>
                         </td>
-                      <% }) %>
                     <% }) %>
 
                     <td class="penalty-global-total" data-global-row-total>
@@ -1134,10 +1070,10 @@
 
                     <td class="penalty-global-status">
                       <span
-                        class="penalty-status <%= row.hasBan ? 'is-banned' : 'is-free' %>"
+                        class="penalty-status <%= row.suspended ? 'is-banned' : 'is-free' %>"
                         data-global-row-status
                       >
-                        <%= row.hasBan ? 'SPERRE' : 'REST-SP' %>
+                        <%= row.suspended ? 'GESPERRT' : 'FREI' %>
                       </span>
                     </td>
                   </tr>

@@ -8,6 +8,8 @@ const {
   PenaltyEntry,
   RaceEvent,
   F1PenaltySetting,
+  F1Calendar,
+  F1CalendarRound,
 } = require("../models");
 
 const {
@@ -41,16 +43,12 @@ function wantsJson(req) {
 /*
  * Für globale Tabellen:
  *
- * Ein Fahrer kann Strafpunkte z. B. in
- * Samstag R4 und Sonntag R4 besitzen.
- *
- * Deshalb reicht "R4" allein nicht als Schlüssel.
+ * Globale Tabellen aggregieren alle Ligen auf derselben
+ * zentralen Rundennummer. Freitag R4 und Sonntag R4 landen
+ * deshalb bewusst in derselben Zelle.
  */
-function globalCellKey(
-  leagueId,
-  roundNumber,
-) {
-  return `${Number(leagueId)}:${Number(roundNumber)}`;
+function globalCellKey(roundNumber) {
+  return String(Number(roundNumber));
 }
 
 
@@ -476,14 +474,8 @@ function buildLeagueCells(
  * GLOBALE ZELLEN AUFBAUEN
  * =====================================================
  *
- * Die gemeinsame Ersatz-/Ehemaligen-Tabelle muss
- * mehrere Ligen gleichzeitig darstellen können.
- *
- * Deshalb lautet der Zellenschlüssel beispielsweise:
- *
- * 12:4
- *
- * LeagueId 12, Runde 4.
+ * Die gemeinsame Ersatz-/Ehemaligen-Tabelle verwendet
+ * roundNumber als einzigen Zellenschlüssel.
  */
 
 function buildGlobalCells(
@@ -499,11 +491,6 @@ function buildGlobalCells(
     const entry of
     entries || []
   ) {
-    const leagueId =
-      Number(
-        entry.LeagueId,
-      );
-
     const roundNumber =
       Number(
         entry.roundNumber ||
@@ -512,10 +499,6 @@ function buildGlobalCells(
 
 
     if (
-      !Number.isInteger(
-        leagueId,
-      ) ||
-      leagueId < 1 ||
       !Number.isInteger(
         roundNumber,
       ) ||
@@ -526,10 +509,7 @@ function buildGlobalCells(
 
 
     const key =
-      globalCellKey(
-        leagueId,
-        roundNumber,
-      );
+      globalCellKey(roundNumber);
 
 
     if (!cells[key]) {
@@ -537,7 +517,7 @@ function buildGlobalCells(
         key,
 
         LeagueId:
-          leagueId,
+          Number(entry.LeagueId),
 
         SeasonId:
           Number(
@@ -954,69 +934,67 @@ async function buildGlobalLedgers(
    * SPALTEN
    * =====================================================
    *
-   * Eine Tabelle, aber die Spalten bleiben eindeutig
-   * der jeweiligen Liga zugeordnet.
-   *
-   * Die EJS kann daraus später einen zweistufigen Header
-   * bauen:
-   *
-   * FREITAG        SAMSTAG        SONNTAG
-   * R1 R2 R3 ...   R1 R2 R3 ...   R1 R2 R3 ...
+   * Eine gemeinsame Rundenachse aus dem zentralen F1-Kalender.
    */
 
-  const columnGroups =
-    activeLedgers.map(
-      (ledger) => ({
-        league:
-          ledger.league,
+  const masterLedger = activeLedgers[0] || null;
+  const calendarIds = [...new Set(activeLedgers
+    .map((ledger) => Number(ledger.activeSeason?.F1CalendarId || 0))
+    .filter(Boolean))];
+  let selectedCalendar = null;
+  let calendarWarning = null;
 
-        activeSeason:
-          ledger.activeSeason,
+  if (calendarIds.length) {
+    const calendars = await F1Calendar.findAll({
+      where: { id: { [Op.in]: calendarIds } },
+      include: [{
+        association: "rounds",
+        required: false,
+        include: [{ association: "track", include: [{ association: "countryRecord" }] }],
+      }],
+      order: [
+        ["isActive", "DESC"],
+        ["sortOrder", "ASC"],
+        ["id", "DESC"],
+        [{ model: F1CalendarRound, as: "rounds" }, "sortOrder", "ASC"],
+      ],
+    });
+    selectedCalendar = calendars[0] || null;
+    if (calendarIds.length > 1) {
+      calendarWarning = `Aktive F1-Saisons verwenden unterschiedliche zentrale Kalender (${calendarIds.join(", ")}). Verwendet wird definiert ${selectedCalendar?.name || "der erste verfügbare Kalender"}.`;
+      console.warn(`[Strafkartei] ${calendarWarning}`);
+    }
+  }
 
-        threshold:
-          ledger.threshold,
+  const sourceRounds = selectedCalendar
+    ? selectedCalendar.rounds.map((round) => ({
+        roundNumber: Number(round.roundNumber || round.sortOrder),
+        title: round.track?.countryRecord?.name || round.track?.country || round.track?.name,
+        circuit: round.track?.name || round.circuit,
+        flagPath: round.track?.countryRecord?.flagPath || null,
+        country: round.track?.countryRecord?.name || round.track?.country || null,
+      }))
+    : (masterLedger?.rounds || []);
+  if (!selectedCalendar && activeLedgers.length) {
+    calendarWarning = "Keine aktive F1-Saison verweist auf einen zentralen Kalender; als Legacy-Fallback wird die erste aktive Liga verwendet.";
+    console.warn(`[Strafkartei] ${calendarWarning}`);
+  }
 
-        columns:
-          ledger.rounds.map(
-            (round) => ({
-              ...round,
-
-              key:
-                globalCellKey(
-                  ledger.league.id,
-                  round.roundNumber,
-                ),
-
-              LeagueId:
-                Number(
-                  ledger.league.id,
-                ),
-
-              SeasonId:
-                Number(
-                  ledger.activeSeason.id,
-                ),
-
-              leagueSlug:
-                ledger.league.slug,
-
-              leagueName:
-                ledger.league.name,
-
-              leagueColor:
-                ledger.league.accentColor ||
-                "#6ef2f2",
-            }),
-          ),
-      }),
-    );
-
-
-  const columns =
-    columnGroups.flatMap(
-      (group) =>
-        group.columns,
-    );
+  const columns = sourceRounds.map((round) => ({
+    ...round,
+    key: globalCellKey(round.roundNumber),
+    LeagueId: Number(masterLedger?.league?.id || 0),
+    SeasonId: Number(masterLedger?.activeSeason?.id || 0),
+    leagueSlug: null,
+    leagueName: selectedCalendar?.name || "Gemeinsamer F1-Kalender",
+    leagueColor: "#6ef2f2",
+  }));
+  const columnGroups = columns.length ? [{
+    league: { name: selectedCalendar?.name || "Gemeinsamer F1-Kalender", accentColor: "#6ef2f2" },
+    activeSeason: masterLedger?.activeSeason || null,
+    threshold: masterLedger?.threshold || 12,
+    columns,
+  }] : [];
 
 
   /*
@@ -1147,12 +1125,14 @@ async function buildGlobalLedgers(
         columnGroups,
         columns,
         rows: [],
+        calendarWarning,
       },
 
       former: {
         columnGroups,
         columns,
         rows: [],
+        calendarWarning,
       },
     };
   }
@@ -1267,7 +1247,7 @@ async function buildGlobalLedgers(
        * ligaweise berechnet werden.
        */
       suspended:
-        matrix.hasBan,
+        matrix.hasBan || matrix.points >= Number(masterLedger?.threshold || 12),
 
       isRegularSomewhere,
 
@@ -1333,6 +1313,7 @@ async function buildGlobalLedgers(
       columns,
       rows:
         reserveRows,
+      calendarWarning,
     },
 
     former: {
@@ -1340,6 +1321,7 @@ async function buildGlobalLedgers(
       columns,
       rows:
         formerRows,
+      calendarWarning,
     },
   };
 }
