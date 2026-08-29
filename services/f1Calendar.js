@@ -199,12 +199,117 @@ async function syncSeasonCalendar({ season, league, calendarId, dates, transacti
   const seen = new Set();
   for (const round of calendar.rounds) {
     const number = roundNumber(round);
+    if (!Number.isInteger(number) || number < 1 || !round.F1TrackId || !round.track) {
+      throw new Error("Der zentrale F1-Kalender enthält eine ungültige Runde oder Strecke.");
+    }
     if (seen.has(number)) throw new Error(`R${number} ist im zentralen Kalender doppelt vorhanden.`);
     seen.add(number);
     await syncSeasonRound({ season, league, round, date: dates[round.id], transaction });
   }
   await season.update({ F1CalendarId: calendar.id, calendarMode: "automatic" }, { transaction });
   return calendar;
+}
+
+async function validateSeasonCalendar(calendarId, transaction) {
+  const calendar = await loadCalendar(calendarId, transaction);
+  if (!calendar || !calendar.isActive) {
+    throw new Error("Bitte einen gültigen aktiven F1-Kalender auswählen.");
+  }
+  if (!calendar.rounds.length) {
+    throw new Error("Der zentrale F1-Kalender enthält noch keine Runden.");
+  }
+  const seen = new Set();
+  for (const round of calendar.rounds) {
+    const number = roundNumber(round);
+    if (!Number.isInteger(number) || number < 1 || !round.F1TrackId || !round.track) {
+      throw new Error("Jede Kalenderrunde benötigt eine eindeutige Rundennummer und eine F1-Strecke.");
+    }
+    if (seen.has(number)) {
+      throw new Error(`R${number} ist im zentralen Kalender doppelt vorhanden.`);
+    }
+    seen.add(number);
+  }
+  return calendar;
+}
+
+async function linkExistingSeasonCalendar({ season, league, calendarId, transaction }) {
+  const calendar = await validateSeasonCalendar(calendarId, transaction);
+  const events = await RaceEvent.findAll({
+    where: { SeasonId: season.id, LeagueId: league.id },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  let linked = 0;
+  let unmatched = 0;
+  for (const round of calendar.rounds) {
+    const matches = events.filter((event) =>
+      Number(event.sortOrder) === roundNumber(round) &&
+      Number(event.F1TrackId) === Number(round.F1TrackId));
+    if (matches.length > 1) {
+      throw new Error(`R${roundNumber(round)} besitzt mehrere RaceEvents mit derselben Strecke.`);
+    }
+    const event = matches[0] || null;
+    if (!event) {
+      unmatched += 1;
+      continue;
+    }
+    if (Number(event.F1CalendarRoundId) !== Number(round.id)) {
+      await event.update({ F1CalendarRoundId: round.id }, { transaction });
+    }
+    linked += 1;
+  }
+  await season.update({ F1CalendarId: calendar.id, calendarMode: "automatic" }, { transaction });
+  return { calendar, linked, unmatched, eventCount: events.length };
+}
+
+async function syncSeasonDates({ season, league, calendarId, dates, transaction }) {
+  if (Number(season.F1CalendarId) !== Number(calendarId)) {
+    throw new Error("Der gespeicherte Saisonkalender stimmt nicht mit der Anfrage überein.");
+  }
+  const calendar = await validateSeasonCalendar(calendarId, transaction);
+  const events = await RaceEvent.findAll({
+    where: { SeasonId: season.id, LeagueId: league.id },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  if (!events.length) {
+    await syncSeasonCalendar({ season, league, calendarId, dates, transaction });
+    return { calendar, created: calendar.rounds.length, updated: 0, skippedCompleted: 0, unmatched: 0 };
+  }
+
+  let updated = 0;
+  let skippedCompleted = 0;
+  let unmatched = 0;
+  for (const round of calendar.rounds) {
+    const startsAt = dateAndLeagueTime(dates[round.id], league);
+    const linked = events.filter((event) => Number(event.F1CalendarRoundId) === Number(round.id));
+    const exact = events.filter((event) =>
+      Number(event.sortOrder) === roundNumber(round) &&
+      Number(event.F1TrackId) === Number(round.F1TrackId));
+    const candidates = linked.length ? linked : exact;
+    if (candidates.length > 1) {
+      throw new Error(`R${roundNumber(round)} kann nicht eindeutig einem bestehenden RaceEvent zugeordnet werden.`);
+    }
+    const event = candidates[0] || null;
+    if (!event) {
+      unmatched += 1;
+      continue;
+    }
+    if (await weekendHasEntries(season, league, round, event, transaction)) {
+      skippedCompleted += 1;
+      continue;
+    }
+    const oldStart = new Date(event.startsAt).getTime();
+    const dateChanged = oldStart !== startsAt.getTime();
+    await event.update({
+      F1CalendarRoundId: round.id,
+      startsAt,
+      previousStartsAt: dateChanged ? event.startsAt : event.previousStartsAt,
+      calendarChanged: Boolean(event.calendarChanged || dateChanged),
+    }, { transaction });
+    updated += 1;
+  }
+  return { calendar, created: 0, updated, skippedCompleted, unmatched };
 }
 
 async function syncLinkedRaceEvents(round, transaction) {
@@ -243,7 +348,10 @@ module.exports = {
   extractLeagueTime,
   loadCalendar,
   roundNumber,
+  linkExistingSeasonCalendar,
   syncLinkedRaceEvents,
   syncSeasonCalendar,
+  syncSeasonDates,
   titleForRound,
+  validateSeasonCalendar,
 };

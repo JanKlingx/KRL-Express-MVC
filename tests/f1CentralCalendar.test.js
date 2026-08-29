@@ -23,7 +23,7 @@ test("zentrale Kalenderstruktur erweitert Season und RaceEvent nullable", () => 
 test("Saisonmapping ist transaktional und aktualisiert statt blind zu duplizieren", () => {
   const setup = read("controllers/seasonSetupController.js");
   const service = read("services/f1Calendar.js");
-  assert.match(setup, /sequelize\.transaction\(async \(transaction\) =>\s*syncSeasonCalendar/);
+  assert.match(setup, /sequelize\.transaction\(async \(transaction\) =>\s*syncSeasonDates/);
   assert.match(service, /F1CalendarRoundId: round\.id/);
   assert.match(service, /where: \{ SeasonId: season\.id, sortOrder: eventSortOrder\(round\) \}/);
   assert.doesNotMatch(service, /sprint\.destroy/);
@@ -78,15 +78,47 @@ test("Navigation schließt die F1-Gruppe vor den übrigen Hauptlinks", () => {
   assert.match(header, /<\/div>\s*<\/div>\s*<a href="\/lmu">LMU Liga<\/a>/);
 });
 
-test("bestehende Termine können transaktional als zentrale Vorlage übernommen werden", () => {
+test("bestehende Saisons werden sicher verknüpft und nicht neu aufgebaut", () => {
   const setup = read("controllers/seasonSetupController.js");
+  const service = read("services/f1Calendar.js");
   const view = read("views/admin/season-setup.ejs");
-  assert.match(setup, /exports\.createCentralCalendarFromSeason/);
+  assert.match(setup, /exports\.selectCentralCalendar/);
   assert.match(setup, /sequelize\.transaction\(async \(transaction\)/);
-  assert.match(setup, /F1CalendarRound\.create/);
-  assert.match(setup, /event\.update\(\{ F1CalendarRoundId: round\.id \}/);
-  assert.match(view, /Vorhandene Termine als zentrale Vorlage übernehmen/);
-  assert.match(view, /Legacy-Kalendereditor für historische Daten öffnen/);
+  assert.match(service, /linkExistingSeasonCalendar/);
+  assert.match(service, /Number\(event\.sortOrder\) === roundNumber\(round\)/);
+  assert.match(service, /Number\(event\.F1TrackId\) === Number\(round\.F1TrackId\)/);
+  assert.doesNotMatch(setup, /createCentralCalendarFromSeason/);
+  assert.doesNotMatch(view, /Vorlagenname|Legacy-Kalendereditor/);
+  const existingSync = service.slice(
+    service.indexOf("async function syncSeasonDates"),
+    service.indexOf("async function syncLinkedRaceEvents"),
+  );
+  assert.doesNotMatch(existingSync, /GrandPrixResult\.(create|update|destroy)/);
+  assert.doesNotMatch(existingSync, /RaceEvent\.(create|destroy)/);
+  assert.doesNotMatch(existingSync, /F1TrackId:\s*round\.F1TrackId|circuit:|title:|sortOrder:/);
+  assert.match(existingSync, /skippedCompleted \+= 1/);
+});
+
+test("F1-Ligaseite zeigt nur den zentralen Saisonkalender im Adminbereich", () => {
+  const view = read("views/f1.ejs");
+  const dashboard = read("controllers/adminController.js");
+  assert.doesNotMatch(view, /✎ Teams & Fahrer/);
+  assert.doesNotMatch(view, /href="\/admin\/season-calendar/);
+  assert.match(view, /AKTUELLER ZENTRALER RENNKALENDER/);
+  assert.doesNotMatch(dashboard, /F1 Rennkalender bearbeiten \/ löschen/);
+  assert.doesNotMatch(dashboard, /title: 'F1-Fahrerfeld'/);
+});
+
+test("Kalenderschritt besitzt nur Datum als editierbaren Rundeneingang", () => {
+  const view = read("views/admin/season-setup.ejs");
+  const service = read("services/f1Calendar.js");
+  assert.match(view, /class="setup-calendar-table"/);
+  assert.match(view, /name="dates\[<%= round\.id %>\]"/);
+  assert.match(view, /type="time" value="<%= defaultTime %>" readonly/);
+  assert.doesNotMatch(view, /name="centralCalendar"/);
+  assert.doesNotMatch(view, /name="F1TrackId"/);
+  assert.doesNotMatch(view, /Runde hinzufügen|Termin hinzufügen/i);
+  assert.match(service, /new Date\(`\$\{date\}T\$\{extractLeagueTime\(league\.raceTime\)\}:00`\)/);
 });
 
 test("öffentliche F1- und CSV-Exports bleiben vorhanden", () => {
