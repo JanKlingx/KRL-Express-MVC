@@ -37,10 +37,58 @@ test("zentrale Adminpflege rendert Strecke, Land, Flagge und Sprint kompakt", as
     ...layout, title: "Zentrale F1-Rennkalender", calendars: [calendar], selectedCalendar: calendar, tracks: [track],
   });
   assert.match(html, /KRL F1 Saison 17/);
-  assert.match(html, /R1/);
+  assert.match(html, /name="roundNumber" min="1" value="1"/);
   assert.match(html, /Australien · Melbourne/);
   assert.match(html, /\/uploads\/au\.png/);
-  assert.match(html, /name="hasSprint" checked/);
+  assert.match(html, /name="hasSprint"[^>]*checked/);
+});
+
+test("Testtage besitzen keine sichtbare Rennnummer und werden nicht als Runde 0 ausgegeben", async () => {
+  const track = { id: 7, name: "Melbourne", country: "Australien", countryRecord: { name: "Australien", flagPath: null } };
+  const testDay = { id: 9, F1TrackId: 7, roundNumber: null, sortOrder: 1, hasSprint: false, isTestDay: true, track };
+  const calendar = { id: 3, name: "Testkalender", isActive: true, sortOrder: 1, rounds: [testDay] };
+  const adminHtml = await ejs.renderFile(path.join(root, "views", "admin", "f1-calendars.ejs"), {
+    ...layout, title: "Zentrale F1-Rennkalender", calendars: [calendar], selectedCalendar: calendar, tracks: [track],
+  });
+  assert.match(adminHtml, /TESTTAG/);
+  assert.match(adminHtml, /keine Rennnummer/);
+  assert.doesNotMatch(adminHtml, />R0</);
+
+  const publicHtml = await ejs.renderFile(path.join(root, "views", "partials", "race-calendar.ejs"), {
+    calendar: [{ ...testDay, title: "Testtag · Australien", startsAt: new Date("2026-06-21T19:30:00+02:00") }],
+    league: { accentColor: "#6ef2f2", logoPath: null },
+  });
+  assert.match(publicHtml, /TESTTAG/);
+  assert.doesNotMatch(publicHtml, />00</);
+  const controller = read("controllers/f1CalendarController.js");
+  const service = read("services/f1Calendar.js");
+  assert.match(controller, /const number = isTestDay\s*\? null/);
+  assert.match(controller, /roundNumber: round\.isTestDay \? null : officialRoundNumber/);
+  assert.match(service, /if \(round\.isTestDay\) return null/);
+});
+
+test("globale Strafkartei bietet eine Kalenderauswahl und behält gemeinsame Spalten", async () => {
+  const column = { key: "1", roundNumber: 1, country: "Belgien", title: "Belgien", leagueName: "Saison 17" };
+  const ledger = {
+    columnGroups: [{ league: { name: "Saison 17" }, columns: [column] }],
+    columns: [column],
+    rows: [{ id: 4, name: "Reserve", cells: {}, points: 0, suspended: false }],
+  };
+  const html = await ejs.renderFile(path.join(root, "views", "penalty-ledger-public.ejs"), {
+    ...layout,
+    title: "Strafkartei",
+    viewMode: "ersatzfahrer",
+    ledger: { rounds: [], rows: [] },
+    reserveLedger: ledger,
+    formerLedger: ledger,
+    leagueTabs: [{ slug: "freitag", label: "Freitagsliga" }],
+    globalCalendars: [{ id: 3, name: "Saison 17", roundCount: 19, isActive: true }],
+    selectedGlobalCalendar: { id: 3, name: "Saison 17" },
+  });
+  assert.match(html, /name="kalender"/);
+  assert.match(html, /Saison 17 · 19 Rennen · aktiv/);
+  assert.match(html, /R1/);
+  assert.doesNotMatch(html, /Keine Rennkalender vorhanden/);
 });
 
 test("globale Strafkartei aggregiert ausschließlich nach Rundennummer", () => {

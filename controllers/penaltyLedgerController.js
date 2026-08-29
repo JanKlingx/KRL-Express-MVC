@@ -917,6 +917,7 @@ async function buildLeagueLedger(
 
 async function buildGlobalLedgers(
   ledgers,
+  requestedCalendarId = null,
 ) {
   /*
    * Nur Ligen mit aktiver Saison können
@@ -938,32 +939,34 @@ async function buildGlobalLedgers(
    */
 
   const masterLedger = activeLedgers[0] || null;
-  const calendarIds = [...new Set(activeLedgers
+  const seasonCalendarIds = [...new Set(activeLedgers
     .map((ledger) => Number(ledger.activeSeason?.F1CalendarId || 0))
     .filter(Boolean))];
-  let selectedCalendar = null;
+  const calendars = await F1Calendar.findAll({
+    include: [{
+      association: "rounds",
+      required: false,
+      include: [{ association: "track", include: [{ association: "countryRecord" }] }],
+    }],
+    order: [
+      ["isActive", "DESC"],
+      ["sortOrder", "ASC"],
+      ["id", "DESC"],
+      [{ model: F1CalendarRound, as: "rounds" }, "sortOrder", "ASC"],
+    ],
+  });
+  const requestedId = Number(requestedCalendarId || 0);
+  const selectedCalendar =
+    calendars.find((calendar) => Number(calendar.id) === requestedId) ||
+    calendars.find((calendar) => seasonCalendarIds.includes(Number(calendar.id))) ||
+    calendars[0] ||
+    null;
   let calendarWarning = null;
 
-  if (calendarIds.length) {
-    const calendars = await F1Calendar.findAll({
-      where: { id: { [Op.in]: calendarIds } },
-      include: [{
-        association: "rounds",
-        required: false,
-        include: [{ association: "track", include: [{ association: "countryRecord" }] }],
-      }],
-      order: [
-        ["isActive", "DESC"],
-        ["sortOrder", "ASC"],
-        ["id", "DESC"],
-        [{ model: F1CalendarRound, as: "rounds" }, "sortOrder", "ASC"],
-      ],
-    });
-    selectedCalendar = calendars[0] || null;
-    if (calendarIds.length > 1) {
-      calendarWarning = `Aktive F1-Saisons verwenden unterschiedliche zentrale Kalender (${calendarIds.join(", ")}). Verwendet wird definiert ${selectedCalendar?.name || "der erste verfügbare Kalender"}.`;
-      console.warn(`[Strafkartei] ${calendarWarning}`);
-    }
+  if (requestedId && !calendars.some((calendar) => Number(calendar.id) === requestedId)) {
+    calendarWarning = "Der angeforderte Rennkalender wurde nicht gefunden. Es wird die Standardauswahl angezeigt.";
+  } else if (!requestedId && seasonCalendarIds.length > 1) {
+    calendarWarning = "Die aktiven F1-Saisons verwenden unterschiedliche Kalender. Bitte den gewünschten Rennkalender auswählen.";
   }
 
   const sourceRounds = selectedCalendar
@@ -976,8 +979,7 @@ async function buildGlobalLedgers(
       }))
     : (masterLedger?.rounds || []);
   if (!selectedCalendar && activeLedgers.length) {
-    calendarWarning = "Keine aktive F1-Saison verweist auf einen zentralen Kalender; als Legacy-Fallback wird die erste aktive Liga verwendet.";
-    console.warn(`[Strafkartei] ${calendarWarning}`);
+    calendarWarning = "Es wurde noch kein zentraler F1-Rennkalender angelegt; als Übergang wird die erste aktive Liga verwendet.";
   }
 
   const columns = sourceRounds.map((round) => ({
@@ -1121,6 +1123,15 @@ async function buildGlobalLedgers(
     !driverConditions.length
   ) {
     return {
+      calendars: calendars.map((calendar) => ({
+        id: calendar.id,
+        name: calendar.name,
+        isActive: calendar.isActive,
+        roundCount: (calendar.rounds || []).filter((round) => !round.isTestDay).length,
+      })),
+      selectedCalendar: selectedCalendar
+        ? { id: selectedCalendar.id, name: selectedCalendar.name }
+        : null,
       reserve: {
         columnGroups,
         columns,
@@ -1308,6 +1319,15 @@ async function buildGlobalLedgers(
 
 
   return {
+    calendars: calendars.map((calendar) => ({
+      id: calendar.id,
+      name: calendar.name,
+      isActive: calendar.isActive,
+      roundCount: (calendar.rounds || []).filter((round) => !round.isTestDay).length,
+    })),
+    selectedCalendar: selectedCalendar
+      ? { id: selectedCalendar.id, name: selectedCalendar.name }
+      : null,
     reserve: {
       columnGroups,
       columns,
@@ -1386,6 +1406,7 @@ exports.show = async (
   const globalLedgers =
     await buildGlobalLedgers(
       ledgers,
+      req.query.calendar,
     );
 
 
@@ -1402,6 +1423,12 @@ exports.show = async (
 
       formerLedger:
         globalLedgers.former,
+
+      globalCalendars:
+        globalLedgers.calendars,
+
+      selectedGlobalCalendar:
+        globalLedgers.selectedCalendar,
     },
   );
 };

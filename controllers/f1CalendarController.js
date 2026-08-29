@@ -39,6 +39,14 @@ async function validateRound(calendarId, value, excludedId, transaction) {
   return roundNumber;
 }
 
+async function nextSortOrder(calendarId, transaction) {
+  const highest = await F1CalendarRound.max("sortOrder", {
+    where: { F1CalendarId: calendarId },
+    transaction,
+  });
+  return Number(highest || 0) + 1;
+}
+
 exports.index = async (req, res) => {
   const [calendars, tracks] = await Promise.all([
     F1Calendar.findAll({
@@ -135,18 +143,23 @@ exports.createRound = async (req, res) => {
     if (!calendar) throw new Error("Der Kalender wurde nicht gefunden.");
     await sequelize.transaction(async (transaction) => {
       const track = await validateTrack(req.body.F1TrackId, transaction);
-      const number = await validateRound(calendar.id, req.body.roundNumber, null, transaction);
+      const isTestDay = req.body.isTestDay === "on";
+      const number = isTestDay
+        ? null
+        : await validateRound(calendar.id, req.body.roundNumber, null, transaction);
       await F1CalendarRound.create({
         F1CalendarId: calendar.id,
         F1TrackId: track.id,
         roundNumber: number,
         circuit: track.name,
-        hasSprint: req.body.hasSprint === "on",
-        isTestDay: req.body.isTestDay === "on",
-        sortOrder: Number(req.body.sortOrder || number),
+        hasSprint: !isTestDay && req.body.hasSprint === "on",
+        isTestDay,
+        sortOrder: await nextSortOrder(calendar.id, transaction),
       }, { transaction });
     });
-    setFlash(req, "success", "Runde wurde hinzugefügt.");
+    setFlash(req, "success", req.body.isTestDay === "on"
+      ? "Der Testtag wurde ohne offizielle Rennnummer hinzugefügt."
+      : "Das Rennen wurde als neue Kalenderrunde hinzugefügt.");
   } catch (error) {
     setFlash(req, "error", error.message);
   }
@@ -161,14 +174,16 @@ exports.updateRound = async (req, res) => {
     }
     const result = await sequelize.transaction(async (transaction) => {
       const track = await validateTrack(req.body.F1TrackId, transaction);
-      const number = await validateRound(round.F1CalendarId, req.body.roundNumber, round.id, transaction);
+      const isTestDay = req.body.isTestDay === "on";
+      const number = isTestDay
+        ? null
+        : await validateRound(round.F1CalendarId, req.body.roundNumber, round.id, transaction);
       await round.update({
         F1TrackId: track.id,
         roundNumber: number,
         circuit: track.name,
-        hasSprint: req.body.hasSprint === "on",
-        isTestDay: req.body.isTestDay === "on",
-        sortOrder: Number(req.body.sortOrder || number),
+        hasSprint: !isTestDay && req.body.hasSprint === "on",
+        isTestDay,
       }, { transaction });
       return syncLinkedRaceEvents(round, transaction);
     });
@@ -230,13 +245,18 @@ exports.reorder = async (req, res) => {
     }
     await sequelize.transaction(async (transaction) => {
       for (const round of rounds) await round.update({ roundNumber: null }, { transaction });
+      let officialRoundNumber = 0;
       for (const [index, id] of ids.entries()) {
         const round = rounds.find((item) => item.id === id);
-        await round.update({ roundNumber: index + 1, sortOrder: index + 1 }, { transaction });
+        if (!round.isTestDay) officialRoundNumber += 1;
+        await round.update({
+          roundNumber: round.isTestDay ? null : officialRoundNumber,
+          sortOrder: index + 1,
+        }, { transaction });
         await syncLinkedRaceEvents(round, transaction);
       }
     });
-    setFlash(req, "success", "Reihenfolge und Rundennummern wurden gespeichert.");
+    setFlash(req, "success", "Die Reihenfolge wurde gespeichert. Testtage bleiben dabei ohne Rennnummer.");
   } catch (error) {
     setFlash(req, "error", error.message);
   }

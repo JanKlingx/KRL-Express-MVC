@@ -46,6 +46,17 @@
           rows: []
         };
 
+  const safeGlobalCalendars =
+    typeof globalCalendars !== "undefined" &&
+    Array.isArray(globalCalendars)
+      ? globalCalendars
+      : [];
+
+  const selectedGlobalCalendarId =
+    typeof selectedGlobalCalendar !== "undefined"
+      ? Number(selectedGlobalCalendar?.id || 0)
+      : 0;
+
   const safeCommunityAccent =
     typeof communityAccent === "string" &&
     communityAccent
@@ -94,6 +105,7 @@
     }
 
     return groups.filter((group) =>
+      !String(group?.league?.slug || "").trim() ||
       visibleLeagueSlugs.has(
         String(
           group?.league?.slug || ""
@@ -544,6 +556,36 @@
     font-weight: 800;
 
     letter-spacing: .1em;
+  }
+
+  .public-ledger-calendar-picker {
+    display: flex;
+    align-items: end;
+    gap: .75rem;
+    margin: 0 0 1.25rem;
+    padding: 1rem;
+    border: 1px solid rgba(110,242,242,.25);
+    background: rgba(110,242,242,.045);
+  }
+
+  .public-ledger-calendar-picker label {
+    display: grid;
+    flex: 1 1 320px;
+    gap: .4rem;
+    color: #8fa0a8;
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .public-ledger-calendar-picker select { width: 100%; }
+
+  @media (max-width: 700px) {
+    .public-ledger-calendar-picker {
+      align-items: stretch;
+      flex-direction: column;
+    }
   }
 
 
@@ -1064,7 +1106,7 @@
 
 
         <a
-          href="<%= ledgerPath %>?ansicht=ersatzfahrer"
+          href="<%= ledgerPath %>?ansicht=ersatzfahrer<%= selectedGlobalCalendarId ? `&kalender=${selectedGlobalCalendarId}` : '' %>"
 
           class="<%=
             safeViewMode === "ersatzfahrer"
@@ -1077,7 +1119,7 @@
 
 
         <a
-          href="<%= ledgerPath %>?ansicht=ehemalige"
+          href="<%= ledgerPath %>?ansicht=ehemalige<%= selectedGlobalCalendarId ? `&kalender=${selectedGlobalCalendarId}` : '' %>"
 
           class="<%=
             safeViewMode === "ehemalige"
@@ -1429,6 +1471,18 @@
           ERSATZFAHRER · LIGENÜBERGREIFEND
         </h2>
 
+        <form method="get" action="<%= ledgerPath %>" class="public-ledger-calendar-picker">
+          <input type="hidden" name="ansicht" value="ersatzfahrer">
+          <label>Rennkalender auswählen
+            <select name="kalender">
+              <% safeGlobalCalendars.forEach((calendar) => { %>
+                <option value="<%= calendar.id %>" <%= selectedGlobalCalendarId === Number(calendar.id) ? 'selected' : '' %>><%= calendar.name %> · <%= calendar.roundCount %> Rennen<%= calendar.isActive ? ' · aktiv' : ' · inaktiv' %></option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="button button-small" type="submit">Anzeigen</button>
+        </form>
+
 
         <% if (!reserveColumns.length) { %>
 
@@ -1693,6 +1747,18 @@
         <h2 class="public-ledger-section-title">
           EHEMALIGE FAHRER
         </h2>
+
+        <form method="get" action="<%= ledgerPath %>" class="public-ledger-calendar-picker">
+          <input type="hidden" name="ansicht" value="ehemalige">
+          <label>Rennkalender auswählen
+            <select name="kalender">
+              <% safeGlobalCalendars.forEach((calendar) => { %>
+                <option value="<%= calendar.id %>" <%= selectedGlobalCalendarId === Number(calendar.id) ? 'selected' : '' %>><%= calendar.name %> · <%= calendar.roundCount %> Rennen<%= calendar.isActive ? ' · aktiv' : ' · inaktiv' %></option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="button button-small" type="submit">Anzeigen</button>
+        </form>
 
 
         <% if (!formerColumns.length) { %>

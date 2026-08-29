@@ -58,22 +58,14 @@
 
           <span>
             <%= race.isTestDay
-              ? "TEST"
+              ? "TESTTAG"
               : "RUNDE"
             %>
           </span>
 
-          <strong>
-            <%= race.isTestDay
-              ? "00"
-              : String(
-                  race.sortOrder
-                ).padStart(
-                  2,
-                  "0"
-                )
-            %>
-          </strong>
+          <% if (!race.isTestDay) { %>
+            <strong><%= String(race.sortOrder).padStart(2, "0") %></strong>
+          <% } %>
 
         </div>
 
