@@ -16,6 +16,13 @@ function roundNumber(round) {
   return Number(round.roundNumber || round.sortOrder || 0);
 }
 
+function eventSortOrder(round) {
+  if (round.isTestDay && Number.isInteger(Number(round.sortOrder))) {
+    return Number(round.sortOrder);
+  }
+  return roundNumber(round);
+}
+
 function titleForRound(round) {
   const country = round.track?.countryRecord?.name || round.track?.country;
   return `Großer Preis von ${country || round.track?.name || round.circuit}`;
@@ -105,7 +112,7 @@ async function findRaceEvent(season, round, transaction) {
   if (linked[0]) return linked[0];
 
   const fallback = await RaceEvent.findAll({
-    where: { SeasonId: season.id, sortOrder: roundNumber(round) },
+    where: { SeasonId: season.id, sortOrder: eventSortOrder(round) },
     order: [["id", "ASC"]],
     transaction,
   });
@@ -130,7 +137,7 @@ async function syncSeasonRound({ season, league, round, date, transaction }) {
     startsAt,
     isPublished: season.status === "active" && season.isPublished,
     isTestDay: Boolean(round.isTestDay),
-    sortOrder: order,
+    sortOrder: eventSortOrder(round),
   };
 
   let event = await findRaceEvent(season, round, transaction);
@@ -139,7 +146,7 @@ async function syncSeasonRound({ season, league, round, date, transaction }) {
   else if (!completed) {
     const oldStart = new Date(event.startsAt).getTime();
     const dateChanged = oldStart !== startsAt.getTime();
-    const orderChanged = Number(event.sortOrder) !== order;
+    const orderChanged = Number(event.sortOrder) !== eventSortOrder(round);
     await event.update({
       ...values,
       previousStartsAt: dateChanged ? event.startsAt : event.previousStartsAt,

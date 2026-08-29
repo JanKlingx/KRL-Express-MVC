@@ -25,7 +25,7 @@ test("Saisonmapping ist transaktional und aktualisiert statt blind zu dupliziere
   const service = read("services/f1Calendar.js");
   assert.match(setup, /sequelize\.transaction\(async \(transaction\) =>\s*syncSeasonCalendar/);
   assert.match(service, /F1CalendarRoundId: round\.id/);
-  assert.match(service, /where: \{ SeasonId: season\.id, sortOrder: roundNumber\(round\) \}/);
+  assert.match(service, /where: \{ SeasonId: season\.id, sortOrder: eventSortOrder\(round\) \}/);
   assert.doesNotMatch(service, /sprint\.destroy/);
 });
 
@@ -50,6 +50,43 @@ test("globale Strafkartei aggregiert ausschließlich nach Rundennummer", () => {
   assert.match(controller, /key: globalCellKey\(round\.roundNumber\)/);
   assert.doesNotMatch(adminView, /reserveColumnGroups\.forEach/);
   assert.doesNotMatch(adminView, /formerColumnGroups\.forEach/);
+});
+
+test("Admin-Strafkartei rendert gemeinsame Ersatz- und Ehemaligen-Spalten", async () => {
+  const column = {
+    key: "round:1", roundNumber: 1, country: "Belgien", title: "Belgien",
+    flagPath: "/uploads/be.png", LeagueId: 1, SeasonId: 2, leagueColor: "#6ef2f2",
+  };
+  const cell = { value: "1", points: 1, LeagueId: 1, SeasonId: 2, entries: [{}] };
+  const row = { id: 7, name: "Testfahrer", points: 1, suspended: false, cells: { "round:1": cell } };
+  const ledger = { columnGroups: [{ columns: [column] }], columns: [column], rows: [row] };
+  const html = await ejs.renderFile(path.join(root, "views", "admin", "penalty-ledger.ejs"), {
+    ...layout,
+    title: "Formel 1 Strafkartei",
+    ledgers: [],
+    reserveLedger: ledger,
+    formerLedger: ledger,
+  });
+  assert.match(html, /ERSATZFAHRER/);
+  assert.match(html, /EHEMALIGE FAHRER MIT SP/);
+  assert.match(html, /R1/);
+  assert.match(html, /Testfahrer/);
+});
+
+test("Navigation schließt die F1-Gruppe vor den übrigen Hauptlinks", () => {
+  const header = read("views/partials/header.ejs");
+  assert.match(header, /<\/div>\s*<\/div>\s*<a href="\/lmu">LMU Liga<\/a>/);
+});
+
+test("bestehende Termine können transaktional als zentrale Vorlage übernommen werden", () => {
+  const setup = read("controllers/seasonSetupController.js");
+  const view = read("views/admin/season-setup.ejs");
+  assert.match(setup, /exports\.createCentralCalendarFromSeason/);
+  assert.match(setup, /sequelize\.transaction\(async \(transaction\)/);
+  assert.match(setup, /F1CalendarRound\.create/);
+  assert.match(setup, /event\.update\(\{ F1CalendarRoundId: round\.id \}/);
+  assert.match(view, /Vorhandene Termine als zentrale Vorlage übernehmen/);
+  assert.match(view, /Legacy-Kalendereditor für historische Daten öffnen/);
 });
 
 test("öffentliche F1- und CSV-Exports bleiben vorhanden", () => {

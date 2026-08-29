@@ -443,7 +443,24 @@ const setupDriverRankFilter =
     <p class="setup-note">Zentrale Streckenfolge übernehmen; pro Liga werden nur Datum und die Startzeit aus den Liga-Stammdaten kombiniert.</p>
 
     <% if (!setupCentralCalendars.length) { %>
-      <div class="empty-state">Noch kein zentraler F1-Kalender vorhanden. <a href="/admin/f1-calendars">Jetzt anlegen →</a></div>
+      <div class="empty-state">
+        <strong>Noch kein zentraler F1-Rennkalender vorhanden.</strong>
+        <p>Erstellen Sie zuerst eine gemeinsame Vorlage. Danach werden hier ausschließlich die Renndaten gepflegt; die Startzeit bleibt fest im Liga-Stamm.</p>
+        <% if (Array.isArray(calendar) && calendar.length) { %>
+          <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/central-calendar/from-season" class="setup-form setup-calendar-bootstrap-form">
+            <label>Vorlagenname<input name="name" value="<%= selectedSeason.name %> Rennkalender" required></label>
+            <button class="button">Vorhandene Termine als zentrale Vorlage übernehmen</button>
+          </form>
+        <% } else { %>
+          <form method="post" action="/admin/f1-calendars" class="setup-form setup-calendar-bootstrap-form">
+            <input type="hidden" name="sortOrder" value="0">
+            <input type="hidden" name="isActive" value="on">
+            <label>Vorlagenname<input name="name" value="<%= selectedSeason.name %> Rennkalender" required></label>
+            <button class="button">Zentrale Vorlage anlegen</button>
+          </form>
+        <% } %>
+        <a href="/admin/f1-calendars">Zentrale Kalenderverwaltung öffnen →</a>
+      </div>
     <% } else { %>
       <form method="get" action="/admin/season-setup" class="setup-form setup-calendar-form">
         <input type="hidden" name="league" value="<%= selectedLeague.id %>">
@@ -478,6 +495,8 @@ const setupDriverRankFilter =
     <% } %>
 
     <% if (!selectedSeason.F1CalendarId && !setupSelectedCentralCalendar) { %>
+    <details class="setup-legacy-calendar">
+      <summary>Legacy-Kalendereditor für historische Daten öffnen</summary>
 
     <%
   const events = calendar;
@@ -803,6 +822,8 @@ const setupDriverRankFilter =
       <% } %>
 
     </div>
+
+    </details>
 
     <% } %>
 

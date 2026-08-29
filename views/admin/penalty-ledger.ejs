@@ -23,12 +23,20 @@
     ? safeReserveLedger.rows
     : [];
 
+  const reserveColumns = Array.isArray(safeReserveLedger.columns)
+    ? safeReserveLedger.columns
+    : [];
+
   const formerColumnGroups = Array.isArray(safeFormerLedger.columnGroups)
     ? safeFormerLedger.columnGroups
     : [];
 
   const formerRows = Array.isArray(safeFormerLedger.rows)
     ? safeFormerLedger.rows
+    : [];
+
+  const formerColumns = Array.isArray(safeFormerLedger.columns)
+    ? safeFormerLedger.columns
     : [];
 %>
 
@@ -882,6 +890,7 @@
                           );
 
                         const cellColor = cell?.cellColor || '';
+                        const aggregateLocked = Array.isArray(cell?.entries) && cell.entries.length > 1;
                       %>
                         <td
                           class="penalty-cell <%= cellValue === 'S' ? 'is-ban-cell' : '' %>"
