@@ -1,0 +1,92 @@
+<%- include('../partials/header', { title }) %>
+
+<style>
+  .calendar-master-grid{display:grid;grid-template-columns:minmax(230px,.7fr) minmax(0,2.3fr);gap:1.25rem;align-items:start}
+  .calendar-master-list{display:grid;gap:.65rem}.calendar-master-list a{display:grid;gap:.2rem;padding:.9rem 1rem;border:1px solid rgba(255,255,255,.12);border-radius:12px;color:inherit;text-decoration:none}.calendar-master-list a.is-selected{border-color:#6ef2f2;background:rgba(110,242,242,.08)}
+  .calendar-sheet{width:100%;border-collapse:collapse}.calendar-sheet th,.calendar-sheet td{padding:.65rem;border-bottom:1px solid rgba(255,255,255,.12);vertical-align:middle}.calendar-sheet th{text-align:left;font-size:.75rem;letter-spacing:.08em}.calendar-sheet select,.calendar-sheet input[type=number]{min-width:90px}.calendar-sheet .round-track{min-width:220px}.calendar-sheet img{width:26px;height:18px;object-fit:cover;border-radius:2px;vertical-align:middle;margin-right:.45rem}
+  .calendar-inline-form{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap}.calendar-actions{display:flex;gap:.4rem;align-items:center}.calendar-help{color:rgba(255,255,255,.65);font-size:.9rem}
+  @media(max-width:900px){.calendar-master-grid{grid-template-columns:1fr}.calendar-sheet-wrap{overflow:auto}}
+</style>
+
+<section class="admin-shell">
+  <div class="container">
+    <div class="admin-heading">
+      <div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">FORMEL 1 · STAMMDATEN</span><h1>ZENTRALE F1-RENNKALENDER</h1><p class="admin-intro">Streckenfolge, Sprint und Testtag werden einmal gepflegt. Konkrete Termine bleiben je Liga-Saison im RaceEvent.</p></div>
+      <a class="button button-ghost" href="/admin/season-setup">Saison-Assistent</a>
+    </div>
+
+    <div class="calendar-master-grid">
+      <aside class="setup-panel">
+        <div class="setup-panel-content">
+          <h2>KALENDER</h2>
+          <div class="calendar-master-list">
+            <% calendars.forEach((calendar) => { %>
+              <a href="/admin/f1-calendars?calendar=<%= calendar.id %>" class="<%= selectedCalendar?.id === calendar.id ? 'is-selected' : '' %>"><strong><%= calendar.name %></strong><small><%= calendar.rounds?.length || 0 %> Runden · <%= calendar.isActive ? 'aktiv' : 'inaktiv' %></small></a>
+            <% }) %>
+          </div>
+          <form method="post" action="/admin/f1-calendars" class="setup-form">
+            <label>Name<input name="name" placeholder="KRL F1 Kalender Saison 17" required></label>
+            <label>Reihenfolge<input type="number" name="sortOrder" value="0"></label>
+            <label class="checkbox-control"><input type="checkbox" name="isActive" checked><span>Aktiv</span></label>
+            <button class="button">Kalender anlegen</button>
+          </form>
+        </div>
+      </aside>
+
+      <main>
+        <% if (selectedCalendar) { %>
+          <section class="setup-panel">
+            <div class="setup-panel-content">
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>" class="calendar-inline-form">
+                <label>Name<input name="name" value="<%= selectedCalendar.name %>" required></label>
+                <label>Reihenfolge<input type="number" name="sortOrder" value="<%= selectedCalendar.sortOrder %>"></label>
+                <label class="checkbox-control"><input type="checkbox" name="isActive" <%= selectedCalendar.isActive ? 'checked' : '' %>><span>Aktiv</span></label>
+                <button class="button button-small">Speichern</button>
+              </form>
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/delete" data-confirm="Nur unbenutzte Kalender können gelöscht werden."><button class="button button-ghost button-small">Kalender löschen</button></form>
+            </div>
+          </section>
+
+          <section class="setup-panel">
+            <div class="setup-panel-content">
+              <span>RUNDE HINZUFÜGEN</span>
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds" class="calendar-inline-form">
+                <label>Runde<input type="number" name="roundNumber" min="1" value="<%= (selectedCalendar.rounds?.length || 0) + 1 %>" required></label>
+                <label>Strecke<select class="round-track" name="F1TrackId" required><option value="">Strecke wählen …</option><% tracks.forEach((track) => { %><option value="<%= track.id %>"><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></label>
+                <label class="checkbox-control"><input type="checkbox" name="hasSprint"><span>Sprint</span></label>
+                <label class="checkbox-control"><input type="checkbox" name="isTestDay"><span>Testtag</span></label>
+                <button class="button button-small">Hinzufügen</button>
+              </form>
+            </div>
+          </section>
+
+          <section class="setup-panel">
+            <div class="setup-panel-content calendar-sheet-wrap">
+              <h2>RUNDEN</h2>
+              <p class="calendar-help">Land und Flagge stammen live aus dem Streckenstamm. Verwendete Runden und abgeschlossene Rennen werden vor destruktiven Änderungen geschützt.</p>
+              <% if (selectedCalendar.rounds?.length) { %>
+                <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/reorder" class="calendar-inline-form"><% selectedCalendar.rounds.forEach((round) => { %><input type="hidden" name="roundIds" value="<%= round.id %>"><% }) %><button class="button button-ghost button-small">Angezeigte Reihenfolge als R1–R<%= selectedCalendar.rounds.length %> speichern</button></form>
+              <% } %>
+              <table class="calendar-sheet"><thead><tr><th>Runde</th><th>Land / Strecke</th><th>Sprint</th><th>Testtag</th><th>Aktion</th></tr></thead><tbody>
+                <% (selectedCalendar.rounds || []).forEach((round) => { %>
+                  <tr>
+                    <td><input form="round-<%= round.id %>" type="number" name="roundNumber" min="1" value="<%= round.roundNumber || round.sortOrder %>" required><input form="round-<%= round.id %>" type="hidden" name="sortOrder" value="<%= round.sortOrder %>"></td>
+                    <td><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt=""><% } %><select form="round-<%= round.id %>" class="round-track" name="F1TrackId" required><% tracks.forEach((track) => { %><option value="<%= track.id %>" <%= Number(round.F1TrackId) === Number(track.id) ? 'selected' : '' %>><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></td>
+                    <td><input form="round-<%= round.id %>" type="checkbox" name="hasSprint" <%= round.hasSprint ? 'checked' : '' %>></td>
+                    <td><input form="round-<%= round.id %>" type="checkbox" name="isTestDay" <%= round.isTestDay ? 'checked' : '' %>></td>
+                    <td class="calendar-actions"><form id="round-<%= round.id %>" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>"><button class="button button-small">Speichern</button></form><form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>/delete" data-confirm="Nur unbenutzte Runden können gelöscht werden."><button class="button button-ghost button-small">Löschen</button></form></td>
+                  </tr>
+                <% }) %>
+              </tbody></table>
+              <% if (!selectedCalendar.rounds?.length) { %><div class="empty-state">Noch keine Runden vorhanden.</div><% } %>
+            </div>
+          </section>
+        <% } else { %>
+          <div class="empty-state">Lege zuerst einen zentralen F1-Kalender an.</div>
+        <% } %>
+      </main>
+    </div>
+  </div>
+</section>
+
+<%- include('../partials/footer') %>

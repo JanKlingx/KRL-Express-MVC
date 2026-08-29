@@ -654,10 +654,33 @@ const SeasonF1CarAssignment = sequelize.define(
   },
 );
 
-const F1CalendarRound = sequelize.define("F1CalendarRound", {
-  circuit: {
+const F1Calendar = sequelize.define("F1Calendar", {
+  name: {
     type: DataTypes.STRING,
     allowNull: false,
+  },
+
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
+
+  ...commonSort,
+});
+
+const F1CalendarRound = sequelize.define("F1CalendarRound", {
+  roundNumber: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: { min: 1 },
+  },
+
+  // Legacy-Feld: bleibt nullable erhalten, damit bestehende Installationen
+  // und alte Datensätze beim schrittweisen Umstieg lesbar bleiben.
+  circuit: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
 
   hasSprint: {
@@ -1559,6 +1582,57 @@ Season.hasMany(F1CalendarRound, {
   onDelete: "SET NULL",
 });
 
+F1Calendar.hasMany(Season, {
+  as: "seasons",
+  foreignKey: {
+    name: "F1CalendarId",
+    allowNull: true,
+  },
+  onDelete: "SET NULL",
+});
+
+Season.belongsTo(F1Calendar, {
+  as: "f1Calendar",
+  foreignKey: {
+    name: "F1CalendarId",
+    allowNull: true,
+  },
+});
+
+F1Calendar.hasMany(F1CalendarRound, {
+  as: "rounds",
+  foreignKey: {
+    name: "F1CalendarId",
+    allowNull: true,
+  },
+  onDelete: "RESTRICT",
+});
+
+F1CalendarRound.belongsTo(F1Calendar, {
+  as: "calendar",
+  foreignKey: {
+    name: "F1CalendarId",
+    allowNull: true,
+  },
+});
+
+F1Track.hasMany(F1CalendarRound, {
+  as: "calendarRounds",
+  foreignKey: {
+    name: "F1TrackId",
+    allowNull: true,
+  },
+  onDelete: "RESTRICT",
+});
+
+F1CalendarRound.belongsTo(F1Track, {
+  as: "track",
+  foreignKey: {
+    name: "F1TrackId",
+    allowNull: true,
+  },
+});
+
 F1CalendarRound.belongsTo(Season, {
   as: "season",
   foreignKey: {
@@ -2259,6 +2333,23 @@ RaceEvent.belongsTo(F1Track, {
   },
 });
 
+F1CalendarRound.hasMany(RaceEvent, {
+  as: "raceEvents",
+  foreignKey: {
+    name: "F1CalendarRoundId",
+    allowNull: true,
+  },
+  onDelete: "SET NULL",
+});
+
+RaceEvent.belongsTo(F1CalendarRound, {
+  as: "calendarRound",
+  foreignKey: {
+    name: "F1CalendarRoundId",
+    allowNull: true,
+  },
+});
+
 // =========================================================
 // STRAFKARTEI RELATIONEN
 // =========================================================
@@ -2628,6 +2719,8 @@ module.exports = {
   F1PenaltySetting,
 
   SeasonF1CarAssignment,
+
+  F1Calendar,
 
   SeasonDriver,
   SeasonTeam,

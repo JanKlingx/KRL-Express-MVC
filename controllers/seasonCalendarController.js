@@ -632,16 +632,21 @@ exports.show = async (
   req,
   res,
 ) => {
+  const data = await loadData(req.query);
+  if (data.selectedSeason?.F1CalendarId) {
+    req.session.flash = {
+      type: "success",
+      message: "Diese Saison verwendet den zentralen F1-Kalender. Hier werden nur die ligaabhängigen Termine gepflegt.",
+    };
+    return res.redirect(`/admin/season-setup?league=${data.selectedLeague.id}&season=${data.selectedSeason.id}#setup-calendar`);
+  }
 
-  res.render(
+  return res.render(
     "admin/season-calendar",
     {
       title:
         "Rennkalender bearbeiten",
-
-      ...(await loadData(
-        req.query,
-      )),
+      ...data,
     },
   );
 
@@ -692,6 +697,10 @@ exports.create = async (
         "Saison und Liga passen nicht zusammen.",
       );
 
+    }
+
+    if (season.F1CalendarId) {
+      throw new Error("Diese Saison verwendet einen zentralen F1-Kalender. Strecke, Sprint und Reihenfolge werden dort gepflegt.");
     }
 
 
@@ -1056,6 +1065,10 @@ exports.update = async (
 
 
   try {
+
+    if (event.seasonRecord?.F1CalendarId) {
+      throw new Error("Diese Saison verwendet einen zentralen F1-Kalender. Hier darf nur der zentrale Terminfluss verwendet werden.");
+    }
 
     const date =
       String(
@@ -1776,6 +1789,10 @@ exports.reorder = async (
 
   }
 
+  if (season.F1CalendarId) {
+    throw new Error("Die Reihenfolge einer verknüpften Saison kommt aus dem zentralen F1-Kalender.");
+  }
+
 
   const events =
     await RaceEvent.findAll({
@@ -2037,6 +2054,11 @@ exports.remove = async (
 
 
   try {
+
+    const season = await Season.findByPk(SeasonId);
+    if (season?.F1CalendarId) {
+      throw new Error("Verknüpfte RaceEvents können nicht über den manuellen Kalender gelöscht werden.");
+    }
 
     await sequelize.transaction(
       async (

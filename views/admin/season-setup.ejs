@@ -26,6 +26,12 @@
       ? []
       : f1Games;
 
+  const setupCentralCalendars =
+    typeof centralCalendars === 'undefined' ? [] : centralCalendars;
+
+  const setupSelectedCentralCalendar =
+    typeof selectedCentralCalendar === 'undefined' ? null : selectedCentralCalendar;
+
   const setupLineupProtected =
     typeof lineupProtected === 'undefined'
       ? false
@@ -341,6 +347,17 @@ const setupDriverRankFilter =
                 <small>Logo und Spielname werden im öffentlichen Saisonverlauf angezeigt.</small>
               </label>
 
+              <label>
+                Zentraler Rennkalender
+                <select name="F1CalendarId" required>
+                  <option value="">Kalender auswählen …</option>
+                  <% setupCentralCalendars.forEach((calendar) => { %>
+                    <option value="<%= calendar.id %>"><%= calendar.name %></option>
+                  <% }) %>
+                </select>
+                <small><a href="/admin/f1-calendars">Zentralen Kalender pflegen →</a></small>
+              </label>
+
               <label class="checkbox-control setup-option-card">
                 <input
                   type="checkbox"
@@ -423,6 +440,44 @@ const setupDriverRankFilter =
 
     <span>Nur aus F1-Streckenstamm</span>
     <h2>RENNKALENDER ERSTELLEN</h2>
+    <p class="setup-note">Zentrale Streckenfolge übernehmen; pro Liga werden nur Datum und die Startzeit aus den Liga-Stammdaten kombiniert.</p>
+
+    <% if (!setupCentralCalendars.length) { %>
+      <div class="empty-state">Noch kein zentraler F1-Kalender vorhanden. <a href="/admin/f1-calendars">Jetzt anlegen →</a></div>
+    <% } else { %>
+      <form method="get" action="/admin/season-setup" class="setup-form setup-calendar-form">
+        <input type="hidden" name="league" value="<%= selectedLeague.id %>">
+        <input type="hidden" name="season" value="<%= selectedSeason.id %>">
+        <label>Zentraler Rennkalender<select name="centralCalendar" required><% setupCentralCalendars.forEach((calendar) => { %><option value="<%= calendar.id %>" <%= setupSelectedCentralCalendar?.id === calendar.id ? 'selected' : '' %>><%= calendar.name %></option><% }) %></select></label>
+        <button class="button button-ghost button-small">Kalender anzeigen</button>
+      </form>
+
+      <% if (setupSelectedCentralCalendar) {
+        const eventByRound = new Map(calendar.filter((event) => event.F1CalendarRoundId).map((event) => [Number(event.F1CalendarRoundId), event]));
+      %>
+        <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/central-calendar" class="setup-form">
+          <input type="hidden" name="F1CalendarId" value="<%= setupSelectedCentralCalendar.id %>">
+          <div class="setup-calendar-list">
+            <% (setupSelectedCentralCalendar.rounds || []).forEach((round) => {
+              const event = eventByRound.get(Number(round.id));
+              const startsAt = event?.startsAt ? new Date(event.startsAt) : null;
+              const dateValue = startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt.toISOString().slice(0, 10) : '';
+            %>
+              <article class="<%= round.isTestDay ? 'is-test' : '' %>">
+                <span class="calendar-round-badge">R<%= round.roundNumber || round.sortOrder %></span>
+                <label>Strecke<div class="readonly-master-field"><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt=""><% } %><strong><%= round.track?.countryRecord?.name || round.track?.country || '' %> · <%= round.track?.name || round.circuit %></strong></div></label>
+                <label>Datum<input type="date" name="dates[<%= round.id %>]" value="<%= dateValue %>" required></label>
+                <label>Zeit aus Ligen-Stamm<input type="time" value="<%= defaultTime %>" readonly></label>
+                <div class="calendar-card-badges"><% if (round.hasSprint) { %><span class="calendar-sprint-badge">SPRINT</span><% } %><% if (round.isTestDay) { %><span class="calendar-test-badge">TESTTAG</span><% } %></div>
+              </article>
+            <% }) %>
+          </div>
+          <button class="button">Termine atomar speichern</button>
+        </form>
+      <% } %>
+    <% } %>
+
+    <% if (!selectedSeason.F1CalendarId && !setupSelectedCentralCalendar) { %>
 
     <%
   const events = calendar;
@@ -748,6 +803,8 @@ const setupDriverRankFilter =
       <% } %>
 
     </div>
+
+    <% } %>
 
   </div>
 

@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const {
-  League, Season, F1CalendarRound, RaceEvent, GrandPrixResult
+  League, Season, RaceEvent, GrandPrixResult
 } = require('../models');
 const {
   activateSeason, ensureLmuEntries, ensureWdlEntries, recalculateDriverRaceCounts
@@ -112,18 +112,7 @@ async function importCalendar(discipline, body) {
   }
   let imported = 0;
   if (discipline === 'f1') {
-    const rounds = await F1CalendarRound.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
-    const isFriday = league.slug === 'freitag';
-    for (const round of rounds) {
-      const raceDate = isFriday ? round.fridayDate : round.sundayDate;
-      if (!raceDate) continue;
-      await upsertRace({
-        season, league, discipline, title: `Großer Preis von ${round.circuit}`,
-        circuit: round.circuit, raceDate, sortOrder: round.sortOrder,
-        pointsMode: body.pointsMode, hasSprint: round.hasSprint
-      });
-      imported += 1;
-    }
+    throw new Error('F1-Kalender werden im Saison-Assistenten aus einem zentralen F1Calendar übernommen.');
   } else {
     const activeSeason = await Season.findOne({
       where: { leagueType: discipline, scopeSlug: league.slug, status: 'active' }

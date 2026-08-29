@@ -23,6 +23,14 @@ async function addMissingColumn(table, description, name, definition) {
     await sequelize.getQueryInterface().addColumn(table, name, definition);
 }
 
+async function addMissingIndex(table, name, fields, options = {}) {
+  const queryInterface = sequelize.getQueryInterface();
+  const indexes = await queryInterface.showIndex(table);
+  if (!indexes.some((index) => index.name === name)) {
+    await queryInterface.addIndex(table, fields, { name, ...options });
+  }
+}
+
 async function ensureSchema() {
   const queryInterface = sequelize.getQueryInterface();
   const knownTables = (await queryInterface.showAllTables()).map((table) =>
@@ -260,6 +268,18 @@ async function ensureSchema() {
   );
 
   const f1RoundTable = await queryInterface.describeTable("f1_calendar_rounds");
+  await addMissingColumn("f1_calendar_rounds", f1RoundTable, "f1_calendar_id", {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  });
+  await addMissingColumn("f1_calendar_rounds", f1RoundTable, "f1_track_id", {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  });
+  await addMissingColumn("f1_calendar_rounds", f1RoundTable, "round_number", {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  });
   await addMissingColumn("f1_calendar_rounds", f1RoundTable, "has_sprint", {
     type: DataTypes.BOOLEAN,
     allowNull: false,
@@ -270,6 +290,12 @@ async function ensureSchema() {
     allowNull: false,
     defaultValue: false,
   });
+  if (f1RoundTable.circuit?.allowNull === false) {
+    await queryInterface.changeColumn("f1_calendar_rounds", "circuit", {
+      type: DataTypes.STRING,
+      allowNull: true,
+    });
+  }
 
   const wdlResultTable =
     await queryInterface.describeTable("wdl_result_entries");
@@ -304,6 +330,10 @@ async function ensureSchema() {
     allowNull: true,
   });
   await addMissingColumn("seasons", seasonTable, "f1_game_id", {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  });
+  await addMissingColumn("seasons", seasonTable, "f1_calendar_id", {
     type: DataTypes.INTEGER,
     allowNull: true,
   });
@@ -643,6 +673,12 @@ async function ensureSchema() {
     type: DataTypes.INTEGER,
     allowNull: true,
   });
+  await addMissingColumn(
+    "race_events",
+    raceEventTable,
+    "f1_calendar_round_id",
+    { type: DataTypes.INTEGER, allowNull: true },
+  );
   await addMissingColumn("race_events", raceEventTable, "previous_starts_at", {
     type: DataTypes.DATE,
     allowNull: true,
@@ -656,6 +692,21 @@ async function ensureSchema() {
     allowNull: false,
     defaultValue: false,
   });
+
+  // Erst nach den nullable Spalten werden die praktischen Eindeutigkeiten
+  // ergänzt. NULL-Werte bestehender/historischer Datensätze bleiben zulässig.
+  await addMissingIndex(
+    "f1_calendar_rounds",
+    "uq_f1_calendar_round_number",
+    ["f1_calendar_id", "round_number"],
+    { unique: true },
+  );
+  await addMissingIndex(
+    "race_events",
+    "uq_race_event_season_calendar_round",
+    ["season_id", "f1_calendar_round_id"],
+    { unique: true },
+  );
 
   // =========================================================
   // F1 STRAFKARTEI EINSTELLUNGEN
