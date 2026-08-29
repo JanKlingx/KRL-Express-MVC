@@ -125,8 +125,8 @@ router.post(
   asyncHandler(seasonSetupController.saveCentralCalendar),
 );
 router.post(
-  "/season-setup/:seasonId/central-calendar/from-season",
-  asyncHandler(seasonSetupController.createCentralCalendarFromSeason),
+  "/season-setup/:seasonId/central-calendar/select",
+  asyncHandler(seasonSetupController.selectCentralCalendar),
 );
 
 router.post(

@@ -347,16 +347,23 @@ const setupDriverRankFilter =
                 <small>Logo und Spielname werden im öffentlichen Saisonverlauf angezeigt.</small>
               </label>
 
-              <label>
-                Zentraler Rennkalender
-                <select name="F1CalendarId" required>
-                  <option value="">Kalender auswählen …</option>
-                  <% setupCentralCalendars.forEach((calendar) => { %>
-                    <option value="<%= calendar.id %>"><%= calendar.name %></option>
-                  <% }) %>
-                </select>
-                <small><a href="/admin/f1-calendars">Zentralen Kalender pflegen →</a></small>
-              </label>
+              <% if (setupCentralCalendars.length) { %>
+                <label>
+                  Zentraler F1-Rennkalender
+                  <select name="F1CalendarId" required>
+                    <option value="">Kalender auswählen …</option>
+                    <% setupCentralCalendars.forEach((calendar) => { %>
+                      <option value="<%= calendar.id %>"><%= calendar.name %></option>
+                    <% }) %>
+                  </select>
+                  <small>Die Auswahl wird dauerhaft in der neuen Saison gespeichert.</small>
+                </label>
+              <% } else { %>
+                <div class="setup-calendar-missing">
+                  <strong>Kein zentraler F1-Rennkalender vorhanden</strong>
+                  <span><a href="/admin/f1-calendars">Zentralen F1-Rennkalender zuerst in den Stammdaten anlegen →</a></span>
+                </div>
+              <% } %>
 
               <label class="checkbox-control setup-option-card">
                 <input
@@ -370,7 +377,7 @@ const setupDriverRankFilter =
                 </span>
               </label>
 
-              <button class="button">
+              <button class="button" <%= setupCentralCalendars.length ? '' : 'disabled' %>>
                 Saison anlegen
               </button>
 
@@ -416,6 +423,29 @@ const setupDriverRankFilter =
 
           </div>
 
+          <% if (selectedSeason) { %>
+            <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/central-calendar/select" class="setup-form setup-calendar-selection-form">
+              <div>
+                <span>ZENTRALER F1-RENNKALENDER DIESER SAISON</span>
+                <strong><%= setupSelectedCentralCalendar?.name || 'Noch nicht ausgewählt' %></strong>
+                <small>Bestehende RaceEvents werden nur über Rundennummer und identische Strecke sicher verknüpft. Ergebnisse und Line-ups bleiben unverändert.</small>
+              </div>
+              <% if (setupCentralCalendars.length) { %>
+                <label>Kalendervorlage
+                  <select name="F1CalendarId" required>
+                    <option value="">Kalender auswählen …</option>
+                    <% setupCentralCalendars.forEach((calendar) => { %>
+                      <option value="<%= calendar.id %>" <%= Number(selectedSeason.F1CalendarId) === Number(calendar.id) ? 'selected' : '' %>><%= calendar.name %> · <%= calendar.rounds?.length || 0 %> Runden</option>
+                    <% }) %>
+                  </select>
+                </label>
+                <button class="button button-small">Auswahl speichern</button>
+              <% } else { %>
+                <a class="button button-ghost" href="/admin/f1-calendars">Zentrale Stammdaten öffnen</a>
+              <% } %>
+            </form>
+          <% } %>
+
         </div>
 
       </section>
@@ -428,411 +458,68 @@ const setupDriverRankFilter =
 
       <!-- ================================================= -->
       <!-- 03 RENNKALENDER -->
-      <!-- ================================================= -->
-
-<section id="setup-calendar" class="setup-panel">
-
-  <div class="setup-panel-number">
-    03
-  </div>
-
-  <div class="setup-panel-content">
-
-    <span>Nur aus F1-Streckenstamm</span>
-    <h2>RENNKALENDER ERSTELLEN</h2>
-    <p class="setup-note">Zentrale Streckenfolge übernehmen; pro Liga werden nur Datum und die Startzeit aus den Liga-Stammdaten kombiniert.</p>
-
-    <% if (!setupCentralCalendars.length) { %>
-      <div class="empty-state">
-        <strong>Noch kein zentraler F1-Rennkalender vorhanden.</strong>
-        <p>Erstellen Sie zuerst eine gemeinsame Vorlage. Danach werden hier ausschließlich die Renndaten gepflegt; die Startzeit bleibt fest im Liga-Stamm.</p>
-        <% if (Array.isArray(calendar) && calendar.length) { %>
-          <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/central-calendar/from-season" class="setup-form setup-calendar-bootstrap-form">
-            <label>Vorlagenname<input name="name" value="<%= selectedSeason.name %> Rennkalender" required></label>
-            <button class="button">Vorhandene Termine als zentrale Vorlage übernehmen</button>
-          </form>
-        <% } else { %>
-          <form method="post" action="/admin/f1-calendars" class="setup-form setup-calendar-bootstrap-form">
-            <input type="hidden" name="sortOrder" value="0">
-            <input type="hidden" name="isActive" value="on">
-            <label>Vorlagenname<input name="name" value="<%= selectedSeason.name %> Rennkalender" required></label>
-            <button class="button">Zentrale Vorlage anlegen</button>
-          </form>
-        <% } %>
-        <a href="/admin/f1-calendars">Zentrale Kalenderverwaltung öffnen →</a>
-      </div>
-    <% } else { %>
-      <form method="get" action="/admin/season-setup" class="setup-form setup-calendar-form">
-        <input type="hidden" name="league" value="<%= selectedLeague.id %>">
-        <input type="hidden" name="season" value="<%= selectedSeason.id %>">
-        <label>Zentraler Rennkalender<select name="centralCalendar" required><% setupCentralCalendars.forEach((calendar) => { %><option value="<%= calendar.id %>" <%= setupSelectedCentralCalendar?.id === calendar.id ? 'selected' : '' %>><%= calendar.name %></option><% }) %></select></label>
-        <button class="button button-ghost button-small">Kalender anzeigen</button>
-      </form>
-
-      <% if (setupSelectedCentralCalendar) {
-        const eventByRound = new Map(calendar.filter((event) => event.F1CalendarRoundId).map((event) => [Number(event.F1CalendarRoundId), event]));
-      %>
-        <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/central-calendar" class="setup-form">
-          <input type="hidden" name="F1CalendarId" value="<%= setupSelectedCentralCalendar.id %>">
-          <div class="setup-calendar-list">
-            <% (setupSelectedCentralCalendar.rounds || []).forEach((round) => {
-              const event = eventByRound.get(Number(round.id));
-              const startsAt = event?.startsAt ? new Date(event.startsAt) : null;
-              const dateValue = startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt.toISOString().slice(0, 10) : '';
-            %>
-              <article class="<%= round.isTestDay ? 'is-test' : '' %>">
-                <span class="calendar-round-badge">R<%= round.roundNumber || round.sortOrder %></span>
-                <label>Strecke<div class="readonly-master-field"><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt=""><% } %><strong><%= round.track?.countryRecord?.name || round.track?.country || '' %> · <%= round.track?.name || round.circuit %></strong></div></label>
-                <label>Datum<input type="date" name="dates[<%= round.id %>]" value="<%= dateValue %>" required></label>
-                <label>Zeit aus Ligen-Stamm<input type="time" value="<%= defaultTime %>" readonly></label>
-                <div class="calendar-card-badges"><% if (round.hasSprint) { %><span class="calendar-sprint-badge">SPRINT</span><% } %><% if (round.isTestDay) { %><span class="calendar-test-badge">TESTTAG</span><% } %></div>
-              </article>
-            <% }) %>
-          </div>
-          <button class="button">Termine atomar speichern</button>
-        </form>
-      <% } %>
-    <% } %>
-
-    <% if (!selectedSeason.F1CalendarId && !setupSelectedCentralCalendar) { %>
-    <details class="setup-legacy-calendar">
-      <summary>Legacy-Kalendereditor für historische Daten öffnen</summary>
-
-    <%
-  const events = calendar;
-
-  const nextRaceNumber =
-    events.filter((event) => !event.isTestDay).length + 1;
-
-  const trackSelect = (event) => `
-        <label>
-          Strecke *
-          <select name="F1TrackId" required>
-            <option value="">Aus Streckenstamm wählen …</option>
-
-            ${setupTracks.map((track) => `
-              <option
-                value="${track.id}"
-                ${Number(event?.F1TrackId) === Number(track.id) ? 'selected' : ''}
-              >
-                ${track.name}
-              </option>
-            `).join('')}
-
-          </select>
-
-          <small>
-            Land und Flagge werden automatisch übernommen.
-          </small>
-        </label>
-      `;
-    %>
-
-
-    <!-- TERMIN HINZUFÜGEN -->
-
-    <section class="setup-panel">
-
-      <div class="setup-panel-number">+</div>
-
-      <div class="setup-panel-content">
-
-        <h2>TERMIN HINZUFÜGEN</h2>
-
-        <p class="setup-note">
-          Die Startzeit kommt fest aus dem Ligen-Stamm.
-        </p>
-
-        <form
-          method="post"
-          action="/admin/season-setup/<%= selectedSeason.id %>/calendar"
-          class="setup-form setup-calendar-form"
-        >
-
-          <%- trackSelect(null) %>
-
-          <label>
-            Datum *
-            <input
-              type="date"
-              name="date"
-              required
-            >
-          </label>
-
-          <label>
-            Startzeit aus Ligen-Stamm
-            <input
-              type="time"
-              value="<%= defaultTime %>"
-              readonly
-            >
-          </label>
-
-
-
-
-
- <label>
-  Rennen Nr.
-
-  <input
-    type="number"
-    name="sortOrder"
-    min="1"
-    value="<%= nextRaceNumber %>"
-  >
-</label>
-
-<label class="checkbox-control">
-  <input
-    type="checkbox"
-    name="isTestDay"
-  >
-  <span>Testtag</span>
-</label>
-
-
-
-
-
-          <label class="checkbox-control">
-            <input
-              type="checkbox"
-              name="hasSprint"
-            >
-            <span>Sprint</span>
-          </label>
-
-          <button
-            type="submit"
-            class="button"
-          >
-            Hinzufügen
-          </button>
-
-        </form>
-
-      </div>
-    </section>
-
-
-    <!-- REIHENFOLGE -->
-
-    <% if (events.length) { %>
-
-  <form
-    method="post"
-    action="/admin/season-setup/<%= selectedSeason.id %>/calendar/reorder"
-    class="calendar-reorder-bar"
-    data-calendar-reorder-form
-  >
-
-    <input
-      type="hidden"
-      name="LeagueId"
-      value="<%= selectedLeague.id %>"
-    >
-
-    <input
-      type="hidden"
-      name="SeasonId"
-      value="<%= selectedSeason.id %>"
-    >
-
-    <div data-calendar-order-inputs>
-
-      <% events.forEach((event) => { %>
-
-        <input
-          type="hidden"
-          name="eventIds"
-          value="<%= event.id %>"
-        >
-
-      <% }) %>
-
-    </div>
-
-    <span>
-      ↕ Karten ziehen, um Rennen neu zu nummerieren.
-    </span>
-
-    <button
-      type="submit"
-      class="button button-small"
-    >
-      Reihenfolge speichern
-    </button>
-
-  </form>
-
-<% } %>
-
-
-    <!-- BESTEHENDE TERMINE -->
-
-    <div
-      class="setup-calendar-list season-calendar-editor"
-      data-sortable-calendar
-    >
-
-      <% events.forEach((event, index) => {
-
-        const startsAt = new Date(event.startsAt);
-        const valid = !Number.isNaN(startsAt.getTime());
-
-      %>
-
-        <article
-          class="<%= event.isTestDay ? 'is-test' : '' %>"
-          draggable="true"
-          data-calendar-event="<%= event.id %>"
-        >
-
-          <form
-            method="post"
-            action="/admin/season-setup/<%= selectedSeason.id %>/calendar/<%= event.id %>/update"
-            class="setup-form setup-calendar-form"
-          >
-
-          <span class="calendar-drag-handle">
-  <% if (event.isTestDay) { %>
-    ↕ TEST
-  <% } else { %>
-    ↕ R<%= event.sortOrder %>
-  <% } %>
-</span>
-
-            <%- trackSelect(event) %>
-
-
-            <label>
-              Land
-
-              <div class="readonly-master-field">
-
-                <% if (event.track?.countryRecord?.flagPath) { %>
-
-                  <img
-                    src="<%= event.track.countryRecord.flagPath %>"
-                    alt="Flagge <%= event.track.countryRecord.name %>"
-                  >
-
-                <% } %>
-
-                <strong>
-                  <%= event.track?.countryRecord?.name
-                    || event.track?.country
-                    || 'aus Stammdaten'
-                  %>
-                </strong>
-
+      <section id="setup-calendar" class="setup-panel">
+        <div class="setup-panel-number">03</div>
+        <div class="setup-panel-content">
+          <span>DATUM + FESTE LIGA-UHRZEIT</span>
+          <h2>RENNTERMINE FESTLEGEN</h2>
+          <p class="setup-note">Runden, Strecken, Länder, Sprint und Testtag stammen ausschließlich aus dem in Schritt 2 gespeicherten zentralen F1-Kalender.</p>
+
+          <% if (!selectedSeason.F1CalendarId || !setupSelectedCentralCalendar) { %>
+            <div class="empty-state setup-calendar-required">
+              <strong>Für diese Saison ist noch kein zentraler F1-Rennkalender gespeichert.</strong>
+              <span>Wählen Sie den Kalender zuerst in Schritt 2 aus.</span>
+              <a class="button button-small" href="#setup-season">Zu Schritt 2</a>
+            </div>
+          <% } else { %>
+            <div class="setup-calendar-master-summary">
+              <div>
+                <span>AKTUELLER ZENTRALER F1-RENNKALENDER</span>
+                <strong><%= setupSelectedCentralCalendar.name %></strong>
+                <small><%= setupSelectedCentralCalendar.rounds?.length || 0 %> Runden · Zeit aus <%= selectedLeague.name %>: <%= defaultTime %></small>
               </div>
+              <a class="button button-ghost button-small" href="/admin/f1-calendars?calendar=<%= setupSelectedCentralCalendar.id %>">Zentralen Kalender öffnen</a>
+            </div>
 
-            </label>
-
-
-            <label>
-              Datum
-
-              <input
-                type="date"
-                name="date"
-                value="<%= valid ? startsAt.toISOString().slice(0,10) : '' %>"
-                required
-              >
-            </label>
-
-
-            <label>
-              Zeit aus Ligen-Stamm
-
-              <input
-                type="time"
-                value="<%= defaultTime %>"
-                readonly
-              >
-            </label>
-
-
-          <input
-  type="hidden"
-  name="sortOrder"
-  value="<%= event.isTestDay ? 0 : event.sortOrder %>"
->
-
-
-            <label class="checkbox-control">
-              <input
-                type="checkbox"
-                name="isTestDay"
-                <%= event.isTestDay ? 'checked' : '' %>
-              >
-              <span>Testtag</span>
-            </label>
-
-
-            <label class="checkbox-control">
-              <input
-                type="checkbox"
-                name="hasSprint"
-                <%= event.hasSprint ? 'checked' : '' %>
-              >
-              <span>Sprint</span>
-            </label>
-
-
-            <button
-              type="submit"
-              class="button button-small"
-            >
-              Speichern
-            </button>
-
-          </form>
-
-
-          <form
-            method="post"
-            action="/admin/season-setup/<%= selectedSeason.id %>/calendar/<%= event.id %>/delete"
-            data-confirm="Termin und Ergebnisse löschen?"
-          >
-
-            <button
-              type="submit"
-              class="button button-ghost button-small"
-            >
-              Löschen
-            </button>
-
-          </form>
-
-        </article>
-
-      <% }) %>
-
-
-      <% if (!events.length) { %>
-
-        <div class="empty-state">
-          Diese Saison hat noch keine Termine.
+            <% const eventByRound = new Map(calendar.filter((event) => event.F1CalendarRoundId).map((event) => [Number(event.F1CalendarRoundId), event])); %>
+            <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/central-calendar" class="setup-calendar-dates-form">
+              <div class="table-wrap setup-calendar-table-wrap">
+                <table class="setup-calendar-table">
+                  <thead>
+                    <tr><th>Runde</th><th>Flagge</th><th>Land</th><th>Strecke</th><th>Sprint</th><th>Testtag</th><th>Datum</th><th>Zeit</th></tr>
+                  </thead>
+                  <tbody>
+                    <% (setupSelectedCentralCalendar.rounds || []).forEach((round) => {
+                      const event = eventByRound.get(Number(round.id)) || calendar.find((candidate) => Number(candidate.sortOrder) === Number(round.roundNumber || round.sortOrder) && Number(candidate.F1TrackId) === Number(round.F1TrackId));
+                      const startsAt = event?.startsAt ? new Date(event.startsAt) : null;
+                      const dateValue = startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt.toISOString().slice(0, 10) : '';
+                      const countryName = round.track?.countryRecord?.name || round.track?.country || '–';
+                    %>
+                      <tr class="<%= round.isTestDay ? 'is-test' : '' %>">
+                        <td><strong><%= round.isTestDay ? 'TEST' : `R${round.roundNumber || round.sortOrder}` %></strong></td>
+                        <td class="setup-calendar-flag"><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt="Flagge <%= countryName %>"><% } else { %><span aria-hidden="true">🏁</span><% } %></td>
+                        <td><%= countryName %></td>
+                        <td><strong><%= round.track?.name || round.circuit %></strong></td>
+                        <td><span class="setup-readonly-state <%= round.hasSprint ? 'is-active' : '' %>"><%= round.hasSprint ? '✓' : '–' %></span></td>
+                        <td><span class="setup-readonly-state <%= round.isTestDay ? 'is-active' : '' %>"><%= round.isTestDay ? '✓' : '–' %></span></td>
+                        <td><input type="date" name="dates[<%= round.id %>]" value="<%= dateValue %>" required aria-label="Datum für <%= round.track?.name || round.circuit %>"></td>
+                        <td><input type="time" value="<%= defaultTime %>" readonly aria-readonly="true" tabindex="-1"></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+              <div class="setup-calendar-savebar">
+                <p>Beim Speichern wird jedes Datum serverseitig mit <strong><%= defaultTime %></strong> aus den Liga-Stammdaten kombiniert. Übermittelte Browser-Uhrzeiten werden ignoriert.</p>
+                <button class="button">Alle Renndaten speichern</button>
+              </div>
+            </form>
+          <% } %>
         </div>
-
-      <% } %>
-
-    </div>
-
-    </details>
-
-    <% } %>
-
-  </div>
-
-</section>
+      </section>
 
 
-      <!-- ================================================= -->
+
       <!-- 04 PUNKTE -->
       <!-- ================================================= -->
 
@@ -1779,51 +1466,6 @@ const setupDriverRankFilter =
 
 
 document.addEventListener('DOMContentLoaded', function () {
-
-
-  /*
-   * =====================================================
-   * STRECKE -> LAND
-   * =====================================================
-   */
-
-  const trackSelect =
-    document.getElementById('f1-track-select');
-
-  const countryInput =
-    document.getElementById('f1-track-country');
-
-
-  if (trackSelect && countryInput) {
-
-    function updateTrackCountry() {
-
-      const selectedOption =
-        trackSelect.options[
-          trackSelect.selectedIndex
-        ];
-
-      if (
-        !selectedOption ||
-        !selectedOption.value
-      ) {
-        countryInput.value = '';
-        return;
-      }
-
-      countryInput.value =
-        selectedOption.dataset.country || '';
-    }
-
-
-    trackSelect.addEventListener(
-      'change',
-      updateTrackCountry
-    );
-
-
-    updateTrackCountry();
-  }
 
 
   /*

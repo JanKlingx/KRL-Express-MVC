@@ -70,7 +70,10 @@ test('LMU-Stammdaten enthalten Anzeigename, persönliches Auto, Zusatz und Pole-
 
 test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', async () => {
   const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
-  const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2026' }, isPublished: false, reservePointsForConstructors: true };
+  const season = { id: 2, name: 'Saison 13', status: 'active', accentColor: '#00aaff', PointsSchemeId: 3, F1CalendarId: 10, pointsScheme: { name: 'F1 2026' }, isPublished: false, reservePointsForConstructors: true };
+  const country = { name: 'Belgien', flagPath: '/uploads/be.png' };
+  const track = { id: 20, name: 'Spa-Francorchamps', country: 'Belgien', countryRecord: country };
+  const centralCalendar = { id: 10, name: 'KRL F1 Saison 17', rounds: [{ id: 30, roundNumber: 1, sortOrder: 1, F1TrackId: 20, hasSprint: false, isTestDay: false, track }] };
   const driver = { id: 7, name: 'Max Beispiel', roleF1Friday: true };
   const seasonTeam = { id: 8, sourceType: 'current', sourceId: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null, drivers: [driver] };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
@@ -78,18 +81,22 @@ test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', a
     seasons: [season], selectedSeason: season, pointsSchemes: [{ id: 3, name: 'F1 2026' }], calendar: [],
     f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null }], carProfiles: [],
     defaultTime: '20:00', tracks: [], eligibleDrivers: [driver],
-    structure: { allDrivers: [driver], teams: [seasonTeam], unassignedDrivers: [] }, finishReady: false
+    structure: { allDrivers: [driver], teams: [seasonTeam], unassignedDrivers: [] }, finishReady: false,
+    centralCalendars: [centralCalendar], selectedCentralCalendar: centralCalendar, f1Games: [], lineupProtected: false
   });
   assert.match(html, /F1-SAISON ERSTELLEN/);
   assert.match(html, /setup-steps-eight/);
   assert.match(html, /LIGA AUSWÄHLEN/);
-  assert.match(html, /RENNKALENDER ERSTELLEN/);
+  assert.match(html, /RENNTERMINE FESTLEGEN/);
   assert.match(html, /PUNKTESYSTEM/);
   assert.match(html, /FAHRER AUSWÄHLEN/);
   assert.match(html, /AKTUELLE ODER HISTORISCHE TEAMS/);
   assert.match(html, /LINE-UP ERSTELLEN/);
   assert.match(html, /ABSCHLUSS/);
   assert.match(html, /value="20:00"/);
+  assert.match(html, /name="dates\[30\]"/);
+  assert.doesNotMatch(html, /Runde hinzufügen|Termin hinzufügen/i);
+  assert.doesNotMatch(html, /name="F1TrackId"/);
   assert.equal((html.match(/name="PointsSchemeId"/g) || []).length, 1);
   assert.equal((html.match(/name="reservePointsForConstructors"/g) || []).length, 2);
   assert.match(html, /Ersatzfahrer-Punkte in Team-WM berücksichtigen/);

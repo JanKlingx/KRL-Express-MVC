@@ -28,7 +28,11 @@ const {
   loadSeasonStructure,
   resolveTeamToken,
 } = require("../services/f1Season");
-const { syncSeasonCalendar } = require("../services/f1Calendar");
+const {
+  linkExistingSeasonCalendar,
+  syncSeasonDates,
+  validateSeasonCalendar,
+} = require("../services/f1Calendar");
 const { seedSeasonDriverStints, seasonLineupIsProtected } = require("../services/seasonDriverStints");
 
 function disciplineForLeague(league) {
@@ -283,9 +287,7 @@ async function loadData(query = {}) {
     f1Games,
     centralCalendars,
     selectedCentralCalendar:
-      centralCalendars.find((calendar) => Number(calendar.id) === Number(query.centralCalendar)) ||
-      centralCalendars.find((calendar) => Number(calendar.id) === Number(selectedSeason?.F1CalendarId)) ||
-      centralCalendars[0] || null,
+      centralCalendars.find((calendar) => Number(calendar.id) === Number(selectedSeason?.F1CalendarId)) || null,
     lineupProtected,
 
     carAssignmentMap: Object.fromEntries(
@@ -345,28 +347,26 @@ exports.createSeason = async (req, res) => {
     if (F1GameId && !(await F1Game.findByPk(F1GameId)))
       throw new Error("Bitte ein gültiges F1-Spiel auswählen.");
     const F1CalendarId = Number(req.body.F1CalendarId || 0) || null;
-    const centralCalendar = F1CalendarId
-      ? await F1Calendar.findOne({ where: { id: F1CalendarId, isActive: true } })
-      : null;
-    if (!centralCalendar)
-      throw new Error("Bitte einen aktiven zentralen F1-Rennkalender auswählen.");
-    const season = await Season.create({
-      name,
-      leagueType: discipline,
-      scopeSlug: league.slug,
-      status: req.body.status,
-      calendarMode: "manual",
-      accentColor,
-      PointsSchemeId: null,
-      isPublished: false,
-      reservePointsForConstructors:
-        req.body.reservePointsForConstructors === "on",
-      F1GameId,
-      F1CalendarId: centralCalendar.id,
+    const season = await sequelize.transaction(async (transaction) => {
+      const centralCalendar = await validateSeasonCalendar(F1CalendarId, transaction);
+      return Season.create({
+        name,
+        leagueType: discipline,
+        scopeSlug: league.slug,
+        status: req.body.status,
+        calendarMode: "automatic",
+        accentColor,
+        PointsSchemeId: null,
+        isPublished: false,
+        reservePointsForConstructors:
+          req.body.reservePointsForConstructors === "on",
+        F1GameId,
+        F1CalendarId: centralCalendar.id,
+      }, { transaction });
     });
     req.session.flash = {
       type: "success",
-      message: `${season.name} wurde für ${league.name} angelegt. Als Nächstes kann der Rennkalender gepflegt werden.`,
+      message: `${season.name} wurde für ${league.name} angelegt. Als Nächstes können die Renndaten festgelegt werden.`,
     };
     res.redirect(setupRedirect({ league: league.id, season: season.id }));
   } catch (error) {
@@ -597,14 +597,23 @@ exports.saveCentralCalendar = async (req, res) => {
     if (!season || !league || season.leagueType !== "f1") {
       throw new Error("Saison oder Formel-1-Liga wurde nicht gefunden.");
     }
-    const calendarId = Number(req.body.F1CalendarId || 0);
+    const requestedCalendarId = Number(req.body.F1CalendarId || 0) || null;
+    if (requestedCalendarId && requestedCalendarId !== Number(season.F1CalendarId)) {
+      throw new Error("Der zentrale Kalender kann nur in Schritt 2 geändert werden.");
+    }
+    const calendarId = Number(season.F1CalendarId || 0);
+    if (!calendarId) throw new Error("Bitte zuerst in Schritt 2 einen zentralen F1-Kalender auswählen.");
     const dates = req.body.dates && typeof req.body.dates === "object" ? req.body.dates : {};
-    const calendar = await sequelize.transaction(async (transaction) =>
-      syncSeasonCalendar({ season, league, calendarId, dates, transaction }),
+    const result = await sequelize.transaction(async (transaction) =>
+      syncSeasonDates({ season, league, calendarId, dates, transaction }),
     );
+    const warnings = [
+      result.skippedCompleted ? `${result.skippedCompleted} abgeschlossene Rennen geschützt` : null,
+      result.unmatched ? `${result.unmatched} Runden ohne eindeutiges bestehendes RaceEvent` : null,
+    ].filter(Boolean);
     req.session.flash = {
       type: "success",
-      message: `${calendar.name} wurde atomar in konkrete RaceEvents für ${league.name} übernommen.`,
+      message: `${result.calendar.name}: ${result.created || result.updated} Termine wurden transaktional gespeichert.${warnings.length ? ` ${warnings.join("; ")}.` : ""}`,
     };
   } catch (error) {
     req.session.flash = { type: "error", message: error.message };
@@ -612,100 +621,36 @@ exports.saveCentralCalendar = async (req, res) => {
   res.redirect(`${setupRedirect({ league: league?.id, season: season?.id })}#setup-calendar`);
 };
 
-exports.createCentralCalendarFromSeason = async (req, res) => {
+exports.selectCentralCalendar = async (req, res) => {
   let season = null;
   let league = null;
-  let calendar = null;
   try {
-    await sequelize.transaction(async (transaction) => {
+    const result = await sequelize.transaction(async (transaction) => {
       season = await Season.findByPk(req.params.seasonId, {
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
       league = season
-        ? await League.findOne({
-            where: { slug: season.scopeSlug, type: "f1" },
-            transaction,
-          })
+        ? await League.findOne({ where: { slug: season.scopeSlug, type: "f1" }, transaction })
         : null;
       if (!season || !league || season.leagueType !== "f1") {
         throw new Error("Saison oder Formel-1-Liga wurde nicht gefunden.");
       }
-      if (season.F1CalendarId) {
-        throw new Error("Diese Saison verwendet bereits einen zentralen F1-Rennkalender.");
-      }
-
-      const events = await RaceEvent.findAll({
-        where: { SeasonId: season.id, LeagueId: league.id },
-        include: [{ association: "track" }],
-        order: [["sortOrder", "ASC"], ["startsAt", "ASC"], ["id", "ASC"]],
+      return linkExistingSeasonCalendar({
+        season,
+        league,
+        calendarId: Number(req.body.F1CalendarId || 0),
         transaction,
       });
-      if (!events.length) {
-        throw new Error("Es sind noch keine Termine vorhanden, die als zentrale Vorlage übernommen werden können.");
-      }
-      if (events.some((event) => !event.F1TrackId || !event.track)) {
-        throw new Error("Jeder vorhandene Termin muss zuerst einer Strecke aus dem F1-Streckenstamm zugeordnet sein.");
-      }
-
-      const sprintRows = await GrandPrixResult.findAll({
-        where: {
-          SeasonId: season.id,
-          LeagueId: league.id,
-          raceType: "sprint",
-        },
-        attributes: ["circuit", "sortOrder"],
-        transaction,
-      });
-      const sprintKeys = new Set(
-        sprintRows.map((row) => `${row.circuit}::${row.sortOrder}`),
-      );
-      const normalRoundNumbers = events
-        .filter((event) => !event.isTestDay)
-        .map((event) => Number(event.sortOrder))
-        .filter((number) => Number.isInteger(number) && number > 0);
-      let nextExtraRound = Math.max(0, ...normalRoundNumbers) + 1;
-      const usedRoundNumbers = new Set();
-
-      const name = String(req.body.name || "").trim() || `${season.name} Rennkalender`;
-      calendar = await F1Calendar.create({
-        name,
-        isActive: true,
-        sortOrder: 0,
-      }, { transaction });
-
-      for (const event of events) {
-        let number = !event.isTestDay ? Number(event.sortOrder) : nextExtraRound++;
-        if (!Number.isInteger(number) || number < 1 || usedRoundNumbers.has(number)) {
-          while (usedRoundNumbers.has(nextExtraRound)) nextExtraRound += 1;
-          number = nextExtraRound++;
-        }
-        usedRoundNumbers.add(number);
-        const round = await F1CalendarRound.create({
-          F1CalendarId: calendar.id,
-          F1TrackId: event.F1TrackId,
-          roundNumber: number,
-          circuit: event.track.name,
-          hasSprint: sprintKeys.has(`${event.circuit}::${event.sortOrder}`),
-          isTestDay: Boolean(event.isTestDay),
-          sortOrder: Number(event.sortOrder),
-        }, { transaction });
-        await event.update({ F1CalendarRoundId: round.id }, { transaction });
-      }
-
-      await season.update({
-        F1CalendarId: calendar.id,
-        calendarMode: "automatic",
-      }, { transaction });
     });
     req.session.flash = {
       type: "success",
-      message: `${calendar.name} wurde transaktional aus den vorhandenen Terminen erstellt. Künftig ändern Sie hier nur noch die Renndaten.`,
+      message: `${result.calendar.name} wurde für ${season.name} gespeichert.${result.eventCount ? ` ${result.linked} bestehende RaceEvents wurden sicher zugeordnet${result.unmatched ? `; ${result.unmatched} blieben unverändert` : ""}.` : ""}`,
     };
   } catch (error) {
     req.session.flash = { type: "error", message: error.message };
   }
-  res.redirect(`${setupRedirect({ league: league?.id, season: season?.id })}#setup-calendar`);
+  res.redirect(`${setupRedirect({ league: league?.id, season: season?.id })}#setup-season`);
 };
 
 exports.assignF1Cars = async (req, res) => {
