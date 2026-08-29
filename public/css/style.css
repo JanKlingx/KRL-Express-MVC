@@ -558,6 +558,27 @@ textarea {
   min-height: 38px;
   padding: 0.5rem 0.9rem;
 }
+
+.setup-calendar-bootstrap-form {
+  margin: 1rem 0;
+}
+
+.setup-legacy-calendar {
+  margin-top: 1.25rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.setup-legacy-calendar > summary {
+  padding: 1rem;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.setup-legacy-calendar[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
 .button-ghost {
   background: transparent;
   color: #fff;

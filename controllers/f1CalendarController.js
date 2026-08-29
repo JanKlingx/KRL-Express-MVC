@@ -72,11 +72,13 @@ exports.create = async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
     if (!name) throw new Error("Bitte einen Kalendernamen eingeben.");
-    const calendar = await F1Calendar.create({
+    const calendar = await sequelize.transaction(async (transaction) => F1Calendar.create({
       name,
       isActive: req.body.isActive === "on",
       sortOrder: Number(req.body.sortOrder || 0),
-    });
+    }, {
+      transaction,
+    }));
     setFlash(req, "success", `Der Kalender „${calendar.name}“ wurde angelegt.`);
     return res.redirect(redirect(calendar.id));
   } catch (error) {
@@ -91,11 +93,11 @@ exports.update = async (req, res) => {
     if (!calendar) throw new Error("Der Kalender wurde nicht gefunden.");
     const name = String(req.body.name || "").trim();
     if (!name) throw new Error("Bitte einen Kalendernamen eingeben.");
-    await calendar.update({
+    await sequelize.transaction(async (transaction) => calendar.update({
       name,
       isActive: req.body.isActive === "on",
       sortOrder: Number(req.body.sortOrder || 0),
-    });
+    }, { transaction }));
     setFlash(req, "success", "Kalenderdaten wurden gespeichert.");
   } catch (error) {
     setFlash(req, "error", error.message);
@@ -185,10 +187,16 @@ exports.removeRound = async (req, res) => {
     if (!round || Number(round.F1CalendarId) !== Number(req.params.calendarId)) {
       throw new Error("Die Kalenderrunde wurde nicht gefunden.");
     }
-    if (await RaceEvent.count({ where: { F1CalendarRoundId: round.id } })) {
-      throw new Error("Eine bereits verwendete Kalenderrunde kann nicht gelöscht werden.");
-    }
-    await round.destroy();
+    await sequelize.transaction(async (transaction) => {
+      const linkedCount = await RaceEvent.count({
+        where: { F1CalendarRoundId: round.id },
+        transaction,
+      });
+      if (linkedCount) {
+        throw new Error("Eine bereits verwendete Kalenderrunde kann nicht gelöscht werden.");
+      }
+      await round.destroy({ transaction });
+    });
     setFlash(req, "success", "Die unbenutzte Runde wurde gelöscht.");
   } catch (error) {
     setFlash(req, "error", error.message);

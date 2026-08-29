@@ -967,7 +967,7 @@ async function buildGlobalLedgers(
   }
 
   const sourceRounds = selectedCalendar
-    ? selectedCalendar.rounds.map((round) => ({
+    ? selectedCalendar.rounds.filter((round) => !round.isTestDay).map((round) => ({
         roundNumber: Number(round.roundNumber || round.sortOrder),
         title: round.track?.countryRecord?.name || round.track?.country || round.track?.name,
         circuit: round.track?.name || round.circuit,
