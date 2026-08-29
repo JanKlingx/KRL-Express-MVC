@@ -24,10 +24,7 @@ const {
   regularRoleField,
 } = require("../services/raceLineup");
 
-const {
-  loadSeasonStructure,
-} = require("../services/f1Season");
-
+const { loadSeasonStructure } = require("../services/f1Season");
 
 /*
  * =========================================================
@@ -35,179 +32,121 @@ const {
  * =========================================================
  */
 
-async function loadRosterTeams(
-  league,
-  race,
-) {
+async function loadRosterTeams(league, race) {
   /*
    * Wenn das Rennen zu einer Saison gehört,
    * hat die Saisonstruktur Vorrang.
    */
   if (race?.SeasonId) {
-    const structure =
-      await loadSeasonStructure(
-        race.SeasonId,
-        race.sortOrder,
-      );
+    const structure = await loadSeasonStructure(race.SeasonId, race.sortOrder);
 
     if (structure.teams.length) {
       return Promise.all(
         structure.teams
-          .filter(
-            (seasonTeam) =>
-              seasonTeam.drivers.length,
-          )
-          .map(
-            async (seasonTeam) => {
-              let actualTeam = null;
+          .filter((seasonTeam) => seasonTeam.drivers.length)
+          .map(async (seasonTeam) => {
+            let actualTeam = null;
 
-              if (
-                seasonTeam.sourceType ===
-                "current"
-              ) {
-                actualTeam =
-                  await Team.findByPk(
-                    seasonTeam.sourceId,
-                  );
-              } else {
-                const profile =
-                  await F1CarProfile.findByPk(
-                    seasonTeam.sourceId,
-                  );
+            if (seasonTeam.sourceType === "current") {
+              actualTeam = await Team.findByPk(seasonTeam.sourceId);
+            } else {
+              const profile = await F1CarProfile.findByPk(seasonTeam.sourceId);
 
-                if (
-                  profile?.BaseTeamId
-                ) {
-                  actualTeam =
-                    await Team.findByPk(
-                      profile.BaseTeamId,
-                    );
-                }
+              if (profile?.BaseTeamId) {
+                actualTeam = await Team.findByPk(profile.BaseTeamId);
               }
+            }
 
-              return {
-                roster: null,
+            return {
+              roster: null,
 
-                team: {
-                  id:
-                    actualTeam?.id ||
-                    null,
+              team: {
+                id: actualTeam?.id || null,
 
-                  name:
-                    seasonTeam.name,
+                name: seasonTeam.name,
 
-                  accentColor:
-                    seasonTeam.accentColor,
+                accentColor: seasonTeam.accentColor,
 
-                  logoPath:
-                    seasonTeam.logoPath,
+                logoPath: seasonTeam.logoPath,
 
-                  seasonTeamId:
-                    seasonTeam.id,
-                },
+                seasonTeamId: seasonTeam.id,
+              },
 
-                drivers:
-                  seasonTeam.drivers,
-              };
-            },
-          ),
+              drivers: seasonTeam.drivers,
+            };
+          }),
       );
     }
   }
-
 
   /*
    * Fallback:
    * aktuelles TeamRoster.
    */
 
-  const roleField =
-    regularRoleField(
-      league.slug,
-    );
+  const roleField = regularRoleField(league.slug);
 
-  const rosters =
-    await TeamRoster.findAll({
-      where: {
-        LeagueId: league.id,
-        discipline: "f1",
+  const rosters = await TeamRoster.findAll({
+    where: {
+      LeagueId: league.id,
+      discipline: "f1",
+    },
+
+    include: [
+      {
+        association: "team",
       },
 
-      include: [
-        {
-          association: "team",
-        },
+      {
+        association: "assignments",
 
-        {
-          association:
-            "assignments",
-
-          include: [
-            {
-              association:
-                "driver",
-
-              include: [
-                {
-                  association:
-                    "aliases",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-
-      order: [
-        ["sortOrder", "ASC"],
-        ["id", "ASC"],
-
-        [
+        include: [
           {
-            model:
-              TeamRosterDriver,
+            association: "driver",
 
-            as:
-              "assignments",
+            include: [
+              {
+                association: "aliases",
+              },
+            ],
           },
-
-          "sortOrder",
-          "ASC",
         ],
-      ],
-    });
+      },
+    ],
 
+    order: [
+      ["sortOrder", "ASC"],
+      ["id", "ASC"],
+
+      [
+        {
+          model: TeamRosterDriver,
+
+          as: "assignments",
+        },
+
+        "sortOrder",
+        "ASC",
+      ],
+    ],
+  });
 
   return rosters
-    .map(
-      (roster) => ({
-        roster,
+    .map((roster) => ({
+      roster,
 
-        team:
-          roster.team,
+      team: roster.team,
 
-        drivers:
-          roster.assignments
-            .filter(
-              (assignment) =>
-                assignment.roleName !==
-                  "Ersatzfahrer" &&
-                assignment.driver?.[
-                  roleField
-                ],
-            )
-            .map(
-              (assignment) =>
-                assignment.driver,
-            ),
-      }),
-    )
-    .filter(
-      (team) =>
-        team.drivers.length,
-    );
+      drivers: roster.assignments
+        .filter(
+          (assignment) =>
+            assignment.roleName !== "Ersatzfahrer" &&
+            assignment.driver?.[roleField],
+        )
+        .map((assignment) => assignment.driver),
+    }))
+    .filter((team) => team.drivers.length);
 }
-
 
 /*
  * =========================================================
@@ -215,120 +154,87 @@ async function loadRosterTeams(
  * =========================================================
  */
 
-async function loadPlanningRows(
-  league,
-  race,
-) {
-  const structure =
-    race?.SeasonId
-      ? await loadSeasonStructure(
-          race.SeasonId,
-          race.sortOrder,
-        )
-      : null;
+async function loadPlanningRows(league, race) {
+  const structure = race?.SeasonId
+    ? await loadSeasonStructure(race.SeasonId, race.sortOrder)
+    : null;
 
+  const today = new Date().toISOString().slice(0, 10);
 
-  const today =
-    new Date()
-      .toISOString()
-      .slice(0, 10);
+  const [teams, fallbackReserves, entries, penalties, penaltySetting] =
+    await Promise.all([
+      loadRosterTeams(league, race),
 
-
-  const [
-    teams,
-    fallbackReserves,
-    entries,
-    penalties,
-    penaltySetting,
-  ] = await Promise.all([
-    loadRosterTeams(
-      league,
-      race,
-    ),
-
-    Driver.findAll({
-      where: {
-        [reserveRoleField(
-          league.slug,
-        )]: true,
-      },
-
-      include: [
-        {
-          association:
-            "aliases",
+      Driver.findAll({
+        where: {
+          [reserveRoleField(league.slug)]: true,
         },
-      ],
 
-      order: [
-        ["name", "ASC"],
-        ["id", "ASC"],
-      ],
-    }),
-
-    race
-      ? F1RaceLineupEntry.findAll({
-          where: {
-            GrandPrixResultId:
-              race.id,
+        include: [
+          {
+            association: "aliases",
           },
+        ],
 
-          include: [
-            {
-              association:
-                "driver",
+        order: [
+          ["name", "ASC"],
+          ["id", "ASC"],
+        ],
+      }),
+
+      race
+        ? F1RaceLineupEntry.findAll({
+            where: {
+              GrandPrixResultId: race.id,
             },
 
-            {
-              association:
-                "replacementFor",
-            },
+            include: [
+              {
+                association: "driver",
+              },
 
+              {
+                association: "replacementFor",
+              },
+
+              {
+                association: "team",
+              },
+            ],
+
+            order: [
+              ["roleType", "ASC"],
+
+              ["sortOrder", "ASC"],
+
+              ["id", "ASC"],
+            ],
+          })
+        : [],
+
+      PenaltyEntry.findAll({
+        where: {
+          LeagueId: league.id,
+
+          [Op.or]: [
             {
-              association:
-                "team",
+              expiresOn: null,
+            },
+            {
+              expiresOn: {
+                [Op.gte]: today,
+              },
             },
           ],
-
-          order: [
-            [
-              "roleType",
-              "ASC",
-            ],
-
-            [
-              "sortOrder",
-              "ASC",
-            ],
-
-            [
-              "id",
-              "ASC",
-            ],
-          ],
-        })
-      : [],
-
-    PenaltyEntry.findAll({
-      where: {
-        LeagueId:
-          league.id,
-
-        expiresOn: {
-          [Op.gte]:
-            today,
         },
-      },
-    }),
+      }),
 
-    F1PenaltySetting.findOne({
-      where: {
-        LeagueId:
-          league.id,
-      },
-    }),
-  ]);
-
+      F1PenaltySetting.findOne({
+        where: {
+          LeagueId: league.id,
+        },
+      }),
+    ]);
 
   /*
    * Saison-Ersatzfahrer verwenden.
@@ -336,12 +242,9 @@ async function loadPlanningRows(
    * Fahrer-Rang als Fallback.
    */
 
-  const reserves =
-    structure?.unassignedDrivers
-      ?.length
-      ? structure.unassignedDrivers
-      : fallbackReserves;
-
+  const reserves = structure?.unassignedDrivers?.length
+    ? structure.unassignedDrivers
+    : fallbackReserves;
 
   /*
    * =====================================================
@@ -349,72 +252,30 @@ async function loadPlanningRows(
    * =====================================================
    */
 
-  const threshold =
-    Number(
-      penaltySetting
-        ?.pointsLimit ||
-        12,
+  const threshold = Number(penaltySetting?.pointsLimit || 12);
+
+  const pointsByDriver = new Map();
+
+  penalties.forEach((entry) => {
+    pointsByDriver.set(
+      Number(entry.DriverId),
+
+      Number(pointsByDriver.get(Number(entry.DriverId)) || 0) +
+        Number(entry.points || 0),
     );
+  });
 
-
-  const pointsByDriver =
-    new Map();
-
-
-  penalties.forEach(
-    (entry) => {
-      pointsByDriver.set(
-        Number(
-          entry.DriverId,
-        ),
-
-        Number(
-          pointsByDriver.get(
-            Number(
-              entry.DriverId,
-            ),
-          ) || 0,
-        ) +
-          Number(
-            entry.points ||
-              0,
-          ),
-      );
-    },
+  // Welche Fahrer haben in der Strafkarei eine Rennsperre stehen?
+  const bannedDriverIds = new Set(
+    penalties
+      .filter(
+        (entry) =>
+          (entry.isRaceBan &&
+            Number(entry.GrandPrixResultId) === Number(race?.id)) ||
+          Number(pointsByDriver.get(Number(entry.DriverId)) || 0) >= threshold,
+      )
+      .map((entry) => Number(entry.DriverId)),
   );
-
-
-  const bannedDriverIds =
-    new Set(
-      penalties
-        .filter(
-          (entry) =>
-            (
-              entry.isRaceBan &&
-              Number(
-                entry.GrandPrixResultId,
-              ) ===
-                Number(
-                  race?.id,
-                )
-            ) ||
-            Number(
-              pointsByDriver.get(
-                Number(
-                  entry.DriverId,
-                ),
-              ) || 0,
-            ) >=
-              threshold,
-        )
-        .map(
-          (entry) =>
-            Number(
-              entry.DriverId,
-            ),
-        ),
-    );
-
 
   /*
    * =====================================================
@@ -422,66 +283,25 @@ async function loadPlanningRows(
    * =====================================================
    */
 
-  const regularEntries =
-    new Map(
-      entries
-        .filter(
-          (entry) =>
-            entry.roleType ===
-            "regular",
-        )
-        .map(
-          (entry) => [
-            Number(
-              entry.DriverId,
-            ),
+  const regularEntries = new Map(
+    entries
+      .filter((entry) => entry.roleType === "regular")
+      .map((entry) => [Number(entry.DriverId), entry]),
+  );
 
-            entry,
-          ],
-        ),
-    );
+  const reserveEntries = new Map(
+    entries
+      .filter((entry) => entry.roleType === "reserve")
+      .map((entry) => [Number(entry.DriverId), entry]),
+  );
 
-
-  const reserveEntries =
-    new Map(
-      entries
-        .filter(
-          (entry) =>
-            entry.roleType ===
-            "reserve",
-        )
-        .map(
-          (entry) => [
-            Number(
-              entry.DriverId,
-            ),
-
-            entry,
-          ],
-        ),
-    );
-
-
-  const reserveByRegular =
-    new Map(
-      entries
-        .filter(
-          (entry) =>
-            entry.roleType ===
-              "reserve" &&
-            entry.ReplacementForDriverId,
-        )
-        .map(
-          (entry) => [
-            Number(
-              entry.ReplacementForDriverId,
-            ),
-
-            entry,
-          ],
-        ),
-    );
-
+  const reserveByRegular = new Map(
+    entries
+      .filter(
+        (entry) => entry.roleType === "reserve" && entry.ReplacementForDriverId,
+      )
+      .map((entry) => [Number(entry.ReplacementForDriverId), entry]),
+  );
 
   /*
    * =====================================================
@@ -489,101 +309,52 @@ async function loadPlanningRows(
    * =====================================================
    */
 
-  const regularById =
-    new Map();
+  const regularById = new Map();
 
+  const teamCards = teams.map(({ roster, team, drivers }) => ({
+    roster,
 
-  const teamCards =
-    teams.map(
-      ({
-        roster,
+    team,
+
+    rows: drivers.map((driver) => {
+      const driverId = Number(driver.id);
+
+      regularById.set(driverId, {
+        driver,
         team,
-        drivers,
-      }) => ({
-        roster,
+      });
+
+      const saved = regularEntries.get(driverId);
+
+      return {
+        driver,
 
         team,
 
-        rows:
-          drivers.map(
-            (driver) => {
-              const driverId =
-                Number(
-                  driver.id,
-                );
+        entry: saved || null,
 
+        /*
+         * WICHTIG:
+         * gespeicherter Status bleibt erhalten.
+         * Nur bei ganz neuem Eintrag greift der
+         * normale Default.
+         */
+        status: bannedDriverIds.has(driverId)
+          ? "rennsperre"
+          : saved
+            ? normalizeRegularStatus(saved.status)
+            : "anwesend",
 
-              regularById.set(
-                driverId,
-                {
-                  driver,
-                  team,
-                },
-              );
+        isBanned: bannedDriverIds.has(driverId),
 
+        replacementDriverId: bannedDriverIds.has(driverId)
+          ? null
+          : Number(reserveByRegular.get(driverId)?.DriverId || 0) || null,
 
-              const saved =
-                regularEntries.get(
-                  driverId,
-                );
-
-
-              return {
-                driver,
-
-                team,
-
-                entry:
-                  saved ||
-                  null,
-
-                /*
-                 * WICHTIG:
-                 * gespeicherter Status bleibt erhalten.
-                 * Nur bei ganz neuem Eintrag greift der
-                 * normale Default.
-                 */
-                status:
-                  bannedDriverIds.has(
-                    driverId,
-                  )
-                    ? "rennsperre"
-                    : saved
-                      ? normalizeRegularStatus(
-                          saved.status,
-                        )
-                      : "anwesend",
-
-                isBanned:
-                  bannedDriverIds.has(
-                    driverId,
-                  ),
-
-                replacementDriverId:
-                  bannedDriverIds.has(
-                    driverId,
-                  )
-                    ? null
-                    : Number(
-                        reserveByRegular.get(
-                          driverId,
-                        )
-                          ?.DriverId ||
-                          0,
-                      ) ||
-                      null,
-
-                replacementEntry:
-                  reserveByRegular.get(
-                    driverId,
-                  ) ||
-                  null,
-              };
-            },
-          ),
-      }),
-    );
-
+        replacementEntry: reserveByRegular.get(driverId) || null,
+      };
+    }),
+  }));
 
   /*
    * =====================================================
@@ -591,94 +362,51 @@ async function loadPlanningRows(
    * =====================================================
    */
 
-  const reserveRows =
-    reserves.map(
-      (driver) => {
-        const driverId =
-          Number(
-            driver.id,
-          );
+  const reserveRows = reserves.map((driver) => {
+    const driverId = Number(driver.id);
 
+    const saved = reserveEntries.get(driverId);
 
-        const saved =
-          reserveEntries.get(
-            driverId,
-          );
+    const replacementForDriverId =
+      Number(saved?.ReplacementForDriverId || 0) || null;
 
+    return {
+      driver,
 
-        const replacementForDriverId =
-          Number(
-            saved
-              ?.ReplacementForDriverId ||
-              0,
-          ) ||
-          null;
+      entry: saved || null,
 
+      /*
+       * Neu:
+       * noch nie gespeichert
+       * => anwesend
+       *
+       * bereits gespeichert
+       * => exakt DB-Status verwenden
+       */
 
-        return {
-          driver,
+      status: saved ? normalizeReserveStatus(saved.status) : "anwesend",
 
-          entry:
-            saved ||
-            null,
+      assignedTo: replacementForDriverId
+        ? regularById.get(replacementForDriverId) || null
+        : null,
 
+      isAssigned: Boolean(replacementForDriverId),
 
-          /*
-           * Neu:
-           * noch nie gespeichert
-           * => anwesend
-           *
-           * bereits gespeichert
-           * => exakt DB-Status verwenden
-           */
+      /*
+       * Bereits in Schritt 2 bestätigte
+       * Ersatzfahrer dürfen nicht
+       * versehentlich neu zugeordnet werden.
+       */
 
-          status:
-            saved
-              ? normalizeReserveStatus(
-                  saved.status,
-                )
-              : "anwesend",
-
-
-          assignedTo:
-            replacementForDriverId
-              ? regularById.get(
-                  replacementForDriverId,
-                ) ||
-                null
-              : null,
-
-
-          isAssigned:
-            Boolean(
-              replacementForDriverId,
-            ),
-
-
-          /*
-           * Bereits in Schritt 2 bestätigte
-           * Ersatzfahrer dürfen nicht
-           * versehentlich neu zugeordnet werden.
-           */
-
-          isAttendanceLocked:
-            Boolean(
-              replacementForDriverId &&
-                saved
-                  ?.includeInResults ===
-                  true &&
-                [
-                  "anwesend",
-                  "zu_spaet_vorbesprechung",
-                ].includes(
-                  saved
-                    ?.attendanceStatus,
-                ),
-            ),
-        };
-      },
-    );
-
+      isAttendanceLocked: Boolean(
+        replacementForDriverId &&
+        saved?.includeInResults === true &&
+        ["anwesend", "zu_spaet_vorbesprechung"].includes(
+          saved?.attendanceStatus,
+        ),
+      ),
+    };
+  });
 
   return {
     teamCards,
@@ -687,13 +415,11 @@ async function loadPlanningRows(
 
     reserveRows,
 
-    hasSavedPlan:
-      entries.length > 0,
+    hasSavedPlan: entries.length > 0,
 
     bannedDriverIds,
   };
 }
-
 
 /*
  * =========================================================
@@ -701,174 +427,99 @@ async function loadPlanningRows(
  * =========================================================
  */
 
-exports.show = async (
-  req,
-  res,
-) => {
-  const leagues =
-    await League.findAll({
-      where: {
-        type: "f1",
-      },
+exports.show = async (req, res) => {
+  const leagues = await League.findAll({
+    where: {
+      type: "f1",
+    },
 
-      order: [
-        [
-          "sortOrder",
-          "ASC",
-        ],
+    order: [
+      ["sortOrder", "ASC"],
 
-        [
-          "name",
-          "ASC",
-        ],
-      ],
-    });
-
+      ["name", "ASC"],
+    ],
+  });
 
   const selectedLeague =
-    leagues.find(
-      (league) =>
-        Number(
-          league.id,
-        ) ===
-        Number(
-          req.query.league,
-        ),
-    ) ||
+    leagues.find((league) => Number(league.id) === Number(req.query.league)) ||
     leagues[0] ||
     null;
 
+  const activeSeason = selectedLeague
+    ? await Season.findOne({
+        where: {
+          leagueType: "f1",
 
-  const activeSeason =
-    selectedLeague
-      ? await Season.findOne({
-          where: {
-            leagueType:
-              "f1",
+          scopeSlug: selectedLeague.slug,
 
-            scopeSlug:
-              selectedLeague.slug,
+          status: "active",
 
-            status:
-              "active",
+          isPublished: true,
+        },
 
-            isPublished:
-              true,
-          },
+        order: [["id", "DESC"]],
+      })
+    : null;
 
-          order: [
-            ["id", "DESC"],
-          ],
-        })
-      : null;
+  const races = activeSeason
+    ? await GrandPrixResult.findAll({
+        where: {
+          SeasonId: activeSeason.id,
 
+          LeagueId: selectedLeague.id,
 
-  const races =
-    activeSeason
-      ? await GrandPrixResult.findAll({
-          where: {
-            SeasonId:
-              activeSeason.id,
+          discipline: "f1",
 
-            LeagueId:
-              selectedLeague.id,
+          raceType: "main",
+        },
 
-            discipline:
-              "f1",
+        order: [
+          ["sortOrder", "ASC"],
 
-            raceType:
-              "main",
-          },
+          ["raceDate", "ASC"],
 
-          order: [
-            [
-              "sortOrder",
-              "ASC",
-            ],
+          ["id", "ASC"],
+        ],
+      })
+    : [];
 
-            [
-              "raceDate",
-              "ASC",
-            ],
-
-            [
-              "id",
-              "ASC",
-            ],
-          ],
-        })
-      : [];
-
-
-  const today =
-    new Date()
-      .toISOString()
-      .slice(0, 10);
-
+  const today = new Date().toISOString().slice(0, 10);
 
   const selectedRace =
-    races.find(
-      (race) =>
-        Number(
-          race.id,
-        ) ===
-        Number(
-          req.query.race,
-        ),
-    ) ||
-    races.find(
-      (race) =>
-        !race.raceDate ||
-        race.raceDate >=
-          today,
-    ) ||
-    races[
-      races.length - 1
-    ] ||
+    races.find((race) => Number(race.id) === Number(req.query.race)) ||
+    races.find((race) => !race.raceDate || race.raceDate >= today) ||
+    races[races.length - 1] ||
     null;
 
+  const planning = selectedLeague
+    ? await loadPlanningRows(selectedLeague, selectedRace)
+    : {
+        teamCards: [],
+        reserves: [],
+        reserveRows: [],
+        hasSavedPlan: false,
+      };
 
-  const planning =
-    selectedLeague
-      ? await loadPlanningRows(
-          selectedLeague,
-          selectedRace,
-        )
-      : {
-          teamCards: [],
-          reserves: [],
-          reserveRows: [],
-          hasSavedPlan: false,
-        };
+  return res.render("admin/f1-race-lineup", {
+    title: "Fahrereinteilung nächstes Rennen",
 
+    leagues,
 
-  return res.render(
-    "admin/f1-race-lineup",
-    {
-      title:
-        "Fahrereinteilung nächstes Rennen",
+    selectedLeague,
 
-      leagues,
+    activeSeason,
 
-      selectedLeague,
+    races,
 
-      activeSeason,
+    selectedRace,
 
-      races,
+    regularStatuses: REGULAR_STATUSES,
 
-      selectedRace,
+    reserveStatuses: RESERVE_STATUSES,
 
-      regularStatuses:
-        REGULAR_STATUSES,
-
-      reserveStatuses:
-        RESERVE_STATUSES,
-
-      ...planning,
-    },
-  );
+    ...planning,
+  });
 };
-
 
 /*
  * =========================================================
@@ -876,53 +527,33 @@ exports.show = async (
  * =========================================================
  */
 
-exports.save = async (
-  req,
-  res,
-) => {
-  const race =
-    await GrandPrixResult.findByPk(
-      Number(
-        req.params.raceId,
-      ),
+exports.save = async (req, res) => {
+  const race = await GrandPrixResult.findByPk(
+    Number(req.params.raceId),
 
-      {
-        include: [
-          {
-            association:
-              "league",
-          },
+    {
+      include: [
+        {
+          association: "league",
+        },
 
-          {
-            association:
-              "seasonRecord",
-          },
-        ],
-      },
-    );
-
+        {
+          association: "seasonRecord",
+        },
+      ],
+    },
+  );
 
   if (
     !race ||
-    race.discipline !==
-      "f1" ||
-    race.raceType !==
-      "main" ||
-    race.seasonRecord
-      ?.status !==
-      "active"
+    race.discipline !== "f1" ||
+    race.raceType !== "main" ||
+    race.seasonRecord?.status !== "active"
   ) {
-    return res
-      .status(404)
-      .render(
-        "errors/404",
-        {
-          title:
-            "Aktuelles Formel-1-Rennen nicht gefunden",
-        },
-      );
+    return res.status(404).render("errors/404", {
+      title: "Aktuelles Formel-1-Rennen nicht gefunden",
+    });
   }
-
 
   /*
    * =====================================================
@@ -930,14 +561,9 @@ exports.save = async (
    * =====================================================
    */
 
-  const regularInput =
-    req.body.regular ||
-    {};
+  const regularInput = req.body.regular || {};
 
-  const reserveInput =
-    req.body.reserve ||
-    {};
-
+  const reserveInput = req.body.reserve || {};
 
   /*
    * Unterstützt gleichzeitig:
@@ -949,51 +575,21 @@ exports.save = async (
    * problemlos verarbeitet werden.
    */
 
-  function regularInputFor(
-    driverId,
-  ) {
+  function regularInputFor(driverId) {
     return {
-      ...(
-        regularInput[
-          String(
-            driverId,
-          )
-        ] ||
-        {}
-      ),
+      ...(regularInput[String(driverId)] || {}),
 
-      ...(
-        regularInput[
-          `d${driverId}`
-        ] ||
-        {}
-      ),
+      ...(regularInput[`d${driverId}`] || {}),
     };
   }
 
-
-  function reserveInputFor(
-    driverId,
-  ) {
+  function reserveInputFor(driverId) {
     return {
-      ...(
-        reserveInput[
-          String(
-            driverId,
-          )
-        ] ||
-        {}
-      ),
+      ...(reserveInput[String(driverId)] || {}),
 
-      ...(
-        reserveInput[
-          `d${driverId}`
-        ] ||
-        {}
-      ),
+      ...(reserveInput[`d${driverId}`] || {}),
     };
   }
-
 
   try {
     /*
@@ -1001,37 +597,16 @@ exports.save = async (
      * laden.
      */
 
-    const {
-      teamCards,
-      reserves,
-      bannedDriverIds,
-    } =
-      await loadPlanningRows(
-        race.league,
-        race,
-      );
+    const { teamCards, reserves, bannedDriverIds } = await loadPlanningRows(
+      race.league,
+      race,
+    );
 
+    const regularRows = teamCards.flatMap((card) => card.rows);
 
-    const regularRows =
-      teamCards.flatMap(
-        (card) =>
-          card.rows,
-      );
-
-
-    const reserveById =
-      new Map(
-        reserves.map(
-          (driver) => [
-            Number(
-              driver.id,
-            ),
-
-            driver,
-          ],
-        ),
-      );
-
+    const reserveById = new Map(
+      reserves.map((driver) => [Number(driver.id), driver]),
+    );
 
     /*
      * Aktuelle DB-Einträge zusätzlich laden.
@@ -1043,55 +618,27 @@ exports.save = async (
      * - bestätigter Zuordnung
      */
 
-    const existingEntries =
-      await F1RaceLineupEntry.findAll({
-        where: {
-          GrandPrixResultId:
-            race.id,
+    const existingEntries = await F1RaceLineupEntry.findAll({
+      where: {
+        GrandPrixResultId: race.id,
+      },
+
+      include: [
+        {
+          association: "driver",
         },
+      ],
+    });
 
-        include: [
-          {
-            association:
-              "driver",
-          },
-        ],
-      });
+    const existingByDriver = new Map(
+      existingEntries.map((entry) => [Number(entry.DriverId), entry]),
+    );
 
-
-    const existingByDriver =
-      new Map(
-        existingEntries.map(
-          (entry) => [
-            Number(
-              entry.DriverId,
-            ),
-
-            entry,
-          ],
-        ),
-      );
-
-
-    const existingReserveByDriver =
-      new Map(
-        existingEntries
-          .filter(
-            (entry) =>
-              entry.roleType ===
-              "reserve",
-          )
-          .map(
-            (entry) => [
-              Number(
-                entry.DriverId,
-              ),
-
-              entry,
-            ],
-          ),
-      );
-
+    const existingReserveByDriver = new Map(
+      existingEntries
+        .filter((entry) => entry.roleType === "reserve")
+        .map((entry) => [Number(entry.DriverId), entry]),
+    );
 
     /*
      * =====================================================
@@ -1099,37 +646,19 @@ exports.save = async (
      * =====================================================
      */
 
-    const lockedAssignments =
-      new Map(
-        existingEntries
-          .filter(
-            (entry) =>
-              entry.roleType ===
-                "reserve" &&
-              entry
-                .ReplacementForDriverId &&
-              entry
-                .includeInResults ===
-                true &&
-              [
-                "anwesend",
-                "zu_spaet_vorbesprechung",
-              ].includes(
-                entry
-                  .attendanceStatus,
-              ),
-          )
-          .map(
-            (entry) => [
-              Number(
-                entry.DriverId,
-              ),
-
-              entry,
-            ],
-          ),
-      );
-
+    const lockedAssignments = new Map(
+      existingEntries
+        .filter(
+          (entry) =>
+            entry.roleType === "reserve" &&
+            entry.ReplacementForDriverId &&
+            entry.includeInResults === true &&
+            ["anwesend", "zu_spaet_vorbesprechung"].includes(
+              entry.attendanceStatus,
+            ),
+        )
+        .map((entry) => [Number(entry.DriverId), entry]),
+    );
 
     /*
      * =====================================================
@@ -1137,35 +666,16 @@ exports.save = async (
      * =====================================================
      */
 
-    const usedReserves =
-      new Set();
+    const usedReserves = new Set();
 
+    const replacementByReserve = new Map();
 
-    const replacementByReserve =
-      new Map();
+    for (const row of regularRows) {
+      const driverId = Number(row.driver.id);
 
+      const input = regularInputFor(driverId);
 
-    for (
-      const row of
-      regularRows
-    ) {
-      const driverId =
-        Number(
-          row.driver.id,
-        );
-
-
-      const input =
-        regularInputFor(
-          driverId,
-        );
-
-
-      const existing =
-        existingByDriver.get(
-          driverId,
-        );
-
+      const existing = existingByDriver.get(driverId);
 
       /*
        * STATUS
@@ -1178,33 +688,15 @@ exports.save = async (
        * 4. anwesend
        */
 
-      const regularStatus =
-        bannedDriverIds.has(
-          driverId,
-        )
-          ? "rennsperre"
+      const regularStatus = bannedDriverIds.has(driverId)
+        ? "rennsperre"
+        : input.status
+          ? normalizeRegularStatus(input.status)
+          : existing?.status
+            ? normalizeRegularStatus(existing.status)
+            : "anwesend";
 
-          : input.status
-            ? normalizeRegularStatus(
-                input.status,
-              )
-
-            : existing?.status
-              ? normalizeRegularStatus(
-                  existing.status,
-                )
-
-              : "anwesend";
-
-
-      const replacementId =
-        Number(
-          input
-            .ReplacementDriverId ||
-            0,
-        ) ||
-        null;
-
+      const replacementId = Number(input.ReplacementDriverId || 0) || null;
 
       /*
        * Nur ABGEMELDET / UNSICHER
@@ -1213,57 +705,66 @@ exports.save = async (
 
       if (
         replacementId &&
-        ![
-          "abgemeldet",
-          "unsicher",
-        ].includes(
+        !["abgemeldet", "unsicher", "zu_spaet_abgemeldet"].includes(
           regularStatus,
         )
       ) {
         throw new Error(
-          `${row.driver.name}: Ersatzfahrer sind nur bei „abgemeldet“ oder „unsicher“ zulässig.`,
+          `${row.driver.name}: Ersatzfahrer sind nur bei „Abgemeldet“, „Zu spät abgemeldet“ oder „Unsicher“ zulässig.`,
         );
       }
 
+      if (
+  replacementId &&
+  ![
+    "abgemeldet",
+    "unsicher",
+    "zu_spaet_abgemeldet",
+  ].includes(regularStatus)
+) {
+  throw new Error(
+    `${row.driver.name}: Ersatzfahrer sind nur bei „Abgemeldet“, „Zu spät abgemeldet“ oder „Unsicher“ zulässig.`,
+  );
+}
+
+/*
+ * Rennsperre niemals ersetzen.
+ */
+
+if (
+  regularStatus === "rennsperre" &&
+  replacementId
+) {
+  throw new Error(
+    `${row.driver.name} hat für dieses Rennen eine Rennsperre und darf nicht ersetzt werden.`,
+  );
+}
 
       /*
        * Rennsperre niemals ersetzen.
        */
 
-      if (
-        regularStatus ===
-          "rennsperre" &&
-        replacementId
-      ) {
+      if (regularStatus === "rennsperre" && replacementId) {
         throw new Error(
           `${row.driver.name} hat für dieses Rennen eine Rennsperre und darf nicht ersetzt werden.`,
         );
       }
 
-
-      if (
-        !replacementId
-      ) {
+      if (!replacementId) {
         continue;
       }
-
 
       /*
        * Existiert als Ersatzfahrer?
        */
 
-      const reserve =
-        reserveById.get(
-          replacementId,
-        );
-
+      const reserve = reserveById.get(replacementId);
 
       if (!reserve) {
         throw new Error(
           `${row.driver.name}: Der gewählte Ersatzfahrer besitzt nicht den passenden Liga-Rang.`,
         );
       }
-
 
       /*
        * STATUS DES ERSATZFAHRERS
@@ -1275,32 +776,15 @@ exports.save = async (
        * 3. anwesend
        */
 
-      const reserveForm =
-        reserveInputFor(
-          replacementId,
-        );
+      const reserveForm = reserveInputFor(replacementId);
 
+      const existingReserve = existingReserveByDriver.get(replacementId);
 
-      const existingReserve =
-        existingReserveByDriver.get(
-          replacementId,
-        );
-
-
-      const reserveStatus =
-        reserveForm.status
-          ? normalizeReserveStatus(
-              reserveForm.status,
-            )
-
-          : existingReserve
-              ?.status
-            ? normalizeReserveStatus(
-                existingReserve.status,
-              )
-
-            : "anwesend";
-
+      const reserveStatus = reserveForm.status
+        ? normalizeReserveStatus(reserveForm.status)
+        : existingReserve?.status
+          ? normalizeReserveStatus(existingReserve.status)
+          : "anwesend";
 
       /*
        * Diese Ersatzfahrer dürfen
@@ -1309,47 +793,24 @@ exports.save = async (
        * AUF ABRUF ist ausdrücklich erlaubt.
        */
 
-      if (
-        ![
-          "anwesend",
-          "unsicher",
-          "auf_abruf",
-        ].includes(
-          reserveStatus,
-        )
-      ) {
+      if (!["anwesend", "unsicher", "auf_abruf"].includes(reserveStatus)) {
         throw new Error(
           `${reserve.name} kann mit dem Status „${reserveStatus}“ nicht als Ersatzfahrer eingesetzt werden.`,
         );
       }
 
-
       /*
        * Ein Ersatzfahrer = maximal ein Cockpit.
        */
 
-      if (
-        usedReserves.has(
-          replacementId,
-        )
-      ) {
-        throw new Error(
-          `${reserve.name} kann nur einen Stammfahrer ersetzen.`,
-        );
+      if (usedReserves.has(replacementId)) {
+        throw new Error(`${reserve.name} kann nur einen Stammfahrer ersetzen.`);
       }
 
+      usedReserves.add(replacementId);
 
-      usedReserves.add(
-        replacementId,
-      );
-
-
-      replacementByReserve.set(
-        replacementId,
-        row,
-      );
+      replacementByReserve.set(replacementId, row);
     }
-
 
     /*
      * =====================================================
@@ -1357,40 +818,20 @@ exports.save = async (
      * =====================================================
      */
 
-    for (
-      const [
-        driverId,
-        locked,
-      ] of
-      lockedAssignments
-    ) {
-      const postedTarget =
-        replacementByReserve.get(
-          driverId,
-        );
-
+    for (const [driverId, locked] of lockedAssignments) {
+      const postedTarget = replacementByReserve.get(driverId);
 
       if (
         !postedTarget ||
-        Number(
-          postedTarget
-            .driver.id,
-        ) !==
-          Number(
-            locked
-              .ReplacementForDriverId,
-          )
+        Number(postedTarget.driver.id) !== Number(locked.ReplacementForDriverId)
       ) {
         throw new Error(
           `Ersatzfahrer ${
-            locked.driver
-              ?.name ||
-            driverId
+            locked.driver?.name || driverId
           } ist bereits in der Anwesenheit bestätigt. Die Zuordnung muss zuerst über eine ausdrückliche Anwesenheitskorrektur zurückgesetzt werden.`,
         );
       }
     }
-
 
     /*
      * =====================================================
@@ -1400,80 +841,43 @@ exports.save = async (
 
     const records = [];
 
-
     /*
      * -----------------------------------------------------
      * STAMMFAHRER
      * -----------------------------------------------------
      */
 
-    regularRows.forEach(
-      (
-        row,
-        index,
-      ) => {
-        const driverId =
-          Number(
-            row.driver.id,
-          );
+    regularRows.forEach((row, index) => {
+      const driverId = Number(row.driver.id);
 
+      const input = regularInputFor(driverId);
 
-        const input =
-          regularInputFor(
-            driverId,
-          );
+      const existing = existingByDriver.get(driverId);
 
+      const status = bannedDriverIds.has(driverId)
+        ? "rennsperre"
+        : input.status
+          ? normalizeRegularStatus(input.status)
+          : existing?.status
+            ? normalizeRegularStatus(existing.status)
+            : "anwesend";
 
-        const existing =
-          existingByDriver.get(
-            driverId,
-          );
+      records.push({
+        GrandPrixResultId: race.id,
 
+        DriverId: driverId,
 
-        const status =
-          bannedDriverIds.has(
-            driverId,
-          )
-            ? "rennsperre"
+        TeamId: row.team.id,
 
-            : input.status
-              ? normalizeRegularStatus(
-                  input.status,
-                )
+        ReplacementForDriverId: null,
 
-              : existing
-                  ?.status
-                ? normalizeRegularStatus(
-                    existing.status,
-                  )
+        roleType: "regular",
 
-                : "anwesend";
+        status,
 
-
-        records.push({
-          GrandPrixResultId:
-            race.id,
-
-          DriverId:
-            driverId,
-
-          TeamId:
-            row.team.id,
-
-          ReplacementForDriverId:
-            null,
-
-          roleType:
-            "regular",
-
-          status,
-
-          sortOrder:
-            index,
-        });
-      },
-    );
-
+        sortOrder: index,
+      });
+    });
 
     /*
      * -----------------------------------------------------
@@ -1481,115 +885,65 @@ exports.save = async (
      * -----------------------------------------------------
      */
 
-    reserves.forEach(
-      (
-        driver,
-        index,
-      ) => {
-        const driverId =
-          Number(
-            driver.id,
-          );
+    reserves.forEach((driver, index) => {
+      const driverId = Number(driver.id);
 
+      const input = reserveInputFor(driverId);
 
-        const input =
-          reserveInputFor(
-            driverId,
-          );
+      const existing = existingReserveByDriver.get(driverId);
 
+      const replacement = replacementByReserve.get(driverId);
 
-        const existing =
-          existingReserveByDriver.get(
-            driverId,
-          );
+      /*
+       * Status darf NICHT bei fehlendem
+       * POST-Wert auf Default springen.
+       */
 
+      let submittedStatus;
 
-        const replacement =
-          replacementByReserve.get(
-            driverId,
-          );
+      if (input.status) {
+        submittedStatus = normalizeReserveStatus(input.status);
+      } else if (existing?.status) {
+        submittedStatus = normalizeReserveStatus(existing.status);
+      } else {
+        submittedStatus = "anwesend";
+      }
 
+      /*
+       * Regel:
+       *
+       * Ersatzfahrer = ANWESEND
+       * aber ohne Cockpit
+       *
+       * => nach Speichern AUF ABRUF.
+       *
+       * Alle anderen expliziten Status
+       * bleiben exakt erhalten.
+       */
 
-        /*
-         * Status darf NICHT bei fehlendem
-         * POST-Wert auf Default springen.
-         */
+      const finalStatus =
+        !replacement && submittedStatus === "anwesend"
+          ? "auf_abruf"
+          : submittedStatus;
 
-        let submittedStatus;
+      records.push({
+        GrandPrixResultId: race.id,
 
-        if (
-          input.status
-        ) {
-          submittedStatus =
-            normalizeReserveStatus(
-              input.status,
-            );
-        } else if (
-          existing?.status
-        ) {
-          submittedStatus =
-            normalizeReserveStatus(
-              existing.status,
-            );
-        } else {
-          submittedStatus =
-            "anwesend";
-        }
+        DriverId: driverId,
 
+        ReplacementForDriverId: replacement
+          ? Number(replacement.driver.id)
+          : null,
 
-        /*
-         * Regel:
-         *
-         * Ersatzfahrer = ANWESEND
-         * aber ohne Cockpit
-         *
-         * => nach Speichern AUF ABRUF.
-         *
-         * Alle anderen expliziten Status
-         * bleiben exakt erhalten.
-         */
+        TeamId: replacement ? replacement.team.id : null,
 
-        const finalStatus =
-          !replacement &&
-          submittedStatus ===
-            "anwesend"
-            ? "auf_abruf"
-            : submittedStatus;
+        roleType: "reserve",
 
+        status: finalStatus,
 
-        records.push({
-          GrandPrixResultId:
-            race.id,
-
-          DriverId:
-            driverId,
-
-          ReplacementForDriverId:
-            replacement
-              ? Number(
-                  replacement
-                    .driver.id,
-                )
-              : null,
-
-          TeamId:
-            replacement
-              ? replacement
-                  .team.id
-              : null,
-
-          roleType:
-            "reserve",
-
-          status:
-            finalStatus,
-
-          sortOrder:
-            index,
-        });
-      },
-    );
-
+        sortOrder: index,
+      });
+    });
 
     /*
      * =====================================================
@@ -1597,51 +951,23 @@ exports.save = async (
      * =====================================================
      */
 
-    const driverIds =
-      records.map(
-        (record) =>
-          Number(
-            record.DriverId,
-          ),
-      );
+    const driverIds = records.map((record) => Number(record.DriverId));
 
-
-    if (
-      new Set(
-        driverIds,
-      ).size !==
-      driverIds.length
-    ) {
+    if (new Set(driverIds).size !== driverIds.length) {
       throw new Error(
         "Ein Fahrer darf in diesem Rennwochenende nur einmal eingeplant werden.",
       );
     }
 
+    const targetIds = records
+      .map((record) => Number(record.ReplacementForDriverId || 0))
+      .filter(Boolean);
 
-    const targetIds =
-      records
-        .map(
-          (record) =>
-            Number(
-              record
-                .ReplacementForDriverId ||
-                0,
-            ),
-        )
-        .filter(Boolean);
-
-
-    if (
-      new Set(
-        targetIds,
-      ).size !==
-      targetIds.length
-    ) {
+    if (new Set(targetIds).size !== targetIds.length) {
       throw new Error(
         "Ein Stammfahrerplatz darf in diesem Rennwochenende nur einmal ersetzt werden.",
       );
     }
-
 
     /*
      * =====================================================
@@ -1649,222 +975,134 @@ exports.save = async (
      * =====================================================
      */
 
-    await sequelize.transaction(
-      async (
-        transaction,
-      ) => {
-        const currentByDriver =
-          new Map(
-            existingEntries.map(
-              (entry) => [
-                Number(
-                  entry.DriverId,
-                ),
+    await sequelize.transaction(async (transaction) => {
+      const currentByDriver = new Map(
+        existingEntries.map((entry) => [Number(entry.DriverId), entry]),
+      );
 
-                entry,
-              ],
-            ),
-          );
+      for (const record of records) {
+        const existing = currentByDriver.get(Number(record.DriverId));
 
+        if (existing) {
+          /*
+           * Anwesenheit nur behalten,
+           * wenn die operative Planung
+           * wirklich unverändert ist.
+           */
 
-        for (
-          const record of
-          records
-        ) {
-          const existing =
-            currentByDriver.get(
-              Number(
-                record.DriverId,
-              ),
-            );
+          const assignmentUnchanged =
+            existing.roleType === record.roleType &&
+            Number(existing.TeamId || 0) === Number(record.TeamId || 0) &&
+            Number(existing.ReplacementForDriverId || 0) ===
+              Number(record.ReplacementForDriverId || 0) &&
+            existing.status === record.status;
 
+          await existing.update(
+            {
+              ...record,
 
-          if (existing) {
-            /*
-             * Anwesenheit nur behalten,
-             * wenn die operative Planung
-             * wirklich unverändert ist.
-             */
+              /*
+               * Keine relevante Änderung:
+               * Schritt 2 bleibt erhalten.
+               */
 
-            const assignmentUnchanged =
-              existing.roleType ===
-                record.roleType &&
-              Number(
-                existing.TeamId ||
-                  0,
-              ) ===
-                Number(
-                  record.TeamId ||
-                    0,
-                ) &&
-              Number(
-                existing
-                  .ReplacementForDriverId ||
-                  0,
-              ) ===
-                Number(
-                  record
-                    .ReplacementForDriverId ||
-                    0,
-                ) &&
-              existing.status ===
-                record.status;
+              ...(assignmentUnchanged
+                ? {
+                    attendanceStatus: existing.attendanceStatus,
 
+                    includeInResults: existing.includeInResults,
 
-            await existing.update(
-              {
-                ...record,
+                    uncertainPresent: existing.uncertainPresent,
 
-
-                /*
-                 * Keine relevante Änderung:
-                 * Schritt 2 bleibt erhalten.
-                 */
-
-                ...(assignmentUnchanged
-                  ? {
-                      attendanceStatus:
-                        existing
-                          .attendanceStatus,
-
-                      includeInResults:
-                        existing
-                          .includeInResults,
-
-                      uncertainPresent:
-                        existing
-                          .uncertainPresent,
-
-                      respondedInTime:
-                        existing
-                          .respondedInTime,
-                    }
-
-
-                  /*
+                    respondedInTime: existing.respondedInTime,
+                  }
+                : /*
                    * Planung geändert:
                    * Anwesenheit für genau diesen
                    * Fahrer erneut prüfen.
                    */
 
-                  : {
-                      attendanceStatus:
-                        null,
+                  {
+                    attendanceStatus: null,
 
-                      includeInResults:
-                        false,
+                    includeInResults: false,
 
-                      uncertainPresent:
-                        null,
+                    uncertainPresent: null,
 
-                      respondedInTime:
-                        null,
-                    }),
-              },
+                    respondedInTime: null,
+                  }),
+            },
 
-              {
-                transaction,
-              },
-            );
-          } else {
-            /*
-             * Komplett neuer Eintrag.
-             */
-
-            await F1RaceLineupEntry.create(
-              {
-                ...record,
-
-                attendanceStatus:
-                  null,
-
-                includeInResults:
-                  false,
-
-                uncertainPresent:
-                  null,
-
-                respondedInTime:
-                  null,
-              },
-
-              {
-                transaction,
-              },
-            );
-          }
-        }
-
-
-        /*
-         * Alte Einträge entfernen, die nicht
-         * mehr Bestandteil der aktuellen
-         * Saison-Aufstellung sind.
-         *
-         * Das verhindert Geisterfahrer nach
-         * Fahrer-/Roster-Änderungen.
-         */
-
-        const expectedDriverIds =
-          new Set(
-            records.map(
-              (record) =>
-                Number(
-                  record.DriverId,
-                ),
-            ),
+            {
+              transaction,
+            },
           );
-
-
-        for (
-          const existing of
-          existingEntries
-        ) {
-          if (
-            expectedDriverIds.has(
-              Number(
-                existing.DriverId,
-              ),
-            )
-          ) {
-            continue;
-          }
-
-
+        } else {
           /*
-           * Bereits bestätigten Starter nicht
-           * stillschweigend löschen.
+           * Komplett neuer Eintrag.
            */
 
-          if (
-            existing
-              .includeInResults ===
-              true &&
-            [
-              "anwesend",
-              "zu_spaet_vorbesprechung",
-            ].includes(
-              existing
-                .attendanceStatus,
-            )
-          ) {
-            throw new Error(
-              `${
-                existing.driver
-                  ?.name ||
-                "Ein Fahrer"
-              } wurde bereits in der Anwesenheit bestätigt und kann nicht durch Speichern der Aufstellung entfernt werden.`,
-            );
-          }
+          await F1RaceLineupEntry.create(
+            {
+              ...record,
 
+              attendanceStatus: null,
 
-          await existing.destroy({
-            transaction,
-          });
+              includeInResults: false,
+
+              uncertainPresent: null,
+
+              respondedInTime: null,
+            },
+
+            {
+              transaction,
+            },
+          );
         }
-      },
-    );
+      }
 
+      /*
+       * Alte Einträge entfernen, die nicht
+       * mehr Bestandteil der aktuellen
+       * Saison-Aufstellung sind.
+       *
+       * Das verhindert Geisterfahrer nach
+       * Fahrer-/Roster-Änderungen.
+       */
+
+      const expectedDriverIds = new Set(
+        records.map((record) => Number(record.DriverId)),
+      );
+
+      for (const existing of existingEntries) {
+        if (expectedDriverIds.has(Number(existing.DriverId))) {
+          continue;
+        }
+
+        /*
+         * Bereits bestätigten Starter nicht
+         * stillschweigend löschen.
+         */
+
+        if (
+          existing.includeInResults === true &&
+          ["anwesend", "zu_spaet_vorbesprechung"].includes(
+            existing.attendanceStatus,
+          )
+        ) {
+          throw new Error(
+            `${
+              existing.driver?.name || "Ein Fahrer"
+            } wurde bereits in der Anwesenheit bestätigt und kann nicht durch Speichern der Aufstellung entfernt werden.`,
+          );
+        }
+
+        await existing.destroy({
+          transaction,
+        });
+      }
+    });
 
     /*
      * =====================================================
@@ -1873,22 +1111,17 @@ exports.save = async (
      */
 
     req.session.flash = {
-      type:
-        "success",
+      type: "success",
 
-      message:
-        `${race.title}: Stamm- und Ersatzfahrer wurden gespeichert.`,
+      message: `${race.title}: Stamm- und Ersatzfahrer wurden gespeichert.`,
     };
   } catch (error) {
     req.session.flash = {
-      type:
-        "error",
+      type: "error",
 
-      message:
-        error.message,
+      message: error.message,
     };
   }
-
 
   /*
    * =====================================================
@@ -1897,30 +1130,20 @@ exports.save = async (
    */
 
   return res.redirect(
-    req.body._return ===
-      "race-control"
-
-      ? (
-          `/admin/race-weekend/f1` +
+    req.body._return === "race-control"
+      ? `/admin/race-weekend/f1` +
           `?league=${race.LeagueId}` +
           `&season=${race.SeasonId}` +
           `&race=${race.id}` +
           `#aufstellung`
-        )
-
-      : (
-          `/admin/f1-race-lineup` +
+      : `/admin/f1-race-lineup` +
           `?league=${race.LeagueId}` +
-          `&race=${race.id}`
-        ),
+          `&race=${race.id}`,
   );
 };
-
 
 /*
  * Wird vom raceWeekendController verwendet.
  */
 
-module.exports.loadPlanningRows =
-  loadPlanningRows;
-
+module.exports.loadPlanningRows = loadPlanningRows;

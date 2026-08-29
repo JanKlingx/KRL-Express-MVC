@@ -320,50 +320,107 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 50;
+
   background: rgba(7, 10, 12, 0.94);
   backdrop-filter: blur(12px);
+
   border-bottom: 1px solid rgba(110, 242, 242, 0.16);
 }
+
+
+/* =========================================================
+   HAUPTNAVIGATION · DESKTOP
+   ========================================================= */
+
 .nav-wrap {
+  width: min(calc(100% - 64px), 1720px);
+  max-width: none;
+
   min-height: 76px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
+  gap: 3rem;
+
+  margin-inline: auto;
 }
+
+
 .brand {
+  flex: 0 0 auto;
+
   display: flex;
   align-items: center;
+
   gap: 0.75rem;
+
   font-family: var(--display);
   font-weight: 800;
+
   line-height: 0.85;
   letter-spacing: 0.04em;
+
+  white-space: nowrap;
 }
+
+
 .brand-mark {
+  flex: 0 0 42px;
+
   display: grid;
   place-items: center;
+
   width: 42px;
   height: 42px;
+
   color: #071013;
   background: var(--cyan);
+
   font-size: 1.8rem;
-  clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+
+  clip-path: polygon(
+    12% 0,
+    100% 0,
+    88% 100%,
+    0 100%
+  );
 }
+
+
 .main-nav {
+  flex: 0 0 auto;
+
   display: flex;
   align-items: center;
-  gap: 1.3rem;
+
+  gap: 2.8rem;
+
   font-size: 0.87rem;
   font-weight: 600;
+
+  white-space: nowrap;
 }
+
+
 .main-nav > a,
 .nav-group > button {
+  flex: 0 0 auto;
+
   color: #d6e0e4;
+
   background: none;
   border: 0;
+
   padding: 1rem 0;
+
   cursor: pointer;
+
+  white-space: nowrap;
 }
+
+
 .main-nav a:hover,
 .main-nav a:focus-visible,
 .nav-group > button:hover,
@@ -371,37 +428,109 @@ textarea {
 .main-nav .active {
   color: var(--cyan);
 }
+
+
 .nav-group {
   position: relative;
+
+  flex: 0 0 auto;
 }
+
+
 .dropdown {
   display: none;
+
   position: absolute;
+
   left: -1rem;
   top: 48px;
-  min-width: 170px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: 0 18px 40px #000;
+
+  min-width: 190px;
+
   padding: 0.5rem;
+
+  background: var(--surface);
+
+  border: 1px solid var(--line);
+
+  box-shadow: 0 18px 40px #000;
 }
+
+
 .dropdown a {
   display: block;
+
   padding: 0.65rem;
 }
+
+
 .nav-group:hover .dropdown,
-.nav-group:focus-within .dropdown {
+.nav-group:focus-within .dropdown,
+.nav-group.open .dropdown {
   display: block;
 }
+
+
+.main-nav .button-small {
+  flex: 0 0 auto;
+
+  margin-left: 0.35rem;
+
+  min-height: 38px;
+
+  padding-left: 1.2rem;
+  padding-right: 1.2rem;
+}
+
+
+/* Burger ist auf Desktop grundsätzlich unsichtbar. */
 .menu-toggle {
   display: none;
+
   background: none;
+
   border: 1px solid var(--line);
+
   color: #fff;
+
   border-radius: 4px;
+
   padding: 0.4rem 0.7rem;
+
   font-size: 1.2rem;
+
+  cursor: pointer;
 }
+
+
+/*
+ * Etwas kompakter auf kleineren Desktopfenstern,
+ * aber weiterhin normale Desktop-Navigation.
+ */
+@media (max-width: 1280px) and (min-width: 981px) {
+
+  .nav-wrap {
+    width: min(calc(100% - 40px), 1240px);
+
+    gap: 1.5rem;
+  }
+
+  .main-nav {
+    gap: 1.45rem;
+
+    font-size: 0.82rem;
+  }
+
+  .main-nav .button-small {
+    margin-left: 0;
+
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+  }
+
+}
+
+
 .button {
   display: inline-flex;
   justify-content: center;
@@ -1152,40 +1281,101 @@ td strong {
   font-size: 2.3rem;
   cursor: pointer;
 }
+
 @media (max-width: 980px) {
+
+  .nav-wrap {
+    width: min(calc(100% - 32px), 1720px);
+
+    gap: 1rem;
+  }
+
+
   .menu-toggle {
     display: block;
   }
+
+
   .main-nav {
     display: none;
+
     position: absolute;
+
     left: 0;
     right: 0;
     top: 76px;
-    align-items: stretch;
+
     flex-direction: column;
+    align-items: stretch;
+
     gap: 0;
+
     padding: 1rem 20px 1.5rem;
+
     background: #080c0f;
+
     border-bottom: 1px solid var(--line);
   }
+
+
   .main-nav.open {
     display: flex;
   }
+
+
   .main-nav > a,
   .nav-group > button {
-    text-align: left;
     width: 100%;
+
     padding: 0.7rem;
+
+    text-align: left;
   }
+
+
+  .nav-group {
+    width: 100%;
+  }
+
+
   .dropdown {
+    display: none;
+
     position: static;
+
+    width: 100%;
+
+    margin: 0;
+    padding: 0 0 0 1rem;
+
+    background: transparent;
+
+    border: 0;
+
     box-shadow: none;
-    margin-left: 1rem;
   }
+
+
+  .nav-group:hover .dropdown,
+  .nav-group:focus-within .dropdown {
+    display: none;
+  }
+
+
   .nav-group.open .dropdown {
     display: block;
   }
+
+
+  .main-nav .button-small {
+    width: 100%;
+
+    margin: 0.7rem 0 0;
+
+    justify-content: center;
+  }
+
+
   .hero {
     min-height: 680px;
   }
@@ -11303,203 +11493,6 @@ select option {
   }
 }
 
-/* =========================================================
-   F1 ANWESENHEIT · PFLICHTFRAGEN & UNABGEMELDET
-   ========================================================= */
-
-.f1-uncertain {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.f1-uncertain__question {
-  display: grid;
-  gap: .12rem;
-}
-
-.f1-uncertain__question > span {
-  color: #e9dd35;
-  font-size: .5rem;
-  font-weight: 900;
-  letter-spacing: .08em;
-}
-
-.f1-uncertain__question > strong {
-  color: #fff;
-}
-
-.f1-uncertain__required-error {
-  grid-column: 1 / -1;
-  display: block;
-  padding: .5rem .65rem;
-  border-left: 3px solid #b8323e;
-  background: #190d10;
-  color: #ff8f97;
-  font-weight: 800;
-}
-
-.f1-uncertain__required-error[hidden] {
-  display: none;
-}
-
-.f1-uncertain.has-required-error {
-  border-color: #8e3038;
-  box-shadow: inset 4px 0 0 #b8323e;
-}
-
-.f1-attendance-derived-status {
-  display: grid;
-  gap: .15rem;
-  align-self: stretch;
-  padding: .55rem .7rem;
-  background: #10181d;
-  border: 1px solid #34434b;
-}
-
-.f1-attendance-derived-status > span {
-  color: #8fa1a8;
-  font-size: .56rem;
-  font-weight: 900;
-  letter-spacing: .06em;
-}
-
-.f1-attendance-derived-status > strong {
-  color: #d8e1e5;
-  font-size: .78rem;
-}
-
-.f1-attendance-derived-status > strong.is-unabgemeldet {
-  padding: .32rem .45rem;
-  border-left: 4px solid #b8323e;
-  background: #190d10;
-  color: #ff828c;
-}
-
-/*
- * Technischer Altwert "unabgemeldet" wird in der UI
- * ausschließlich als "Unabgemeldet" dargestellt.
- */
-.status-unabgemeldet,
-[data-status="unabgemeldet"] {
-  background: #190d10 !important;
-  color: #ff828c !important;
-  border-color: #63252c !important;
-  border-left-color: #b8323e !important;
-}
-
-.f1-attendance select[data-status="unabgemeldet"] {
-  background: #190d10 !important;
-  color: #ff828c !important;
-  border-left-color: #b8323e !important;
-}
-
-@media (max-width: 650px) {
-  .f1-uncertain {
-    grid-template-columns: 1fr;
-  }
-
-  .f1-uncertain__required-error {
-    grid-column: auto;
-  }
-}
-/* =========================================================
-   F1 ANWESENHEIT · PFLICHTFRAGEN & UNABGEMELDET
-   ========================================================= */
-
-.f1-uncertain {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.f1-uncertain__question {
-  display: grid;
-  gap: .12rem;
-}
-
-.f1-uncertain__question > span {
-  color: #e9dd35;
-  font-size: .5rem;
-  font-weight: 900;
-  letter-spacing: .08em;
-}
-
-.f1-uncertain__question > strong {
-  color: #fff;
-}
-
-.f1-uncertain__required-error {
-  grid-column: 1 / -1;
-  display: block;
-  padding: .5rem .65rem;
-  border-left: 3px solid #b8323e;
-  background: #190d10;
-  color: #ff8f97;
-  font-weight: 800;
-}
-
-.f1-uncertain__required-error[hidden] {
-  display: none;
-}
-
-.f1-uncertain.has-required-error {
-  border-color: #8e3038;
-  box-shadow: inset 4px 0 0 #b8323e;
-}
-
-.f1-attendance-derived-status {
-  display: grid;
-  gap: .15rem;
-  align-self: stretch;
-  padding: .55rem .7rem;
-  background: #10181d;
-  border: 1px solid #34434b;
-}
-
-.f1-attendance-derived-status > span {
-  color: #8fa1a8;
-  font-size: .56rem;
-  font-weight: 900;
-  letter-spacing: .06em;
-}
-
-.f1-attendance-derived-status > strong {
-  color: #d8e1e5;
-  font-size: .78rem;
-}
-
-.f1-attendance-derived-status > strong.is-unabgemeldet {
-  padding: .32rem .45rem;
-  border-left: 4px solid #b8323e;
-  background: #190d10;
-  color: #ff828c;
-}
-
-/*
- * Technischer Altwert "unabgemeldet" wird in der UI
- * ausschließlich als "Unabgemeldet" dargestellt.
- */
-.status-unabgemeldet,
-[data-status="unabgemeldet"] {
-  background: #190d10 !important;
-  color: #ff828c !important;
-  border-color: #63252c !important;
-  border-left-color: #b8323e !important;
-}
-
-.f1-attendance select[data-status="unabgemeldet"] {
-  background: #190d10 !important;
-  color: #ff828c !important;
-  border-left-color: #b8323e !important;
-}
-
-@media (max-width: 650px) {
-  .f1-uncertain {
-    grid-template-columns: 1fr;
-  }
-
-  .f1-uncertain__required-error {
-    grid-column: auto;
-  }
-}
-
 .f1-attendance-derived-status
 .is-unsicher-response {
   padding: .32rem .45rem;
@@ -11738,4 +11731,3 @@ select option {
   background: rgba(142, 154, 159, 0.08);
   opacity: 0.68;
 }
-

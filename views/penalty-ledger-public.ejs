@@ -1,0 +1,1943 @@
+<%- include('partials/header', { title }) %>
+
+<%
+  const safeLedger =
+    typeof ledger !== "undefined" && ledger
+      ? ledger
+      : {
+          threshold: 12,
+          rounds: [],
+          rows: []
+        };
+
+  const safeRounds =
+    Array.isArray(safeLedger.rounds)
+      ? safeLedger.rounds
+      : [];
+
+  const safeRows =
+    Array.isArray(safeLedger.rows)
+      ? safeLedger.rows
+      : [];
+
+  const safeLeagueTabs =
+    typeof leagueTabs !== "undefined" &&
+    Array.isArray(leagueTabs)
+      ? leagueTabs
+      : [];
+
+  const safeReserveLedger =
+    typeof reserveLedger !== "undefined" &&
+    reserveLedger
+      ? reserveLedger
+      : {
+          columnGroups: [],
+          columns: [],
+          rows: []
+        };
+
+  const safeFormerLedger =
+    typeof formerLedger !== "undefined" &&
+    formerLedger
+      ? formerLedger
+      : {
+          columnGroups: [],
+          columns: [],
+          rows: []
+        };
+
+  const safeCommunityAccent =
+    typeof communityAccent === "string" &&
+    communityAccent
+      ? communityAccent
+      : "#6ef2f2";
+
+  const safeCommunityLogoPath =
+    typeof communityLogoPath === "string" &&
+    communityLogoPath
+      ? communityLogoPath
+      : "/images/krl-placeholder.svg";
+
+  const safeSelectedLeagueSlug =
+    typeof selectedLeagueSlug === "string"
+      ? selectedLeagueSlug
+      : "freitag";
+
+  const safeViewMode =
+    typeof viewMode === "string"
+      ? viewMode
+      : "liga";
+
+  const ledgerPath =
+    typeof publicPath === "string" &&
+    publicPath
+      ? publicPath
+      : "/formel-1/strafkartei";
+
+  const visibleLeagueSlugs =
+    new Set(
+      safeLeagueTabs
+        .map((tab) =>
+          String(tab.slug || "").trim()
+        )
+        .filter(Boolean)
+    );
+
+  function filterPublicColumnGroups(value) {
+    const groups =
+      Array.isArray(value?.columnGroups)
+        ? value.columnGroups
+        : [];
+
+    if (!visibleLeagueSlugs.size) {
+      return groups;
+    }
+
+    return groups.filter((group) =>
+      visibleLeagueSlugs.has(
+        String(
+          group?.league?.slug || ""
+        ).trim()
+      )
+    );
+  }
+
+  const reserveColumnGroups =
+    filterPublicColumnGroups(
+      safeReserveLedger
+    );
+
+  const formerColumnGroups =
+    filterPublicColumnGroups(
+      safeFormerLedger
+    );
+
+  const reserveColumns =
+    reserveColumnGroups.flatMap((group) =>
+      Array.isArray(group.columns)
+        ? group.columns
+        : []
+    );
+
+  const formerColumns =
+    formerColumnGroups.flatMap((group) =>
+      Array.isArray(group.columns)
+        ? group.columns
+        : []
+    );
+
+  const reserveRows =
+    Array.isArray(safeReserveLedger.rows)
+      ? safeReserveLedger.rows
+      : [];
+
+  const formerRowsRaw =
+    Array.isArray(safeFormerLedger.rows)
+      ? safeFormerLedger.rows
+      : [];
+
+  const regularRows =
+    safeRows.filter((row) =>
+      !row.roleType ||
+      row.roleType === "regular"
+    );
+
+  function globalRowSummary(row, columns) {
+    let points = 0;
+    let hasBan = false;
+
+    columns.forEach((column) => {
+      const cell =
+        row.cells?.[column.key] || null;
+
+      points += Number(
+        cell?.points || 0
+      );
+
+      if (cell?.isRaceBan) {
+        hasBan = true;
+      }
+    });
+
+    return {
+      points,
+      hasBan
+    };
+  }
+
+  const formerRows =
+    formerRowsRaw.filter((row) => {
+      const summary =
+        globalRowSummary(
+          row,
+          formerColumns
+        );
+
+      return (
+        summary.points > 0 ||
+        summary.hasBan
+      );
+    });
+
+  function validColor(value) {
+    const color =
+      String(value || "").trim();
+
+    return /^#[0-9a-f]{6}$/i.test(color)
+      ? color
+      : "";
+  }
+
+  function textColor(hex) {
+    const color =
+      validColor(hex);
+
+    if (!color) {
+      return "#ffffff";
+    }
+
+    const raw =
+      color.slice(1);
+
+    const r =
+      parseInt(
+        raw.slice(0, 2),
+        16
+      );
+
+    const g =
+      parseInt(
+        raw.slice(2, 4),
+        16
+      );
+
+    const b =
+      parseInt(
+        raw.slice(4, 6),
+        16
+      );
+
+    const brightness =
+      (
+        r * 299 +
+        g * 587 +
+        b * 114
+      ) / 1000;
+
+    return brightness > 155
+      ? "#071016"
+      : "#ffffff";
+  }
+%>
+
+<style>
+  .public-ledger-page {
+    --ledger-accent: var(--accent, var(--cyan));
+    min-height: 100vh;
+  }
+
+  [data-ledger-panel][hidden] {
+    display: none !important;
+  }
+
+
+  /* =====================================================
+     HERO
+     ===================================================== */
+
+  .public-ledger-hero {
+    position: relative;
+    min-height: 430px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 90px 0 70px;
+
+    overflow: hidden;
+
+    background:
+      radial-gradient(
+        circle at 75%,
+        color-mix(
+          in srgb,
+          var(--ledger-accent) 18%,
+          transparent
+        ),
+        transparent 32%
+      ),
+      linear-gradient(
+        100deg,
+        #070a0c 30%,
+        rgba(7, 10, 12, .65)
+      ),
+      url("/images/krl-placeholder.svg")
+      center / cover;
+
+    border-bottom:
+      3px solid var(--ledger-accent);
+  }
+
+  .public-ledger-hero::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    right: 0;
+    bottom: 0;
+
+    height: 110px;
+
+    pointer-events: none;
+
+    background:
+      linear-gradient(
+        transparent,
+        rgba(7, 10, 12, .48)
+      );
+  }
+
+  .public-ledger-hero .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .public-ledger-logo {
+    width: 90px;
+    height: 90px;
+
+    margin-bottom: 1.4rem;
+
+    object-fit: contain;
+
+    filter:
+      drop-shadow(
+        0 12px 25px
+        rgba(0, 0, 0, .55)
+      );
+  }
+
+  .public-ledger-header {
+    max-width: 760px;
+  }
+
+  .public-ledger-kicker {
+    display: block;
+
+    margin-bottom: .5rem;
+
+    color: var(--ledger-accent);
+
+    font-family: var(--display);
+    font-size: .8rem;
+    font-weight: 800;
+
+    letter-spacing: .16em;
+
+    text-transform: uppercase;
+  }
+
+  .public-ledger-header h1 {
+    margin: 0 0 1rem;
+
+    color: #fff;
+
+    font-family: var(--display);
+
+    font-size:
+      clamp(
+        3.7rem,
+        8vw,
+        7rem
+      );
+
+    font-weight: 800;
+
+    line-height: .84;
+
+    letter-spacing: -.02em;
+  }
+
+  .public-ledger-header p {
+    max-width: 680px;
+
+    margin: 0;
+
+    color: #c0cbd0;
+
+    font-size: 1.05rem;
+  }
+
+
+  /* =====================================================
+     TABS
+     ===================================================== */
+
+  .public-ledger-tabs {
+    display: flex;
+    flex-wrap: wrap;
+
+    gap: .55rem;
+
+    margin-top: 2rem;
+  }
+
+  .public-ledger-tabs a {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    min-height: 40px;
+
+    padding: .55rem .9rem;
+
+    color: #fff;
+
+    background:
+      rgba(7, 10, 12, .72);
+
+    border:
+      1px solid
+      rgba(255, 255, 255, .18);
+
+    font-family: var(--display);
+    font-size: .9rem;
+    font-weight: 800;
+
+    text-decoration: none;
+
+    transition:
+      border-color .15s ease,
+      color .15s ease,
+      background .15s ease;
+  }
+
+  .public-ledger-tabs a:hover,
+  .public-ledger-tabs a:focus-visible,
+  .public-ledger-tabs a.is-active {
+    color: var(--ledger-accent);
+
+    border-color:
+      var(--ledger-accent);
+  }
+
+  .public-ledger-tabs a.is-active {
+    background:
+      color-mix(
+        in srgb,
+        var(--ledger-accent) 12%,
+        rgba(7, 10, 12, .82)
+      );
+  }
+
+
+  /* =====================================================
+     CONTENT
+     ===================================================== */
+
+  .public-ledger-content {
+    padding: 34px 0 70px;
+  }
+
+  .public-ledger-season-current {
+    display: flex;
+
+    justify-content:
+      space-between;
+
+    align-items: center;
+
+    gap: 1rem;
+
+    margin-bottom: 1rem;
+
+    padding: 1rem 1.1rem;
+
+    border:
+      1px solid
+      rgba(255, 255, 255, .10);
+
+    background:
+      rgba(255, 255, 255, .025);
+  }
+
+  .public-ledger-season-current > div {
+    display: grid;
+    gap: 2px;
+  }
+
+  .public-ledger-season-current span {
+    color: var(--ledger-accent);
+
+    font-family: var(--display);
+    font-size: .68rem;
+    font-weight: 900;
+
+    letter-spacing: .1em;
+
+    text-transform: uppercase;
+  }
+
+  .public-ledger-season-current strong {
+    color: #fff;
+
+    font-family: var(--display);
+
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+
+  .public-ledger-limit {
+    color: #fff;
+
+    font-family: var(--display);
+
+    font-size: .9rem;
+    font-weight: 800;
+
+    white-space: nowrap;
+  }
+
+  .public-ledger-info {
+    margin-bottom: 1.5rem;
+
+    padding: .7rem .85rem;
+
+    color: #aebbc1;
+
+    background:
+      rgba(255, 255, 255, .035);
+
+    border-left:
+      3px solid
+      var(--ledger-accent);
+
+    font-size: .76rem;
+  }
+
+  .public-ledger-info strong {
+    color: #fff;
+  }
+
+  .public-ledger-section {
+    margin-top: 1.8rem;
+  }
+
+  .public-ledger-section:first-child {
+    margin-top: 0;
+  }
+
+  .public-ledger-section-title {
+    margin: 0 0 .65rem;
+
+    color:
+      var(
+        --section-accent,
+        var(--ledger-accent)
+      );
+
+    font-family: var(--display);
+
+    font-size: .95rem;
+    font-weight: 800;
+
+    letter-spacing: .1em;
+  }
+
+
+  /* =====================================================
+     TABELLEN
+     ===================================================== */
+
+  .public-ledger-table-wrap,
+  .public-ledger-global-wrap {
+    width: 100%;
+
+    overflow: hidden;
+
+    background: #090e11;
+
+    border:
+      1px solid
+      rgba(255, 255, 255, .10);
+  }
+
+  .public-ledger-table,
+  .public-ledger-global-table {
+    width: 100%;
+
+    border-collapse: collapse;
+
+    table-layout: fixed;
+
+    background: #0a1014;
+  }
+
+  .public-ledger-table {
+    min-width: 700px;
+  }
+
+  .public-ledger-global-table {
+    min-width: 0;
+  }
+
+  .public-ledger-table th,
+  .public-ledger-table td,
+  .public-ledger-global-table th,
+  .public-ledger-global-table td {
+    padding: 0;
+
+    text-align: center;
+
+    border-right:
+      1px solid
+      rgba(255, 255, 255, .075);
+
+    border-bottom:
+      1px solid
+      rgba(255, 255, 255, .075);
+  }
+
+  .public-ledger-table th:last-child,
+  .public-ledger-table td:last-child,
+  .public-ledger-global-table th:last-child,
+  .public-ledger-global-table td:last-child {
+    border-right: 0;
+  }
+
+  .public-ledger-table tbody tr:last-child td,
+  .public-ledger-global-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .public-ledger-table thead th,
+  .public-ledger-global-table thead th {
+    height: 48px;
+
+    color: var(--ledger-accent);
+
+    background: #11181c;
+
+    font-family: var(--display);
+
+    font-size: .67rem;
+    font-weight: 800;
+
+    letter-spacing: .04em;
+  }
+
+
+  /* =====================================================
+     FAHRER
+     ===================================================== */
+
+  .public-ledger-driver,
+  .public-ledger-global-driver {
+    width: 140px;
+
+    text-align:
+      left !important;
+  }
+
+  td.public-ledger-driver,
+  td.public-ledger-global-driver {
+    overflow: hidden;
+
+    padding: .5rem .65rem;
+
+    color:
+      var(
+        --section-accent,
+        var(--ledger-accent)
+      );
+
+    font-family: var(--display);
+
+    font-size: .9rem;
+    font-weight: 800;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+  }
+
+  .public-ledger-global-driver {
+    position: static;
+
+    min-width: 0;
+
+    background:
+      #0a1014 !important;
+  }
+
+
+  /* =====================================================
+     TEAM
+     ===================================================== */
+
+  .public-ledger-team {
+    width: 44px;
+  }
+
+  .public-ledger-team img {
+    display: block;
+
+    width: 26px;
+    height: 26px;
+
+    margin: auto;
+
+    object-fit: contain;
+  }
+
+  .public-ledger-team-empty {
+    color: #536169;
+  }
+
+
+  /* =====================================================
+     RUNDEN
+     ===================================================== */
+
+  .public-ledger-round {
+    width: 42px;
+  }
+
+  .public-ledger-global-round {
+    width: auto;
+    min-width: 0;
+
+    height: 48px;
+  }
+
+  .public-ledger-round-head {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 3px;
+
+    min-width: 0;
+  }
+
+  .public-ledger-round-head strong {
+    color: inherit;
+
+    font-family: var(--display);
+
+    font-size: .64rem;
+    font-weight: 800;
+
+    white-space: nowrap;
+  }
+
+  .public-ledger-round-head img {
+    width: 23px;
+    height: 15px;
+
+    max-width: 90%;
+
+    object-fit: cover;
+
+    border:
+      1px solid
+      rgba(255, 255, 255, .16);
+  }
+
+  .public-ledger-round-placeholder {
+    color: #73828a;
+
+    font-size: .7rem;
+  }
+
+
+  /* =====================================================
+     ZELLEN
+     ===================================================== */
+
+  .public-ledger-cell {
+    height: 39px;
+
+    color: #fff;
+
+    font-family: var(--display);
+
+    font-size: .9rem;
+    font-weight: 900;
+  }
+
+  .public-ledger-cell.is-ban {
+    color: #fff !important;
+
+    background:
+      #c62828 !important;
+  }
+
+  .public-ledger-total {
+    width: 42px;
+    min-width: 42px;
+
+    color: #fff;
+
+    font-family: var(--display);
+
+    font-size: .8rem;
+    font-weight: 900;
+  }
+
+  .public-ledger-remaining {
+    width: 46px;
+
+    color: #fff;
+
+    font-family: var(--display);
+
+    font-size: .76rem;
+    font-weight: 800;
+  }
+
+  .public-ledger-status-cell {
+    width: 76px;
+    min-width: 76px;
+  }
+
+  .public-ledger-status {
+    font-family: var(--display);
+
+    font-size: .65rem;
+    font-weight: 900;
+
+    white-space: nowrap;
+  }
+
+  .public-ledger-status.is-free {
+    color: #89e7a7;
+  }
+
+  .public-ledger-status.is-banned {
+    color: #ff7777;
+  }
+
+  .public-ledger-table
+  tr.is-danger
+  .public-ledger-driver,
+  .public-ledger-global-table
+  tr.is-danger
+  .public-ledger-global-driver {
+    box-shadow:
+      inset 3px 0 0
+      #ff5757;
+  }
+
+  .public-ledger-empty {
+    padding: 2rem;
+
+    color: #84939b;
+
+    background: #090e11;
+
+    border:
+      1px dashed
+      #3c4b53;
+
+    text-align: center;
+  }
+
+
+  /* =====================================================
+     GLOBAL-TABELLEN KOMPAKT
+     ===================================================== */
+
+  .public-ledger-global-table
+  .public-ledger-global-driver {
+    width: 130px;
+  }
+
+  .public-ledger-global-table
+  .public-ledger-total {
+    width: 40px;
+    min-width: 40px;
+  }
+
+  .public-ledger-global-table
+  .public-ledger-remaining {
+    width: 42px;
+  }
+
+  .public-ledger-global-table
+  .public-ledger-status-cell {
+    width: 70px;
+    min-width: 70px;
+  }
+
+  .public-ledger-global-table
+  .public-ledger-round-head strong {
+    font-size: .58rem;
+  }
+
+  .public-ledger-global-table
+  .public-ledger-round-head img {
+    width: 20px;
+    height: 13px;
+  }
+
+  .public-ledger-global-table
+  .public-ledger-cell {
+    font-size: .75rem;
+  }
+
+
+  /* =====================================================
+     MOBILE
+     ===================================================== */
+
+  @media (max-width: 700px) {
+    .public-ledger-hero {
+      min-height: 380px;
+
+      padding: 70px 0 50px;
+    }
+
+    .public-ledger-logo {
+      width: 72px;
+      height: 72px;
+    }
+
+    .public-ledger-header h1 {
+      font-size: 3.7rem;
+    }
+
+    .public-ledger-season-current {
+      align-items: flex-start;
+
+      flex-direction: column;
+    }
+
+    .public-ledger-limit {
+      white-space: normal;
+    }
+
+    .public-ledger-tabs {
+      gap: .4rem;
+    }
+
+    .public-ledger-tabs a {
+      min-height: 36px;
+
+      padding: .48rem .65rem;
+
+      font-size: .76rem;
+    }
+
+    .public-ledger-global-table
+    .public-ledger-global-driver {
+      width: 95px;
+    }
+
+    td.public-ledger-global-driver {
+      padding: .4rem;
+
+      font-size: .7rem;
+    }
+
+    .public-ledger-global-table
+    .public-ledger-status-cell {
+      width: 56px;
+      min-width: 56px;
+    }
+
+    .public-ledger-global-table
+    .public-ledger-status {
+      font-size: .5rem;
+    }
+  }
+</style>
+
+
+<div
+  class="public-ledger-page"
+  style="
+    --accent:
+    <%=
+      safeViewMode === "liga"
+        ? (
+            league?.accentColor ||
+            "#6ef2f2"
+          )
+        : safeCommunityAccent
+    %>
+  "
+>
+
+  <!-- =================================================
+       HERO
+       ================================================= -->
+
+  <section class="public-ledger-hero">
+
+    <div class="container">
+
+      <img
+        id="public-ledger-main-logo"
+        class="public-ledger-logo"
+
+        src="<%=
+          safeViewMode === "liga"
+            ? (
+                league?.logoPath ||
+                safeCommunityLogoPath
+              )
+            : safeCommunityLogoPath
+        %>"
+
+        alt="<%=
+          safeViewMode === "liga"
+            ? (
+                league?.name ||
+                "KRL"
+              )
+            : "KRL Community"
+        %>"
+      >
+
+
+      <header class="public-ledger-header">
+
+        <span class="public-ledger-kicker">
+          <%=
+            String(
+              typeof discipline !== "undefined"
+                ? discipline
+                : "f1"
+            ).toUpperCase()
+          %>
+          · RENNLEITUNG
+        </span>
+
+
+        <h1>
+          STRAFKARTEI
+        </h1>
+
+
+        <p>
+          Öffentliche Übersicht der
+          Strafpunkte und Rennsperren.
+        </p>
+
+      </header>
+
+
+      <!-- =================================================
+           TABS
+           ================================================= -->
+
+      <nav
+        class="public-ledger-tabs"
+        aria-label="Strafkartei auswählen"
+      >
+
+        <%
+          safeLeagueTabs.forEach(
+            (tab) => {
+        %>
+
+          <a
+            href="<%= ledgerPath %>?liga=<%= tab.slug %>"
+
+            class="<%=
+              safeViewMode === "liga" &&
+              safeSelectedLeagueSlug === tab.slug
+                ? "is-active"
+                : ""
+            %>"
+          >
+            <%= tab.label %>
+          </a>
+
+        <% }) %>
+
+
+        <a
+          href="<%= ledgerPath %>?ansicht=ersatzfahrer"
+
+          class="<%=
+            safeViewMode === "ersatzfahrer"
+              ? "is-active"
+              : ""
+          %>"
+        >
+          Ersatzfahrer
+        </a>
+
+
+        <a
+          href="<%= ledgerPath %>?ansicht=ehemalige"
+
+          class="<%=
+            safeViewMode === "ehemalige"
+              ? "is-active"
+              : ""
+          %>"
+        >
+          Ehemalige
+        </a>
+
+      </nav>
+
+    </div>
+
+  </section>
+
+
+  <!-- =================================================
+       CONTENT
+       ================================================= -->
+
+  <section class="public-ledger-content">
+
+    <div class="container">
+
+
+      <!-- =================================================
+           STAMMFAHRER
+           ================================================= -->
+
+      <div
+        data-ledger-panel="league"
+
+        <% if (
+          safeViewMode !== "liga"
+        ) { %>
+          hidden
+        <% } %>
+      >
+
+        <% if (
+          typeof selectedSeason === "undefined" ||
+          !selectedSeason
+        ) { %>
+
+          <div class="public-ledger-empty">
+            Keine aktive veröffentlichte
+            Saison vorhanden.
+          </div>
+
+        <% } else { %>
+
+
+          <div class="public-ledger-season-current">
+
+            <div>
+
+              <span>
+                AKTUELLE SAISON
+              </span>
+
+              <strong>
+                <%= selectedSeason.name %>
+              </strong>
+
+            </div>
+
+
+            <strong class="public-ledger-limit">
+              Rennsperre ab
+              <%= safeLedger.threshold %>
+              SP
+            </strong>
+
+          </div>
+
+
+          <div class="public-ledger-info">
+
+            <strong>
+              Zahl:
+            </strong>
+            Strafpunkte ·
+
+            <strong>
+              S:
+            </strong>
+            Rennsperre ·
+
+            Farben entsprechen den
+            manuellen Markierungen
+            der Rennleitung.
+
+          </div>
+
+
+          <section class="public-ledger-section">
+
+            <h2 class="public-ledger-section-title">
+              STAMMFAHRER ·
+              <%= league?.name || "" %>
+            </h2>
+
+
+            <% if (!safeRounds.length) { %>
+
+              <div class="public-ledger-empty">
+                Für diese Saison ist
+                noch kein Rennkalender
+                vorhanden.
+              </div>
+
+
+            <% } else if (!regularRows.length) { %>
+
+              <div class="public-ledger-empty">
+                Keine Stammfahrer vorhanden.
+              </div>
+
+
+            <% } else { %>
+
+              <div class="public-ledger-table-wrap">
+
+                <table class="public-ledger-table">
+
+                  <thead>
+
+                    <tr>
+
+                      <th class="public-ledger-driver">
+                        FAHRER
+                      </th>
+
+                      <th class="public-ledger-team">
+                        TEAM
+                      </th>
+
+
+                      <% safeRounds.forEach((round) => { %>
+
+                        <th
+                          class="public-ledger-round"
+
+                          title="R<%= round.roundNumber %> · <%= round.country || round.circuit || '' %>"
+                        >
+
+                          <div class="public-ledger-round-head">
+
+                            <strong>
+                              R<%= round.roundNumber %>
+                            </strong>
+
+
+                            <% if (round.flagPath) { %>
+
+                              <img
+                                src="<%= round.flagPath %>"
+                                alt="<%= round.country || '' %>"
+                              >
+
+                            <% } else { %>
+
+                              <span class="public-ledger-round-placeholder">
+                                🏁
+                              </span>
+
+                            <% } %>
+
+                          </div>
+
+                        </th>
+
+                      <% }) %>
+
+
+                      <th class="public-ledger-total">
+                        SP
+                      </th>
+
+                      <th class="public-ledger-remaining">
+                        BIS
+                      </th>
+
+                      <th class="public-ledger-status-cell">
+                        STATUS
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody>
+
+                    <% regularRows.forEach((row) => { %>
+
+                      <tr
+                        class="<%=
+                          row.suspended
+                            ? 'is-danger'
+                            : ''
+                        %>"
+                      >
+
+                        <td
+                          class="public-ledger-driver"
+                          title="<%= row.name %>"
+                        >
+                          <%= row.name %>
+                        </td>
+
+
+                        <td
+                          class="public-ledger-team"
+                          title="<%= row.team?.name || '' %>"
+                        >
+
+                          <% if (row.team?.logoPath) { %>
+
+                            <img
+                              src="<%= row.team.logoPath %>"
+                              alt="<%= row.team?.name || '' %>"
+                            >
+
+                          <% } else { %>
+
+                            <span class="public-ledger-team-empty">
+                              –
+                            </span>
+
+                          <% } %>
+
+                        </td>
+
+
+                        <% safeRounds.forEach((round) => {
+
+                          const cell =
+                            row.cells?.[
+                              round.roundNumber
+                            ] || null;
+
+                          const value =
+                            cell?.isRaceBan
+                              ? "S"
+                              : Number(
+                                  cell?.points || 0
+                                ) > 0
+                                ? String(cell.points)
+                                : "";
+
+                          const cellColor =
+                            value === "S"
+                              ? ""
+                              : validColor(
+                                  cell?.cellColor
+                                );
+
+                          const cellTextColor =
+                            cellColor
+                              ? textColor(cellColor)
+                              : "";
+
+                        %>
+
+                          <td
+                            class="public-ledger-cell <%= value === 'S' ? 'is-ban' : '' %>"
+
+                            <% if (cellColor) { %>
+                              style="
+                                background-color:<%= cellColor %>;
+                                color:<%= cellTextColor %>;
+                              "
+                            <% } %>
+                          >
+                            <%= value %>
+                          </td>
+
+                        <% }) %>
+
+
+                        <td class="public-ledger-total">
+                          <%= row.points %>
+                        </td>
+
+
+                        <td class="public-ledger-remaining">
+                          <%= row.remaining %>
+                        </td>
+
+
+                        <td class="public-ledger-status-cell">
+
+                          <span
+                            class="public-ledger-status <%= row.suspended ? 'is-banned' : 'is-free' %>"
+                          >
+                            <%=
+                              row.suspended
+                                ? "GESPERRT"
+                                : "FREI"
+                            %>
+                          </span>
+
+                        </td>
+
+                      </tr>
+
+                    <% }) %>
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            <% } %>
+
+          </section>
+
+        <% } %>
+
+      </div>
+
+
+      <!-- =================================================
+           ERSATZFAHRER
+           ================================================= -->
+
+      <section
+        class="public-ledger-section"
+
+        style="
+          --section-accent:
+          <%= safeCommunityAccent %>
+        "
+
+        data-ledger-panel="reserve"
+
+        <% if (
+          safeViewMode !==
+          "ersatzfahrer"
+        ) { %>
+          hidden
+        <% } %>
+      >
+
+        <h2 class="public-ledger-section-title">
+          ERSATZFAHRER · LIGENÜBERGREIFEND
+        </h2>
+
+
+        <% if (!reserveColumns.length) { %>
+
+          <div class="public-ledger-empty">
+            Keine Rennkalender vorhanden.
+          </div>
+
+
+        <% } else if (!reserveRows.length) { %>
+
+          <div class="public-ledger-empty">
+            Keine Ersatzfahrer vorhanden.
+          </div>
+
+
+        <% } else { %>
+
+
+          <div class="public-ledger-info">
+
+            <strong>
+              Zahl:
+            </strong>
+            Strafpunkte ·
+
+            <strong>
+              S:
+            </strong>
+            Rennsperre ·
+
+            Farben entsprechen den
+            manuellen Markierungen
+            der Rennleitung.
+
+          </div>
+
+
+          <div class="public-ledger-global-wrap">
+
+            <table class="public-ledger-global-table">
+
+              <thead>
+
+                <tr>
+
+                  <th class="public-ledger-global-driver">
+                    FAHRER
+                  </th>
+
+
+                  <% reserveColumns.forEach((column) => { %>
+
+                    <th
+                      class="public-ledger-global-round"
+
+                      title="<%= column.leagueName || '' %> · R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
+                    >
+
+                      <div class="public-ledger-round-head">
+
+                        <strong>
+                          R<%= column.roundNumber %>
+                        </strong>
+
+
+                        <% if (column.flagPath) { %>
+
+                          <img
+                            src="<%= column.flagPath %>"
+                            alt="<%= column.country || '' %>"
+                          >
+
+                        <% } else { %>
+
+                          <span class="public-ledger-round-placeholder">
+                            🏁
+                          </span>
+
+                        <% } %>
+
+                      </div>
+
+                    </th>
+
+                  <% }) %>
+
+
+                  <th class="public-ledger-total">
+                    SP
+                  </th>
+
+                  <th class="public-ledger-remaining">
+                    BIS
+                  </th>
+
+                  <th class="public-ledger-status-cell">
+                    STATUS
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                <% reserveRows.forEach((row) => {
+
+                  const summary =
+                    globalRowSummary(
+                      row,
+                      reserveColumns
+                    );
+
+                  const suspended =
+                    summary.hasBan ||
+                    summary.points >=
+                      Number(
+                        safeLedger.threshold ||
+                        12
+                      );
+
+                  const remaining =
+                    Math.max(
+                      Number(
+                        safeLedger.threshold ||
+                        12
+                      ) -
+                      summary.points,
+                      0
+                    );
+
+                %>
+
+                  <tr
+                    class="<%=
+                      suspended
+                        ? 'is-danger'
+                        : ''
+                    %>"
+                  >
+
+                    <td
+                      class="public-ledger-global-driver"
+                      title="<%= row.name %>"
+                    >
+                      <%= row.name %>
+                    </td>
+
+
+                    <% reserveColumns.forEach((column) => {
+
+                      const cell =
+                        row.cells?.[
+                          column.key
+                        ] || null;
+
+                      const value =
+                        cell?.isRaceBan
+                          ? "S"
+                          : Number(
+                              cell?.points || 0
+                            ) > 0
+                            ? String(
+                                cell.points
+                              )
+                            : "";
+
+                      const cellColor =
+                        value === "S"
+                          ? ""
+                          : validColor(
+                              cell?.cellColor
+                            );
+
+                      const cellTextColor =
+                        cellColor
+                          ? textColor(
+                              cellColor
+                            )
+                          : "";
+
+                    %>
+
+                      <td
+                        class="public-ledger-cell <%= value === 'S' ? 'is-ban' : '' %>"
+
+                        <% if (cellColor) { %>
+                          style="
+                            background-color:<%= cellColor %>;
+                            color:<%= cellTextColor %>;
+                          "
+                        <% } %>
+                      >
+                        <%= value %>
+                      </td>
+
+                    <% }) %>
+
+
+                    <td class="public-ledger-total">
+                      <%= summary.points %>
+                    </td>
+
+
+                    <td class="public-ledger-remaining">
+                      <%= remaining %>
+                    </td>
+
+
+                    <td class="public-ledger-status-cell">
+
+                      <span
+                        class="public-ledger-status <%= suspended ? 'is-banned' : 'is-free' %>"
+                      >
+                        <%=
+                          suspended
+                            ? "GESPERRT"
+                            : "FREI"
+                        %>
+                      </span>
+
+                    </td>
+
+                  </tr>
+
+                <% }) %>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        <% } %>
+
+      </section>
+
+
+      <!-- =================================================
+           EHEMALIGE
+           ================================================= -->
+
+      <section
+        class="public-ledger-section"
+
+        style="
+          --section-accent:
+          <%= safeCommunityAccent %>
+        "
+
+        data-ledger-panel="former"
+
+        <% if (
+          safeViewMode !==
+          "ehemalige"
+        ) { %>
+          hidden
+        <% } %>
+      >
+
+        <h2 class="public-ledger-section-title">
+          EHEMALIGE FAHRER
+        </h2>
+
+
+        <% if (!formerColumns.length) { %>
+
+          <div class="public-ledger-empty">
+            Keine Rennkalender vorhanden.
+          </div>
+
+
+        <% } else if (!formerRows.length) { %>
+
+          <div class="public-ledger-empty">
+            Keine ehemaligen Fahrer
+            mit Strafpunkten vorhanden.
+          </div>
+
+
+        <% } else { %>
+
+
+          <div class="public-ledger-info">
+
+            <strong>
+              Zahl:
+            </strong>
+            Strafpunkte ·
+
+            <strong>
+              S:
+            </strong>
+            Rennsperre ·
+
+            Farben entsprechen den
+            manuellen Markierungen
+            der Rennleitung.
+
+          </div>
+
+
+          <div class="public-ledger-global-wrap">
+
+            <table class="public-ledger-global-table">
+
+              <thead>
+
+                <tr>
+
+                  <th class="public-ledger-global-driver">
+                    FAHRER
+                  </th>
+
+
+                  <% formerColumns.forEach((column) => { %>
+
+                    <th
+                      class="public-ledger-global-round"
+
+                      title="<%= column.leagueName || '' %> · R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
+                    >
+
+                      <div class="public-ledger-round-head">
+
+                        <strong>
+                          R<%= column.roundNumber %>
+                        </strong>
+
+
+                        <% if (column.flagPath) { %>
+
+                          <img
+                            src="<%= column.flagPath %>"
+                            alt="<%= column.country || '' %>"
+                          >
+
+                        <% } else { %>
+
+                          <span class="public-ledger-round-placeholder">
+                            🏁
+                          </span>
+
+                        <% } %>
+
+                      </div>
+
+                    </th>
+
+                  <% }) %>
+
+
+                  <th class="public-ledger-total">
+                    SP
+                  </th>
+
+                  <th class="public-ledger-remaining">
+                    BIS
+                  </th>
+
+                  <th class="public-ledger-status-cell">
+                    STATUS
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                <% formerRows.forEach((row) => {
+
+                  const summary =
+                    globalRowSummary(
+                      row,
+                      formerColumns
+                    );
+
+                  const suspended =
+                    summary.hasBan ||
+                    summary.points >=
+                      Number(
+                        safeLedger.threshold ||
+                        12
+                      );
+
+                  const remaining =
+                    Math.max(
+                      Number(
+                        safeLedger.threshold ||
+                        12
+                      ) -
+                      summary.points,
+                      0
+                    );
+
+                %>
+
+                  <tr
+                    class="<%=
+                      suspended
+                        ? 'is-danger'
+                        : ''
+                    %>"
+                  >
+
+                    <td
+                      class="public-ledger-global-driver"
+                      title="<%= row.name %>"
+                    >
+                      <%= row.name %>
+                    </td>
+
+
+                    <% formerColumns.forEach((column) => {
+
+                      const cell =
+                        row.cells?.[
+                          column.key
+                        ] || null;
+
+                      const value =
+                        cell?.isRaceBan
+                          ? "S"
+                          : Number(
+                              cell?.points || 0
+                            ) > 0
+                            ? String(
+                                cell.points
+                              )
+                            : "";
+
+                      const cellColor =
+                        value === "S"
+                          ? ""
+                          : validColor(
+                              cell?.cellColor
+                            );
+
+                      const cellTextColor =
+                        cellColor
+                          ? textColor(
+                              cellColor
+                            )
+                          : "";
+
+                    %>
+
+                      <td
+                        class="public-ledger-cell <%= value === 'S' ? 'is-ban' : '' %>"
+
+                        <% if (cellColor) { %>
+                          style="
+                            background-color:<%= cellColor %>;
+                            color:<%= cellTextColor %>;
+                          "
+                        <% } %>
+                      >
+                        <%= value %>
+                      </td>
+
+                    <% }) %>
+
+
+                    <td class="public-ledger-total">
+                      <%= summary.points %>
+                    </td>
+
+
+                    <td class="public-ledger-remaining">
+                      <%= remaining %>
+                    </td>
+
+
+                    <td class="public-ledger-status-cell">
+
+                      <span
+                        class="public-ledger-status <%= suspended ? 'is-banned' : 'is-free' %>"
+                      >
+                        <%=
+                          suspended
+                            ? "GESPERRT"
+                            : "FREI"
+                        %>
+                      </span>
+
+                    </td>
+
+                  </tr>
+
+                <% }) %>
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        <% } %>
+
+      </section>
+
+    </div>
+
+  </section>
+
+</div>
+
+
+<%- include('partials/footer') %>

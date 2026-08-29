@@ -10,23 +10,26 @@ const {
   RaceEvent,
   SeasonF1CarAssignment,
   F1RaceLineupEntry,
+  PenaltyEntry,
+  F1PenaltySetting,
 } = require("../models");
 
 const { buildSeasonData } = require("../services/standings");
 const { sendCsv } = require("../services/csv");
 const { loadSeasonStructure } = require("../services/f1Season");
 
+const {
+  buildLeagueLedger,
+  buildGlobalLedgers,
+} = require("./penaltyLedgerController");
+
 function plain(value) {
-  return value && typeof value.toJSON === "function" ? value.toJSON() : value;
+  return value && typeof value.toJSON === "function"
+    ? value.toJSON()
+    : value;
 }
 
 async function loadLeagueData(slug, requestedSeasonId) {
-  /*
-   * =====================================================
-   * LIGA
-   * =====================================================
-   */
-
   const league = await League.findOne({
     where: {
       slug,
@@ -37,12 +40,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
   if (!league) {
     return null;
   }
-
-  /*
-   * =====================================================
-   * SAISONS
-   * =====================================================
-   */
 
   const seasons = await Season.findAll({
     where: {
@@ -69,16 +66,17 @@ async function loadLeagueData(slug, requestedSeasonId) {
   });
 
   const selectedSeason =
-    seasons.find((season) => Number(season.id) === Number(requestedSeasonId)) ||
-    seasons.find((season) => season.status === "active") ||
+    seasons.find(
+      (season) =>
+        Number(season.id) ===
+        Number(requestedSeasonId),
+    ) ||
+    seasons.find(
+      (season) =>
+        season.status === "active",
+    ) ||
     seasons[0] ||
     null;
-
-  /*
-   * =====================================================
-   * GP RESULT WHERE
-   * =====================================================
-   */
 
   const where = selectedSeason
     ? {
@@ -91,22 +89,15 @@ async function loadLeagueData(slug, requestedSeasonId) {
         season: league.currentSeason,
       };
 
-  /*
-   * =====================================================
-   * GRUNDDATEN
-   * =====================================================
-   */
-
   const [
     rosters,
     gpResults,
     activeCalendar,
     seasonCarAssignments,
     storedSeasonStructure,
+    penaltyEntries,
+    penaltySetting,
   ] = await Promise.all([
-    /*
-     * Legacy Team-Roster
-     */
     TeamRoster.findAll({
       where: {
         LeagueId: league.id,
@@ -150,9 +141,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
       ],
     }),
 
-    /*
-     * GP Ergebnisse
-     */
     GrandPrixResult.findAll({
       where,
 
@@ -188,9 +176,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
       ],
     }),
 
-    /*
-     * Rennkalender
-     */
     selectedSeason
       ? RaceEvent.findAll({
           where: {
@@ -204,7 +189,8 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
               include: [
                 {
-                  association: "countryRecord",
+                  association:
+                    "countryRecord",
                 },
               ],
             },
@@ -217,9 +203,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
         })
       : [],
 
-    /*
-     * F1 Autoprofile
-     */
     selectedSeason
       ? SeasonF1CarAssignment.findAll({
           where: {
@@ -234,283 +217,453 @@ async function loadLeagueData(slug, requestedSeasonId) {
         })
       : [],
 
-    /*
-     * Saisonstruktur
-     */
-    loadSeasonStructure(selectedSeason?.id),
+    loadSeasonStructure(
+      selectedSeason?.id,
+    ),
+
+    selectedSeason
+      ? PenaltyEntry.findAll({
+          where: {
+            LeagueId: league.id,
+            SeasonId: selectedSeason.id,
+          },
+
+          order: [
+            ["roundNumber", "ASC"],
+            ["id", "ASC"],
+          ],
+        })
+      : [],
+
+    F1PenaltySetting.findOne({
+      where: {
+        LeagueId: league.id,
+      },
+    }),
   ]);
 
-  const completedMainRound = gpResults
-    .filter((race) => race.raceType === "main" && race.entries?.length)
-    .reduce((maximum, race) => Math.max(maximum, Number(race.sortOrder) || 0), 0);
-  const structureRound = selectedSeason?.status === "historical"
-    ? Math.max(1, completedMainRound)
-    : completedMainRound + 1;
-  const seasonStructure = selectedSeason
-    ? await loadSeasonStructure(selectedSeason.id, structureRound)
-    : storedSeasonStructure;
+  const completedMainRound =
+    gpResults
+      .filter(
+        (race) =>
+          race.raceType === "main" &&
+          race.entries?.length,
+      )
+      .reduce(
+        (maximum, race) =>
+          Math.max(
+            maximum,
+            Number(race.sortOrder) || 0,
+          ),
+        0,
+      );
 
-  /*
-   * =====================================================
-   * RENN-LINE-UP
-   * =====================================================
-   */
+  const structureRound =
+    selectedSeason?.status ===
+    "historical"
+      ? Math.max(
+          1,
+          completedMainRound,
+        )
+      : completedMainRound + 1;
 
-  const raceIds = gpResults
-    .filter((race) => race.raceType === "main")
-    .map((race) => Number(race.id));
+  const seasonStructure =
+    selectedSeason
+      ? await loadSeasonStructure(
+          selectedSeason.id,
+          structureRound,
+        )
+      : storedSeasonStructure;
 
-  const raceLineupEntries = raceIds.length
-    ? await F1RaceLineupEntry.findAll({
-        where: {
-          GrandPrixResultId: {
-            [Op.in]: raceIds,
+  const raceIds =
+    gpResults
+      .filter(
+        (race) =>
+          race.raceType === "main",
+      )
+      .map(
+        (race) =>
+          Number(race.id),
+      );
+
+  const raceLineupEntries =
+    raceIds.length
+      ? await F1RaceLineupEntry.findAll({
+          where: {
+            GrandPrixResultId: {
+              [Op.in]: raceIds,
+            },
           },
-        },
 
-        include: [
-          {
-            association: "driver",
-          },
+          include: [
+            {
+              association: "driver",
+            },
 
-          {
-            association: "replacementFor",
-          },
+            {
+              association:
+                "replacementFor",
+            },
 
-          {
-            association: "team",
-          },
+            {
+              association: "team",
+            },
+          ],
+
+          order: [
+            [
+              "GrandPrixResultId",
+              "ASC",
+            ],
+            ["sortOrder", "ASC"],
+            ["id", "ASC"],
+          ],
+        })
+      : [];
+
+  const carProfileByTeam =
+    new Map(
+      seasonCarAssignments.map(
+        (assignment) => [
+          Number(
+            assignment.TeamId,
+          ),
+          assignment.carProfile,
         ],
+      ),
+    );
 
-        order: [
-          ["GrandPrixResultId", "ASC"],
-          ["sortOrder", "ASC"],
-          ["id", "ASC"],
-        ],
+  const driverMap =
+    new Map();
+
+  const legacyTeams =
+    rosters
+      .map((roster) => {
+        const carProfile =
+          carProfileByTeam.get(
+            Number(
+              roster.team.id,
+            ),
+          );
+
+        return {
+          id:
+            roster.team.id,
+
+          name:
+            roster.team.name,
+
+          accentColor:
+            carProfile
+              ?.accentColor ||
+            roster.team
+              .accentColor,
+
+          logoPath:
+            carProfile
+              ?.logoPath ||
+            roster.team
+              .logoPath,
+
+          carProfileName:
+            carProfile?.name ||
+            null,
+
+          rosterId:
+            roster.id,
+
+          drivers:
+            roster.assignments
+              .filter(
+                (assignment) =>
+                  assignment
+                    .roleName !==
+                  "Ersatzfahrer",
+              )
+              .map(
+                (assignment) => ({
+                  ...assignment
+                    .driver
+                    .toJSON(),
+
+                  rosterRole:
+                    assignment
+                      .roleName,
+                }),
+              ),
+        };
       })
-    : [];
+      .filter(
+        (team) =>
+          team.drivers.length >=
+          2,
+      );
 
-  /*
-   * =====================================================
-   * AUTOPROFIL -> TEAM
-   * =====================================================
-   */
+  const teams =
+    seasonStructure.teams.length
+      ? seasonStructure.teams.map(
+          (team) => ({
+            id:
+              team.id,
 
-  const carProfileByTeam = new Map(
-    seasonCarAssignments.map((assignment) => [
-      Number(assignment.TeamId),
+            name:
+              team.name,
 
-      assignment.carProfile,
-    ]),
-  );
+            accentColor:
+              team.accentColor,
 
-  /*
-   * =====================================================
-   * LEGACY TEAMS
-   * =====================================================
-   */
+            logoPath:
+              team.logoPath,
 
-  const driverMap = new Map();
-
-  const legacyTeams = rosters
-    .map((roster) => {
-      const carProfile = carProfileByTeam.get(Number(roster.team.id));
-
-      return {
-        id: roster.team.id,
-
-        name: roster.team.name,
-
-        accentColor: carProfile?.accentColor || roster.team.accentColor,
-
-        logoPath: carProfile?.logoPath || roster.team.logoPath,
-
-        carProfileName: carProfile?.name || null,
-
-        rosterId: roster.id,
-
-        drivers: roster.assignments
-          .filter((assignment) => assignment.roleName !== "Ersatzfahrer")
-          .map((assignment) => ({
-            ...assignment.driver.toJSON(),
-
-            rosterRole: assignment.roleName,
-          })),
-      };
-    })
-    .filter((team) => team.drivers.length >= 2);
-
-  /*
-   * =====================================================
-   * SAISONTEAMS
-   * =====================================================
-   */
-
-  const teams = seasonStructure.teams.length
-    ? seasonStructure.teams.map((team) => ({
-        id: team.id,
-
-        name: team.name,
-
-        accentColor: team.accentColor,
-
-        logoPath: team.logoPath,
-
-        drivers: team.drivers.filter((driver) => driver.roleType === "regular"),
-      }))
-    : legacyTeams;
-
-  /*
-   * =====================================================
-   * STAMMFAHRER
-   * =====================================================
-   */
+            drivers:
+              team.drivers.filter(
+                (driver) =>
+                  driver.roleType ===
+                  "regular",
+              ),
+          }),
+        )
+      : legacyTeams;
 
   teams.forEach((team) => {
-    team.drivers.forEach((driver) => {
-      const driverId = Number(driver.id);
+    team.drivers.forEach(
+      (driver) => {
+        const driverId =
+          Number(driver.id);
 
-      if (!driverMap.has(driverId)) {
-        driverMap.set(driverId, {
-          ...driver,
+        if (
+          !driverMap.has(
+            driverId,
+          )
+        ) {
+          driverMap.set(
+            driverId,
+            {
+              ...driver,
 
-          id: driverId,
+              id:
+                driverId,
 
-          team: {
-            id: team.id,
+              team: {
+                id:
+                  team.id,
 
-            name: team.name,
+                name:
+                  team.name,
 
-            logoPath: team.logoPath,
+                logoPath:
+                  team.logoPath,
 
-            accentColor: team.accentColor,
-          },
-        });
-      }
-    });
+                accentColor:
+                  team.accentColor,
+              },
+            },
+          );
+        }
+      },
+    );
   });
 
-  /*
-   * SeasonLineupEntry bleibt der aktuelle Kader. Für die historische
-   * Fahrer-WM werden zusätzlich alle Fahrer mit einem Stammfahrer-Stint
-   * aufgenommen, damit ausgeschiedene Fahrer nicht verschwinden.
-   */
   seasonStructure.stints
-    .filter((stint) => stint.roleType === "regular" && stint.driver)
-    .sort((left, right) => Number(left.fromRound) - Number(right.fromRound))
+    .filter(
+      (stint) =>
+        stint.roleType ===
+          "regular" &&
+        stint.driver,
+    )
+    .sort(
+      (left, right) =>
+        Number(
+          left.fromRound,
+        ) -
+        Number(
+          right.fromRound,
+        ),
+    )
     .forEach((stint) => {
-      const driver = plain(stint.driver);
-      const stintTeam = plain(stint.seasonTeam);
-      const driverId = Number(stint.DriverId || driver.id);
-      if (!driverMap.has(driverId)) {
-        driverMap.set(driverId, {
-          ...driver,
-          id: driverId,
-          team: {
-            id: stintTeam?.id || null,
-            name: stintTeam?.name || "Privatteam",
-            logoPath: stintTeam?.logoPath || null,
-            accentColor: stintTeam?.accentColor || league.accentColor,
+      const driver =
+        plain(stint.driver);
+
+      const stintTeam =
+        plain(
+          stint.seasonTeam,
+        );
+
+      const driverId =
+        Number(
+          stint.DriverId ||
+            driver.id,
+        );
+
+      if (
+        !driverMap.has(
+          driverId,
+        )
+      ) {
+        driverMap.set(
+          driverId,
+          {
+            ...driver,
+
+            id:
+              driverId,
+
+            team: {
+              id:
+                stintTeam?.id ||
+                null,
+
+              name:
+                stintTeam?.name ||
+                "Privatteam",
+
+              logoPath:
+                stintTeam
+                  ?.logoPath ||
+                null,
+
+              accentColor:
+                stintTeam
+                  ?.accentColor ||
+                league.accentColor,
+            },
           },
-        });
+        );
       }
     });
 
-  const drivers = [...driverMap.values()];
+  const drivers =
+    [...driverMap.values()];
 
-  /*
-   * =====================================================
-   * KALENDER
-   * =====================================================
-   */
+  const sprintKeys =
+    new Set(
+      gpResults
+        .filter(
+          (race) =>
+            race.raceType ===
+            "sprint",
+        )
+        .map(
+          (race) =>
+            `${race.circuit}::${race.sortOrder}`,
+        ),
+    );
 
-  const sprintKeys = new Set(
-    gpResults
-      .filter((race) => race.raceType === "sprint")
-      .map((race) => `${race.circuit}::${race.sortOrder}`),
-  );
+  const calendar =
+    activeCalendar.length
+      ? activeCalendar.map(
+          (event) => ({
+            ...event.toJSON(),
 
-  const calendar = activeCalendar.length
-    ? activeCalendar.map((event) => ({
-        ...event.toJSON(),
+            hasSprint:
+              sprintKeys.has(
+                `${event.circuit}::${event.sortOrder}`,
+              ),
+          }),
+        )
+      : gpResults
+          .filter(
+            (race) =>
+              race.raceType ===
+                "main" &&
+              race.raceDate,
+          )
+          .map((race) => ({
+            id:
+              `result-${race.id}`,
 
-        hasSprint: sprintKeys.has(`${event.circuit}::${event.sortOrder}`),
-      }))
-    : gpResults
-        .filter((race) => race.raceType === "main" && race.raceDate)
-        .map((race) => ({
-          id: `result-${race.id}`,
+            title:
+              race.title,
 
-          title: race.title,
+            circuit:
+              race.circuit,
 
-          circuit: race.circuit,
+            startsAt:
+              new Date(
+                `${race.raceDate}T12:00:00Z`,
+              ),
 
-          startsAt: new Date(`${race.raceDate}T12:00:00Z`),
+            sortOrder:
+              race.sortOrder,
 
-          sortOrder: race.sortOrder,
-
-          hasSprint: sprintKeys.has(`${race.circuit}::${race.sortOrder}`),
-        }));
-
-  /*
-   * =====================================================
-   * LIGA DER AUSGEWÄHLTEN SAISON
-   * =====================================================
-   */
+            hasSprint:
+              sprintKeys.has(
+                `${race.circuit}::${race.sortOrder}`,
+              ),
+          }));
 
   const leagueForSeason = {
     ...league.toJSON(),
 
-    currentSeason: selectedSeason?.name || league.currentSeason,
+    currentSeason:
+      selectedSeason?.name ||
+      league.currentSeason,
 
-    accentColor: selectedSeason?.accentColor || league.accentColor,
+    accentColor:
+      selectedSeason
+        ?.accentColor ||
+      league.accentColor,
   };
 
-  /*
-   * =====================================================
-   * GP RESULT DISPLAY DATEN
-   * =====================================================
-   *
-   * Hier werden nur zusätzliche View-Daten aufgebaut.
-   * Die eigentlichen GP Ergebnisse werden NICHT verändert.
-   */
-
-  const plainLineups = raceLineupEntries.map(plain);
-
-  const plainCalendar = activeCalendar.map(plain);
-
-  /*
-   * Sprint verwendet das Line-up
-   * des Hauptrennens.
-   */
-  const mainRaceByWeekend = new Map(
-    gpResults
-      .filter((race) => race.raceType === "main")
-      .map((race) => [
-        `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
-
-        race,
-      ]),
-  );
-
-  function lineupForEntry(race, entry) {
-    const direct = plainLineups.find(
-      (lineup) =>
-        Number(lineup.GrandPrixResultId) === Number(race.id) &&
-        Number(lineup.DriverId) === Number(entry.DriverId),
+  const plainLineups =
+    raceLineupEntries.map(
+      plain,
     );
+
+  const plainCalendar =
+    activeCalendar.map(
+      plain,
+    );
+
+  const mainRaceByWeekend =
+    new Map(
+      gpResults
+        .filter(
+          (race) =>
+            race.raceType ===
+            "main",
+        )
+        .map((race) => [
+          `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
+          race,
+        ]),
+    );
+
+  function lineupForEntry(
+    race,
+    entry,
+  ) {
+    const direct =
+      plainLineups.find(
+        (lineup) =>
+          Number(
+            lineup
+              .GrandPrixResultId,
+          ) ===
+            Number(race.id) &&
+          Number(
+            lineup.DriverId,
+          ) ===
+            Number(
+              entry.DriverId,
+            ),
+      );
 
     if (direct) {
       return direct;
     }
 
-    if (race.raceType !== "sprint") {
+    if (
+      race.raceType !==
+      "sprint"
+    ) {
       return null;
     }
 
-    const mainRace = mainRaceByWeekend.get(
-      `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
-    );
+    const mainRace =
+      mainRaceByWeekend.get(
+        `${race.SeasonId || ""}::${race.LeagueId || ""}::${race.circuit || ""}::${race.sortOrder || ""}`,
+      );
 
     if (!mainRace) {
       return null;
@@ -519,273 +672,784 @@ async function loadLeagueData(slug, requestedSeasonId) {
     return (
       plainLineups.find(
         (lineup) =>
-          Number(lineup.GrandPrixResultId) === Number(mainRace.id) &&
-          Number(lineup.DriverId) === Number(entry.DriverId),
+          Number(
+            lineup
+              .GrandPrixResultId,
+          ) ===
+            Number(
+              mainRace.id,
+            ) &&
+          Number(
+            lineup.DriverId,
+          ) ===
+            Number(
+              entry.DriverId,
+            ),
       ) || null
     );
   }
 
-  function calendarForRace(race) {
-    /*
-     * Zuerst eindeutig über Strecke + Runde suchen.
-     */
-    const exactMatch = plainCalendar.find(
-      (event) =>
-        Number(event.sortOrder) === Number(race.sortOrder) &&
-        String(event.circuit || "")
-          .trim()
-          .toLowerCase() ===
-          String(race.circuit || "")
+  function calendarForRace(
+    race,
+  ) {
+    const exactMatch =
+      plainCalendar.find(
+        (event) =>
+          Number(
+            event.sortOrder,
+          ) ===
+            Number(
+              race.sortOrder,
+            ) &&
+          String(
+            event.circuit || "",
+          )
             .trim()
-            .toLowerCase(),
-    );
+            .toLowerCase() ===
+            String(
+              race.circuit || "",
+            )
+              .trim()
+              .toLowerCase(),
+      );
 
     if (exactMatch) {
       return exactMatch;
     }
 
-    /*
-     * Falls sich der Streckenname leicht unterscheidet:
-     * nur über die Strecke versuchen.
-     */
-    const circuitMatch = plainCalendar.find(
-      (event) =>
-        String(event.circuit || "")
-          .trim()
-          .toLowerCase() ===
-        String(race.circuit || "")
-          .trim()
-          .toLowerCase(),
-    );
+    const circuitMatch =
+      plainCalendar.find(
+        (event) =>
+          String(
+            event.circuit || "",
+          )
+            .trim()
+            .toLowerCase() ===
+          String(
+            race.circuit || "",
+          )
+            .trim()
+            .toLowerCase(),
+      );
 
     if (circuitMatch) {
       return circuitMatch;
     }
 
-    /*
-     * SortOrder nur als allerletzten Fallback.
-     */
     return (
       plainCalendar.find(
-        (event) => Number(event.sortOrder) === Number(race.sortOrder),
+        (event) =>
+          Number(
+            event.sortOrder,
+          ) ===
+          Number(
+            race.sortOrder,
+          ),
       ) || null
     );
   }
 
-  const decoratedGpResults = gpResults.map((raceValue) => {
-    const race = plain(raceValue);
+  const decoratedGpResults =
+    gpResults.map(
+      (raceValue) => {
+        const race =
+          plain(raceValue);
 
-    const calendarEvent = calendarForRace(race);
+        const calendarEvent =
+          calendarForRace(
+            race,
+          );
 
-    const track = plain(calendarEvent?.track) || null;
+        const track =
+          plain(
+            calendarEvent?.track,
+          ) || null;
 
-    const country = plain(track?.countryRecord) || null;
-
-    return {
-      ...race,
-
-      /*
-       * Titel aus dem Rennkalender.
-       */
-      displayTitle: calendarEvent?.title || race.title,
-
-      /*
-       * Streckenname aus Stammdaten.
-       */
-      displayCircuit: track?.name || calendarEvent?.circuit || race.circuit,
-
-      /*
-       * Land
-       */
-      countryName: country?.name || track?.country || null,
-
-      countryFlagPath: country?.flagPath || null,
-
-      /*
-       * Rechts oben:
-       *
-       * Wenn irgendwann ein eigenes
-       * Streckenlogo im Track vorhanden ist,
-       * wird dieses verwendet.
-       *
-       * Aktuell Fallback auf Länderflagge.
-       */
-      trackLogoPath: track?.logoPath || country?.flagPath || null,
-
-      isTestDay: Boolean(calendarEvent?.isTestDay),
-
-      entries: (race.entries || []).map(plain).map((entry) => {
-        const lineup = lineupForEntry(race, entry);
+        const country =
+          plain(
+            track?.countryRecord,
+          ) || null;
 
         return {
-          ...entry,
+          ...race,
 
-          /*
-           * Nur tatsächlich eingesetzter
-           * Ersatzfahrer.
-           */
-          isReserve:
-            lineup?.roleType === "reserve" && lineup?.includeInResults === true,
+          displayTitle:
+            calendarEvent?.title ||
+            race.title,
 
-          replacementForDriverId: lineup?.ReplacementForDriverId || null,
+          displayCircuit:
+            track?.name ||
+            calendarEvent
+              ?.circuit ||
+            race.circuit,
+
+          countryName:
+            country?.name ||
+            track?.country ||
+            null,
+
+          countryFlagPath:
+            country?.flagPath ||
+            null,
+
+          trackLogoPath:
+            track?.logoPath ||
+            country?.flagPath ||
+            null,
+
+          isTestDay:
+            Boolean(
+              calendarEvent
+                ?.isTestDay,
+            ),
+
+          entries:
+            (
+              race.entries || []
+            )
+              .map(plain)
+              .map((entry) => {
+                const lineup =
+                  lineupForEntry(
+                    race,
+                    entry,
+                  );
+
+                return {
+                  ...entry,
+
+                  isReserve:
+                    lineup
+                      ?.roleType ===
+                      "reserve" &&
+                    lineup
+                      ?.includeInResults ===
+                      true,
+
+                  replacementForDriverId:
+                    lineup
+                      ?.ReplacementForDriverId ||
+                    null,
+                };
+              }),
         };
-      }),
-    };
-  });
+      },
+    );
 
-  const raceStatistics = decoratedGpResults
-    .filter((race) => race.raceType === 'main' && !race.isTestDay)
-    .map((race) => {
-      const ordered = [...(race.entries || [])].sort((left, right) => Number(left.position || 999) - Number(right.position || 999));
-      return {
-        round: race.sortOrder,
-        circuit: race.displayCircuit || race.circuit || race.displayTitle,
-        flagPath: race.countryFlagPath,
-        countryName: race.countryName,
-        date: race.raceDate,
-        driverOfTheDay: ordered.find((entry) => entry.driverOfTheDay)?.driverName || null,
-        first: ordered.find((entry) => Number(entry.position) === 1)?.driverName || null,
-        second: ordered.find((entry) => Number(entry.position) === 2)?.driverName || null,
-        third: ordered.find((entry) => Number(entry.position) === 3)?.driverName || null,
-        pole: ordered.find((entry) => entry.polePosition)?.driverName || null,
-        fastestLap: ordered.find((entry) => entry.fastestLap)?.driverName || null
-      };
+  const raceStatistics =
+    decoratedGpResults
+      .filter(
+        (race) =>
+          race.raceType ===
+            "main" &&
+          !race.isTestDay,
+      )
+      .map((race) => {
+        const ordered = [
+          ...(race.entries || []),
+        ].sort(
+          (left, right) =>
+            Number(
+              left.position ||
+                999,
+            ) -
+            Number(
+              right.position ||
+                999,
+            ),
+        );
+
+        return {
+          round:
+            race.sortOrder,
+
+          circuit:
+            race.displayCircuit ||
+            race.circuit ||
+            race.displayTitle,
+
+          flagPath:
+            race.countryFlagPath,
+
+          countryName:
+            race.countryName,
+
+          date:
+            race.raceDate,
+
+          driverOfTheDay:
+            ordered.find(
+              (entry) =>
+                entry.driverOfTheDay,
+            )?.driverName ||
+            null,
+
+          first:
+            ordered.find(
+              (entry) =>
+                Number(
+                  entry.position,
+                ) === 1,
+            )?.driverName ||
+            null,
+
+          second:
+            ordered.find(
+              (entry) =>
+                Number(
+                  entry.position,
+                ) === 2,
+            )?.driverName ||
+            null,
+
+          third:
+            ordered.find(
+              (entry) =>
+                Number(
+                  entry.position,
+                ) === 3,
+            )?.driverName ||
+            null,
+
+          pole:
+            ordered.find(
+              (entry) =>
+                entry.polePosition,
+            )?.driverName ||
+            null,
+
+          fastestLap:
+            ordered.find(
+              (entry) =>
+                entry.fastestLap,
+            )?.driverName ||
+            null,
+        };
+      });
+
+  const standingsData =
+    buildSeasonData(
+      leagueForSeason,
+      gpResults,
+      drivers,
+      raceLineupEntries,
+      selectedSeason,
+      seasonStructure.stints,
+    );
+
+  if (
+    standingsData
+      .selectedHistory
+      ?.races
+  ) {
+    standingsData
+      .selectedHistory
+      .races
+      .forEach(
+        (historyRace) => {
+          const round =
+            Number(
+              historyRace.round,
+            );
+
+          const calendarEvent =
+            activeCalendar.find(
+              (event) =>
+                Number(
+                  event.sortOrder,
+                ) === round,
+            );
+
+          const calendarPlain =
+            plain(
+              calendarEvent,
+            );
+
+          const track =
+            plain(
+              calendarPlain?.track,
+            );
+
+          const country =
+            plain(
+              track?.countryRecord,
+            );
+
+          const mainResult =
+            gpResults.find(
+              (race) =>
+                race.raceType ===
+                  "main" &&
+                Number(
+                  race.sortOrder,
+                ) === round,
+            );
+
+          const completed =
+            Boolean(
+              mainResult &&
+                Array.isArray(
+                  mainResult.entries,
+                ) &&
+                mainResult
+                  .entries
+                  .length > 0,
+            );
+
+          historyRace.countryFlagPath =
+            country?.flagPath ||
+            null;
+
+          historyRace.countryName =
+            country?.name ||
+            track?.country ||
+            null;
+
+          historyRace.trackName =
+            track?.name ||
+            calendarPlain
+              ?.circuit ||
+            historyRace.circuit ||
+            null;
+
+          historyRace.isCompleted =
+            completed;
+        },
+      );
+  }
+
+  const penaltyThreshold =
+    Number(
+      penaltySetting
+        ?.pointsLimit ||
+        12,
+    );
+
+  const penaltyRoundMap =
+    new Map();
+
+  activeCalendar
+    .filter(
+      (event) =>
+        !event.isTestDay,
+    )
+    .forEach((event) => {
+      const roundNumber =
+        Number(
+          event.sortOrder ||
+            0,
+        );
+
+      if (
+        !Number.isInteger(
+          roundNumber,
+        ) ||
+        roundNumber < 1 ||
+        penaltyRoundMap.has(
+          roundNumber,
+        )
+      ) {
+        return;
+      }
+
+      const eventPlain =
+        plain(event);
+
+      const track =
+        plain(
+          eventPlain?.track,
+        );
+
+      const country =
+        plain(
+          track?.countryRecord,
+        );
+
+      penaltyRoundMap.set(
+        roundNumber,
+        {
+          roundNumber,
+
+          title:
+            event.title,
+
+          circuit:
+            track?.name ||
+            event.circuit ||
+            null,
+
+          country:
+            country?.name ||
+            track?.country ||
+            null,
+
+          flagPath:
+            country?.flagPath ||
+            null,
+        },
+      );
     });
 
-  /*
-   * Kompakte öffentliche Rennstatistik. Sie verwendet ausschließlich die
-   * vorhandenen RaceEvent-/GrandPrixResult-Daten und erzeugt keine zweite
-   * Ergebnisquelle.
-   */
-  const raceStatistics = decoratedGpResults
-    .filter((race) => race.raceType === "main")
-    .map((race) => {
-      const calendarEvent = calendarForRace(race);
-      if (calendarEvent?.isTestDay) return null;
-      const classified = (race.entries || []).slice().sort(
-        (left, right) => Number(left.position || 999) - Number(right.position || 999),
-      );
-      const podium = [1, 2, 3].map((position) =>
-        classified.find((entry) => Number(entry.position) === position) || null,
-      );
-      return {
-        round: Number(calendarEvent?.sortOrder || race.sortOrder || 0),
-        track: race.displayCircuit || race.circuit || race.displayTitle,
-        flagPath: race.countryFlagPath || null,
-        date: race.raceDate || calendarEvent?.startsAt || null,
-        driverOfTheDay: classified.find((entry) => entry.driverOfTheDay) || null,
-        podium,
-        polePosition: classified.find((entry) => entry.polePosition) || null,
-        fastestLap: classified.find((entry) => entry.fastestLap) || null,
-      };
-    })
-    .filter(Boolean)
-    .sort((left, right) => left.round - right.round);
-
-  /*
-   * =====================================================
-   * STANDINGS
-   * =====================================================
-   */
-
-  const standingsData = buildSeasonData(
-    leagueForSeason,
-    gpResults,
-    drivers,
-    raceLineupEntries,
-    selectedSeason,
-    seasonStructure.stints,
+  const penaltyRounds = [
+    ...penaltyRoundMap.values(),
+  ].sort(
+    (left, right) =>
+      left.roundNumber -
+      right.roundNumber,
   );
 
-  /*
- * =====================================================
- * SAISONVERLAUF · KALENDERDATEN
- * =====================================================
- *
- * Ergänzt die bestehenden Standings-Daten nur um
- * Darstellungseigenschaften:
- *
- * - Länderflagge
- * - Ländername
- * - Strecke
- * - Information, ob die Runde bereits abgeschlossen ist
- *
- * Die Ergebnisdaten selbst werden NICHT verändert.
- */
+  const penaltyTeamByDriver =
+    new Map();
 
-if (standingsData.selectedHistory?.races) {
-  standingsData.selectedHistory.races.forEach((historyRace) => {
-    const round =
-      Number(historyRace.round);
+  for (
+    const team of
+    seasonStructure.teams ||
+    []
+  ) {
+    for (
+      const driver of
+      team.drivers ||
+      []
+    ) {
+      const driverId =
+        Number(
+          driver.id ||
+            driver.DriverId,
+        );
 
-    const calendarEvent =
-      activeCalendar.find(
-        (event) =>
-          Number(event.sortOrder) ===
-          round,
+      if (!driverId) {
+        continue;
+      }
+
+      penaltyTeamByDriver.set(
+        driverId,
+        {
+          id:
+            team.id,
+
+          name:
+            team.name,
+
+          logoPath:
+            team.logoPath ||
+            null,
+
+          accentColor:
+            team.accentColor ||
+            leagueForSeason
+              .accentColor,
+        },
+      );
+    }
+  }
+
+  const penaltyEntriesByDriver =
+    new Map();
+
+  for (
+    const entry of
+    penaltyEntries || []
+  ) {
+    const driverId =
+      Number(
+        entry.DriverId,
       );
 
-    const calendarPlain =
-      plain(calendarEvent);
+    if (!driverId) {
+      continue;
+    }
 
-    const track =
-      plain(calendarPlain?.track);
+    if (
+      !penaltyEntriesByDriver.has(
+        driverId,
+      )
+    ) {
+      penaltyEntriesByDriver.set(
+        driverId,
+        [],
+      );
+    }
 
-    const country =
-      plain(track?.countryRecord);
+    penaltyEntriesByDriver
+      .get(driverId)
+      .push(entry);
+  }
 
-    /*
-     * Ein Wochenende gilt erst dann als gefahren,
-     * wenn das Hauptrennen Ergebniszeilen besitzt.
-     */
-    const mainResult =
-      gpResults.find(
-        (race) =>
-          race.raceType === "main" &&
-          Number(race.sortOrder) === round,
+  const penaltyDriverMap =
+    new Map();
+
+  for (
+    const driverValue of
+    seasonStructure.allDrivers ||
+    []
+  ) {
+    const driver =
+      plain(
+        driverValue,
       );
 
-    const completed =
-      Boolean(
-        mainResult &&
-        Array.isArray(mainResult.entries) &&
-        mainResult.entries.length > 0,
+    const driverId =
+      Number(driver?.id);
+
+    if (!driverId) {
+      continue;
+    }
+
+    penaltyDriverMap.set(
+      driverId,
+      driver,
+    );
+  }
+
+  for (
+    const driverValue of
+    drivers || []
+  ) {
+    const driver =
+      plain(
+        driverValue,
       );
 
-    historyRace.countryFlagPath =
-      country?.flagPath ||
-      null;
+    const driverId =
+      Number(driver?.id);
 
-    historyRace.countryName =
-      country?.name ||
-      track?.country ||
-      null;
+    if (
+      driverId &&
+      penaltyEntriesByDriver.has(
+        driverId,
+      ) &&
+      !penaltyDriverMap.has(
+        driverId,
+      )
+    ) {
+      penaltyDriverMap.set(
+        driverId,
+        driver,
+      );
+    }
+  }
 
-    historyRace.trackName =
-      track?.name ||
-      calendarPlain?.circuit ||
-      historyRace.circuit ||
-      null;
+  const penaltyRows = [];
 
-    historyRace.isCompleted =
-      completed;
-  });
-}
+  for (
+    const driver of
+    penaltyDriverMap.values()
+  ) {
+    const driverId =
+      Number(driver.id);
 
-  /*
-   * =====================================================
-   * RETURN
-   * =====================================================
-   */
+    const entries =
+      penaltyEntriesByDriver.get(
+        driverId,
+      ) || [];
+
+    const cells = {};
+
+    let totalPoints = 0;
+
+    let hasRaceBan = false;
+
+    for (
+      const entry of
+      entries
+    ) {
+      const roundNumber =
+        Number(
+          entry.roundNumber ||
+            0,
+        );
+
+      if (
+        !Number.isInteger(
+          roundNumber,
+        ) ||
+        roundNumber < 1
+      ) {
+        continue;
+      }
+
+      if (
+        !cells[
+          roundNumber
+        ]
+      ) {
+        cells[
+          roundNumber
+        ] = {
+          points: 0,
+          isRaceBan: false,
+          cellColor: null,
+          value: "",
+        };
+      }
+
+      const cell =
+        cells[
+          roundNumber
+        ];
+
+      cell.points +=
+        Number(
+          entry.points ||
+            0,
+        );
+
+      if (
+        !cell.cellColor &&
+        entry.cellColor
+      ) {
+        cell.cellColor =
+          String(
+            entry.cellColor,
+          );
+      }
+
+      if (
+        entry.isRaceBan
+      ) {
+        cell.isRaceBan =
+          true;
+
+        hasRaceBan =
+          true;
+      }
+
+      totalPoints +=
+        Number(
+          entry.points ||
+            0,
+        );
+    }
+
+    Object.values(
+      cells,
+    ).forEach((cell) => {
+      if (
+        cell.isRaceBan
+      ) {
+        cell.value =
+          "S";
+      } else if (
+        cell.points > 0
+      ) {
+        cell.value =
+          String(
+            cell.points,
+          );
+      } else {
+        cell.value =
+          "";
+      }
+    });
+
+    const lineupEntry =
+      (
+        seasonStructure.lineup ||
+        []
+      ).find(
+        (entry) =>
+          Number(
+            entry.DriverId,
+          ) === driverId,
+      );
+
+    penaltyRows.push({
+      id:
+        driverId,
+
+      name:
+        driver.name,
+
+      team:
+        penaltyTeamByDriver.get(
+          driverId,
+        ) ||
+        driver.team ||
+        null,
+
+      roleType:
+        lineupEntry
+          ?.roleType ||
+        "former",
+
+      cells,
+
+      points:
+        totalPoints,
+
+      remaining:
+        Math.max(
+          penaltyThreshold -
+            totalPoints,
+          0,
+        ),
+
+      suspended:
+        hasRaceBan ||
+        totalPoints >=
+          penaltyThreshold,
+    });
+  }
+
+  const penaltyRoleOrder = {
+    regular: 0,
+    reserve: 1,
+    former: 2,
+  };
+
+  penaltyRows.sort(
+    (left, right) => {
+      const roleDifference =
+        (
+          penaltyRoleOrder[
+            left.roleType
+          ] ?? 9
+        ) -
+        (
+          penaltyRoleOrder[
+            right.roleType
+          ] ?? 9
+        );
+
+      if (
+        roleDifference
+      ) {
+        return roleDifference;
+      }
+
+      return String(
+        left.name || "",
+      ).localeCompare(
+        String(
+          right.name ||
+            "",
+        ),
+        "de",
+      );
+    },
+  );
+
+  const publicPenaltyLedger = {
+    threshold:
+      penaltyThreshold,
+
+    rounds:
+      penaltyRounds,
+
+    rows:
+      penaltyRows,
+  };
 
   return {
-    league: leagueForSeason,
+    league:
+      leagueForSeason,
 
     teams,
 
     drivers,
 
-    gpResults: decoratedGpResults,
+    gpResults:
+      decoratedGpResults,
 
     raceStatistics,
 
@@ -795,162 +1459,430 @@ if (standingsData.selectedHistory?.races) {
 
     selectedSeason,
 
+    publicPenaltyLedger,
+
     ...standingsData,
   };
 }
 
-/*
- * =====================================================
- * ÖFFENTLICHE F1-SEITE
- * =====================================================
- */
-
-exports.show = async (req, res) => {
-  const data = await loadLeagueData(req.params.slug, req.query.season);
-
-  if (!data) {
-    return res.status(404).render("errors/404", {
-      title: "Liga nicht gefunden",
-    });
-  }
-
-  res.render("f1", {
-    title: data.league.name,
-
-    ...data,
-  });
-};
-
-/*
- * =====================================================
- * FAHRER-WM CSV
- * =====================================================
- */
-
-exports.downloadDriverStandings = async (req, res) => {
-  const data = await loadLeagueData(req.params.slug, req.query.season);
+exports.show = async (
+  req,
+  res,
+) => {
+  const data =
+    await loadLeagueData(
+      req.params.slug,
+      req.query.season,
+    );
 
   if (!data) {
-    return res.status(404).end();
+    return res
+      .status(404)
+      .render(
+        "errors/404",
+        {
+          title:
+            "Liga nicht gefunden",
+        },
+      );
   }
 
-  const rows = [["Position", "Fahrer", "Team", "Punkte", "Siege", "Rückstand"]];
+  res.render(
+    "f1",
+    {
+      title:
+        data.league.name,
 
-  data.driverStandings.forEach((row) => {
-    rows.push([
-      row.position,
-
-      row.driver.name,
-
-      row.driver.team?.name || "",
-
-      row.points,
-
-      row.wins,
-
-      row.gap,
-    ]);
-  });
-
-  sendCsv(
-    res,
-
-    `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-fahrer-wm.csv`,
-
-    rows,
+      ...data,
+    },
   );
 };
 
-/*
- * =====================================================
- * TEAM-WM CSV
- * =====================================================
- */
-
-exports.downloadTeamStandings = async (req, res) => {
-  const data = await loadLeagueData(req.params.slug, req.query.season);
-
-  if (!data) {
-    return res.status(404).end();
-  }
-
-  const rows = [["Position", "Team", "Punkte", "Siege", "Rückstand"]];
-
-  data.teamStandings.forEach((row) => {
-    rows.push([row.position, row.team.name, row.points, row.wins, row.gap]);
-  });
-
-  sendCsv(
+exports.downloadDriverStandings =
+  async (
+    req,
     res,
+  ) => {
+    const data =
+      await loadLeagueData(
+        req.params.slug,
+        req.query.season,
+      );
 
-    `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-team-wm.csv`,
+    if (!data) {
+      return res
+        .status(404)
+        .end();
+    }
 
-    rows,
-  );
-};
+    const rows = [
+      [
+        "Position",
+        "Fahrer",
+        "Team",
+        "Punkte",
+        "Siege",
+        "Rückstand",
+      ],
+    ];
 
-/*
- * =====================================================
- * GP RESULTS CSV
- * =====================================================
- */
+    data.driverStandings.forEach(
+      (row) => {
+        rows.push([
+          row.position,
 
-exports.downloadGpResults = async (req, res) => {
-  const data = await loadLeagueData(req.params.slug, req.query.season);
+          row.driver.name,
 
-  if (!data) {
-    return res.status(404).end();
-  }
+          row.driver.team
+            ?.name || "",
 
-  const rows = [
-    [
-      "Runde",
-      "Grand Prix",
-      "Datum",
-      "Position",
-      "Status",
-      "Fahrer",
-      "Team",
-      "Punkte",
-      "Schnellste Runde",
-    ],
-  ];
+          row.points,
 
-  data.gpResults.forEach((race, raceIndex) => {
-    race.entries.forEach((entry) => {
-      rows.push([
-        race.sortOrder || raceIndex + 1,
+          row.wins,
 
-        race.displayTitle || race.title,
+          row.gap,
+        ]);
+      },
+    );
 
-        race.raceDate || "",
+    sendCsv(
+      res,
 
-        entry.position || "",
+      `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-fahrer-wm.csv`,
 
-        entry.status || "",
+      rows,
+    );
+  };
 
-        entry.driverName,
-
-        entry.teamName || "",
-
-        Number(entry.points),
-
-        entry.fastestLap ? "Ja" : "Nein",
-      ]);
-    });
-  });
-
-  sendCsv(
+exports.downloadTeamStandings =
+  async (
+    req,
     res,
+  ) => {
+    const data =
+      await loadLeagueData(
+        req.params.slug,
+        req.query.season,
+      );
 
-    `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-gp-results.csv`,
+    if (!data) {
+      return res
+        .status(404)
+        .end();
+    }
 
-    rows,
-  );
-};
+    const rows = [
+      [
+        "Position",
+        "Team",
+        "Punkte",
+        "Siege",
+        "Rückstand",
+      ],
+    ];
 
-/*
- * Für andere Controller / Tests verfügbar.
- */
-module.exports.loadLeagueData = loadLeagueData;
+    data.teamStandings.forEach(
+      (row) => {
+        rows.push([
+          row.position,
 
+          row.team.name,
+
+          row.points,
+
+          row.wins,
+
+          row.gap,
+        ]);
+      },
+    );
+
+    sendCsv(
+      res,
+
+      `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-team-wm.csv`,
+
+      rows,
+    );
+  };
+
+exports.downloadGpResults =
+  async (
+    req,
+    res,
+  ) => {
+    const data =
+      await loadLeagueData(
+        req.params.slug,
+        req.query.season,
+      );
+
+    if (!data) {
+      return res
+        .status(404)
+        .end();
+    }
+
+    const rows = [
+      [
+        "Runde",
+        "Grand Prix",
+        "Datum",
+        "Position",
+        "Status",
+        "Fahrer",
+        "Team",
+        "Punkte",
+        "Schnellste Runde",
+      ],
+    ];
+
+    data.gpResults.forEach(
+      (
+        race,
+        raceIndex,
+      ) => {
+        race.entries.forEach(
+          (entry) => {
+            rows.push([
+              race.sortOrder ||
+                raceIndex +
+                  1,
+
+              race.displayTitle ||
+                race.title,
+
+              race.raceDate ||
+                "",
+
+              entry.position ||
+                "",
+
+              entry.status ||
+                "",
+
+              entry.driverName,
+
+              entry.teamName ||
+                "",
+
+              Number(
+                entry.points,
+              ),
+
+              entry.fastestLap
+                ? "Ja"
+                : "Nein",
+            ]);
+          },
+        );
+      },
+    );
+
+    sendCsv(
+      res,
+
+      `${data.league.slug}-${data.selectedSeason?.name || data.league.currentSeason}-gp-results.csv`,
+
+      rows,
+    );
+  };
+
+exports.publicPenaltyLedger =
+  async (
+    req,
+    res,
+  ) => {
+    const allowedLeagues = [
+      "freitag",
+      "samstag",
+      "sonntag",
+    ];
+
+    /*
+     * =====================================================
+     * ANSICHT
+     * =====================================================
+     */
+
+    const requestedView =
+      String(
+        req.query.ansicht ||
+          "liga",
+      )
+        .trim()
+        .toLowerCase();
+
+    const viewMode =
+      requestedView ===
+      "ersatzfahrer"
+        ? "ersatzfahrer"
+        : requestedView ===
+            "ehemalige"
+          ? "ehemalige"
+          : "liga";
+
+    /*
+     * =====================================================
+     * LIGA
+     * =====================================================
+     */
+
+    const requestedLeague =
+      String(
+        req.query.liga ||
+          "freitag",
+      )
+        .trim()
+        .toLowerCase();
+
+    const selectedLeagueSlug =
+      allowedLeagues.includes(
+        requestedLeague,
+      )
+        ? requestedLeague
+        : "freitag";
+
+    const data =
+      await loadLeagueData(
+        selectedLeagueSlug,
+        req.query.season,
+      );
+
+    if (!data) {
+      return res
+        .status(404)
+        .render(
+          "errors/404",
+          {
+            title:
+              "Liga nicht gefunden",
+          },
+        );
+    }
+
+    /*
+     * =====================================================
+     * ALLE F1-LIGEN FÜR COMMUNITY-TABS
+     * =====================================================
+     */
+
+    const leagues =
+      await League.findAll({
+        where: {
+          type: "f1",
+
+          slug: {
+            [Op.in]:
+              allowedLeagues,
+          },
+        },
+
+        order: [
+          [
+            "sortOrder",
+            "ASC",
+          ],
+
+          [
+            "id",
+            "ASC",
+          ],
+        ],
+      });
+
+    const ledgers =
+      await Promise.all(
+        leagues.map(
+          buildLeagueLedger,
+        ),
+      );
+
+    const globalLedgers =
+      await buildGlobalLedgers(
+        ledgers,
+      );
+
+    return res.render(
+      "penalty-ledger-public",
+      {
+        title:
+          "Strafkartei",
+
+        discipline:
+          "f1",
+
+        /*
+         * Aktive Ansicht:
+         *
+         * liga
+         * ersatzfahrer
+         * ehemalige
+         */
+        viewMode,
+
+        league:
+          data.league,
+
+        seasons:
+          data.seasons,
+
+        selectedSeason:
+          data.selectedSeason,
+
+        selectedLeagueSlug,
+
+        leagueTabs: [
+          {
+            slug:
+              "freitag",
+
+            label:
+              "Freitagsliga",
+          },
+
+          {
+            slug:
+              "samstag",
+
+            label:
+              "Samstagsliga",
+          },
+
+          {
+            slug:
+              "sonntag",
+
+            label:
+              "Sonntagsliga",
+          },
+        ],
+
+        ledger:
+          data.publicPenaltyLedger,
+
+        reserveLedger:
+          globalLedgers.reserve,
+
+        formerLedger:
+          globalLedgers.former,
+
+        /*
+         * Community-Design
+         */
+        communityAccent:
+          "#6ef2f2",
+
+        /*
+         * Hier später einfach
+         * den echten Logo-Pfad
+         * eintragen.
+         */
+        communityLogoPath:
+          "/images/krl-placeholder.svg",
+      },
+    );
+  };
+
+module.exports.loadLeagueData =
+  loadLeagueData;

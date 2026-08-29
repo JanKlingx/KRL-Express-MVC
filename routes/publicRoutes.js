@@ -1,28 +1,139 @@
-const express = require('express');
-const asyncHandler = require('../services/asyncHandler');
-const homeController = require('../controllers/homeController');
-const f1Controller = require('../controllers/f1Controller');
-const lmuController = require('../controllers/lmuController');
-const competitionController = require('../controllers/competitionController');
-const iconsController = require('../controllers/iconsController');
-const f1ContentController = require('../controllers/f1ContentController');
+const express = require("express");
+
+const asyncHandler = require("../services/asyncHandler");
+
+const homeController = require("../controllers/homeController");
+
+const f1Controller = require("../controllers/f1Controller");
+
+const lmuController = require("../controllers/lmuController");
+
+const competitionController = require("../controllers/competitionController");
+
+const iconsController = require("../controllers/iconsController");
+
+const f1ContentController = require("../controllers/f1ContentController");
+
 
 const router = express.Router();
-router.get('/', asyncHandler(homeController.index));
-router.get('/f1/:slug(freitag|samstag|sonntag)/download/fahrer-wm.csv', asyncHandler(f1Controller.downloadDriverStandings));
-router.get('/f1/:slug(freitag|samstag|sonntag)/download/team-wm.csv', asyncHandler(f1Controller.downloadTeamStandings));
-router.get('/f1/:slug(freitag|samstag|sonntag)/download/gp-results.csv', asyncHandler(f1Controller.downloadGpResults));
-router.get('/f1/:slug(freitag|samstag|sonntag)', asyncHandler(f1Controller.show));
-router.get('/lmu/download/wm.csv', asyncHandler(lmuController.downloadStandings));
-router.get('/lmu/download/results.csv', asyncHandler(lmuController.downloadResults));
-router.get('/lmu', asyncHandler(lmuController.show));
-router.get('/wettkampf-der-ligen/download/standings.csv', asyncHandler(competitionController.downloadStandings));
-router.get('/wettkampf-der-ligen/download/results.csv', asyncHandler(competitionController.downloadResults));
-router.get('/wettkampf-der-ligen', asyncHandler(competitionController.show));
-router.get('/krl-icons', asyncHandler(iconsController.show));
-router.get('/formel-1/regelwerk', asyncHandler(f1ContentController.rules));
-router.get('/formel-1/race-director-notes', asyncHandler(f1ContentController.documents));
-router.get('/endurance', homeController.endurance);
-router.get(['/impressum', '/datenschutz', '/kontakt'], homeController.legal);
+
+
+router.get(
+  "/",
+  asyncHandler(homeController.index),
+);
+
+
+/*
+ * =====================================================
+ * F1
+ * =====================================================
+ */
+
+router.get(
+  "/f1/:slug(freitag|samstag|sonntag)/download/fahrer-wm.csv",
+  asyncHandler(f1Controller.downloadDriverStandings),
+);
+
+router.get(
+  "/f1/:slug(freitag|samstag|sonntag)/download/team-wm.csv",
+  asyncHandler(f1Controller.downloadTeamStandings),
+);
+
+router.get(
+  "/f1/:slug(freitag|samstag|sonntag)/download/gp-results.csv",
+  asyncHandler(f1Controller.downloadGpResults),
+);
+
+router.get(
+  "/f1/:slug(freitag|samstag|sonntag)",
+  asyncHandler(f1Controller.show),
+);
+
+
+/*
+ * Öffentliche Strafkartei
+ */
+router.get(
+  "/formel-1/strafkartei",
+  asyncHandler(f1Controller.publicPenaltyLedger),
+);
+
+
+/*
+ * =====================================================
+ * LMU
+ * =====================================================
+ */
+
+router.get(
+  "/lmu/download/wm.csv",
+  asyncHandler(lmuController.downloadStandings),
+);
+
+router.get(
+  "/lmu/download/results.csv",
+  asyncHandler(lmuController.downloadResults),
+);
+
+router.get(
+  "/lmu",
+  asyncHandler(lmuController.show),
+);
+
+
+/*
+ * =====================================================
+ * WETTKAMPF
+ * =====================================================
+ */
+
+router.get(
+  "/wettkampf-der-ligen/download/standings.csv",
+  asyncHandler(competitionController.downloadStandings),
+);
+
+router.get(
+  "/wettkampf-der-ligen/download/results.csv",
+  asyncHandler(competitionController.downloadResults),
+);
+
+router.get(
+  "/wettkampf-der-ligen",
+  asyncHandler(competitionController.show),
+);
+
+
+/*
+ * =====================================================
+ * SONSTIGES
+ * =====================================================
+ */
+
+router.get(
+  "/krl-icons",
+  asyncHandler(iconsController.show),
+);
+
+router.get(
+  "/formel-1/regelwerk",
+  asyncHandler(f1ContentController.rules),
+);
+
+router.get(
+  "/formel-1/race-director-notes",
+  asyncHandler(f1ContentController.documents),
+);
+
+router.get(
+  "/endurance",
+  homeController.endurance,
+);
+
+router.get(
+  ["/impressum", "/datenschutz", "/kontakt"],
+  homeController.legal,
+);
+
 
 module.exports = router;

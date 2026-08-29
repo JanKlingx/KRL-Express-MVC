@@ -20,11 +20,16 @@
       null
     );
   };
+
   const safeStandingsHistory =
     typeof standingsHistory === 'undefined'
       ? []
       : standingsHistory;
-  const safeRaceStatistics = typeof raceStatistics === 'undefined' ? [] : raceStatistics;
+
+  const safeRaceStatistics =
+    typeof raceStatistics === 'undefined'
+      ? []
+      : raceStatistics;
 %>
 
 
@@ -44,7 +49,11 @@
 
       <% if (league.logoPath) { %>
 
-        <img class="league-hero-logo" src="<%= league.logoPath %>" alt="Logo <%= league.name %>">
+        <img
+          class="league-hero-logo"
+          src="<%= league.logoPath %>"
+          alt="Logo <%= league.name %>"
+        >
 
       <% } %>
 
@@ -105,8 +114,6 @@
     </div>
 
   </section>
-
-
 
 
   <!-- ================================================= -->
@@ -207,13 +214,23 @@
 
         <% teams.forEach((team) => { %>
 
-          <article class="f1-team-card" style="--team-color:<%= team.accentColor || '#6ef2f2' %>" aria-label="<%= team.name %>">
+          <article
+            class="f1-team-card"
+            style="--team-color:<%= team.accentColor || '#6ef2f2' %>"
+            aria-label="<%= team.name %>"
+          >
 
-            <div class="f1-team-watermark" aria-hidden="true">
+            <div
+              class="f1-team-watermark"
+              aria-hidden="true"
+            >
 
               <% if (team.logoPath) { %>
 
-                <img src="<%= team.logoPath %>" alt="">
+                <img
+                  src="<%= team.logoPath %>"
+                  alt=""
+                >
 
               <% } else { %>
 
@@ -293,664 +310,785 @@
 
 
   <!-- ================================================= -->
-<!-- WM-ZWISCHENSTÄNDE NACH JEDEM GP -->
-<!-- ================================================= -->
-
-<section
-  class="section section-dark standings-history-section"
-  id="f1-standings-history"
->
-
-  <div class="container">
-
-    <div class="section-heading">
-
-      <span>
-        AUTOMATISCH BERECHNET
-      </span>
-
-      <h2>
-        WM-STÄNDE
-      </h2>
-
-      <div class="export-actions">
-
-        <button
-          class="button button-small"
-          type="button"
-          id="standings-png-download"
-        >
-          PNG ↓
-        </button>
-
-      </div>
-
-    </div>
-
-
-    <% if (safeStandingsHistory.length) { %>
-
-      <div
-        class="standings-history-carousel standings-history-carousel-wide"
-        data-standings-history
-      >
-
-        <div class="standings-history-track">
-
-
-          <% safeStandingsHistory.forEach((snapshot, snapshotIndex) => {
-
-            const raceDisplay =
-              (gpResults || []).find(
-                (race) =>
-                  race.raceType === 'main' &&
-                  Number(race.sortOrder) === Number(snapshot.round)
-              ) || null;
-
-
-            const displayTitle =
-              raceDisplay?.displayTitle ||
-              snapshot.title ||
-              `Runde ${snapshot.round}`;
-
-
-            const displayCircuit =
-              raceDisplay?.circuit ||
-              snapshot.circuit ||
-              '';
-
-
-            const displayDate =
-              raceDisplay?.raceDate ||
-              snapshot.raceDate ||
-              '';
-
-
-            const displayFlag =
-              raceDisplay?.countryFlagPath ||
-              raceDisplay?.trackLogoPath ||
-              null;
-
-
-            const displayCountry =
-              raceDisplay?.countryName ||
-              String(displayTitle)
-                .replace(
-                  /gro(?:ss|ß)er preis (?:von|der)\s*/i,
-                  ''
-                )
-                .trim();
-
-
-            /*
-             * Fahrer-WM:
-             * Desktop in zwei Spalten teilen.
-             */
-            const driverSplit =
-              Math.ceil(
-                snapshot.driverStandings.length / 2
-              );
-
-            const driverLeft =
-              snapshot.driverStandings.slice(
-                0,
-                driverSplit
-              );
-
-            const driverRight =
-              snapshot.driverStandings.slice(
-                driverSplit
-              );
-
-
-            /*
-             * Team-WM:
-             * ebenfalls zwei Spalten.
-             */
-            const teamSplit =
-              Math.ceil(
-                snapshot.teamStandings.length / 2
-              );
-
-            const teamLeft =
-              snapshot.teamStandings.slice(
-                0,
-                teamSplit
-              );
-
-            const teamRight =
-              snapshot.teamStandings.slice(
-                teamSplit
-              );
-
-          %>
-
-
-            <article
-              class="standings-history-slide standings-history-slide-wide <%= snapshotIndex === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
-              data-standings-slide
-              data-slide-index="<%= snapshotIndex %>"
-              aria-hidden="<%= snapshotIndex === safeStandingsHistory.length - 1 ? 'false' : 'true' %>"
-            >
-
-
-              <!-- ===================================== -->
-              <!-- HEADER -->
-              <!-- ===================================== -->
-
-              <header class="standing-gp-header standing-gp-header-wide">
-
-                <div class="standing-gp-league">
-
-                  <% if (league.logoPath) { %>
-
-                    <img
-                      src="<%= league.logoPath %>"
-                      alt="<%= league.name %>"
-                    >
-
-                  <% } else { %>
-
-                    <strong>
-                      KRL
-                    </strong>
-
-                  <% } %>
-
-                </div>
-
-
-                <div class="standing-gp-title">
-
-                  <span>
-                    WM-STAND NACH RUNDE <%= snapshot.round %>
-                  </span>
-
-                  <h3>
-                    <%= displayTitle %>
-                  </h3>
-
-                  <small>
-
-                    <%= displayCircuit %>
-
-                    <% if (displayDate) { %>
-                      · <%= displayDate %>
-                    <% } %>
-
-                    · <%= selectedSeason?.name || league.currentSeason %>
-
-                  </small>
-
-                </div>
-
-
-                <div class="standing-gp-flag">
-
-                  <% if (displayFlag) { %>
-
-                    <img
-                      src="<%= displayFlag %>"
-                      alt="<%= displayCountry || displayTitle %>"
-                      title="<%= displayCountry || displayTitle %>"
-                    >
-
-                  <% } else { %>
-
-                    <span>
-                      <%= String(displayCountry || '')
-                        .slice(0, 3)
-                        .toUpperCase() || 'GP'
-                      %>
-                    </span>
-
-                  <% } %>
-
-                </div>
-
-              </header>
-
-
-              <% if (snapshot.hasSprint) { %>
-
-                <div class="standing-weekend-note">
-                  Sprint + Hauptrennen in diesem WM-Stand berücksichtigt
-                </div>
-
-              <% } %>
-
-
-              <!-- ===================================== -->
-              <!-- FAHRER + TEAM -->
-              <!-- ===================================== -->
-
-              <div class="standing-wide-grid">
-
-
-                <!-- =================================== -->
-                <!-- FAHRER-WM -->
-                <!-- =================================== -->
-
-                <section class="standing-wide-card">
-
-                  <header class="standing-wide-heading">
-
-                    <div>
-
-                      <span>
-                        FAHRER
-                      </span>
-
-                      <h4>
-                        FAHRER-WM
-                      </h4>
-
-                    </div>
-
-                    <strong>
-                      NACH R<%= snapshot.round %>
-                    </strong>
-
-                  </header>
-
-
-                  <div class="standing-wide-columns">
-
-
-                    <!-- FAHRER LINKS -->
-
-                    <div class="standing-wide-column">
-
-                      <% driverLeft.forEach((row) => {
-
-                        const standingTeam =
-                          findPublicTeam(
-                            row.team
-                          );
-
-
-                        const standingLogo =
-                          standingTeam?.logoPath ||
-                          row.teamLogoPath ||
-                          null;
-
-
-                        const standingColor =
-                          standingTeam?.accentColor ||
-                          league.accentColor ||
-                          '#6ef2f2';
-
-                      %>
-
-
-                        <div
-                          class="standing-wide-row"
-                          style="--standing-team-color:<%= standingColor %>"
-                        >
-
-                          <div class="standing-wide-position">
-                            <%= row.position %>
-                          </div>
-
-
-                          <div class="standing-wide-team">
-
-                            <% if (standingLogo) { %>
-
-                              <img
-                                src="<%= standingLogo %>"
-                                alt="<%= row.team || 'Team' %>"
-                                title="<%= row.team || '' %>"
-                              >
-
-                            <% } else { %>
-
-                              <span>
-                                <%= row.team || '–' %>
-                              </span>
-
-                            <% } %>
-
-                          </div>
-
-
-                          <div class="standing-wide-name">
-                            <%= row.name %>
-                          </div>
-
-
-                          <div class="standing-wide-points">
-                            <%= row.points %>
-                          </div>
-
-                        </div>
-
-                      <% }) %>
-
-                    </div>
-
-
-                    <!-- FAHRER RECHTS -->
-
-                    <div class="standing-wide-column">
-
-                      <% driverRight.forEach((row) => {
-
-                        const standingTeam =
-                          findPublicTeam(
-                            row.team
-                          );
-
-
-                        const standingLogo =
-                          standingTeam?.logoPath ||
-                          row.teamLogoPath ||
-                          null;
-
-
-                        const standingColor =
-                          standingTeam?.accentColor ||
-                          league.accentColor ||
-                          '#6ef2f2';
-
-                      %>
-
-
-                        <div
-                          class="standing-wide-row"
-                          style="--standing-team-color:<%= standingColor %>"
-                        >
-
-                          <div class="standing-wide-position">
-                            <%= row.position %>
-                          </div>
-
-
-                          <div class="standing-wide-team">
-
-                            <% if (standingLogo) { %>
-
-                              <img
-                                src="<%= standingLogo %>"
-                                alt="<%= row.team || 'Team' %>"
-                                title="<%= row.team || '' %>"
-                              >
-
-                            <% } else { %>
-
-                              <span>
-                                <%= row.team || '–' %>
-                              </span>
-
-                            <% } %>
-
-                          </div>
-
-
-                          <div class="standing-wide-name">
-                            <%= row.name %>
-                          </div>
-
-
-                          <div class="standing-wide-points">
-                            <%= row.points %>
-                          </div>
-
-                        </div>
-
-                      <% }) %>
-
-                    </div>
-
-                  </div>
-
-                </section>
-
-
-                <!-- =================================== -->
-                <!-- TEAM-WM -->
-                <!-- =================================== -->
-
-                <section class="standing-wide-card">
-
-                  <header class="standing-wide-heading">
-
-                    <div>
-
-                      <span>
-                        TEAMS
-                      </span>
-
-                      <h4>
-                        TEAM-WM
-                      </h4>
-
-                    </div>
-
-                    <strong>
-                      NACH R<%= snapshot.round %>
-                    </strong>
-
-                  </header>
-
-
-                  <div class="standing-wide-columns">
-
-
-                    <!-- TEAM LINKS -->
-
-                    <div class="standing-wide-column">
-
-                      <% teamLeft.forEach((row) => {
-
-                        const standingTeam =
-                          findPublicTeam(
-                            row.name
-                          );
-
-
-                        const standingColor =
-                          standingTeam?.accentColor ||
-                          league.accentColor ||
-                          '#6ef2f2';
-
-                      %>
-
-
-                        <div
-                          class="standing-wide-row standing-wide-team-row"
-                          style="--standing-team-color:<%= standingColor %>"
-                        >
-
-                          <div class="standing-wide-position">
-                            <%= row.position %>
-                          </div>
-
-
-                          <div class="standing-wide-team">
-
-                            <% if (standingTeam?.logoPath) { %>
-
-                              <img
-                                src="<%= standingTeam.logoPath %>"
-                                alt="<%= row.name %>"
-                                title="<%= row.name %>"
-                              >
-
-                            <% } else { %>
-
-                              <span>
-                                <%= row.name %>
-                              </span>
-
-                            <% } %>
-
-                          </div>
-
-
-                          <div class="standing-wide-name">
-                            <%= row.name %>
-                          </div>
-
-
-                          <div class="standing-wide-points">
-                            <%= row.points %>
-                          </div>
-
-                        </div>
-
-                      <% }) %>
-
-                    </div>
-
-
-                    <!-- TEAM RECHTS -->
-
-                    <div class="standing-wide-column">
-
-                      <% teamRight.forEach((row) => {
-
-                        const standingTeam =
-                          findPublicTeam(
-                            row.name
-                          );
-
-
-                        const standingColor =
-                          standingTeam?.accentColor ||
-                          league.accentColor ||
-                          '#6ef2f2';
-
-                      %>
-
-
-                        <div
-                          class="standing-wide-row standing-wide-team-row"
-                          style="--standing-team-color:<%= standingColor %>"
-                        >
-
-                          <div class="standing-wide-position">
-                            <%= row.position %>
-                          </div>
-
-
-                          <div class="standing-wide-team">
-
-                            <% if (standingTeam?.logoPath) { %>
-
-                              <img
-                                src="<%= standingTeam.logoPath %>"
-                                alt="<%= row.name %>"
-                                title="<%= row.name %>"
-                              >
-
-                            <% } else { %>
-
-                              <span>
-                                <%= row.name %>
-                              </span>
-
-                            <% } %>
-
-                          </div>
-
-
-                          <div class="standing-wide-name">
-                            <%= row.name %>
-                          </div>
-
-
-                          <div class="standing-wide-points">
-                            <%= row.points %>
-                          </div>
-
-                        </div>
-
-                      <% }) %>
-
-                    </div>
-
-                  </div>
-
-                </section>
-
-              </div>
-
-            </article>
-
-          <% }) %>
+  <!-- WM-ZWISCHENSTÄNDE NACH JEDEM GP -->
+  <!-- ================================================= -->
+
+  <section
+    class="section section-dark standings-history-section"
+    id="f1-standings-history"
+  >
+
+    <div class="container">
+
+      <div class="section-heading">
+
+        <span>
+          AUTOMATISCH BERECHNET
+        </span>
+
+        <h2>
+          WM-STÄNDE
+        </h2>
+
+        <div class="export-actions">
+
+          <button
+            class="button button-small"
+            type="button"
+            id="standings-png-download"
+          >
+            PNG ↓
+          </button>
 
         </div>
 
-
-        <!-- =========================================== -->
-        <!-- CAROUSEL -->
-        <!-- =========================================== -->
-
-        <% if (safeStandingsHistory.length > 1) { %>
-
-          <button
-            class="standings-history-control prev"
-            type="button"
-            data-standings-prev
-            aria-label="Vorheriger WM-Stand"
-          >
-            ‹
-          </button>
+      </div>
 
 
-          <button
-            class="standings-history-control next"
-            type="button"
-            data-standings-next
-            aria-label="Nächster WM-Stand"
-          >
-            ›
-          </button>
+      <% if (safeStandingsHistory.length) { %>
+
+        <div
+          class="standings-history-carousel standings-history-carousel-wide"
+          data-standings-history
+        >
+
+          <div class="standings-history-track">
 
 
-          <div class="standings-history-dots">
+            <% safeStandingsHistory.forEach((snapshot, snapshotIndex) => {
 
-            <% safeStandingsHistory.forEach((snapshot, index) => { %>
+              const raceDisplay =
+                (gpResults || []).find(
+                  (race) =>
+                    race.raceType === 'main' &&
+                    Number(race.sortOrder) ===
+                    Number(snapshot.round)
+                ) || null;
 
-              <button
-                type="button"
-                class="<%= index === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
-                data-standings-dot="<%= index %>"
-                aria-label="WM-Stand nach Runde <%= snapshot.round %>"
-                title="Runde <%= snapshot.round %>"
-              ></button>
+
+              const displayTitle =
+                raceDisplay?.displayTitle ||
+                snapshot.title ||
+                `Runde ${snapshot.round}`;
+
+
+              const displayCircuit =
+                raceDisplay?.circuit ||
+                snapshot.circuit ||
+                '';
+
+
+              const displayDate =
+                raceDisplay?.raceDate ||
+                snapshot.raceDate ||
+                '';
+
+
+              const displayFlag =
+                raceDisplay?.countryFlagPath ||
+                raceDisplay?.trackLogoPath ||
+                null;
+
+
+              const displayCountry =
+                raceDisplay?.countryName ||
+                String(displayTitle)
+                  .replace(
+                    /gro(?:ss|ß)er preis (?:von|der)\s*/i,
+                    ''
+                  )
+                  .trim();
+
+
+              const driverSplit =
+                Math.ceil(
+                  snapshot.driverStandings.length / 2
+                );
+
+              const driverLeft =
+                snapshot.driverStandings.slice(
+                  0,
+                  driverSplit
+                );
+
+              const driverRight =
+                snapshot.driverStandings.slice(
+                  driverSplit
+                );
+
+
+              const teamSplit =
+                Math.ceil(
+                  snapshot.teamStandings.length / 2
+                );
+
+              const teamLeft =
+                snapshot.teamStandings.slice(
+                  0,
+                  teamSplit
+                );
+
+              const teamRight =
+                snapshot.teamStandings.slice(
+                  teamSplit
+                );
+
+            %>
+
+
+              <article
+                class="standings-history-slide standings-history-slide-wide <%= snapshotIndex === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
+                data-standings-slide
+                data-slide-index="<%= snapshotIndex %>"
+                aria-hidden="<%= snapshotIndex === safeStandingsHistory.length - 1 ? 'false' : 'true' %>"
+              >
+
+
+                <!-- ===================================== -->
+                <!-- HEADER -->
+                <!-- ===================================== -->
+
+                <header class="standing-gp-header standing-gp-header-wide">
+
+                  <div class="standing-gp-league">
+
+                    <% if (league.logoPath) { %>
+
+                      <img
+                        src="<%= league.logoPath %>"
+                        alt="<%= league.name %>"
+                      >
+
+                    <% } else { %>
+
+                      <strong>
+                        KRL
+                      </strong>
+
+                    <% } %>
+
+                  </div>
+
+
+                  <div class="standing-gp-title">
+
+                    <span>
+                      WM-STAND NACH RUNDE <%= snapshot.round %>
+                    </span>
+
+                    <h3>
+                      <%= displayTitle %>
+                    </h3>
+
+                    <small>
+
+                      <%= displayCircuit %>
+
+                      <% if (displayDate) { %>
+                        · <%= displayDate %>
+                      <% } %>
+
+                      · <%= selectedSeason?.name || league.currentSeason %>
+
+                    </small>
+
+                  </div>
+
+
+                  <div class="standing-gp-flag">
+
+                    <% if (displayFlag) { %>
+
+                      <img
+                        src="<%= displayFlag %>"
+                        alt="<%= displayCountry || displayTitle %>"
+                        title="<%= displayCountry || displayTitle %>"
+                      >
+
+                    <% } else { %>
+
+                      <span>
+                        <%= String(displayCountry || '')
+                          .slice(0, 3)
+                          .toUpperCase() || 'GP'
+                        %>
+                      </span>
+
+                    <% } %>
+
+                  </div>
+
+                </header>
+
+
+                <% if (snapshot.hasSprint) { %>
+
+                  <div class="standing-weekend-note">
+                    Sprint + Hauptrennen in diesem WM-Stand berücksichtigt
+                  </div>
+
+                <% } %>
+
+
+                <!-- ===================================== -->
+                <!-- FAHRER + TEAM -->
+                <!-- ===================================== -->
+
+                <div class="standing-wide-grid">
+
+
+                  <!-- =================================== -->
+                  <!-- FAHRER-WM -->
+                  <!-- =================================== -->
+
+                  <section class="standing-wide-card">
+
+                    <header class="standing-wide-heading">
+
+                      <div>
+
+                        <span>
+                          FAHRER
+                        </span>
+
+                        <h4>
+                          FAHRER-WM
+                        </h4>
+
+                      </div>
+
+                      <strong>
+                        NACH R<%= snapshot.round %>
+                      </strong>
+
+                    </header>
+
+
+                    <div class="standing-wide-columns">
+
+
+                      <!-- FAHRER LINKS -->
+
+                      <div class="standing-wide-column">
+
+                        <% driverLeft.forEach((row) => {
+
+                          const standingTeam =
+                            findPublicTeam(
+                              row.team
+                            );
+
+
+                          const standingLogo =
+                            standingTeam?.logoPath ||
+                            row.teamLogoPath ||
+                            null;
+
+
+                          const standingColor =
+                            standingTeam?.accentColor ||
+                            league.accentColor ||
+                            '#6ef2f2';
+
+                        %>
+
+
+                          <div
+                            class="standing-wide-row"
+                            style="--standing-team-color:<%= standingColor %>"
+                          >
+
+                            <div class="standing-wide-position">
+                              <%= row.position %>
+                            </div>
+
+
+                            <div class="standing-wide-team">
+
+                              <% if (standingLogo) { %>
+
+                                <img
+                                  src="<%= standingLogo %>"
+                                  alt="<%= row.team || 'Team' %>"
+                                  title="<%= row.team || '' %>"
+                                >
+
+                              <% } else { %>
+
+                                <span>
+                                  <%= row.team || '–' %>
+                                </span>
+
+                              <% } %>
+
+                            </div>
+
+
+                            <div class="standing-wide-name">
+                              <%= row.name %>
+                            </div>
+
+
+                            <div class="standing-wide-points">
+                              <%= row.points %>
+                            </div>
+
+                          </div>
+
+                        <% }) %>
+
+                      </div>
+
+
+                      <!-- FAHRER RECHTS -->
+
+                      <div class="standing-wide-column">
+
+                        <% driverRight.forEach((row) => {
+
+                          const standingTeam =
+                            findPublicTeam(
+                              row.team
+                            );
+
+
+                          const standingLogo =
+                            standingTeam?.logoPath ||
+                            row.teamLogoPath ||
+                            null;
+
+
+                          const standingColor =
+                            standingTeam?.accentColor ||
+                            league.accentColor ||
+                            '#6ef2f2';
+
+                        %>
+
+
+                          <div
+                            class="standing-wide-row"
+                            style="--standing-team-color:<%= standingColor %>"
+                          >
+
+                            <div class="standing-wide-position">
+                              <%= row.position %>
+                            </div>
+
+
+                            <div class="standing-wide-team">
+
+                              <% if (standingLogo) { %>
+
+                                <img
+                                  src="<%= standingLogo %>"
+                                  alt="<%= row.team || 'Team' %>"
+                                  title="<%= row.team || '' %>"
+                                >
+
+                              <% } else { %>
+
+                                <span>
+                                  <%= row.team || '–' %>
+                                </span>
+
+                              <% } %>
+
+                            </div>
+
+
+                            <div class="standing-wide-name">
+                              <%= row.name %>
+                            </div>
+
+
+                            <div class="standing-wide-points">
+                              <%= row.points %>
+                            </div>
+
+                          </div>
+
+                        <% }) %>
+
+                      </div>
+
+                    </div>
+
+                  </section>
+
+
+                  <!-- =================================== -->
+                  <!-- TEAM-WM -->
+                  <!-- =================================== -->
+
+                  <section class="standing-wide-card">
+
+                    <header class="standing-wide-heading">
+
+                      <div>
+
+                        <span>
+                          TEAMS
+                        </span>
+
+                        <h4>
+                          TEAM-WM
+                        </h4>
+
+                      </div>
+
+                      <strong>
+                        NACH R<%= snapshot.round %>
+                      </strong>
+
+                    </header>
+
+
+                    <div class="standing-wide-columns">
+
+
+                      <!-- TEAM LINKS -->
+
+                      <div class="standing-wide-column">
+
+                        <% teamLeft.forEach((row) => {
+
+                          const standingTeam =
+                            findPublicTeam(
+                              row.name
+                            );
+
+
+                          const standingColor =
+                            standingTeam?.accentColor ||
+                            league.accentColor ||
+                            '#6ef2f2';
+
+                        %>
+
+
+                          <div
+                            class="standing-wide-row standing-wide-team-row"
+                            style="--standing-team-color:<%= standingColor %>"
+                          >
+
+                            <div class="standing-wide-position">
+                              <%= row.position %>
+                            </div>
+
+
+                            <div class="standing-wide-team">
+
+                              <% if (standingTeam?.logoPath) { %>
+
+                                <img
+                                  src="<%= standingTeam.logoPath %>"
+                                  alt="<%= row.name %>"
+                                  title="<%= row.name %>"
+                                >
+
+                              <% } else { %>
+
+                                <span>
+                                  <%= row.name %>
+                                </span>
+
+                              <% } %>
+
+                            </div>
+
+
+                            <div class="standing-wide-name">
+                              <%= row.name %>
+                            </div>
+
+
+                            <div class="standing-wide-points">
+                              <%= row.points %>
+                            </div>
+
+                          </div>
+
+                        <% }) %>
+
+                      </div>
+
+
+                      <!-- TEAM RECHTS -->
+
+                      <div class="standing-wide-column">
+
+                        <% teamRight.forEach((row) => {
+
+                          const standingTeam =
+                            findPublicTeam(
+                              row.name
+                            );
+
+
+                          const standingColor =
+                            standingTeam?.accentColor ||
+                            league.accentColor ||
+                            '#6ef2f2';
+
+                        %>
+
+
+                          <div
+                            class="standing-wide-row standing-wide-team-row"
+                            style="--standing-team-color:<%= standingColor %>"
+                          >
+
+                            <div class="standing-wide-position">
+                              <%= row.position %>
+                            </div>
+
+
+                            <div class="standing-wide-team">
+
+                              <% if (standingTeam?.logoPath) { %>
+
+                                <img
+                                  src="<%= standingTeam.logoPath %>"
+                                  alt="<%= row.name %>"
+                                  title="<%= row.name %>"
+                                >
+
+                              <% } else { %>
+
+                                <span>
+                                  <%= row.name %>
+                                </span>
+
+                              <% } %>
+
+                            </div>
+
+
+                            <div class="standing-wide-name">
+                              <%= row.name %>
+                            </div>
+
+
+                            <div class="standing-wide-points">
+                              <%= row.points %>
+                            </div>
+
+                          </div>
+
+                        <% }) %>
+
+                      </div>
+
+                    </div>
+
+                  </section>
+
+                </div>
+
+              </article>
 
             <% }) %>
 
           </div>
 
-        <% } %>
 
-      </div>
+          <!-- =========================================== -->
+          <!-- CAROUSEL -->
+          <!-- =========================================== -->
+
+          <% if (safeStandingsHistory.length > 1) { %>
+
+            <button
+              class="standings-history-control prev"
+              type="button"
+              data-standings-prev
+              aria-label="Vorheriger WM-Stand"
+            >
+              ‹
+            </button>
 
 
-    <% } else { %>
+            <button
+              class="standings-history-control next"
+              type="button"
+              data-standings-next
+              aria-label="Nächster WM-Stand"
+            >
+              ›
+            </button>
 
-      <div class="empty-state">
 
-        Sobald das erste Hauptrennen ein Ergebnis besitzt,
-        erscheint hier der WM-Stand nach diesem Grand Prix.
+            <div class="standings-history-dots">
 
-      </div>
+              <% safeStandingsHistory.forEach((snapshot, index) => { %>
 
-    <% } %>
+                <button
+                  type="button"
+                  class="<%= index === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
+                  data-standings-dot="<%= index %>"
+                  aria-label="WM-Stand nach Runde <%= snapshot.round %>"
+                  title="Runde <%= snapshot.round %>"
+                ></button>
 
-  </div>
+              <% }) %>
 
-</section>
-  <section class="section container f1-race-statistics" id="rennstatistik">
-    <div class="section-heading"><span>HAUPTRENNEN · <%= selectedSeason?.name || league.currentSeason %></span><h2>RENNSTATISTIK</h2></div>
-    <div class="f1-race-statistics__scroll"><table><thead><tr><th>#</th><th>Strecke</th><th>Flagge</th><th>Datum</th><th>Driver of the Day</th><th>1. Platz</th><th>2. Platz</th><th>3. Platz</th><th>Poleposition</th><th>Schnellste Runde</th></tr></thead><tbody>
-      <% safeRaceStatistics.forEach((row) => { %><tr><td>R<%= row.round %></td><th><%= row.circuit %></th><td><% if (row.flagPath) { %><img src="<%= row.flagPath %>" alt="<%= row.countryName || '' %>"><% } else { %>–<% } %></td><td><%= row.date ? new Intl.DateTimeFormat('de-DE').format(new Date(`${row.date}T12:00:00Z`)) : '–' %></td><td><%= row.driverOfTheDay || '–' %></td><td><%= row.first || '–' %></td><td><%= row.second || '–' %></td><td><%= row.third || '–' %></td><td><%= row.pole || '–' %></td><td><%= row.fastestLap || '–' %></td></tr><% }) %>
-      <% if (!safeRaceStatistics.length) { %><tr><td colspan="10">Noch keine Hauptrennenergebnisse vorhanden.</td></tr><% } %>
-    </tbody></table></div>
+            </div>
+
+          <% } %>
+
+        </div>
+
+
+      <% } else { %>
+
+        <div class="empty-state">
+
+          Sobald das erste Hauptrennen ein Ergebnis besitzt,
+          erscheint hier der WM-Stand nach diesem Grand Prix.
+
+        </div>
+
+      <% } %>
+
+    </div>
+
   </section>
+
+
+  <!-- ================================================= -->
+  <!-- RENNSTATISTIK -->
+  <!-- ================================================= -->
+
+  <section
+    class="section container f1-race-statistics"
+    id="rennstatistik"
+  >
+
+    <div class="section-heading">
+
+      <span>
+        HAUPTRENNEN · <%= selectedSeason?.name || league.currentSeason %>
+      </span>
+
+      <h2>
+        RENNSTATISTIK
+      </h2>
+
+    </div>
+
+
+    <div class="f1-race-statistics__scroll">
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>#</th>
+            <th>Strecke</th>
+            <th>Flagge</th>
+            <th>Datum</th>
+            <th>Driver of the Day</th>
+            <th>1. Platz</th>
+            <th>2. Platz</th>
+            <th>3. Platz</th>
+            <th>Poleposition</th>
+            <th>Schnellste Runde</th>
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          <% safeRaceStatistics.forEach((row) => { %>
+
+            <tr>
+
+              <td>
+                R<%= row.round %>
+              </td>
+
+              <th>
+                <%= row.circuit %>
+              </th>
+
+              <td>
+
+                <% if (row.flagPath) { %>
+
+                  <img
+                    src="<%= row.flagPath %>"
+                    alt="<%= row.countryName || '' %>"
+                  >
+
+                <% } else { %>
+
+                  –
+
+                <% } %>
+
+              </td>
+
+              <td>
+                <%= row.date
+                  ? new Intl.DateTimeFormat('de-DE').format(
+                      new Date(`${row.date}T12:00:00Z`)
+                    )
+                  : '–'
+                %>
+              </td>
+
+              <td>
+                <%= row.driverOfTheDay || '–' %>
+              </td>
+
+              <td>
+                <%= row.first || '–' %>
+              </td>
+
+              <td>
+                <%= row.second || '–' %>
+              </td>
+
+              <td>
+                <%= row.third || '–' %>
+              </td>
+
+              <td>
+                <%= row.pole || '–' %>
+              </td>
+
+              <td>
+                <%= row.fastestLap || '–' %>
+              </td>
+
+            </tr>
+
+          <% }) %>
+
+
+          <% if (!safeRaceStatistics.length) { %>
+
+            <tr>
+
+              <td colspan="10">
+                Noch keine Hauptrennenergebnisse vorhanden.
+              </td>
+
+            </tr>
+
+          <% } %>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+
 
   <!-- ================================================= -->
   <!-- GP RESULTS -->
@@ -1050,43 +1188,7 @@
   </section>
 
 </div>
-  <!-- ================================================= -->
-  <!-- KOMPAKTE RENNSTATISTIK -->
-  <!-- ================================================= -->
 
-  <section class="section container f1-race-statistics-section">
-    <div class="section-heading">
-      <span>SAISON AUF EINEN BLICK</span>
-      <h2>RENNSTATISTIK</h2>
-    </div>
-
-    <% const publicRaceStatistics = typeof raceStatistics === 'undefined' ? [] : raceStatistics; %>
-    <% if (publicRaceStatistics.length) { %>
-      <div class="f1-race-statistics-wrap">
-        <table class="f1-race-statistics">
-          <thead><tr><th>#</th><th>Strecke</th><th>Flagge</th><th>Datum</th><th>Driver of the Day</th><th>1. Platz</th><th>2. Platz</th><th>3. Platz</th><th>Poleposition</th><th>Schnellste Runde</th></tr></thead>
-          <tbody>
-            <% publicRaceStatistics.forEach((stat) => { %>
-              <tr>
-                <td>R<%= stat.round %></td>
-                <td><strong><%= stat.track %></strong></td>
-                <td><% if (stat.flagPath) { %><img src="<%= stat.flagPath %>" alt=""><% } else { %>–<% } %></td>
-                <td><%= stat.date ? new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(stat.date)) : '–' %></td>
-                <td><%= stat.driverOfTheDay?.driverName || '–' %></td>
-                <td><%= stat.podium[0]?.driverName || '–' %></td>
-                <td><%= stat.podium[1]?.driverName || '–' %></td>
-                <td><%= stat.podium[2]?.driverName || '–' %></td>
-                <td><%= stat.polePosition?.driverName || '–' %></td>
-                <td><%= stat.fastestLap?.driverName || '–' %></td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
-    <% } else { %>
-      <div class="empty-state">Nach dem ersten Hauptrennen erscheint hier die kompakte Rennstatistik.</div>
-    <% } %>
-  </section>
 
 <script
   src="/js/season-history-tabs.js"
@@ -1099,5 +1201,5 @@
   defer
 ></script>
 
-<%- include('partials/footer') %>
 
+<%- include('partials/footer') %>

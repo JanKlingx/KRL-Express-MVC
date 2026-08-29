@@ -57,9 +57,10 @@ function lineupForRound(lineup, stints, round) {
     }));
 }
 
-
+// Baut Season Struktur auf 
 async function loadSeasonStructure(seasonId, round = null) {
 
+  //Keine Season ID vorhanden 
   if (!seasonId) {
     return {
       teams: [],
@@ -71,6 +72,7 @@ async function loadSeasonStructure(seasonId, round = null) {
   }
 
 
+  //Datenbankabfragen 
   const [
     memberships,
     seasonTeams,

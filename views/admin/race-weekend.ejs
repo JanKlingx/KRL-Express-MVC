@@ -1,276 +1,1893 @@
 <%- include('../partials/header', { title }) %>
 
 <%
-  const allowedAttendance = (attendanceStatuses || []).filter((status) =>
-    ['anwesend', 'zu_spaet_vorbesprechung', 'unabgemeldet', 'zu_spaet_abgemeldet'].includes(status.value)
-  );
-  const attendanceValue = (entry, fallback = 'anwesend') =>
-    allowedAttendance.some((status) => status.value === entry?.attendanceStatus)
-      ? entry.attendanceStatus
-      : fallback;
-  const attendanceLabel = (status) => status.value === 'unabgemeldet' ? 'Nicht erschienen' : status.label;
-  const currentSelectionMode = typeof selectionMode === 'undefined' ? 'manual' : selectionMode;
-  const savedResultCount = typeof resultCount === 'undefined' ? 0 : resultCount;
-  const matrixTeamCards = typeof teamCards === 'undefined' ? [] : teamCards;
-  const matrixReserveRows = typeof reserveRows === 'undefined' ? [] : reserveRows;
-  const matrixRegularStatuses = typeof regularStatuses === 'undefined'
-    ? [{ value: 'rennsperre', label: 'Rennsperre' }, { value: 'abgemeldet', label: 'Abgemeldet' }, { value: 'unsicher', label: 'Unsicher' }, { value: 'anwesend', label: 'Anwesend' }]
-    : regularStatuses;
-  const matrixReserveStatuses = typeof reserveStatuses === 'undefined'
-    ? [{ value: 'angefragt', label: 'Angefragt' }, { value: 'abgemeldet', label: 'Abgemeldet' }, { value: 'unsicher', label: 'Unsicher' }, { value: 'anwesend', label: 'Anwesend' }, { value: 'auf_abruf', label: 'Auf Abruf' }]
-    : reserveStatuses;
-  const correctionRows = typeof excludedAttendanceRows === 'undefined' ? [] : excludedAttendanceRows;
-  const replacementLabel = (driver) => driver?.status === 'auf_abruf' ? 'AUF ABRUF' : String(driver?.status || 'anwesend').toUpperCase();
-  const formatDate = (value) => {
-    const parsed = value ? new Date(value) : null;
-    return parsed && !Number.isNaN(parsed.getTime())
-      ? new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }).format(parsed)
-      : 'Datum offen';
+  /*
+   * =====================================================
+   * ANWESENHEITSSTATUS
+   * =====================================================
+   *
+   * Fallbacks sind absichtlich hier enthalten,
+   * damit auch bei älteren Service-Ständen
+   * "Zu spät abgemeldet" korrekt angezeigt wird.
+   */
+
+  const attendanceStatusSource =
+    new Map(
+      (attendanceStatuses || [])
+        .map(
+          (status) => [
+            status.value,
+            status
+          ]
+        )
+    );
+
+
+  const attendanceFallbacks = {
+    anwesend: {
+      value: 'anwesend',
+      label: 'Anwesend'
+    },
+
+    zu_spaet_vorbesprechung: {
+      value: 'zu_spaet_vorbesprechung',
+      label: 'Zu spät Vorbesprechung'
+    },
+
+    unabgemeldet: {
+      value: 'unabgemeldet',
+      label: 'Unabgemeldet'
+    },
+
+    zu_spaet_abgemeldet: {
+      value: 'zu_spaet_abgemeldet',
+      label: 'Zu spät abgemeldet'
+    }
   };
+
+
+  const allowedAttendance = [
+    'anwesend',
+    'zu_spaet_vorbesprechung',
+    'unabgemeldet',
+    'zu_spaet_abgemeldet'
+  ].map(
+    (value) =>
+      attendanceStatusSource.get(value) ||
+      attendanceFallbacks[value]
+  );
+
+
+  const attendanceValue =
+    (
+      entry,
+      fallback = 'anwesend'
+    ) =>
+      allowedAttendance.some(
+        (status) =>
+          status.value ===
+          entry?.attendanceStatus
+      )
+        ? entry.attendanceStatus
+        : fallback;
+
+
+  const attendanceLabel =
+    (status) =>
+      status.value === 'unabgemeldet'
+        ? 'Nicht erschienen'
+        : status.label;
+
+
+  const currentSelectionMode =
+    typeof selectionMode === 'undefined'
+      ? 'manual'
+      : selectionMode;
+
+
+  const savedResultCount =
+    typeof resultCount === 'undefined'
+      ? 0
+      : resultCount;
+
+
+  const matrixTeamCards =
+    typeof teamCards === 'undefined'
+      ? []
+      : teamCards;
+
+
+  const matrixReserveRows =
+    typeof reserveRows === 'undefined'
+      ? []
+      : reserveRows;
+
+
+  const matrixRegularStatuses =
+    typeof regularStatuses === 'undefined'
+      ? [
+          {
+            value: 'rennsperre',
+            label: 'Rennsperre'
+          },
+          {
+            value: 'abgemeldet',
+            label: 'Abgemeldet'
+          },
+          {
+            value: 'unsicher',
+            label: 'Unsicher'
+          },
+          {
+            value: 'zu_spaet_abgemeldet',
+            label: 'Zu spät abgemeldet'
+          },
+          {
+            value: 'anwesend',
+            label: 'Anwesend'
+          }
+        ]
+      : regularStatuses;
+
+
+  const matrixReserveStatuses =
+    typeof reserveStatuses === 'undefined'
+      ? [
+          {
+            value: 'angefragt',
+            label: 'Angefragt'
+          },
+          {
+            value: 'abgemeldet',
+            label: 'Abgemeldet'
+          },
+          {
+            value: 'unsicher',
+            label: 'Unsicher'
+          },
+          {
+            value: 'anwesend',
+            label: 'Anwesend'
+          },
+          {
+            value: 'zu_spaet_abgemeldet',
+            label: 'Zu spät abgemeldet'
+          },
+          {
+            value: 'auf_abruf',
+            label: 'Auf Abruf'
+          }
+        ]
+      : reserveStatuses;
+
+
+  const correctionRows =
+    typeof excludedAttendanceRows === 'undefined'
+      ? []
+      : excludedAttendanceRows;
+
+
+  const replacementLabel =
+    (driver) =>
+      driver?.status === 'auf_abruf'
+        ? 'AUF ABRUF'
+        : String(
+            driver?.status ||
+            'anwesend'
+          ).toUpperCase();
+
+
+  const attendanceManaged =
+    entries.some(
+      (entry) =>
+        entry.attendanceStatus
+    );
+
+
+  const formatDate =
+    (value) => {
+
+      const parsed =
+        value
+          ? new Date(value)
+          : null;
+
+
+      return (
+        parsed &&
+        !Number.isNaN(
+          parsed.getTime()
+        )
+      )
+        ? new Intl.DateTimeFormat(
+            'de-DE',
+            {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              timeZone: 'Europe/Berlin'
+            }
+          ).format(parsed)
+        : 'Datum offen';
+    };
 %>
 
-<section class="admin-shell f1-weekend-control" style="--accent:<%= league?.accentColor || '#6ef2f2' %>">
+
+<section
+  class="admin-shell f1-weekend-control"
+  style="--accent:<%= league?.accentColor || '#6ef2f2' %>"
+>
+
   <div class="container">
+
+
+    <!-- ================================================= -->
+    <!-- HEADER -->
+    <!-- ================================================= -->
+
     <div class="admin-heading">
+
       <div>
-        <a class="back-link" href="/admin">← Dashboard</a>
-        <span class="form-kicker">FORMEL 1 · OPERATIVER PROZESS</span>
-        <h1>RENNWOCHENENDE</h1>
-        <p class="admin-intro">Aufstellung, tatsächliche Anwesenheit und Ergebnis in einem nachvollziehbaren Ablauf.</p>
+
+        <a
+          class="back-link"
+          href="/admin"
+        >
+          ← Dashboard
+        </a>
+
+        <span class="form-kicker">
+          FORMEL 1 · OPERATIVER PROZESS
+        </span>
+
+        <h1>
+          RENNWOCHENENDE
+        </h1>
+
+        <p class="admin-intro">
+          Aufstellung, tatsächliche Anwesenheit und Ergebnis in einem nachvollziehbaren Ablauf.
+        </p>
+
       </div>
+
     </div>
 
-    <form class="race-selector" method="get" data-race-weekend-selector>
-      <label>Liga
-        <select name="league"><% leagues.forEach((item) => { %><option value="<%= item.id %>" <%= league?.id === item.id ? 'selected' : '' %>><%= item.name %></option><% }) %></select>
+
+    <!-- ================================================= -->
+    <!-- RENNEN AUSWÄHLEN -->
+    <!-- ================================================= -->
+
+    <form
+      class="race-selector"
+      method="get"
+      data-race-weekend-selector
+    >
+
+      <label>
+
+        Liga
+
+        <div class="field-with-edit">
+
+          <select name="league">
+
+            <% leagues.forEach((item) => { %>
+
+              <option
+                value="<%= item.id %>"
+                <%= league?.id === item.id
+                  ? 'selected'
+                  : ''
+                %>
+              >
+                <%= item.name %>
+              </option>
+
+            <% }) %>
+
+          </select>
+
+          <span
+            class="field-edit-pencil"
+            aria-hidden="true"
+          >
+    
+          </span>
+
+        </div>
+
       </label>
-      <label>Aktuelle Saison
-        <select name="season"><% seasons.forEach((item) => { %><option value="<%= item.id %>" <%= season?.id === item.id ? 'selected' : '' %>><%= item.name %></option><% }) %></select>
+
+
+      <label>
+
+        Aktuelle Saison
+
+        <div class="field-with-edit">
+
+          <select name="season">
+
+            <% seasons.forEach((item) => { %>
+
+              <option
+                value="<%= item.id %>"
+                <%= season?.id === item.id
+                  ? 'selected'
+                  : ''
+                %>
+              >
+                <%= item.name %>
+              </option>
+
+            <% }) %>
+
+          </select>
+
+          <span
+            class="field-edit-pencil"
+            aria-hidden="true"
+          >
+            
+          </span>
+
+        </div>
+
       </label>
-      <label>Rennen
-        <select name="event">
-          <% events.forEach((item) => { %>
-            <option value="<%= item.id %>" <%= event?.id === item.id ? 'selected' : '' %>>R<%= item.sortOrder %> · <%= item.title %><%= item.isTestDay ? ' · TESTTAG' : '' %></option>
-          <% }) %>
-        </select>
+
+
+      <label>
+
+        Rennen
+
+        <div class="field-with-edit">
+
+          <select name="event">
+
+            <% events.forEach((item) => { %>
+
+              <option
+                value="<%= item.id %>"
+                <%= event?.id === item.id
+                  ? 'selected'
+                  : ''
+                %>
+              >
+                R<%= item.sortOrder %>
+                ·
+                <%= item.title %>
+                <%= item.isTestDay
+                  ? ' · TESTTAG'
+                  : ''
+                %>
+              </option>
+
+            <% }) %>
+
+          </select>
+
+          <span
+            class="field-edit-pencil"
+            aria-hidden="true"
+          >
+          </span>
+
+        </div>
+
       </label>
-      <noscript><button class="button">Öffnen</button></noscript>
+
+
+      <noscript>
+
+        <button class="button">
+          Öffnen
+        </button>
+
+      </noscript>
+
     </form>
 
+
     <% if (!race) { %>
-      <div class="empty-state">Für diese Auswahl ist noch kein normales Rennen vorhanden.</div>
+
+      <div class="empty-state">
+        Für diese Auswahl ist noch kein normales Rennen vorhanden.
+      </div>
+
     <% } else { %>
-      <section class="f1-weekend-current" aria-label="Aktuelles Rennen">
+
+
+      <!-- ================================================= -->
+      <!-- AKTUELLES RENNEN -->
+      <!-- ================================================= -->
+
+      <section
+        class="f1-weekend-current"
+        aria-label="Aktuelles Rennen"
+      >
+
         <div class="f1-weekend-current__flag">
-          <% if (event?.track?.countryRecord?.flagPath) { %><img src="<%= event.track.countryRecord.flagPath %>" alt="Flagge <%= event.track.countryRecord.name %>"><% } else if (league?.logoPath) { %><img src="<%= league.logoPath %>" alt=""><% } %>
+
+          <% if (
+            event?.track?.countryRecord?.flagPath
+          ) { %>
+
+            <img
+              src="<%= event.track.countryRecord.flagPath %>"
+              alt="Flagge <%= event.track.countryRecord.name %>"
+            >
+
+          <% } else if (
+            league?.logoPath
+          ) { %>
+
+            <img
+              src="<%= league.logoPath %>"
+              alt=""
+            >
+
+          <% } %>
+
         </div>
+
+
         <div>
-          <span><%= currentSelectionMode === 'automatic' ? 'AUTOMATISCH GEWÄHLT · AKTUELLES RENNEN' : 'MANUELL GEWÄHLTES RENNEN' %></span>
-          <strong>R<%= event?.sortOrder || race.sortOrder %> · <%= event?.track?.name || event?.circuit || race.circuit || race.title %></strong>
-          <small><%= event?.title || race.title %> · <%= formatDate(event?.startsAt || race.raceDate) %></small>
+
+          <span>
+            <%= currentSelectionMode === 'automatic'
+              ? 'AUTOMATISCH GEWÄHLT · AKTUELLES RENNEN'
+              : 'MANUELL GEWÄHLTES RENNEN'
+            %>
+          </span>
+
+          <strong>
+            R<%= event?.sortOrder || race.sortOrder %>
+            ·
+            <%= event?.track?.name ||
+                event?.circuit ||
+                race.circuit ||
+                race.title
+            %>
+          </strong>
+
+          <small>
+            <%= event?.title || race.title %>
+            ·
+            <%= formatDate(
+              event?.startsAt ||
+              race.raceDate
+            ) %>
+          </small>
+
         </div>
+
       </section>
 
-      <nav class="weekend-stepper" aria-label="Rennwochenende Schritte">
-        <a href="#aufstellung" class="<%= entries.length ? 'complete' : 'active' %>"><span>1</span><strong>Aufstellung</strong><small><%= entries.length ? '✓ gespeichert' : 'offen' %></small></a>
-        <a href="#anwesenheit" class="<%= entries.some((entry) => entry.attendanceStatus) ? 'complete' : (entries.length ? 'active' : '') %>"><span>2</span><strong>Anwesenheit</strong><small><%= entries.some((entry) => entry.attendanceStatus) ? '✓ bearbeitet' : 'offen' %></small></a>
-        <a href="#ergebnisse" class="<%= savedResultCount ? 'complete' : '' %>"><span>3</span><strong>Ergebnis</strong><small><%= savedResultCount ? '✓ gespeichert' : 'offen' %></small></a>
+
+      <!-- ================================================= -->
+      <!-- SCHRITTE -->
+      <!-- ================================================= -->
+
+      <nav
+        class="weekend-stepper"
+        aria-label="Rennwochenende Schritte"
+      >
+
+        <a
+          href="#aufstellung"
+          class="<%= entries.length
+            ? 'complete'
+            : 'active'
+          %>"
+        >
+
+          <span>1</span>
+
+          <strong>
+            Aufstellung
+          </strong>
+
+          <small>
+            <%= entries.length
+              ? '✓ gespeichert'
+              : 'offen'
+            %>
+          </small>
+
+        </a>
+
+
+        <a
+          href="#anwesenheit"
+          class="<%= attendanceManaged
+            ? 'complete'
+            : (
+                entries.length
+                  ? 'active'
+                  : ''
+              )
+          %>"
+        >
+
+          <span>2</span>
+
+          <strong>
+            Anwesenheit
+          </strong>
+
+          <small>
+            <%= attendanceManaged
+              ? '✓ bearbeitet'
+              : 'offen'
+            %>
+          </small>
+
+        </a>
+
+
+        <a
+          href="#ergebnisse"
+          class="<%= savedResultCount
+            ? 'complete'
+            : ''
+          %>"
+        >
+
+          <span>3</span>
+
+          <strong>
+            Ergebnis
+          </strong>
+
+          <small>
+            <%= savedResultCount
+              ? '✓ gespeichert'
+              : 'offen'
+            %>
+          </small>
+
+        </a>
+
       </nav>
 
-      <section class="weekend-step" id="aufstellung">
-        <div class="weekend-step-number">01</div>
-        <div>
-          <span>EINSATZPLANUNG</span>
-          <h2>AUFSTELLUNG</h2>
-          <p>Status zuerst im Ersatzfahrer-Pool prüfen, anschließend Ersatz direkt am betroffenen Stammfahrer auswählen.</p>
-          <%- include('partials/f1-lineup-board', { selectedRace: race, teamCards: matrixTeamCards, reserveRows: matrixReserveRows, regularStatuses: matrixRegularStatuses, reserveStatuses: matrixReserveStatuses }) %>
+
+      <!-- ================================================= -->
+      <!-- SCHRITT 1 -->
+      <!-- ================================================= -->
+
+      <section
+        class="weekend-step"
+        id="aufstellung"
+      >
+
+        <div class="weekend-step-number">
+          01
         </div>
+
+
+        <div>
+
+          <span>
+            EINSATZPLANUNG
+          </span>
+
+          <h2>
+            AUFSTELLUNG
+          </h2>
+
+          <p>
+            Status zuerst im Ersatzfahrer-Pool prüfen,
+            anschließend Ersatz direkt am betroffenen Stammfahrer auswählen.
+          </p>
+
+
+          <%- include(
+            'partials/f1-lineup-board',
+            {
+              selectedRace: race,
+              teamCards: matrixTeamCards,
+              reserveRows: matrixReserveRows,
+              regularStatuses: matrixRegularStatuses,
+              reserveStatuses: matrixReserveStatuses
+            }
+          ) %>
+
+        </div>
+
       </section>
 
-      <section class="weekend-step" id="anwesenheit">
-        <div class="weekend-step-number">02</div>
+
+      <!-- ================================================= -->
+      <!-- SCHRITT 2 -->
+      <!-- ================================================= -->
+
+      <section
+        class="weekend-step"
+        id="anwesenheit"
+      >
+
+        <div class="weekend-step-number">
+          02
+        </div>
+
+
         <div>
-          <span>VOR DEM START</span>
-          <h2>ANWESENHEITSKONTROLLE</h2>
-          <p>Unsichere Fahrer werden zuerst mit Ja/Nein geklärt. „Rechtzeitig zurückgemeldet“ wird unabhängig davon gespeichert.</p>
+
+          <span>
+            VOR DEM START
+          </span>
+
+          <h2>
+            ANWESENHEITSKONTROLLE
+          </h2>
+
+          <p>
+            Unsichere Fahrer werden mit Ja oder Nein geklärt.
+            Rückmeldung und tatsächliche Anwesenheit bleiben getrennte Angaben.
+          </p>
+
 
           <% if (!entries.length) { %>
-            <div class="empty-state">Bitte zuerst Schritt 1 speichern.</div>
+
+            <div class="empty-state">
+              Bitte zuerst Schritt 1 speichern.
+            </div>
+
           <% } else { %>
-            <form method="post" action="/admin/race-weekend/f1/<%= race.id %>/attendance" class="f1-attendance" data-f1-attendance>
+
+
+            <form
+              method="post"
+              action="/admin/race-weekend/f1/<%= race.id %>/attendance"
+              class="f1-attendance"
+              data-f1-attendance
+            >
+
+
               <div class="f1-attendance__summary">
-                <span><strong><%= attendanceRows.length %></strong> Cockpits</span>
-                <span><strong><%= attendanceRows.filter((row) => row.entry.status === 'unsicher' || row.plannedReplacement?.status === 'unsicher').length %></strong> Unsicher-Fälle</span>
-                <span><strong><%= availableReplacements.filter((row) => row.status === 'auf_abruf').length %></strong> Auf Abruf</span>
+
+                <span>
+                  <strong>
+                    <%= attendanceRows.length %>
+                  </strong>
+                  Cockpits
+                </span>
+
+                <span>
+                  <strong>
+                    <%= attendanceRows.filter(
+                      (row) =>
+                        row.entry.status === 'unsicher' ||
+                        row.plannedReplacement?.status === 'unsicher'
+                    ).length %>
+                  </strong>
+                  Unsicher-Fälle
+                </span>
+
+                <span>
+                  <strong>
+                    <%= availableReplacements.filter(
+                      (row) =>
+                        row.status === 'auf_abruf'
+                    ).length %>
+                  </strong>
+                  Auf Abruf
+                </span>
+
               </div>
+
 
               <div class="f1-attendance__teams">
-                <% attendanceRows.forEach(({ entry: regular, displayTeam, plannedReplacement }) => {
-                  const regularIsUncertain = regular.status === 'unsicher';
-                  const regularPresent = regular.uncertainPresent === true;
-                  const regularAbsent = regular.uncertainPresent === false;
-                  const regularAttendance = attendanceValue(regular, regularAbsent ? 'unabgemeldet' : 'anwesend');
-                  const showRegular = regular.status === 'anwesend' || regularPresent;
-                  const showReplacement = regular.status === 'abgemeldet' || regularAbsent;
+
+
+                <% attendanceRows.forEach(({
+                  entry: regular,
+                  displayTeam,
+                  plannedReplacement
+                }) => {
+
+
+                  const regularIsUncertain =
+                    regular.status === 'unsicher';
+
+
+                  const regularPresent =
+                    regular.uncertainPresent === true;
+
+
+                  const regularAbsent =
+                    regular.uncertainPresent === false;
+
+
+                  const regularAttendance =
+                    attendanceValue(
+                      regular,
+                      regularAbsent
+                        ? 'unabgemeldet'
+                        : 'anwesend'
+                    );
+
+
+                  const showRegular =
+                    regular.status === 'anwesend' ||
+                    regularPresent;
+
+
+                  const showReplacement =
+                    [
+                      'abgemeldet',
+                      'zu_spaet_abgemeldet'
+                    ].includes(
+                      regular.status
+                    ) ||
+                    regularAbsent;
+
                 %>
-                  <article class="f1-attendance-seat" style="--team-color:<%= displayTeam?.accentColor || '#6ef2f2' %>" data-seat-row>
-                    <input type="hidden" name="attendance[<%= regular.id %>][includeInResults]" value="automatic" disabled>
+
+
+                  <article
+                    class="f1-attendance-seat"
+                    style="--team-color:<%= displayTeam?.accentColor || '#6ef2f2' %>"
+                    data-seat-row
+                  >
+
+
                     <header>
-                      <% if (displayTeam?.logoPath) { %><img src="<%= displayTeam.logoPath %>" alt=""><% } %>
-                      <div><span><%= displayTeam?.name || 'Saisonteam' %></span><strong><%= regular.driver.name %></strong></div>
-                      <span class="f1-lineup-chip" data-tone="<%= regular.status %>"><%= regular.status.toUpperCase() %></span>
+
+                      <% if (displayTeam?.logoPath) { %>
+
+                        <img
+                          src="<%= displayTeam.logoPath %>"
+                          alt=""
+                        >
+
+                      <% } %>
+
+
+                      <div>
+
+                        <span>
+                          <%= displayTeam?.name || 'Saisonteam' %>
+                        </span>
+
+                        <strong>
+                          <%= regular.driver.name %>
+                        </strong>
+
+                      </div>
+
+
+                      <span
+                        class="f1-lineup-chip"
+                        data-tone="<%= regular.status %>"
+                      >
+                        <%= regular.status.toUpperCase() %>
+                      </span>
+
                     </header>
 
-                    <% if (regularIsUncertain) { %>
-                      <section class="f1-uncertain" data-uncertain-case data-entry-id="<%= regular.id %>">
+
+                    <!-- ===================================== -->
+                    <!-- RENNSPERRE -->
+                    <!-- ===================================== -->
+
+                    <% if (
+                      regular.status === 'rennsperre'
+                    ) { %>
+
+                      <div class="f1-attendance-person is-absent">
+
                         <div>
-                          <span>UNSICHERE TEILNAHME</span>
-                          <strong>Ist <%= regular.driver.name %> da?</strong>
-                        </div>
-                        <div class="f1-uncertain__choices">
-                          <label><input type="radio" name="uncertain[d<%= regular.id %>][present]" value="yes" <%= regularPresent ? 'checked' : '' %> data-uncertain-present> JA</label>
-                          <label><input type="radio" name="uncertain[d<%= regular.id %>][present]" value="no" <%= regularAbsent ? 'checked' : '' %> data-uncertain-present> NEIN</label>
-                        </div>
-                        <label class="f1-uncertain__response"><input type="checkbox" name="uncertain[d<%= regular.id %>][respondedInTime]" <%= regular.respondedInTime ? 'checked' : '' %>> Rechtzeitig zurückgemeldet</label>
-                      </section>
-                    <% } %>
 
-                    <div class="f1-attendance-person" data-present-panel="yes" <%= showRegular ? '' : 'hidden' %>>
-                      <div><span>STAMMFAHRER</span><strong><%= regular.driver.name %></strong></div>
-                      <label>Anwesenheit
-                        <select name="attendance[d<%= regular.id %>][status]" data-attendance-status>
-                          <% allowedAttendance.forEach((status) => { %><option value="<%= status.value %>" <%= regularAttendance === status.value ? 'selected' : '' %>><%= attendanceLabel(status) %></option><% }) %>
-                        </select>
-                      </label>
-                      <label class="f1-attendance-replacement" data-spontaneous-replacement <%= ['unabgemeldet', 'zu_spaet_abgemeldet'].includes(regularAttendance) ? '' : 'hidden' %>>Spontaner Ersatz
-                        <select name="attendance[d<%= regular.id %>][ReplacementDriverId]" data-replacement-choice>
-                          <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                          <% availableReplacements.forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                        </select>
-                      </label>
-                    </div>
+                          <span>
+                            RENNSPERRE
+                          </span>
 
-                    <div class="f1-attendance-person is-absent" data-present-panel="no" <%= regularIsUncertain && regularAbsent ? '' : 'hidden' %>>
-                      <div><span>STAMMFAHRER FÄHRT NICHT</span><strong><%= regular.driver.name %></strong></div>
-                      <label>Abwesenheit
-                        <select name="attendance[d<%= regular.id %>][status]" data-attendance-status <%= showRegular ? 'disabled' : '' %>>
-                          <option value="unabgemeldet" <%= regularAttendance === 'unabgemeldet' ? 'selected' : '' %>>Nicht erschienen</option>
-                          <option value="zu_spaet_abgemeldet" <%= regularAttendance === 'zu_spaet_abgemeldet' ? 'selected' : '' %>>Zu spät abgemeldet</option>
-                        </select>
-                      </label>
-                      <% if (!plannedReplacement) { %>
-                        <label class="f1-attendance-replacement">Ersatz benötigt
-                          <select name="attendance[d<%= regular.id %>][ReplacementDriverId]" data-replacement-choice <%= showRegular ? 'disabled' : '' %>>
-                            <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                            <% availableReplacements.forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                          </select>
-                        </label>
+                          <strong>
+                            <%= regular.driver.name %>
+                          </strong>
+
+                        </div>
+
+                        <small>
+                          Fahrer startet nicht.
+                          Für eine Rennsperre wird kein Ersatzfahrer eingeteilt.
+                        </small>
+
+                      </div>
+
+                    <% } else { %>
+
+
+                      <!-- =================================== -->
+                      <!-- UNSICHER -->
+                      <!-- =================================== -->
+
+                      <% if (regularIsUncertain) { %>
+
+                        <section
+                          class="f1-uncertain"
+                          data-uncertain-case
+                          data-entry-id="<%= regular.id %>"
+                        >
+
+                          <div>
+
+                            <span>
+                              UNSICHERE TEILNAHME
+                            </span>
+
+                            <strong>
+                              Ist <%= regular.driver.name %> da?
+                            </strong>
+
+                            <span
+                              class="field-edit-pencil"
+                              aria-hidden="true"
+                            >
+                        
+                            </span>
+
+                          </div>
+
+
+                          <div class="f1-uncertain__choices">
+
+                            <label>
+
+                              <input
+                                type="radio"
+                                name="uncertain[d<%= regular.id %>][present]"
+                                value="yes"
+                                <%= regularPresent
+                                  ? 'checked'
+                                  : ''
+                                %>
+                                data-uncertain-present
+                              >
+
+                              JA
+
+                            </label>
+
+
+                            <label>
+
+                              <input
+                                type="radio"
+                                name="uncertain[d<%= regular.id %>][present]"
+                                value="no"
+                                <%= regularAbsent
+                                  ? 'checked'
+                                  : ''
+                                %>
+                                data-uncertain-present
+                              >
+
+                              NEIN
+
+                            </label>
+
+                          </div>
+
+
+                          <div class="f1-uncertain__response">
+
+                            <span>
+                              Rechtzeitig zurückgemeldet?
+                            </span>
+
+                            <span
+                              class="field-edit-pencil"
+                              aria-hidden="true"
+                            >
+                          
+                            </span>
+
+
+                            <label>
+
+                              <input
+                                type="radio"
+                                name="uncertain[d<%= regular.id %>][respondedInTime]"
+                                value="yes"
+                                <%= regular.respondedInTime === true
+                                  ? 'checked'
+                                  : ''
+                                %>
+                              >
+
+                              JA
+
+                            </label>
+
+
+                            <label>
+
+                              <input
+                                type="radio"
+                                name="uncertain[d<%= regular.id %>][respondedInTime]"
+                                value="no"
+                                <%= regular.respondedInTime === false
+                                  ? 'checked'
+                                  : ''
+                                %>
+                              >
+
+                              NEIN
+
+                            </label>
+
+                          </div>
+
+                        </section>
+
                       <% } %>
-                    </div>
 
-                    <% if (plannedReplacement) {
-                      const replacementUncertain = plannedReplacement.status === 'unsicher';
-                      const replacementPresent = plannedReplacement.uncertainPresent === true;
-                      const replacementAbsent = plannedReplacement.uncertainPresent === false;
-                      const replacementAttendance = attendanceValue(plannedReplacement, replacementAbsent ? 'unabgemeldet' : 'anwesend');
-                    %>
-                      <section class="f1-attendance-reserve" data-planned-replacement data-visible-when-regular-absent <%= showReplacement ? '' : 'hidden' %>>
-                        <header><span>VORGEMERKTER ERSATZ</span><strong><%= plannedReplacement.driver.name %></strong><small>Ersatz für <%= regular.driver.name %></small></header>
 
-                        <% if (replacementUncertain) { %>
-                          <section class="f1-uncertain" data-uncertain-case data-entry-id="<%= plannedReplacement.id %>">
-                            <div><span>ERSATZFAHRER UNSICHER</span><strong>Ist <%= plannedReplacement.driver.name %> da?</strong></div>
-                            <div class="f1-uncertain__choices">
-                              <label><input type="radio" name="uncertain[d<%= plannedReplacement.id %>][present]" value="yes" <%= replacementPresent ? 'checked' : '' %> data-uncertain-present> JA</label>
-                              <label><input type="radio" name="uncertain[d<%= plannedReplacement.id %>][present]" value="no" <%= replacementAbsent ? 'checked' : '' %> data-uncertain-present> NEIN</label>
+                      <!-- =================================== -->
+                      <!-- STAMMFAHRER IST DA -->
+                      <!-- =================================== -->
+
+                      <div
+                        class="f1-attendance-person"
+                        data-present-panel="yes"
+                        <%= showRegular
+                          ? ''
+                          : 'hidden'
+                        %>
+                      >
+
+                        <div>
+
+                          <span>
+                            STAMMFAHRER
+                          </span>
+
+                          <strong>
+                            <%= regular.driver.name %>
+                          </strong>
+
+                        </div>
+
+
+                        <label>
+
+                          Anwesenheit
+
+                          <div class="field-with-edit">
+
+                            <select
+                              name="attendance[d<%= regular.id %>][status]"
+                              data-attendance-status
+                            >
+
+                              <% allowedAttendance.forEach((status) => { %>
+
+                                <option
+                                  value="<%= status.value %>"
+                                  <%= regularAttendance === status.value
+                                    ? 'selected'
+                                    : ''
+                                  %>
+                                >
+                                  <%= attendanceLabel(status) %>
+                                </option>
+
+                              <% }) %>
+
+                            </select>
+
+                            <span
+                              class="field-edit-pencil"
+                              aria-hidden="true"
+                            >
+                        
+                            </span>
+
+                          </div>
+
+                        </label>
+
+
+                        <label
+                          class="f1-attendance-replacement"
+                          data-spontaneous-replacement
+
+                          <%= [
+                            'unabgemeldet',
+                            'zu_spaet_abgemeldet'
+                          ].includes(
+                            regularAttendance
+                          )
+                            ? ''
+                            : 'hidden'
+                          %>
+                        >
+
+                          Spontaner Ersatz
+
+                          <div class="field-with-edit">
+
+                            <select
+                              name="attendance[d<%= regular.id %>][ReplacementDriverId]"
+                              data-replacement-choice
+                            >
+
+                              <option value="">
+                                Kein Ersatz verfügbar / Cockpit leer
+                              </option>
+
+
+                              <% availableReplacements.forEach((driver) => { %>
+
+                                <option value="<%= driver.id %>">
+                                  <%= driver.name %>
+                                  ·
+                                  <%= replacementLabel(driver) %>
+                                </option>
+
+                              <% }) %>
+
+                            </select>
+
+                            <span
+                              class="field-edit-pencil"
+                              aria-hidden="true"
+                            >
+                              
+                            </span>
+
+                          </div>
+
+                        </label>
+
+                      </div>
+
+
+                      <!-- =================================== -->
+                      <!-- UNSICHER → FÄHRT NICHT -->
+                      <!-- =================================== -->
+
+                      <div
+                        class="f1-attendance-person is-absent"
+                        data-present-panel="no"
+
+                        <%= regularIsUncertain &&
+                            regularAbsent
+                          ? ''
+                          : 'hidden'
+                        %>
+                      >
+
+                        <div>
+
+                          <span>
+                            STAMMFAHRER FÄHRT NICHT
+                          </span>
+
+                          <strong>
+                            <%= regular.driver.name %>
+                          </strong>
+
+                        </div>
+
+
+                        <label>
+
+                          Abwesenheit
+
+                          <div class="field-with-edit">
+
+                            <select
+                              name="attendance[d<%= regular.id %>][status]"
+                              data-attendance-status
+                              <%= showRegular
+                                ? 'disabled'
+                                : ''
+                              %>
+                            >
+
+                              <option
+                                value="unabgemeldet"
+                                <%= regularAttendance === 'unabgemeldet'
+                                  ? 'selected'
+                                  : ''
+                                %>
+                              >
+                                Nicht erschienen
+                              </option>
+
+                              <option
+                                value="zu_spaet_abgemeldet"
+                                <%= regularAttendance === 'zu_spaet_abgemeldet'
+                                  ? 'selected'
+                                  : ''
+                                %>
+                              >
+                                Zu spät abgemeldet
+                              </option>
+
+                            </select>
+
+                            <span
+                              class="field-edit-pencil"
+                              aria-hidden="true"
+                            >
+                              
+                            </span>
+
+                          </div>
+
+                        </label>
+
+
+                        <% if (!plannedReplacement) { %>
+
+                          <label class="f1-attendance-replacement">
+
+                            Ersatz benötigt
+
+                            <div class="field-with-edit">
+
+                              <select
+                                name="attendance[d<%= regular.id %>][ReplacementDriverId]"
+                                data-replacement-choice
+                                <%= showRegular
+                                  ? 'disabled'
+                                  : ''
+                                %>
+                              >
+
+                                <option value="">
+                                  Kein Ersatz verfügbar / Cockpit leer
+                                </option>
+
+
+                                <% availableReplacements.forEach((driver) => { %>
+
+                                  <option value="<%= driver.id %>">
+                                    <%= driver.name %>
+                                    ·
+                                    <%= replacementLabel(driver) %>
+                                  </option>
+
+                                <% }) %>
+
+                              </select>
+
+                              <span
+                                class="field-edit-pencil"
+                                aria-hidden="true"
+                              >
+                                
+                              </span>
+
                             </div>
-                            <label class="f1-uncertain__response"><input type="checkbox" name="uncertain[d<%= plannedReplacement.id %>][respondedInTime]" <%= plannedReplacement.respondedInTime ? 'checked' : '' %>> Rechtzeitig zurückgemeldet</label>
-                          </section>
+
+                          </label>
+
                         <% } %>
 
-                        <div class="f1-attendance-person" data-present-panel="yes" <%= !replacementUncertain || replacementPresent ? '' : 'hidden' %>>
-                          <div><span>COCKPITFAHRER</span><strong><%= plannedReplacement.driver.name %></strong></div>
-                          <label>Anwesenheit
-                            <select name="attendance[d<%= plannedReplacement.id %>][status]" data-attendance-status>
-                              <% allowedAttendance.forEach((status) => { %><option value="<%= status.value %>" <%= replacementAttendance === status.value ? 'selected' : '' %>><%= attendanceLabel(status) %></option><% }) %>
-                            </select>
+                      </div>
+
+
+                      <!-- =================================== -->
+                      <!-- GEPLANTER ERSATZ -->
+                      <!-- =================================== -->
+
+                      <% if (plannedReplacement) {
+
+                        const replacementUncertain =
+                          plannedReplacement.status === 'unsicher';
+
+
+                        const replacementPresent =
+                          plannedReplacement.uncertainPresent === true;
+
+
+                        const replacementAbsent =
+                          plannedReplacement.uncertainPresent === false;
+
+
+                        const replacementAttendance =
+                          attendanceValue(
+                            plannedReplacement,
+                            replacementAbsent
+                              ? 'unabgemeldet'
+                              : 'anwesend'
+                          );
+
+                      %>
+
+
+                        <section
+                          class="f1-attendance-reserve"
+                          data-planned-replacement
+                          data-visible-when-regular-absent
+                          <%= showReplacement
+                            ? ''
+                            : 'hidden'
+                          %>
+                        >
+
+                          <header>
+
+                            <span>
+                              VORGEMERKTER ERSATZ
+                            </span>
+
+                            <strong>
+                              <%= plannedReplacement.driver.name %>
+                            </strong>
+
+                            <small>
+                              Ersatz für <%= regular.driver.name %>
+                            </small>
+
+                          </header>
+
+
+                          <% if (replacementUncertain) { %>
+
+                            <section
+                              class="f1-uncertain"
+                              data-uncertain-case
+                              data-entry-id="<%= plannedReplacement.id %>"
+                            >
+
+                              <div>
+
+                                <span>
+                                  ERSATZFAHRER UNSICHER
+                                </span>
+
+                                <strong>
+                                  Ist <%= plannedReplacement.driver.name %> da?
+                                </strong>
+
+                                <span
+                                  class="field-edit-pencil"
+                                  aria-hidden="true"
+                                >
+                                  
+                                </span>
+
+                              </div>
+
+
+                              <div class="f1-uncertain__choices">
+
+                                <label>
+
+                                  <input
+                                    type="radio"
+                                    name="uncertain[d<%= plannedReplacement.id %>][present]"
+                                    value="yes"
+                                    <%= replacementPresent
+                                      ? 'checked'
+                                      : ''
+                                    %>
+                                    data-uncertain-present
+                                  >
+
+                                  JA
+
+                                </label>
+
+
+                                <label>
+
+                                  <input
+                                    type="radio"
+                                    name="uncertain[d<%= plannedReplacement.id %>][present]"
+                                    value="no"
+                                    <%= replacementAbsent
+                                      ? 'checked'
+                                      : ''
+                                    %>
+                                    data-uncertain-present
+                                  >
+
+                                  NEIN
+
+                                </label>
+
+                              </div>
+
+
+                              <div class="f1-uncertain__response">
+
+                                <span>
+                                  Rechtzeitig zurückgemeldet?
+                                </span>
+
+                                <span
+                                  class="field-edit-pencil"
+                                  aria-hidden="true"
+                                >
+                                  
+                                </span>
+
+
+                                <label>
+
+                                  <input
+                                    type="radio"
+                                    name="uncertain[d<%= plannedReplacement.id %>][respondedInTime]"
+                                    value="yes"
+                                    <%= plannedReplacement.respondedInTime === true
+                                      ? 'checked'
+                                      : ''
+                                    %>
+                                  >
+
+                                  JA
+
+                                </label>
+
+
+                                <label>
+
+                                  <input
+                                    type="radio"
+                                    name="uncertain[d<%= plannedReplacement.id %>][respondedInTime]"
+                                    value="no"
+                                    <%= plannedReplacement.respondedInTime === false
+                                      ? 'checked'
+                                      : ''
+                                    %>
+                                  >
+
+                                  NEIN
+
+                                </label>
+
+                              </div>
+
+                            </section>
+
+                          <% } %>
+
+
+                          <div
+                            class="f1-attendance-person"
+                            data-present-panel="yes"
+
+                            <%= !replacementUncertain ||
+                                replacementPresent
+                              ? ''
+                              : 'hidden'
+                            %>
+                          >
+
+                            <div>
+
+                              <span>
+                                COCKPITFAHRER
+                              </span>
+
+                              <strong>
+                                <%= plannedReplacement.driver.name %>
+                              </strong>
+
+                            </div>
+
+
+                            <label>
+
+                              Anwesenheit
+
+                              <div class="field-with-edit">
+
+                                <select
+                                  name="attendance[d<%= plannedReplacement.id %>][status]"
+                                  data-attendance-status
+                                >
+
+                                  <% allowedAttendance.forEach((status) => { %>
+
+                                    <option
+                                      value="<%= status.value %>"
+                                      <%= replacementAttendance === status.value
+                                        ? 'selected'
+                                        : ''
+                                      %>
+                                    >
+                                      <%= attendanceLabel(status) %>
+                                    </option>
+
+                                  <% }) %>
+
+                                </select>
+
+                                <span
+                                  class="field-edit-pencil"
+                                  aria-hidden="true"
+                                >
+                                  
+                                </span>
+
+                              </div>
+
+                            </label>
+
+
+                            <label
+                              class="f1-attendance-replacement"
+                              data-spontaneous-replacement
+
+                              <%= [
+                                'unabgemeldet',
+                                'zu_spaet_abgemeldet'
+                              ].includes(
+                                replacementAttendance
+                              )
+                                ? ''
+                                : 'hidden'
+                              %>
+                            >
+
+                              Weiterer Ersatz
+
+                              <div class="field-with-edit">
+
+                                <select
+                                  name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]"
+                                  data-replacement-choice
+                                >
+
+                                  <option value="">
+                                    Kein Ersatz verfügbar / Cockpit leer
+                                  </option>
+
+
+                                  <% availableReplacements
+                                    .filter(
+                                      (driver) =>
+                                        Number(driver.id) !==
+                                        Number(
+                                          plannedReplacement.DriverId
+                                        )
+                                    )
+                                    .forEach((driver) => {
+                                  %>
+
+                                    <option value="<%= driver.id %>">
+                                      <%= driver.name %>
+                                      ·
+                                      <%= replacementLabel(driver) %>
+                                    </option>
+
+                                  <% }) %>
+
+                                </select>
+
+                                <span
+                                  class="field-edit-pencil"
+                                  aria-hidden="true"
+                                >
+                                  
+                                </span>
+
+                              </div>
+
+                            </label>
+
+                          </div>
+
+
+                          <div
+                            class="f1-attendance-person is-absent"
+                            data-present-panel="no"
+
+                            <%= replacementUncertain &&
+                                replacementAbsent
+                              ? ''
+                              : 'hidden'
+                            %>
+                          >
+
+                            <div>
+
+                              <span>
+                                ERSATZ FÄHRT NICHT
+                              </span>
+
+                              <strong>
+                                <%= plannedReplacement.driver.name %>
+                              </strong>
+
+                            </div>
+
+
+                            <label>
+
+                              Abwesenheit
+
+                              <div class="field-with-edit">
+
+                                <select
+                                  name="attendance[d<%= plannedReplacement.id %>][status]"
+                                  data-attendance-status
+                                  <%= replacementPresent
+                                    ? 'disabled'
+                                    : ''
+                                  %>
+                                >
+
+                                  <option
+                                    value="unabgemeldet"
+                                    <%= replacementAttendance === 'unabgemeldet'
+                                      ? 'selected'
+                                      : ''
+                                    %>
+                                  >
+                                    Nicht erschienen
+                                  </option>
+
+                                  <option
+                                    value="zu_spaet_abgemeldet"
+                                    <%= replacementAttendance === 'zu_spaet_abgemeldet'
+                                      ? 'selected'
+                                      : ''
+                                    %>
+                                  >
+                                    Zu spät abgemeldet
+                                  </option>
+
+                                </select>
+
+                                <span
+                                  class="field-edit-pencil"
+                                  aria-hidden="true"
+                                >
+                                  
+                                </span>
+
+                              </div>
+
+                            </label>
+
+
+                            <label class="f1-attendance-replacement">
+
+                              Nächster freier Ersatz
+
+                              <div class="field-with-edit">
+
+                                <select
+                                  name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]"
+                                  data-replacement-choice
+                                  <%= replacementPresent
+                                    ? 'disabled'
+                                    : ''
+                                  %>
+                                >
+
+                                  <option value="">
+                                    Kein Ersatz verfügbar / Cockpit leer
+                                  </option>
+
+
+                                  <% availableReplacements
+                                    .filter(
+                                      (driver) =>
+                                        Number(driver.id) !==
+                                        Number(
+                                          plannedReplacement.DriverId
+                                        )
+                                    )
+                                    .forEach((driver) => {
+                                  %>
+
+                                    <option value="<%= driver.id %>">
+                                      <%= driver.name %>
+                                      ·
+                                      <%= replacementLabel(driver) %>
+                                    </option>
+
+                                  <% }) %>
+
+                                </select>
+
+                                <span
+                                  class="field-edit-pencil"
+                                  aria-hidden="true"
+                                >
+                                  
+                                </span>
+
+                              </div>
+
+                            </label>
+
+                          </div>
+
+                        </section>
+
+
+                      <% } else if (
+                        [
+                          'abgemeldet',
+                          'zu_spaet_abgemeldet'
+                        ].includes(
+                          regular.status
+                        )
+                      ) { %>
+
+
+                        <div class="f1-attendance-person is-absent">
+
+                          <div>
+
+                            <span>
+                              ERSATZ BENÖTIGT
+                            </span>
+
+                            <strong>
+                              Kein Fahrer vorgemerkt
+                            </strong>
+
+                          </div>
+
+
+                          <label>
+
+                            Freier Ersatz
+
+                            <div class="field-with-edit">
+
+                              <select
+                                name="attendance[d<%= regular.id %>][ReplacementDriverId]"
+                                data-replacement-choice
+                              >
+
+                                <option value="">
+                                  Kein Ersatz verfügbar / Cockpit leer
+                                </option>
+
+
+                                <% availableReplacements.forEach((driver) => { %>
+
+                                  <option value="<%= driver.id %>">
+                                    <%= driver.name %>
+                                    ·
+                                    <%= replacementLabel(driver) %>
+                                  </option>
+
+                                <% }) %>
+
+                              </select>
+
+                              <span
+                                class="field-edit-pencil"
+                                aria-hidden="true"
+                              >
+                              
+                              </span>
+
+                            </div>
+
                           </label>
-                          <label class="f1-attendance-replacement" data-spontaneous-replacement <%= ['unabgemeldet', 'zu_spaet_abgemeldet'].includes(replacementAttendance) ? '' : 'hidden' %>>Weiterer Ersatz
-                            <select name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]" data-replacement-choice>
-                              <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                              <% availableReplacements.filter((driver) => Number(driver.id) !== Number(plannedReplacement.DriverId)).forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                            </select>
-                          </label>
+
                         </div>
 
-                        <div class="f1-attendance-person is-absent" data-present-panel="no" <%= replacementUncertain && replacementAbsent ? '' : 'hidden' %>>
-                          <div><span>ERSATZ FÄHRT NICHT</span><strong><%= plannedReplacement.driver.name %></strong></div>
-                          <label>Abwesenheit
-                            <select name="attendance[d<%= plannedReplacement.id %>][status]" data-attendance-status <%= replacementPresent ? 'disabled' : '' %>>
-                              <option value="unabgemeldet">Nicht erschienen</option>
-                              <option value="zu_spaet_abgemeldet">Zu spät abgemeldet</option>
-                            </select>
-                          </label>
-                          <label class="f1-attendance-replacement">Nächster freier Ersatz
-                            <select name="attendance[d<%= plannedReplacement.id %>][ReplacementDriverId]" data-replacement-choice <%= replacementPresent ? 'disabled' : '' %>>
-                              <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                              <% availableReplacements.filter((driver) => Number(driver.id) !== Number(plannedReplacement.DriverId)).forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                            </select>
-                          </label>
-                        </div>
-                      </section>
-                    <% } else if (regular.status === 'abgemeldet') { %>
-                      <div class="f1-attendance-person is-absent">
-                        <div><span>ERSATZ BENÖTIGT</span><strong>Kein Fahrer vorgemerkt</strong></div>
-                        <label>Freier Ersatz
-                          <select name="attendance[d<%= regular.id %>][ReplacementDriverId]" data-replacement-choice>
-                            <option value="">Kein Ersatz verfügbar / Cockpit leer</option>
-                            <% availableReplacements.forEach((driver) => { %><option value="<%= driver.id %>"><%= driver.name %> · <%= replacementLabel(driver) %></option><% }) %>
-                          </select>
-                        </label>
-                      </div>
+                      <% } %>
+
+
                     <% } %>
+
                   </article>
+
                 <% }) %>
+
               </div>
 
-              <div class="f1-attendance__feedback" data-attendance-feedback role="alert"></div>
-              <button class="button f1-attendance__submit" type="submit">ANWESENHEIT BESTÄTIGEN</button>
+
+              <div
+                class="f1-attendance__feedback"
+                data-attendance-feedback
+                role="alert"
+              >
+              </div>
+
+
+              <button
+                class="button f1-attendance__submit"
+                type="submit"
+              >
+                ANWESENHEIT BESTÄTIGEN
+              </button>
+
             </form>
 
+
+            <!-- =========================================== -->
+            <!-- KORREKTUR -->
+            <!-- =========================================== -->
+
             <% if (correctionRows.length) { %>
+
               <details class="f1-attendance-corrections">
-                <summary>Ausgeschiedene Fahrer ausdrücklich korrigieren</summary>
-                <form method="post" action="/admin/race-weekend/f1/<%= race.id %>/attendance">
+
+                <summary>
+                  Ausgeschiedene Fahrer ausdrücklich korrigieren
+                </summary>
+
+
+                <form
+                  method="post"
+                  action="/admin/race-weekend/f1/<%= race.id %>/attendance"
+                >
+
                   <% correctionRows.forEach(({ entry: row }) => { %>
-                    <label><strong><%= row.driver.name %></strong>
-                      <select name="correction[d<%= row.id %>][status]">
-                        <% allowedAttendance.forEach((status) => { %><option value="<%= status.value %>" <%= row.attendanceStatus === status.value ? 'selected' : '' %>><%= attendanceLabel(status) %></option><% }) %>
-                      </select>
+
+                    <label>
+
+                      <strong>
+                        <%= row.driver.name %>
+                      </strong>
+
+                      <div class="field-with-edit">
+
+                        <select
+                          name="correction[d<%= row.id %>][status]"
+                        >
+
+                          <% allowedAttendance.forEach((status) => { %>
+
+                            <option
+                              value="<%= status.value %>"
+                              <%= row.attendanceStatus === status.value
+                                ? 'selected'
+                                : ''
+                              %>
+                            >
+                              <%= attendanceLabel(status) %>
+                            </option>
+
+                          <% }) %>
+
+                        </select>
+
+                        <span
+                          class="field-edit-pencil"
+                          aria-hidden="true"
+                        >
+                       
+                        </span>
+
+                      </div>
+
                     </label>
+
                   <% }) %>
-                  <button class="button button-small" type="submit">KORREKTUR SPEICHERN</button>
+
+
+                  <button
+                    class="button button-small"
+                    type="submit"
+                  >
+                    KORREKTUR SPEICHERN
+                  </button>
+
                 </form>
+
               </details>
+
             <% } %>
+
+
           <% } %>
+
         </div>
+
       </section>
 
-      <section class="weekend-step" id="ergebnisse">
-        <div class="weekend-step-number">03</div>
-        <div>
-          <span>RENNERGEBNIS</span>
-          <h2>ERGEBNISSE EINTRAGEN</h2>
-          <p>Nur Fahrer mit bestätigter Anwesenheit werden übernommen. Team- und Punktelogik bleiben unverändert.</p>
-          <a class="button" href="<%= resultsHref %>">RACE-CONTROL ERGEBNIS ÖFFNEN</a>
+
+      <!-- ================================================= -->
+      <!-- SCHRITT 3 -->
+      <!-- ================================================= -->
+
+      <section
+        class="weekend-step"
+        id="ergebnisse"
+      >
+
+        <div class="weekend-step-number">
+          03
         </div>
+
+
+        <div>
+
+          <span>
+            RENNERGEBNIS
+          </span>
+
+          <h2>
+            ERGEBNISSE EINTRAGEN
+          </h2>
+
+          <p>
+            Nur Fahrer mit bestätigter Anwesenheit werden übernommen.
+            Die Ergebniseingabe bleibt direkt im Rennwochenende geöffnet.
+          </p>
+
+
+          <% if (!attendanceManaged) { %>
+
+            <div class="empty-state">
+              Bitte zuerst Schritt 2 vollständig speichern.
+            </div>
+
+          <% } else { %>
+
+
+            <details
+              class="f1-weekend-inline-results"
+              <%= savedResultCount
+                ? 'open'
+                : ''
+              %>
+            >
+
+              <summary class="button">
+                <%= savedResultCount
+                  ? 'ERGEBNIS ANZEIGEN / BEARBEITEN'
+                  : 'ERGEBNIS EINTRAGEN'
+                %>
+              </summary>
+
+
+              <div class="f1-weekend-inline-results__frame">
+
+                <iframe
+                  src="<%= resultsHref %>"
+                  title="F1 Ergebniseingabe"
+                  loading="lazy"
+                  style="
+                    width:100%;
+                    min-height:1400px;
+                    border:0;
+                    display:block;
+                  "
+                >
+                </iframe>
+
+              </div>
+
+            </details>
+
+
+          <% } %>
+
+        </div>
+
       </section>
+
+
     <% } %>
+
   </div>
+
 </section>
 
-<script src="/js/f1-race-lineup.js" defer></script>
-<script src="/js/race-weekend.js" defer></script>
-<script src="/js/f1-race-control.js" defer></script>
+
+<script
+  src="/js/f1-race-lineup.js"
+  defer
+></script>
+
+<script
+  src="/js/race-weekend.js"
+  defer
+></script>
+
+<script
+  src="/js/f1-race-control.js"
+  defer
+></script>
+
+
 <%- include('../partials/footer') %>

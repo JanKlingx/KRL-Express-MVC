@@ -1,12 +1,1184 @@
 <%- include('../partials/header', { title }) %>
-<section class="admin-shell"><div class="container">
-  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">RENNLEITUNG · FREITAG · SAMSTAG · SONNTAG</span><h1>FORMEL 1 STRAFKARTEI</h1><p class="admin-intro">Alle drei Ligen in einer Übersicht. Fahrernamen kommen unveränderbar aus dem Fahrerstamm; Einträge verfallen nach einem Jahr.</p></div><div><a class="button button-ghost" href="/admin/penaltyRules">Strafenkatalog</a><a class="button button-ghost" href="/admin/f1PenaltySettings">SP-Limits</a></div></div>
-  <nav class="penalty-league-nav"><% ledgers.forEach(({ league }) => { %><a href="#liga-<%= league.id %>"><%= league.name %></a><% }) %></nav>
-  <% ledgers.forEach(({ league, activeSeason, races, threshold, groups }) => { const allRows = [...groups.regular, ...groups.reserve, ...groups.former]; %><section class="penalty-league-section" id="liga-<%= league.id %>" style="--league-color:<%= league.accentColor %>">
-    <header><div><span><%= activeSeason?.name || 'KEINE AKTUELLE SAISON' %></span><h2><%= league.name %></h2></div><strong>Rennsperre ab <%= threshold %> SP</strong></header>
-    <% if (allRows.some((row) => row.suspended)) { %><div class="flash flash-error">Rennsperre aktiv: Markierte Fahrer können beim betroffenen Rennen nicht ersetzt werden.</div><% } %>
-    <details class="penalty-entry-panel"><summary>+ Manuelle Strafe oder Rennsperre eintragen</summary><form method="post" action="/admin/penalty-ledger" class="setup-form"><input type="hidden" name="LeagueId" value="<%= league.id %>"><label>Fahrer *<select name="DriverId" required><option value="">Aus Fahrerstamm wählen …</option><% allRows.forEach((row) => { %><option value="<%= row.id %>"><%= row.name %></option><% }) %></select></label><label>Rennen<select name="GrandPrixResultId"><option value="">Kein bestimmtes Rennen</option><% races.forEach((race) => { %><option value="<%= race.id %>">R<%= race.sortOrder %> · <%= race.title %></option><% }) %></select></label><label>Strafpunkte<input type="number" min="0" name="points" value="0"></label><label>Grund *<input name="reason" value="Manuelle Strafe" required></label><label>Kommentar<input name="comment"></label><label>Datum<input type="date" name="awardedOn" value="<%= new Date().toISOString().slice(0,10) %>"></label><label class="checkbox-control"><input type="checkbox" name="isRaceBan"><span>Rennsperre für gewähltes Rennen</span></label><button class="button">Eintragen</button></form></details>
-    <% [['regular','STAMMFAHRER'],['reserve','ERSATZFAHRER'],['former','EHEMALIGE FAHRER MIT SP']].forEach(([key, label]) => { const rows = groups[key]; %><section class="penalty-group"><h3><%= label %></h3><% if (!rows.length) { %><div class="empty-state">Keine Einträge.</div><% } else { %><div class="table-wrap"><table class="penalty-table"><thead><tr><th>Fahrer</th><th>Team</th><th>Strafen</th><th>SP</th><th>Bis Sperre</th><th>Status</th></tr></thead><tbody><% rows.forEach((row) => { %><tr class="<%= row.suspended ? 'row-danger' : '' %>" style="--team-color:<%= row.team?.accentColor || league.accentColor %>"><td><strong><%= row.name %></strong></td><td><div class="penalty-team"><% if (row.team?.logoPath) { %><img src="<%= row.team.logoPath %>" alt=""><% } %><span><%= row.team?.name || '–' %></span></div></td><td><div class="penalty-tags"><% row.penalties.forEach((penalty) => { %><span class="<%= penalty.isRaceBan ? 'ban' : '' %>"><%= penalty.isRaceBan ? 'Rennsperre' : `${penalty.points} SP` %> · <%= penalty.reason %><form method="post" action="/admin/penalty-ledger/<%= penalty.id %>?_method=DELETE" data-confirm="Diesen Eintrag entfernen?"><button type="submit">×</button></form></span><% }) %><% if (!row.penalties.length) { %>Keine<% } %></div></td><td><strong><%= row.points %></strong></td><td><%= row.remaining %></td><td><%= row.suspended ? 'RENNGESPERRT' : 'Frei' %></td></tr><% }) %></tbody></table></div><% } %></section><% }) %>
-  </section><% }) %>
-</div></section>
+
+<%
+  const safeLedgers = Array.isArray(ledgers) ? ledgers : [];
+
+  const safeReserveLedger = reserveLedger || {
+    columnGroups: [],
+    columns: [],
+    rows: []
+  };
+
+  const safeFormerLedger = formerLedger || {
+    columnGroups: [],
+    columns: [],
+    rows: []
+  };
+
+  const reserveColumnGroups = Array.isArray(safeReserveLedger.columnGroups)
+    ? safeReserveLedger.columnGroups
+    : [];
+
+  const reserveRows = Array.isArray(safeReserveLedger.rows)
+    ? safeReserveLedger.rows
+    : [];
+
+  const formerColumnGroups = Array.isArray(safeFormerLedger.columnGroups)
+    ? safeFormerLedger.columnGroups
+    : [];
+
+  const formerRows = Array.isArray(safeFormerLedger.rows)
+    ? safeFormerLedger.rows
+    : [];
+%>
+
+<style>
+  .penalty-ledger-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+
+  .penalty-ledger-actions,
+  .penalty-league-nav,
+  .penalty-league-settings,
+  .penalty-public-form,
+  .penalty-public-toggle {
+    display: flex;
+    align-items: center;
+  }
+
+  .penalty-ledger-actions,
+  .penalty-league-nav {
+    gap: 8px;
+  }
+
+  .penalty-league-nav {
+    flex-wrap: wrap;
+    margin: 0 0 22px;
+  }
+
+  .penalty-league-nav a {
+    padding: 8px 11px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 7px;
+    color: #fff;
+    text-decoration: none;
+    background: rgba(255,255,255,.04);
+  }
+
+  .penalty-league-nav a:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+  }
+
+  .penalty-league-section,
+  .penalty-global-section {
+    margin-bottom: 36px;
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 12px;
+    background: rgba(255,255,255,.025);
+  }
+
+  .penalty-league-header,
+  .penalty-global-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 16px;
+    border-bottom: 3px solid var(--league-color);
+  }
+
+  .penalty-league-header h2,
+  .penalty-global-header h2 {
+    margin: 2px 0 0;
+  }
+
+  .penalty-league-header > div > span,
+  .penalty-global-header > div > span {
+    opacity: .7;
+    font-size: .8rem;
+  }
+
+  .penalty-league-settings {
+    justify-content: flex-end;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .penalty-public-form {
+    gap: 8px;
+  }
+
+  .penalty-public-toggle {
+    gap: 7px;
+    margin: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: .75rem;
+    font-weight: 700;
+  }
+
+  .penalty-public-toggle input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--league-color);
+  }
+
+  .penalty-limit {
+    white-space: nowrap;
+    font-size: .85rem;
+  }
+
+  .penalty-info {
+    margin: 12px;
+    padding: 9px 11px;
+    border-radius: 7px;
+    background: rgba(255,255,255,.035);
+    font-size: .78rem;
+  }
+
+  .penalty-info strong {
+    color: #fff;
+  }
+
+  .penalty-save-status {
+    display: none;
+    margin: 0 12px 12px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: .78rem;
+  }
+
+  .penalty-save-status.is-visible { display: block; }
+  .penalty-save-status.is-success {
+    background: rgba(80,200,120,.12);
+    color: #9be8b5;
+  }
+  .penalty-save-status.is-error {
+    background: rgba(255,70,70,.12);
+    color: #ff9292;
+  }
+
+  .penalty-group {
+    padding: 0 8px 16px;
+  }
+
+  .penalty-group h3 {
+    margin: 16px 2px 8px;
+    font-size: .78rem;
+    letter-spacing: .07em;
+  }
+
+  .penalty-matrix-wrap,
+  .penalty-global-matrix-wrap {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 8px;
+  }
+
+  .penalty-matrix-wrap { overflow: visible; }
+  .penalty-global-matrix-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .penalty-matrix,
+  .penalty-global-matrix {
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .penalty-matrix {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .penalty-global-matrix {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .penalty-matrix th,
+  .penalty-matrix td,
+  .penalty-global-matrix th,
+  .penalty-global-matrix td {
+    padding: 0;
+    text-align: center;
+    border-right: 1px solid rgba(255,255,255,.075);
+    border-bottom: 1px solid rgba(255,255,255,.075);
+  }
+
+  .penalty-matrix th:last-child,
+  .penalty-matrix td:last-child,
+  .penalty-global-matrix th:last-child,
+  .penalty-global-matrix td:last-child {
+    border-right: 0;
+  }
+
+  .penalty-matrix tbody tr:last-child td,
+  .penalty-global-matrix tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .penalty-matrix thead th,
+  .penalty-global-matrix thead th {
+    background: rgba(255,255,255,.055);
+    font-size: .65rem;
+    vertical-align: middle;
+  }
+
+  .penalty-matrix thead th { height: 47px; }
+
+  .penalty-global-league-head {
+    height: 30px;
+    color: var(--group-color);
+    font-weight: 900;
+    letter-spacing: .05em;
+    border-bottom: 2px solid var(--group-color) !important;
+  }
+
+  .penalty-global-league-name {
+    display: block;
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
+
+  .penalty-driver-column {
+    width: 112px;
+    text-align: left !important;
+  }
+
+  td.penalty-driver-column {
+    padding: 7px;
+    overflow: hidden;
+    color: var(--league-color);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: .73rem;
+    font-weight: 700;
+  }
+
+  .penalty-global-driver-column {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    width: 130px;
+    min-width: 130px;
+    background: #0b1013 !important;
+    text-align: left !important;
+  }
+
+  td.penalty-global-driver-column {
+    padding: 7px 9px;
+    color: var(--league-color);
+    white-space: nowrap;
+    font-size: .75rem;
+    font-weight: 800;
+  }
+
+  .penalty-team-column { width: 36px; }
+
+  .penalty-team {
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .penalty-team img {
+    width: 23px;
+    height: 23px;
+    object-fit: contain;
+  }
+
+  .penalty-team-empty { opacity: .25; }
+  .penalty-round-column { width: auto; }
+
+  .penalty-global-round-column {
+    width: 38px;
+    min-width: 38px;
+    height: 47px;
+  }
+
+  .penalty-round-head {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .penalty-round-head strong {
+    color: var(--league-color);
+    font-size: .62rem;
+    line-height: 1;
+  }
+
+  .penalty-global-round-column .penalty-round-head strong {
+    color: var(--column-color);
+  }
+
+  .penalty-round-flag {
+    display: block;
+    width: 23px;
+    height: 15px;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 1px;
+  }
+
+  .penalty-round-placeholder {
+    opacity: .45;
+    font-size: .75rem;
+  }
+
+  .penalty-cell {
+    position: relative;
+    height: 38px;
+    padding: 0 !important;
+    cursor: text;
+    transition: box-shadow 100ms ease, opacity 100ms ease;
+  }
+
+  .penalty-cell:hover {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+  }
+
+  .penalty-cell:focus-within {
+    box-shadow: inset 0 0 0 2px var(--league-color);
+  }
+
+  .penalty-cell.is-saving { opacity: .5; }
+  .penalty-cell.is-saved { box-shadow: inset 0 0 0 2px #69d88d; }
+  .penalty-cell.is-error { box-shadow: inset 0 0 0 2px #ff5555; }
+
+  .penalty-cell-input {
+    display: block;
+    width: 100%;
+    height: 38px;
+    margin: 0;
+    padding: 0 2px;
+    border: 0 !important;
+    outline: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: #fff;
+    text-align: center;
+    font: inherit;
+    font-size: .80rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    box-sizing: border-box;
+    caret-color: #fff;
+  }
+
+  .penalty-cell-input::placeholder {
+    color: rgba(255,255,255,.20);
+    opacity: 1;
+  }
+
+  .penalty-cell.is-ban-cell {
+    background-color: #c62828 !important;
+  }
+
+  .penalty-cell.is-ban-cell .penalty-cell-input {
+    background: transparent !important;
+    color: #fff !important;
+    font-weight: 900 !important;
+  }
+
+  .penalty-cell-input.is-invalid { color: #ff7777 !important; }
+
+  .penalty-total {
+    width: 34px;
+    padding: 5px 2px !important;
+    font-size: .72rem;
+    font-weight: 900;
+  }
+
+  .penalty-remaining {
+    width: 44px;
+    padding: 5px 2px !important;
+    font-size: .68rem;
+    font-weight: 700;
+  }
+
+  .penalty-status-cell {
+    width: 58px;
+    padding: 4px 2px !important;
+  }
+
+  .penalty-status {
+    font-size: .53rem;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .penalty-status.is-banned { color: #ff7777; }
+  .penalty-status.is-free { color: #89e7a7; }
+
+  .penalty-matrix tr.row-danger .penalty-driver-column {
+    box-shadow: inset 3px 0 0 #ff5757;
+  }
+
+  .penalty-global-total {
+    width: 56px;
+    min-width: 56px;
+    padding: 5px !important;
+    font-size: .72rem;
+    font-weight: 900;
+  }
+
+  .penalty-global-status {
+    width: 64px;
+    min-width: 64px;
+    padding: 5px !important;
+    font-size: .58rem;
+    font-weight: 900;
+  }
+
+  .penalty-color-menu {
+    position: fixed;
+    z-index: 99999;
+    display: none;
+    width: 185px;
+    padding: 10px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 9px;
+    background: #15191d;
+    box-shadow: 0 12px 35px rgba(0,0,0,.55);
+  }
+
+  .penalty-color-menu.is-open { display: block; }
+
+  .penalty-color-menu-title {
+    margin-bottom: 9px;
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 800;
+  }
+
+  .penalty-color-picker-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px;
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 6px;
+    background: rgba(255,255,255,.035);
+  }
+
+  .penalty-color-picker-row span { font-size: .68rem; }
+
+  .penalty-color-picker {
+    width: 48px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .penalty-color-button {
+    width: 100%;
+    min-height: 32px;
+    margin-top: 7px;
+    padding: 5px 7px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 6px;
+    background: rgba(255,255,255,.05);
+    color: #fff;
+    font-size: .67rem;
+    cursor: pointer;
+  }
+
+  .penalty-color-button:hover { background: rgba(255,255,255,.10); }
+
+  .penalty-color-menu-note {
+    margin-top: 7px;
+    opacity: .6;
+    font-size: .61rem;
+  }
+
+  @media (max-width: 900px) {
+    .penalty-ledger-head,
+    .penalty-league-header,
+    .penalty-global-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .penalty-league-settings {
+      align-items: flex-start;
+      justify-content: flex-start;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .penalty-public-form {
+      flex-wrap: wrap;
+    }
+
+    .penalty-driver-column { width: 92px; }
+    .penalty-team-column { width: 30px; }
+    .penalty-total { width: 29px; }
+    .penalty-remaining { width: 37px; }
+    .penalty-status-cell { width: 49px; }
+
+    .penalty-round-flag {
+      width: 19px;
+      height: 12px;
+    }
+
+    .penalty-cell-input { font-size: .70rem; }
+  }
+</style>
+
+<section class="admin-shell">
+  <div class="container">
+
+    <div class="admin-heading penalty-ledger-head">
+      <div>
+        <a class="back-link" href="/admin">← Dashboard</a>
+        <span class="form-kicker">RENNLEITUNG · FORMEL 1</span>
+        <h1>FORMEL 1 STRAFKARTEI</h1>
+        <p class="admin-intro">
+          Stammfahrer je Liga sowie Ersatzfahrer und ehemalige Fahrer
+          ligenübergreifend verwalten.
+        </p>
+      </div>
+
+      <div class="penalty-ledger-actions">
+        <a class="button button-ghost" href="/admin/f1PenaltySettings">
+          SP-Limits
+        </a>
+      </div>
+    </div>
+
+    <nav class="penalty-league-nav">
+      <% safeLedgers.forEach(({ league }) => { %>
+        <a href="#liga-<%= league.id %>"><%= league.name %></a>
+      <% }) %>
+
+      <a href="#ersatzfahrer">Ersatzfahrer</a>
+      <a href="#ehemalige-fahrer">Ehemalige Fahrer</a>
+    </nav>
+
+    <% safeLedgers.forEach(({
+      league,
+      activeSeason,
+      rounds = [],
+      threshold,
+      setting,
+      groups
+    }) => {
+
+      const rows = Array.isArray(groups?.regular)
+        ? groups.regular
+        : [];
+    %>
+
+      <section
+        class="penalty-league-section"
+        id="liga-<%= league.id %>"
+        data-penalty-ledger
+        style="--league-color:<%= league.accentColor || '#6ef2f2' %>"
+      >
+        <header class="penalty-league-header">
+          <div>
+            <span><%= activeSeason?.name || 'KEINE AKTUELLE SAISON' %></span>
+            <h2><%= league.name %></h2>
+          </div>
+
+          <div class="penalty-league-settings">
+            <strong class="penalty-limit">
+              Rennsperre ab <%= threshold %> SP
+            </strong>
+
+            <form
+              method="post"
+              action="/admin/penalty-ledger/settings"
+              class="penalty-public-form"
+            >
+              <input
+                type="hidden"
+                name="LeagueId"
+                value="<%= league.id %>"
+              >
+
+              <label class="penalty-public-toggle">
+                <input
+                  type="checkbox"
+                  name="publicVisible"
+                  value="1"
+                  <%= setting?.publicVisible !== false ? 'checked' : '' %>
+                >
+                <span>Öffentlich anzeigen</span>
+              </label>
+
+              <button
+                type="submit"
+                class="button button-small button-ghost"
+              >
+                Speichern
+              </button>
+            </form>
+          </div>
+        </header>
+
+        <% if (!activeSeason) { %>
+          <div class="empty-state">Keine aktive Saison vorhanden.</div>
+        <% } else { %>
+
+          <div class="penalty-info">
+            <strong>Zahl:</strong> Strafpunkte ·
+            <strong>S:</strong> Rennsperre ·
+            <strong>Rechtsklick:</strong> Farbe ·
+            <strong>Enter:</strong> speichern ·
+            <strong>Tab:</strong> nächste Zelle
+          </div>
+
+          <div class="penalty-save-status" data-save-status></div>
+
+          <section class="penalty-group">
+            <h3>STAMMFAHRER</h3>
+
+            <% if (!rows.length) { %>
+              <div class="empty-state">Keine Stammfahrer.</div>
+            <% } else { %>
+              <div class="penalty-matrix-wrap">
+                <table class="penalty-matrix">
+                  <thead>
+                    <tr>
+                      <th class="penalty-driver-column">FAHRER</th>
+                      <th class="penalty-team-column">TEAM</th>
+
+                      <% rounds.forEach((round) => { %>
+                        <th
+                          class="penalty-round-column"
+                          title="R<%= round.roundNumber %> · <%= round.country || round.title || '' %>"
+                        >
+                          <div class="penalty-round-head">
+                            <strong>R<%= round.roundNumber %></strong>
+
+                            <% if (round.flagPath) { %>
+                              <img
+                                class="penalty-round-flag"
+                                src="<%= round.flagPath %>"
+                                alt="<%= round.country || '' %>"
+                              >
+                            <% } else { %>
+                              <span class="penalty-round-placeholder">🏁</span>
+                            <% } %>
+                          </div>
+                        </th>
+                      <% }) %>
+
+                      <th class="penalty-total">SP</th>
+                      <th class="penalty-remaining">BIS</th>
+                      <th class="penalty-status-cell">STATUS</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    <% rows.forEach((row) => { %>
+                      <tr
+                        data-penalty-row
+                        data-driver-id="<%= row.id %>"
+                        class="<%= row.suspended ? 'row-danger' : '' %>"
+                      >
+                        <td
+                          class="penalty-driver-column"
+                          title="<%= row.name %>"
+                        >
+                          <%= row.name %>
+                        </td>
+
+                        <td
+                          class="penalty-team-column"
+                          title="<%= row.team?.name || '' %>"
+                        >
+                          <div class="penalty-team">
+                            <% if (row.team?.logoPath) { %>
+                              <img
+                                src="<%= row.team.logoPath %>"
+                                alt="<%= row.team?.name || '' %>"
+                              >
+                            <% } else { %>
+                              <span class="penalty-team-empty">–</span>
+                            <% } %>
+                          </div>
+                        </td>
+
+                        <% rounds.forEach((round) => {
+                          const cell = row.cells?.[round.roundNumber] || null;
+
+                          const cellValue =
+                            cell?.value ||
+                            (
+                              cell?.isRaceBan
+                                ? 'S'
+                                : Number(cell?.points || 0) > 0
+                                  ? String(cell.points)
+                                  : ''
+                            );
+
+                          const cellColor = cell?.cellColor || '';
+                        %>
+                          <td
+                            class="penalty-cell <%= cellValue === 'S' ? 'is-ban-cell' : '' %>"
+                            data-penalty-cell
+                            data-saved-color="<%= cellColor %>"
+                            style="<%=
+                              cellValue !== 'S' && cellColor
+                                ? `background-color:${cellColor};`
+                                : ''
+                            %>"
+                          >
+                            <input
+                              class="penalty-cell-input"
+                              type="text"
+                              value="<%= cellValue %>"
+                              placeholder="–"
+                              maxlength="4"
+                              autocomplete="off"
+                              spellcheck="false"
+                              inputmode="text"
+                              data-saved-value="<%= cellValue %>"
+                              data-saved-color="<%= cellColor %>"
+                              data-league-id="<%= league.id %>"
+                              data-season-id="<%= activeSeason.id %>"
+                              data-driver-id="<%= row.id %>"
+                              data-round-number="<%= round.roundNumber %>"
+                              aria-label="<%= row.name %>, Runde <%= round.roundNumber %>"
+                            >
+                          </td>
+                        <% }) %>
+
+                        <td class="penalty-total" data-row-total>
+                          <%= row.points %>
+                        </td>
+
+                        <td class="penalty-remaining" data-row-remaining>
+                          <%= row.remaining %>
+                        </td>
+
+                        <td class="penalty-status-cell">
+                          <span
+                            class="penalty-status <%= row.suspended ? 'is-banned' : 'is-free' %>"
+                            data-row-status
+                          >
+                            <%= row.suspended ? 'GESPERRT' : 'FREI' %>
+                          </span>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } %>
+          </section>
+        <% } %>
+      </section>
+    <% }) %>
+
+    <section
+      class="penalty-global-section"
+      id="ersatzfahrer"
+      data-penalty-ledger
+      data-global-ledger="reserve"
+      style="--league-color:#6ef2f2"
+    >
+      <header class="penalty-global-header">
+        <div>
+          <span>FORMEL 1 · LIGENÜBERGREIFEND</span>
+          <h2>ERSATZFAHRER</h2>
+        </div>
+
+        <strong class="penalty-limit">
+          <%= reserveRows.length %> Fahrer
+        </strong>
+      </header>
+
+      <div class="penalty-info">
+        Alle aktuellen F1-Ersatzfahrer werden hier
+        <strong>einmal gemeinsam</strong> geführt.
+        Strafpunkte bleiben ihrer Liga und Rennrunde zugeordnet.
+      </div>
+
+      <div class="penalty-save-status" data-save-status></div>
+
+      <section class="penalty-group">
+        <% if (!reserveColumnGroups.length) { %>
+          <div class="empty-state">Keine aktiven F1-Saisons vorhanden.</div>
+        <% } else if (!reserveRows.length) { %>
+          <div class="empty-state">Keine Ersatzfahrer vorhanden.</div>
+        <% } else { %>
+          <div class="penalty-global-matrix-wrap">
+            <table class="penalty-global-matrix">
+              <thead>
+                <tr>
+                  <th class="penalty-global-driver-column" rowspan="2">
+                    FAHRER
+                  </th>
+
+                  <% reserveColumnGroups.forEach((group) => {
+                    const groupColumns = Array.isArray(group.columns)
+                      ? group.columns
+                      : [];
+                  %>
+                    <% if (groupColumns.length) { %>
+                      <th
+                        class="penalty-global-league-head"
+                        colspan="<%= groupColumns.length %>"
+                        style="--group-color:<%= group.league?.accentColor || '#6ef2f2' %>"
+                      >
+                        <span class="penalty-global-league-name">
+                          <%= group.league?.name || '' %>
+                        </span>
+                      </th>
+                    <% } %>
+                  <% }) %>
+
+                  <th class="penalty-global-total" rowspan="2">SP</th>
+                  <th class="penalty-global-status" rowspan="2">STATUS</th>
+                </tr>
+
+                <tr>
+                  <% reserveColumnGroups.forEach((group) => {
+                    const groupColumns = Array.isArray(group.columns)
+                      ? group.columns
+                      : [];
+                  %>
+                    <% groupColumns.forEach((column) => { %>
+                      <th
+                        class="penalty-global-round-column"
+                        style="--column-color:<%= column.leagueColor || '#6ef2f2' %>"
+                        title="<%= column.leagueName || '' %> · R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
+                      >
+                        <div class="penalty-round-head">
+                          <strong>R<%= column.roundNumber %></strong>
+
+                          <% if (column.flagPath) { %>
+                            <img
+                              class="penalty-round-flag"
+                              src="<%= column.flagPath %>"
+                              alt="<%= column.country || '' %>"
+                            >
+                          <% } else { %>
+                            <span class="penalty-round-placeholder">🏁</span>
+                          <% } %>
+                        </div>
+                      </th>
+                    <% }) %>
+                  <% }) %>
+                </tr>
+              </thead>
+
+              <tbody>
+                <% reserveRows.forEach((row) => { %>
+                  <tr
+                    data-penalty-row
+                    data-global-row="reserve"
+                    data-driver-id="<%= row.id %>"
+                  >
+                    <td
+                      class="penalty-global-driver-column"
+                      title="<%= row.name %>"
+                    >
+                      <%= row.name %>
+                    </td>
+
+                    <% reserveColumnGroups.forEach((group) => {
+                      const groupColumns = Array.isArray(group.columns)
+                        ? group.columns
+                        : [];
+                    %>
+                      <% groupColumns.forEach((column) => {
+                        const cell = row.cells?.[column.key] || null;
+
+                        const cellValue =
+                          cell?.value ||
+                          (
+                            cell?.isRaceBan
+                              ? 'S'
+                              : Number(cell?.points || 0) > 0
+                                ? String(cell.points)
+                                : ''
+                          );
+
+                        const cellColor = cell?.cellColor || '';
+                      %>
+                        <td
+                          class="penalty-cell <%= cellValue === 'S' ? 'is-ban-cell' : '' %>"
+                          data-penalty-cell
+                          data-saved-color="<%= cellColor %>"
+                          style="<%=
+                            cellValue !== 'S' && cellColor
+                              ? `background-color:${cellColor};`
+                              : ''
+                          %>"
+                        >
+                          <input
+                            class="penalty-cell-input"
+                            type="text"
+                            value="<%= cellValue %>"
+                            placeholder="–"
+                            maxlength="4"
+                            autocomplete="off"
+                            spellcheck="false"
+                            inputmode="text"
+                            data-saved-value="<%= cellValue %>"
+                            data-saved-color="<%= cellColor %>"
+                            data-league-id="<%= column.LeagueId %>"
+                            data-season-id="<%= column.SeasonId %>"
+                            data-driver-id="<%= row.id %>"
+                            data-round-number="<%= column.roundNumber %>"
+                            aria-label="<%= row.name %>, <%= column.leagueName || '' %>, Runde <%= column.roundNumber %>"
+                          >
+                        </td>
+                      <% }) %>
+                    <% }) %>
+
+                    <td class="penalty-global-total" data-global-row-total>
+                      <%= row.points %>
+                    </td>
+
+                    <td class="penalty-global-status">
+                      <span
+                        class="penalty-status <%= row.hasBan ? 'is-banned' : 'is-free' %>"
+                        data-global-row-status
+                      >
+                        <%= row.hasBan ? 'SPERRE' : 'AKTIV' %>
+                      </span>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+    </section>
+
+    <section
+      class="penalty-global-section"
+      id="ehemalige-fahrer"
+      data-penalty-ledger
+      data-global-ledger="former"
+      style="--league-color:#9b8cff"
+    >
+      <header class="penalty-global-header">
+        <div>
+          <span>FORMEL 1 · RESTSTRAFEN</span>
+          <h2>EHEMALIGE FAHRER</h2>
+        </div>
+
+        <strong class="penalty-limit">
+          <%= formerRows.length %> Fahrer
+        </strong>
+      </header>
+
+      <div class="penalty-info">
+        Ehemalige Fahrer bleiben <strong>editierbar</strong>.
+        Sobald ein Fahrer <strong>0 SP und kein S</strong> mehr besitzt,
+        verschwindet seine Zeile automatisch.
+      </div>
+
+      <div class="penalty-save-status" data-save-status></div>
+
+      <section class="penalty-group">
+        <% if (!formerColumnGroups.length) { %>
+          <div class="empty-state">Keine aktiven F1-Saisons vorhanden.</div>
+        <% } else if (!formerRows.length) { %>
+          <div class="empty-state">
+            Keine ehemaligen Fahrer mit Reststrafen.
+          </div>
+        <% } else { %>
+          <div class="penalty-global-matrix-wrap">
+            <table class="penalty-global-matrix">
+              <thead>
+                <tr>
+                  <th class="penalty-global-driver-column" rowspan="2">
+                    FAHRER
+                  </th>
+
+                  <% formerColumnGroups.forEach((group) => {
+                    const groupColumns = Array.isArray(group.columns)
+                      ? group.columns
+                      : [];
+                  %>
+                    <% if (groupColumns.length) { %>
+                      <th
+                        class="penalty-global-league-head"
+                        colspan="<%= groupColumns.length %>"
+                        style="--group-color:<%= group.league?.accentColor || '#6ef2f2' %>"
+                      >
+                        <span class="penalty-global-league-name">
+                          <%= group.league?.name || '' %>
+                        </span>
+                      </th>
+                    <% } %>
+                  <% }) %>
+
+                  <th class="penalty-global-total" rowspan="2">SP</th>
+                  <th class="penalty-global-status" rowspan="2">STATUS</th>
+                </tr>
+
+                <tr>
+                  <% formerColumnGroups.forEach((group) => {
+                    const groupColumns = Array.isArray(group.columns)
+                      ? group.columns
+                      : [];
+                  %>
+                    <% groupColumns.forEach((column) => { %>
+                      <th
+                        class="penalty-global-round-column"
+                        style="--column-color:<%= column.leagueColor || '#6ef2f2' %>"
+                        title="<%= column.leagueName || '' %> · R<%= column.roundNumber %> · <%= column.country || column.title || '' %>"
+                      >
+                        <div class="penalty-round-head">
+                          <strong>R<%= column.roundNumber %></strong>
+
+                          <% if (column.flagPath) { %>
+                            <img
+                              class="penalty-round-flag"
+                              src="<%= column.flagPath %>"
+                              alt="<%= column.country || '' %>"
+                            >
+                          <% } else { %>
+                            <span class="penalty-round-placeholder">🏁</span>
+                          <% } %>
+                        </div>
+                      </th>
+                    <% }) %>
+                  <% }) %>
+                </tr>
+              </thead>
+
+              <tbody>
+                <% formerRows.forEach((row) => { %>
+                  <tr
+                    data-penalty-row
+                    data-global-row="former"
+                    data-former-row
+                    data-driver-id="<%= row.id %>"
+                  >
+                    <td
+                      class="penalty-global-driver-column"
+                      title="<%= row.name %>"
+                    >
+                      <%= row.name %>
+                    </td>
+
+                    <% formerColumnGroups.forEach((group) => {
+                      const groupColumns = Array.isArray(group.columns)
+                        ? group.columns
+                        : [];
+                    %>
+                      <% groupColumns.forEach((column) => {
+                        const cell = row.cells?.[column.key] || null;
+
+                        const cellValue =
+                          cell?.value ||
+                          (
+                            cell?.isRaceBan
+                              ? 'S'
+                              : Number(cell?.points || 0) > 0
+                                ? String(cell.points)
+                                : ''
+                          );
+
+                        const cellColor = cell?.cellColor || '';
+                      %>
+                        <td
+                          class="penalty-cell <%= cellValue === 'S' ? 'is-ban-cell' : '' %>"
+                          data-penalty-cell
+                          data-saved-color="<%= cellColor %>"
+                          style="<%=
+                            cellValue !== 'S' && cellColor
+                              ? `background-color:${cellColor};`
+                              : ''
+                          %>"
+                        >
+                          <input
+                            class="penalty-cell-input"
+                            type="text"
+                            value="<%= cellValue %>"
+                            placeholder="–"
+                            maxlength="4"
+                            autocomplete="off"
+                            spellcheck="false"
+                            inputmode="text"
+                            data-saved-value="<%= cellValue %>"
+                            data-saved-color="<%= cellColor %>"
+                            data-league-id="<%= column.LeagueId %>"
+                            data-season-id="<%= column.SeasonId %>"
+                            data-driver-id="<%= row.id %>"
+                            data-round-number="<%= column.roundNumber %>"
+                            aria-label="<%= row.name %>, <%= column.leagueName || '' %>, Runde <%= column.roundNumber %>"
+                          >
+                        </td>
+                      <% }) %>
+                    <% }) %>
+
+                    <td class="penalty-global-total" data-global-row-total>
+                      <%= row.points %>
+                    </td>
+
+                    <td class="penalty-global-status">
+                      <span
+                        class="penalty-status <%= row.hasBan ? 'is-banned' : 'is-free' %>"
+                        data-global-row-status
+                      >
+                        <%= row.hasBan ? 'SPERRE' : 'REST-SP' %>
+                      </span>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </section>
+    </section>
+
+  </div>
+</section>
+
+<div class="penalty-color-menu" data-color-menu>
+  <div class="penalty-color-menu-title">Zellenfarbe</div>
+
+  <label class="penalty-color-picker-row">
+    <span>Farbe wählen</span>
+
+    <input
+      class="penalty-color-picker"
+      type="color"
+      value="#4a90e2"
+      data-color-picker
+    >
+  </label>
+
+  <button
+    type="button"
+    class="penalty-color-button"
+    data-color-clear
+  >
+    Farbe entfernen
+  </button>
+
+  <div class="penalty-color-menu-note">
+    Die Farbe beeinflusst die Strafpunkte nicht.
+  </div>
+</div>
+
+<script src="/js/penalty-ledger.js" defer></script>
+
 <%- include('../partials/footer') %>
