@@ -326,6 +326,52 @@ async function loadRounds(
   );
 }
 
+function centralCalendarRounds(calendar) {
+  return (calendar?.rounds || [])
+    .filter((round) => !round.isTestDay)
+    .map((round) => ({
+      roundNumber: Number(round.roundNumber || round.sortOrder),
+      title:
+        round.track?.countryRecord?.name ||
+        round.track?.country ||
+        round.track?.name ||
+        round.circuit,
+      circuit: round.track?.name || round.circuit || null,
+      flagPath: round.track?.countryRecord?.flagPath || null,
+      country:
+        round.track?.countryRecord?.name ||
+        round.track?.country ||
+        null,
+    }))
+    .filter((round) => Number.isInteger(round.roundNumber) && round.roundNumber > 0)
+    .sort((left, right) => left.roundNumber - right.roundNumber);
+}
+
+async function loadCentralCalendars() {
+  return F1Calendar.findAll({
+    include: [{
+      association: "rounds",
+      required: false,
+      include: [{ association: "track", include: [{ association: "countryRecord" }] }],
+    }],
+    order: [
+      ["isActive", "DESC"],
+      ["sortOrder", "ASC"],
+      ["id", "DESC"],
+      [{ model: F1CalendarRound, as: "rounds" }, "sortOrder", "ASC"],
+    ],
+  });
+}
+
+function calendarOptions(calendars) {
+  return calendars.map((calendar) => ({
+    id: calendar.id,
+    name: calendar.name,
+    isActive: calendar.isActive,
+    roundCount: centralCalendarRounds(calendar).length,
+  }));
+}
+
 
 /*
  * =====================================================
@@ -632,6 +678,7 @@ function buildGlobalCells(
 
 async function buildLeagueLedger(
   league,
+  requestedCalendarId = null,
 ) {
   const activeSeason =
     await Season.findOne({
@@ -654,8 +701,9 @@ async function buildLeagueLedger(
   const [
     setting,
     structure,
-    rounds,
+    seasonRounds,
     penalties,
+    calendars,
   ] =
     await Promise.all([
       F1PenaltySetting.findOne({
@@ -701,7 +749,27 @@ async function buildLeagueLedger(
             ],
           })
         : Promise.resolve([]),
+
+      loadCentralCalendars(),
     ]);
+
+  const requestedId = Number(requestedCalendarId || 0);
+  const seasonCalendarId = Number(activeSeason?.F1CalendarId || 0);
+  const selectedCalendar =
+    calendars.find((calendar) => Number(calendar.id) === requestedId) ||
+    calendars.find((calendar) => Number(calendar.id) === seasonCalendarId) ||
+    calendars[0] ||
+    null;
+  const rounds = selectedCalendar
+    ? centralCalendarRounds(selectedCalendar)
+    : seasonRounds;
+  let calendarWarning = null;
+
+  if (requestedId && !calendars.some((calendar) => Number(calendar.id) === requestedId)) {
+    calendarWarning = "Der angeforderte Rennkalender wurde nicht gefunden. Es wird die Standardauswahl angezeigt.";
+  } else if (!selectedCalendar && activeSeason) {
+    calendarWarning = "Es wurde noch kein zentraler F1-Rennkalender angelegt; der Saisonkalender wird angezeigt.";
+  }
 
 
   const regularField =
@@ -886,6 +954,14 @@ async function buildLeagueLedger(
 
     setting,
 
+    calendars: calendarOptions(calendars),
+
+    selectedCalendar: selectedCalendar
+      ? { id: selectedCalendar.id, name: selectedCalendar.name }
+      : null,
+
+    calendarWarning,
+
     /*
      * Nur noch Stammfahrer pro Liga.
      *
@@ -942,19 +1018,7 @@ async function buildGlobalLedgers(
   const seasonCalendarIds = [...new Set(activeLedgers
     .map((ledger) => Number(ledger.activeSeason?.F1CalendarId || 0))
     .filter(Boolean))];
-  const calendars = await F1Calendar.findAll({
-    include: [{
-      association: "rounds",
-      required: false,
-      include: [{ association: "track", include: [{ association: "countryRecord" }] }],
-    }],
-    order: [
-      ["isActive", "DESC"],
-      ["sortOrder", "ASC"],
-      ["id", "DESC"],
-      [{ model: F1CalendarRound, as: "rounds" }, "sortOrder", "ASC"],
-    ],
-  });
+  const calendars = await loadCentralCalendars();
   const requestedId = Number(requestedCalendarId || 0);
   const selectedCalendar =
     calendars.find((calendar) => Number(calendar.id) === requestedId) ||
@@ -970,13 +1034,7 @@ async function buildGlobalLedgers(
   }
 
   const sourceRounds = selectedCalendar
-    ? selectedCalendar.rounds.filter((round) => !round.isTestDay).map((round) => ({
-        roundNumber: Number(round.roundNumber || round.sortOrder),
-        title: round.track?.countryRecord?.name || round.track?.country || round.track?.name,
-        circuit: round.track?.name || round.circuit,
-        flagPath: round.track?.countryRecord?.flagPath || null,
-        country: round.track?.countryRecord?.name || round.track?.country || null,
-      }))
+    ? centralCalendarRounds(selectedCalendar)
     : (masterLedger?.rounds || []);
   if (!selectedCalendar && activeLedgers.length) {
     calendarWarning = "Es wurde noch kein zentraler F1-Rennkalender angelegt; als Übergang wird die erste aktive Liga verwendet.";
@@ -1123,12 +1181,7 @@ async function buildGlobalLedgers(
     !driverConditions.length
   ) {
     return {
-      calendars: calendars.map((calendar) => ({
-        id: calendar.id,
-        name: calendar.name,
-        isActive: calendar.isActive,
-        roundCount: (calendar.rounds || []).filter((round) => !round.isTestDay).length,
-      })),
+      calendars: calendarOptions(calendars),
       selectedCalendar: selectedCalendar
         ? { id: selectedCalendar.id, name: selectedCalendar.name }
         : null,
@@ -1319,12 +1372,7 @@ async function buildGlobalLedgers(
 
 
   return {
-    calendars: calendars.map((calendar) => ({
-      id: calendar.id,
-      name: calendar.name,
-      isActive: calendar.isActive,
-      roundCount: (calendar.rounds || []).filter((round) => !round.isTestDay).length,
-    })),
+    calendars: calendarOptions(calendars),
     selectedCalendar: selectedCalendar
       ? { id: selectedCalendar.id, name: selectedCalendar.name }
       : null,
@@ -1391,8 +1439,8 @@ exports.show = async (
    */
   const ledgers =
     await Promise.all(
-      leagues.map(
-        buildLeagueLedger,
+      leagues.map((league) =>
+        buildLeagueLedger(league, req.query[`calendar_${league.slug}`]),
       ),
     );
 

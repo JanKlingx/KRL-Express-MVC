@@ -149,13 +149,13 @@ test('Fahrerwechsel historisiert ausgeschiedene und neue Stammfahrer mit DNA', (
   assert.deepEqual(tobi.results.map((row) => row.main.value), ['DNA', 'DNA', 'DNA', 'DNA', 'P5', 'P3']);
 });
 
-test('Beförderter Ersatzfahrer bleibt in Ersatzwertung und behält echte Punkte in der Fahrer-WM', () => {
+test('Beförderter Ersatzfahrer trennt Ersatz- und Stammfahrerwertung am Wechseltermin', () => {
   const scenario = driverChangeScenario();
   const data = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
   const regular = data.driverStandings.find((row) => row.driver.name === 'Tobi');
   const reserve = data.selectedHistory.reserveDrivers.find((driver) => driver.name === 'Tobi');
 
-  assert.equal(regular.points, 41);
+  assert.equal(regular.points, 25);
   assert.equal(reserve.total, 16);
   assert.equal(reserve.promotedToRegular, true);
   assert.equal(reserve.promotedFromRound, 5);
@@ -163,11 +163,11 @@ test('Beförderter Ersatzfahrer bleibt in Ersatzwertung und behält echte Punkte
 
   scenario.races[1].entries.find((entry) => entry.DriverId === 2).points = 8;
   const corrected = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
-  assert.equal(corrected.driverStandings.find((row) => row.driver.name === 'Tobi').points, 43);
+  assert.equal(corrected.driverStandings.find((row) => row.driver.name === 'Tobi').points, 25);
   assert.equal(corrected.reserveStandings.find((row) => row.driver.name === 'Tobi').points, 18);
 });
 
-test('Fahrer-WM behält echte Ersatzpunkte auch vor einem späteren Teamwechsel', () => {
+test('Fahrer-WM übernimmt keine Ersatzpunkte vor einem späteren Stammcockpit', () => {
   const mercedes = { id: 10, name: 'Mercedes', sourceType: 'current', sourceId: 100 };
   const williams = { id: 20, name: 'Williams', sourceType: 'current', sourceId: 200 };
   const driver = { id: 3, name: 'Alex', team: mercedes };
@@ -185,12 +185,46 @@ test('Fahrer-WM behält echte Ersatzpunkte auch vor einem späteren Teamwechsel'
   ];
   const data = buildSeasonData(league, races, [driver], lineups, {}, stints);
 
-  assert.equal(data.driverStandings.find((row) => row.driver.name === 'Alex').points, 25);
+  assert.equal(data.driverStandings.find((row) => row.driver.name === 'Alex').points, 15);
   assert.equal(data.reserveStandings.find((row) => row.driver.name === 'Alex').points, 10);
   assert.equal(data.teamStandings.find((row) => row.team.name === 'Williams').points, 10);
   assert.equal(data.teamStandings.find((row) => row.team.name === 'Mercedes').points, 15);
   assert.equal(races[0].entries[0].TeamId, 200);
   assert.equal(races[0].entries[0].teamName, 'Williams');
+});
+
+test('Cockpitabgabe trennt spätere Ersatzeinsätze von der Stammfahrer-WM', () => {
+  const driver = { id: 4, name: 'Chris', team: { id: 10, name: 'Mercedes' } };
+  const races = [
+    { id: 301, SeasonId: 9, LeagueId: 1, title: 'GP 1', raceType: 'main', sortOrder: 1, entries: [{ GrandPrixResultId: 301, DriverId: 4, driverName: 'Chris', teamName: 'Mercedes', position: 4, points: 12 }] },
+    { id: 302, SeasonId: 9, LeagueId: 1, title: 'GP 2', raceType: 'main', sortOrder: 2, entries: [] },
+    { id: 303, SeasonId: 9, LeagueId: 1, title: 'GP 3', raceType: 'main', sortOrder: 3, entries: [{ GrandPrixResultId: 303, DriverId: 4, driverName: 'Chris', teamName: 'Ferrari', position: 6, points: 8 }] }
+  ];
+  const lineups = [{
+    GrandPrixResultId: 303, DriverId: 4, ReplacementForDriverId: 8,
+    roleType: 'reserve', includeInResults: true, driver
+  }];
+  const stints = [
+    { id: 40, DriverId: 4, SeasonTeamId: 10, roleType: 'regular', fromRound: 1, toRound: 1, endReason: 'demoted', driver, seasonTeam: driver.team },
+    { id: 41, DriverId: 4, SeasonTeamId: null, roleType: 'reserve', fromRound: 2, toRound: null, previousStintId: 40, driver, seasonTeam: null }
+  ];
+  const data = buildSeasonData(league, races, [driver], lineups, {}, stints);
+  const regular = data.selectedHistory.drivers.find((row) => row.name === 'Chris');
+  const reserve = data.selectedHistory.reserveDrivers.find((row) => row.name === 'Chris');
+
+  assert.equal(data.driverStandings.find((row) => row.driver.name === 'Chris').points, 12);
+  assert.deepEqual(regular.results.map((row) => row.main.value), ['P4', 'DNA', 'DNA']);
+  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNA', 'DNS', 'P6']);
+  assert.equal(data.reserveStandings.find((row) => row.driver.name === 'Chris').points, 8);
+});
+
+test('Ehemaliger Fahrer mit ausschließlich DNS/DNA bleibt nicht in der Fahrer-WM', () => {
+  const driver = { id: 5, name: 'Ohne Start', team: { id: 10, name: 'Mercedes' } };
+  const races = [{ id: 401, SeasonId: 10, LeagueId: 1, title: 'GP 1', raceType: 'main', sortOrder: 1, entries: [] }];
+  const stints = [{ id: 50, DriverId: 5, SeasonTeamId: 10, roleType: 'regular', fromRound: 1, toRound: 1, endReason: 'left', driver, seasonTeam: driver.team }];
+  const data = buildSeasonData(league, races, [driver], [], {}, stints);
+  assert.equal(data.driverStandings.some((row) => row.driver.name === 'Ohne Start'), false);
+  assert.equal(data.selectedHistory.drivers.some((row) => row.name === 'Ohne Start'), false);
 });
 
 test('LMU-Punktesystem addiert schnellste Runde und Poleposition saisonbezogen', async () => {

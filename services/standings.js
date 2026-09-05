@@ -588,10 +588,9 @@ function buildSeasonData(
           };
         },
       );
-    driver.total = races.reduce((sum, race) => sum + number(actualEntryFor(driver, race)?.points), 0);
-    driver.wins = races.filter((race) =>
-      race.raceType !== "sprint" && Number(actualEntryFor(driver, race)?.position) === 1
-    ).length;
+    /* Punkte außerhalb eines Stammfahrer-Stints gehören ausschließlich
+       in die Ersatzfahrerwertung. */
+    driver.total = driver.roleTotal;
   }
 
   /*
@@ -602,6 +601,14 @@ function buildSeasonData(
 
   const rankedDrivers =
     [...drivers.values()]
+      .filter((driver) => {
+        if (!driver.isFormerDriver) return true;
+        const regularStints = stintsFor(driver.id, "regular");
+        return races.some((race) =>
+          regularStints.some((stint) => isRoundInStint(stint, race.sortOrder)) &&
+          Boolean(actualEntryFor(driver, race))
+        );
+      })
       .sort(
         (a, b) =>
           b.total -
@@ -632,7 +639,15 @@ function buildSeasonData(
 
       const completedMainIndexes = races
         .map((race, raceIndex) => ({ race, raceIndex }))
-        .filter(({ race }) => race.raceType === "main" && Array.isArray(race.entries) && race.entries.length);
+        .filter(({ race }) =>
+          race.raceType === "main" &&
+          Array.isArray(race.entries) &&
+          race.entries.length &&
+          (
+            !stintsFor(driver.id, "regular").length ||
+            stintsFor(driver.id, "regular").some((stint) => isRoundInStint(stint, race.sortOrder))
+          )
+        );
       const startedMainResults = completedMainIndexes
         .map(({ race }) => actualEntryFor(driver, race))
         .filter(Boolean);
@@ -1374,7 +1389,14 @@ function buildSeasonData(
     return rankedDrivers
       .map(
         (driver) => {
-          const includedRaces = races.filter((race) => number(race.sortOrder) <= number(targetWeekend.round));
+          const regularStints = stintsFor(driver.id, "regular");
+          const includedRaces = races.filter((race) =>
+            number(race.sortOrder) <= number(targetWeekend.round) &&
+            (
+              !regularStints.length ||
+              regularStints.some((stint) => isRoundInStint(stint, race.sortOrder))
+            )
+          );
           const points = includedRaces.reduce((sum, race) => sum + number(actualEntryFor(driver, race)?.points), 0);
           const wins = includedRaces.filter((race) =>
             race.raceType !== "sprint" && Number(actualEntryFor(driver, race)?.position) === 1

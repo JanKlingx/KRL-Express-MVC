@@ -57,6 +57,16 @@
       ? Number(selectedGlobalCalendar?.id || 0)
       : 0;
 
+  const safeLeagueCalendars =
+    typeof leagueCalendars !== "undefined" && Array.isArray(leagueCalendars)
+      ? leagueCalendars
+      : [];
+
+  const selectedLeagueCalendarId =
+    typeof selectedLeagueCalendar !== "undefined"
+      ? Number(selectedLeagueCalendar?.id || 0)
+      : 0;
+
   const safeCommunityAccent =
     typeof communityAccent === "string" &&
     communityAccent
@@ -78,6 +88,11 @@
     typeof viewMode === "string"
       ? viewMode
       : "liga";
+
+  const safeLeague =
+    typeof league !== "undefined" && league
+      ? league
+      : null;
 
   const ledgerPath =
     typeof publicPath === "string" &&
@@ -1008,7 +1023,7 @@
     <%=
       safeViewMode === "liga"
         ? (
-            league?.accentColor ||
+            safeLeague?.accentColor ||
             "#6ef2f2"
           )
         : safeCommunityAccent
@@ -1031,7 +1046,7 @@
         src="<%=
           safeViewMode === "liga"
             ? (
-                league?.logoPath ||
+                safeLeague?.logoPath ||
                 safeCommunityLogoPath
               )
             : safeCommunityLogoPath
@@ -1040,7 +1055,7 @@
         alt="<%=
           safeViewMode === "liga"
             ? (
-                league?.name ||
+                safeLeague?.name ||
                 "KRL"
               )
             : "KRL Community"
@@ -1160,6 +1175,27 @@
         <% } %>
       >
 
+        <% if (!safeLeagueTabs.length) { %>
+          <div class="public-ledger-empty">
+            Aktuell ist keine Liga-Strafkartei öffentlich freigegeben.
+          </div>
+        <% } else { %>
+          <form method="get" action="<%= ledgerPath %>" class="public-ledger-calendar-picker">
+            <input type="hidden" name="liga" value="<%= safeSelectedLeagueSlug %>">
+            <label>Rennkalender für <%= safeLeague?.name || 'diese Liga' %>
+              <select name="kalender">
+                <% safeLeagueCalendars.forEach((calendar) => { %>
+                  <option value="<%= calendar.id %>" <%= selectedLeagueCalendarId === Number(calendar.id) ? 'selected' : '' %>><%= calendar.name %> · <%= calendar.roundCount %> Rennen<%= calendar.isActive ? ' · aktiv' : ' · inaktiv' %></option>
+                <% }) %>
+              </select>
+            </label>
+            <button class="button button-small" type="submit">Anzeigen</button>
+          </form>
+          <% if (typeof leagueCalendarWarning !== 'undefined' && leagueCalendarWarning) { %>
+            <div class="public-ledger-info"><%= leagueCalendarWarning %></div>
+          <% } %>
+        <% } %>
+
         <% if (
           typeof selectedSeason === "undefined" ||
           !selectedSeason
@@ -1220,7 +1256,7 @@
 
             <h2 class="public-ledger-section-title">
               STAMMFAHRER ·
-              <%= league?.name || "" %>
+              <%= safeLeague?.name || "" %>
             </h2>
 
 

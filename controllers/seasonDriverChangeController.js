@@ -9,15 +9,12 @@ const {
 } = require('../services/seasonDriverStints');
 const {
   actualTeamIdForSeasonTeam, completedRoundForSeason, futureWeekendPlan,
+  driverRoleValuesAfterPromotion, driverRoleValuesAfterRelease,
   reserveWeekendHistory, saveCarryOvers, syncFutureLineups
 } = require('../services/seasonDriverChange');
 
-const OPERATIONS = new Set(['replace', 'release', 'fill']);
-const REASONS = [
-  ['left', 'Fahrer hört auf'], ['promoted', 'Ersatzfahrer wird Stammfahrer'],
-  ['replaced', 'Stammfahrer wird ersetzt'], ['team_change', 'Teamwechsel'], ['other', 'Sonstiges']
-];
-const REASON_VALUES = new Set(REASONS.map(([value]) => value));
+const OPERATIONS = new Set(['release', 'fill']);
+const RESERVE_LEAGUE_SLUGS = new Set(['freitag', 'samstag', 'sonntag']);
 
 function redirectUrl({ LeagueId, SeasonId, SeasonTeamId } = {}) {
   const query = new URLSearchParams();
@@ -45,8 +42,7 @@ async function loadPageData(query = {}) {
     where: { leagueType: 'f1', scopeSlug: selectedLeague.slug },
     order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']]
   }) : [];
-  const selectedSeason = seasons.find((row) => Number(row.id) === Number(query.season)) ||
-    seasons.find((row) => row.status === 'active') || seasons[0] || null;
+  const selectedSeason = seasons.find((row) => Number(row.id) === Number(query.season)) || null;
 
   if (!selectedSeason) {
     return {
@@ -99,18 +95,18 @@ async function loadPageData(query = {}) {
   let previewError = null;
   if (query.check === '1') {
     try {
-      const operation = OPERATIONS.has(query.operation) ? query.operation : 'replace';
+      const operation = OPERATIONS.has(query.operation) ? query.operation : 'fill';
       const team = teams.find((row) => Number(row.id) === Number(query.team));
       if (!team) throw new Error('Bitte ein Saisonteam auswählen.');
-      const oldStint = ['replace', 'release'].includes(operation)
+      const oldStint = operation === 'release'
         ? activeRegularsAt(stints, selectedRound, team.id).find((row) => Number(row.DriverId) === Number(query.oldDriver))
         : null;
-      if (['replace', 'release'].includes(operation) && !oldStint) {
+      if (operation === 'release' && !oldStint) {
         throw new Error('Der bisherige Fahrer besitzt in dieser Runde keinen Stammfahrer-Stint für dieses Team.');
       }
-      const membership = ['replace', 'fill'].includes(operation)
+      const membership = operation === 'fill'
         ? eligibleMemberships.find((row) => Number(row.DriverId) === Number(query.newDriver)) : null;
-      if (['replace', 'fill'].includes(operation) && !membership) {
+      if (operation === 'fill' && !membership) {
         throw new Error('Der neue Fahrer besitzt nicht die passende Stamm- oder Ersatzfahrerrolle dieser Liga.');
       }
       const freeSeats = Math.max(0, 2 - activeRegularsAt(stints, selectedRound, team.id).length);
@@ -118,7 +114,17 @@ async function loadPageData(query = {}) {
       const carryHistory = membership ? await reserveWeekendHistory({
         seasonId: selectedSeason.id, driverId: membership.DriverId, seasonTeam: team, beforeRound: selectedRound
       }) : [];
-      preview = { operation, team, oldStint, membership, effectiveRound: selectedRound, carryHistory };
+      const staysReserve = operation === 'release' && query.staysReserve === '1';
+      const reserveLeagueSlugs = staysReserve
+        ? [...new Set([].concat(query.reserveLeagues || []).filter((slug) => RESERVE_LEAGUE_SLUGS.has(slug)))]
+        : [];
+      if (staysReserve && !reserveLeagueSlugs.length) {
+        throw new Error('Bitte mindestens einen Renntag für den Ersatzfahrer-Rang auswählen.');
+      }
+      preview = {
+        operation, team, oldStint, membership, effectiveRound: selectedRound, carryHistory,
+        staysReserve, reserveLeagueSlugs
+      };
     } catch (error) { previewError = error.message; }
   }
 
@@ -131,26 +137,32 @@ async function loadPageData(query = {}) {
 
 exports.show = async (req, res) => {
   const data = await loadPageData(req.query);
-  res.render('admin/season-driver-change', { title: 'F1-Fahrerwechsel', reasons: REASONS, ...data });
+  res.render('admin/season-driver-change', { title: 'F1-Fahrerwechsel', ...data });
 };
 
 exports.save = async (req, res) => {
-  const operation = OPERATIONS.has(req.body.operation) ? req.body.operation : 'replace';
+  const operation = OPERATIONS.has(req.body.operation) ? req.body.operation : null;
   const ids = {
     LeagueId: Number(req.body.LeagueId), SeasonId: Number(req.body.SeasonId),
     SeasonTeamId: Number(req.body.SeasonTeamId), OldDriverId: Number(req.body.OldDriverId) || null,
     NewDriverId: Number(req.body.NewDriverId) || null
   };
   try {
+    if (!operation) throw new Error('Die ausgewählte Fahrerwechsel-Aktion ist ungültig.');
     const effectiveRound = normalizeRound(req.body.effectiveRound, 'Wirksam-ab-Runde');
-    const endReason = String(req.body.endReason || (operation === 'release' ? 'left' : 'replaced'));
     const selectedCarryIds = [].concat(req.body.carryResultIds || []).map(Number).filter(Boolean);
-    if (!REASON_VALUES.has(endReason)) throw new Error('Der Wechselgrund ist ungültig.');
+    const staysReserve = operation === 'release' && req.body.staysReserve === '1';
+    const reserveLeagueSlugs = staysReserve
+      ? [...new Set([].concat(req.body.reserveLeagues || []).filter((slug) => RESERVE_LEAGUE_SLUGS.has(slug)))]
+      : [];
+    if (staysReserve && !reserveLeagueSlugs.length) {
+      throw new Error('Bitte mindestens einen Renntag für den Ersatzfahrer-Rang auswählen.');
+    }
     if (![ids.LeagueId, ids.SeasonId, ids.SeasonTeamId].every((value) => Number.isInteger(value) && value > 0)) {
       throw new Error('Liga, Saison und Team sind Pflichtfelder.');
     }
-    if (['replace', 'release'].includes(operation) && !ids.OldDriverId) throw new Error('Bitte den bisherigen Stammfahrer auswählen.');
-    if (['replace', 'fill'].includes(operation) && !ids.NewDriverId) throw new Error('Bitte den neuen Stammfahrer auswählen.');
+    if (operation === 'release' && !ids.OldDriverId) throw new Error('Bitte den bisherigen Stammfahrer auswählen.');
+    if (operation === 'fill' && !ids.NewDriverId) throw new Error('Bitte den neuen Stammfahrer auswählen.');
     if (ids.OldDriverId && ids.OldDriverId === ids.NewDriverId) throw new Error('Alter und neuer Stammfahrer dürfen nicht identisch sein.');
 
     const [league, season, team, oldDriver, newDriver] = await Promise.all([
@@ -190,7 +202,7 @@ exports.save = async (req, res) => {
       const teamRegulars = activeRegularsAt(stints, effectiveRound, team.id);
       const oldStint = ids.OldDriverId
         ? teamRegulars.find((stint) => Number(stint.DriverId) === Number(ids.OldDriverId)) : null;
-      if (['replace', 'release'].includes(operation) && !oldStint) throw new Error('Der bisherige Fahrer ist ab dieser Runde kein Stammfahrer dieses Teams.');
+      if (operation === 'release' && !oldStint) throw new Error('Der bisherige Fahrer ist ab dieser Runde kein Stammfahrer dieses Teams.');
       if (operation === 'fill' && teamRegulars.length >= 2) throw new Error('Das Zielteam besitzt ab dieser Runde keinen freien Stammplatz.');
       const overlappingNewRegular = ids.NewDriverId && stints.find((stint) =>
         stint.roleType === 'regular' && Number(stint.DriverId) === Number(ids.NewDriverId) &&
@@ -202,9 +214,17 @@ exports.save = async (req, res) => {
       const conflict = plans.find((plan) => plan.conflict);
       if (conflict) throw new Error(`R${conflict.race.sortOrder} besitzt bereits bestätigte Rennwochenenden-Daten. Der Fahrerwechsel kann erst ab R${Number(conflict.race.sortOrder) + 1} gelten oder das Rennwochenende muss zuerst kontrolliert zurückgesetzt werden.`);
 
+      let previousRegularStintId = oldStint?.id || null;
       if (oldStint) {
-        if (effectiveRound <= Number(oldStint.fromRound)) throw new Error(`Der bisherige Stint beginnt erst in R${oldStint.fromRound}.`);
-        await oldStint.update({ toRound: effectiveRound - 1, endReason: operation === 'release' ? endReason : 'replaced' }, { transaction });
+        if (effectiveRound <= Number(oldStint.fromRound)) {
+          await oldStint.destroy({ transaction });
+          previousRegularStintId = null;
+        } else {
+          await oldStint.update({
+            toRound: effectiveRound - 1,
+            endReason: reserveLeagueSlugs.includes(league.slug) ? 'demoted' : 'left'
+          }, { transaction });
+        }
       }
 
       let newStint = null;
@@ -212,18 +232,23 @@ exports.save = async (req, res) => {
         const reserveStint = stints.find((stint) =>
           stint.roleType === 'reserve' && Number(stint.DriverId) === Number(ids.NewDriverId) && isRoundInStint(stint, effectiveRound)
         ) || null;
+        let previousReserveStintId = reserveStint?.id || null;
         if (reserveStint) {
-          if (effectiveRound <= Number(reserveStint.fromRound)) throw new Error(`Der Ersatzfahrer-Stint beginnt erst in R${reserveStint.fromRound}.`);
-          await reserveStint.update({
-            toRound: effectiveRound - 1,
-            endReason: Number(reserveStint.SeasonTeamId) === Number(team.id) ? 'promoted' : 'team_change'
-          }, { transaction });
+          if (effectiveRound <= Number(reserveStint.fromRound)) {
+            await reserveStint.destroy({ transaction });
+            previousReserveStintId = null;
+          } else {
+            await reserveStint.update({
+              toRound: effectiveRound - 1,
+              endReason: Number(reserveStint.SeasonTeamId) === Number(team.id) ? 'promoted' : 'team_change'
+            }, { transaction });
+          }
         }
         validateStintValues({ roleType: 'regular', fromRound: effectiveRound, toRound: null, endReason: null });
         newStint = await SeasonDriverStint.create({
           SeasonId: season.id, SeasonTeamId: team.id, DriverId: ids.NewDriverId,
           roleType: 'regular', fromRound: effectiveRound, toRound: null, endReason: null,
-          carryReservePoints: false, previousStintId: reserveStint?.id || null
+          carryReservePoints: false, previousStintId: previousReserveStintId
         }, { transaction });
         const carryHistory = await reserveWeekendHistory({
           seasonId: season.id, driverId: ids.NewDriverId, seasonTeam: team,
@@ -237,8 +262,24 @@ exports.save = async (req, res) => {
           }, transaction
         });
         if (selectedCount) await newStint.update({ carryReservePoints: true }, { transaction });
+        await newDriver.update(driverRoleValuesAfterPromotion(newDriver, league.slug), { transaction });
       } else if (selectedCarryIds.length) {
         throw new Error('Carry-over ist nur bei der Besetzung mit einem neuen Fahrer zulässig.');
+      }
+
+      let releasedReserveStint = null;
+      if (operation === 'release') {
+        await oldDriver.update(
+          driverRoleValuesAfterRelease(oldDriver, league.slug, reserveLeagueSlugs),
+          { transaction }
+        );
+        if (reserveLeagueSlugs.includes(league.slug)) {
+          releasedReserveStint = await SeasonDriverStint.create({
+            SeasonId: season.id, SeasonTeamId: null, DriverId: ids.OldDriverId,
+            roleType: 'reserve', fromRound: effectiveRound, toRound: null,
+            endReason: null, carryReservePoints: false, previousStintId: previousRegularStintId
+          }, { transaction });
+        }
       }
 
       const persistedStints = await SeasonDriverStint.findAll({ where: { SeasonId: season.id }, transaction });
@@ -247,6 +288,17 @@ exports.save = async (req, res) => {
         await SeasonLineupEntry.destroy({
           where: { SeasonId: season.id, DriverId: ids.OldDriverId, roleType: 'regular' }, transaction
         });
+      }
+      if (releasedReserveStint) {
+        const [reserveLineup] = await SeasonLineupEntry.findOrCreate({
+          where: { SeasonId: season.id, DriverId: ids.OldDriverId },
+          defaults: {
+            SeasonId: season.id, DriverId: ids.OldDriverId, SeasonTeamId: null,
+            roleType: 'reserve', sortOrder: 0
+          },
+          transaction
+        });
+        await reserveLineup.update({ SeasonTeamId: null, roleType: 'reserve' }, { transaction });
       }
       if (ids.NewDriverId) {
         const [lineupEntry] = await SeasonLineupEntry.findOrCreate({
@@ -269,10 +321,8 @@ exports.save = async (req, res) => {
 
     const endingRound = Number(req.body.effectiveRound) - 1;
     const message = operation === 'release'
-      ? `${oldDriver.name} endet nach R${endingRound}. Der Stammplatz ist danach frei.`
-      : operation === 'fill'
-        ? `${newDriver.name} besetzt den freien Stammplatz von ${team.name} ab R${req.body.effectiveRound}.`
-        : `${oldDriver.name} endet nach R${endingRound}; ${newDriver.name} übernimmt ${team.name} ab R${req.body.effectiveRound}.`;
+      ? `${oldDriver.name} gibt das Cockpit nach R${endingRound} ab.${staysReserve ? ' Die ausgewählten Ersatzfahrer-Ränge wurden gesetzt.' : ' Der Rang „Ehemaliger Formel-1-Fahrer“ wurde gesetzt.'}`
+      : `${newDriver.name} besetzt den freien Stammplatz von ${team.name} ab R${req.body.effectiveRound} und erhält den passenden Stammfahrer-Rang.`;
     req.session.flash = { type: 'success', message: `${message} Vergangene Ergebnisse und Punkte blieben unverändert.` };
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };

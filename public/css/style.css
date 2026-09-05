@@ -8842,6 +8842,10 @@ button.active {
   gap: 1rem;
 }
 
+.driver-change-form [hidden] {
+  display: none !important;
+}
+
 .driver-change-context .button,
 .driver-change-form .button,
 .driver-change-form .driver-change-carry,
@@ -8867,6 +8871,41 @@ button.active {
 .change-safety-note span,
 .driver-change-preview small {
   color: var(--muted);
+}
+
+.driver-change-reserve-choice {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: #0b1115;
+}
+
+.driver-change-reserve-choice legend,
+.driver-change-reserve-choice strong {
+  color: #fff;
+  font-weight: 800;
+}
+
+.driver-change-reserve-choice label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.driver-change-reserve-choice [data-reserve-days] {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.driver-change-reserve-choice [hidden] {
+  display: none !important;
 }
 
 .driver-change-preview > span {

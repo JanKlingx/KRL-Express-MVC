@@ -7,6 +7,78 @@ const {
   SeasonDriverCarryOver
 } = require('../models');
 
+const REGULAR_ROLE_BY_SLUG = {
+  freitag: 'roleF1Friday',
+  samstag: 'roleF1Saturday',
+  sonntag: 'roleF1Sunday'
+};
+
+const RESERVE_ROLE_BY_SLUG = {
+  freitag: 'roleF1ReserveFriday',
+  samstag: 'roleF1ReserveSaturday',
+  sonntag: 'roleF1ReserveSunday'
+};
+
+function normalizedF1RoleValues(values) {
+  const regularSlugs = Object.entries(REGULAR_ROLE_BY_SLUG)
+    .filter(([, field]) => Boolean(values[field]))
+    .map(([slug]) => slug);
+  const reserveSlugs = Object.entries(RESERVE_ROLE_BY_SLUG)
+    .filter(([, field]) => Boolean(values[field]))
+    .map(([slug]) => slug);
+
+  for (const slug of regularSlugs) {
+    if (reserveSlugs.includes(slug)) {
+      throw new Error(`Der Fahrer kann am ${slug} nicht gleichzeitig Stamm- und Ersatzfahrer sein.`);
+    }
+  }
+
+  return {
+    ...values,
+    roleF1Reserve: reserveSlugs.length > 0,
+    roleFormerF1: regularSlugs.length === 0 && reserveSlugs.length === 0,
+    f1Role: reserveSlugs.length
+      ? 'reserve'
+      : regularSlugs.length === 1
+        ? { freitag: 'friday', samstag: 'saturday', sonntag: 'sunday' }[regularSlugs[0]]
+        : null
+  };
+}
+
+function driverRoleValuesAfterPromotion(driver, leagueSlug) {
+  const regularField = REGULAR_ROLE_BY_SLUG[leagueSlug];
+  const reserveField = RESERVE_ROLE_BY_SLUG[leagueSlug];
+  if (!regularField || !reserveField) throw new Error('Die F1-Liga ist ungültig.');
+  return normalizedF1RoleValues({
+    roleF1Friday: Boolean(driver.roleF1Friday),
+    roleF1Saturday: Boolean(driver.roleF1Saturday),
+    roleF1Sunday: Boolean(driver.roleF1Sunday),
+    roleF1ReserveFriday: Boolean(driver.roleF1ReserveFriday),
+    roleF1ReserveSaturday: Boolean(driver.roleF1ReserveSaturday),
+    roleF1ReserveSunday: Boolean(driver.roleF1ReserveSunday),
+    [regularField]: true,
+    [reserveField]: false
+  });
+}
+
+function driverRoleValuesAfterRelease(driver, leagueSlug, reserveSlugs = []) {
+  const regularField = REGULAR_ROLE_BY_SLUG[leagueSlug];
+  if (!regularField) throw new Error('Die F1-Liga ist ungültig.');
+  const selected = new Set(reserveSlugs);
+  if ([...selected].some((slug) => !RESERVE_ROLE_BY_SLUG[slug])) {
+    throw new Error('Mindestens ein ausgewählter Ersatzfahrer-Tag ist ungültig.');
+  }
+  return normalizedF1RoleValues({
+    roleF1Friday: Boolean(driver.roleF1Friday),
+    roleF1Saturday: Boolean(driver.roleF1Saturday),
+    roleF1Sunday: Boolean(driver.roleF1Sunday),
+    roleF1ReserveFriday: selected.has('freitag'),
+    roleF1ReserveSaturday: selected.has('samstag'),
+    roleF1ReserveSunday: selected.has('sonntag'),
+    [regularField]: false
+  });
+}
+
 async function actualTeamIdForSeasonTeam(seasonTeam, transaction) {
   if (!seasonTeam) return null;
   if (seasonTeam.sourceType === 'current') return Number(seasonTeam.sourceId) || null;
@@ -206,6 +278,8 @@ async function saveCarryOvers({ selectedRaceIds, availableHistory, values, trans
 module.exports = {
   actualTeamIdForSeasonTeam,
   completedRoundForSeason,
+  driverRoleValuesAfterPromotion,
+  driverRoleValuesAfterRelease,
   futureWeekendPlan,
   hasConfirmedWeekendData,
   reserveWeekendHistory,

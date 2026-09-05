@@ -13,7 +13,11 @@ const {
   validateStintRange
 } = require('../services/seasonDriverStints');
 const { lineupForRound } = require('../services/f1Season');
-const { hasConfirmedWeekendData } = require('../services/seasonDriverChange');
+const {
+  driverRoleValuesAfterPromotion,
+  driverRoleValuesAfterRelease,
+  hasConfirmedWeekendData
+} = require('../services/seasonDriverChange');
 
 test('SeasonDriverStint besitzt migrationssichere Rollen- und Zeitraumfelder', () => {
   assert.ok(SeasonDriverStint.rawAttributes.SeasonId);
@@ -31,6 +35,7 @@ test('SeasonDriverStint besitzt migrationssichere Rollen- und Zeitraumfelder', (
 test('Regular-Stints und Liga-Rollen werden ohne Überschneidung validiert', () => {
   assert.equal(driverCanBecomeRegular({ roleF1Sunday: true }, 'sonntag'), true);
   assert.equal(driverCanBecomeRegular({ roleF1ReserveSunday: true }, 'sonntag'), true);
+  assert.equal(driverCanBecomeRegular({ roleFormerF1: true }, 'sonntag'), true);
   assert.equal(driverCanBecomeRegular({ roleF1ReserveFriday: true }, 'sonntag'), false);
   assert.throws(() => validateRegularStintSet([
     { DriverId: 1, SeasonTeamId: 10, roleType: 'regular', fromRound: 1, toRound: null },
@@ -59,6 +64,27 @@ test('Punkteübertrag ist ausschließlich reserve -> regular im selben Team mög
   assert.equal(canCarryReservePoints({ roleType: 'regular', SeasonTeamId: 10 }, 10), false);
 });
 
+test('Fahrerwechsel setzt Stamm-, Ersatz- und Ehemaligen-Ränge automatisch', () => {
+  const reserve = {
+    roleF1Friday: false, roleF1Saturday: false, roleF1Sunday: false,
+    roleF1ReserveFriday: false, roleF1ReserveSaturday: false, roleF1ReserveSunday: true
+  };
+  const promoted = driverRoleValuesAfterPromotion(reserve, 'sonntag');
+  assert.equal(promoted.roleF1Sunday, true);
+  assert.equal(promoted.roleF1ReserveSunday, false);
+  assert.equal(promoted.roleFormerF1, false);
+
+  const releasedToReserve = driverRoleValuesAfterRelease(promoted, 'sonntag', ['freitag', 'samstag']);
+  assert.equal(releasedToReserve.roleF1Sunday, false);
+  assert.equal(releasedToReserve.roleF1ReserveFriday, true);
+  assert.equal(releasedToReserve.roleF1ReserveSaturday, true);
+  assert.equal(releasedToReserve.roleFormerF1, false);
+
+  const former = driverRoleValuesAfterRelease(promoted, 'sonntag', []);
+  assert.equal(former.roleF1Reserve, false);
+  assert.equal(former.roleFormerF1, true);
+});
+
 test('Fahrerwechsel wird atomar gespeichert und schreibt keine Rennergebnisse um', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'controllers', 'seasonDriverChangeController.js'), 'utf8');
   assert.match(source, /sequelize\.transaction\(async \(transaction\)/);
@@ -76,7 +102,7 @@ test('Bestands-Line-ups werden idempotent ergänzt und die Stint-Historie nie ge
   assert.doesNotMatch(source, /SeasonDriverStint\.(?:destroy|truncate)/);
 });
 
-test('Admin-Workflow zeigt Kontext, Wechsel, Punkteübertrag und dauerhafte Historie', async () => {
+test('Admin-Workflow blendet Schritte nacheinander ein und endet nach der Transaktion', async () => {
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-driver-change.ejs'), {
     title: 'Fahrerwechsel',
     currentPath: '/admin/season-driver-change',
@@ -102,17 +128,20 @@ test('Admin-Workflow zeigt Kontext, Wechsel, Punkteübertrag und dauerhafte Hist
     selectedTeamId: 10,
     previewError: null,
     preview: {
-      operation: 'replace', team: { id: 10, name: 'Mercedes' }, effectiveRound: 5,
-      oldStint: { id: 1, DriverId: 1, driver: { name: 'Marcel' } },
+      operation: 'fill', team: { id: 10, name: 'Mercedes' }, effectiveRound: 5,
+      oldStint: null,
       membership: { DriverId: 2, driver: { name: 'Tobi' } },
-      carryHistory: [{ GrandPrixResultId: 99, round: 4, title: 'Kanada', raceDate: '2026-06-01', mainPoints: 8, sprintPoints: 2, totalPoints: 10 }]
-    },
-    reasons: [['promoted', 'Ersatzfahrer wird Stammfahrer']]
+      carryHistory: [{ GrandPrixResultId: 99, round: 4, title: 'Kanada', raceDate: '2026-06-01', mainPoints: 8, sprintPoints: 2, totalPoints: 10 }],
+      staysReserve: false,
+      reserveLeagueSlugs: []
+    }
   });
   assert.match(html, /name="round"[^>]*data-change-round/);
   assert.match(html, /name="effectiveRound" value="5"/);
-  assert.match(html, /Ersatzfahrer-Punkte aus diesem Team/);
-  assert.match(html, /DAUERHAFTE SAISONHISTORIE/);
+  assert.match(html, /Stammcockpit besetzen/);
+  assert.match(html, /Cockpit abgeben/);
+  assert.match(html, /data-stage="operation" hidden/);
+  assert.doesNotMatch(html, /DAUERHAFTE SAISONHISTORIE/);
   assert.match(html, /data-reserve-team-id="10"/);
   assert.match(html, /name="carryResultIds" value="99"/);
 });

@@ -91,6 +91,49 @@ test("globale Strafkartei bietet eine Kalenderauswahl und behält gemeinsame Spa
   assert.doesNotMatch(html, /Keine Rennkalender vorhanden/);
 });
 
+test("Liga-Strafkarteien besitzen eine eigene manuelle Kalenderauswahl", async () => {
+  const html = await ejs.renderFile(path.join(root, "views", "admin", "penalty-ledger.ejs"), {
+    ...layout,
+    title: "Formel 1 Strafkartei",
+    ledgers: [{
+      league: { id: 1, slug: "freitag", name: "Freitagsliga", accentColor: "#00aaff" },
+      activeSeason: { id: 2, name: "Saison 14" },
+      rounds: [], threshold: 12, setting: { publicVisible: true },
+      calendars: [{ id: 3, name: "Saison 17", roundCount: 19, isActive: true }],
+      selectedCalendar: { id: 3, name: "Saison 17" },
+      groups: { regular: [] }
+    }],
+    reserveLedger: { columnGroups: [], columns: [], rows: [] },
+    formerLedger: { columnGroups: [], columns: [], rows: [] },
+    globalCalendars: [], selectedGlobalCalendar: null
+  });
+  assert.match(html, /name="calendar_freitag"/);
+  assert.match(html, /Rennkalender für Freitagsliga/);
+  assert.match(html, /Saison 17 · 19 Rennen · aktiv/);
+
+  const publicHtml = await ejs.renderFile(path.join(root, "views", "penalty-ledger-public.ejs"), {
+    ...layout, title: "Strafkartei", viewMode: "liga",
+    league: { id: 1, slug: "freitag", name: "Freitagsliga", accentColor: "#00aaff" },
+    selectedLeagueSlug: "freitag", selectedSeason: { id: 2, name: "Saison 14" },
+    ledger: { threshold: 12, rounds: [], rows: [] },
+    reserveLedger: { columnGroups: [], columns: [], rows: [] },
+    formerLedger: { columnGroups: [], columns: [], rows: [] },
+    leagueTabs: [{ slug: "freitag", label: "Freitagsliga" }],
+    leagueCalendars: [{ id: 3, name: "Saison 17", roundCount: 19, isActive: true }],
+    selectedLeagueCalendar: { id: 3, name: "Saison 17" },
+    globalCalendars: [], selectedGlobalCalendar: null
+  });
+  assert.match(publicHtml, /name="liga" value="freitag"/);
+  assert.match(publicHtml, /name="kalender"/);
+});
+
+test("öffentliche Strafkartei filtert ausgeblendete Ligen serverseitig", () => {
+  const controller = read("controllers/f1Controller.js");
+  assert.match(controller, /ledger\.setting\?\.publicVisible !== false/);
+  assert.match(controller, /buildGlobalLedgers\(\s*ledgers,/);
+  assert.match(controller, /leagueTabs: ledgers\.map/);
+});
+
 test("globale Strafkartei aggregiert ausschließlich nach Rundennummer", () => {
   const controller = read("controllers/penaltyLedgerController.js");
   const adminView = read("views/admin/penalty-ledger.ejs");

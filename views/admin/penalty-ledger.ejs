@@ -622,6 +622,9 @@
       rounds = [],
       threshold,
       setting,
+      calendars = [],
+      selectedCalendar,
+      calendarWarning,
       groups
     }) => {
 
@@ -677,6 +680,26 @@
             </form>
           </div>
         </header>
+
+        <form method="get" action="/admin/penalty-ledger" class="penalty-calendar-picker">
+          <% safeLedgers.forEach((otherLedger) => {
+            if (otherLedger.league.slug !== league.slug && otherLedger.selectedCalendar?.id) { %>
+              <input type="hidden" name="calendar_<%= otherLedger.league.slug %>" value="<%= otherLedger.selectedCalendar.id %>">
+            <% }
+          }) %>
+          <% if (selectedGlobalCalendarId) { %>
+            <input type="hidden" name="calendar" value="<%= selectedGlobalCalendarId %>">
+          <% } %>
+          <label>Rennkalender für <%= league.name %>
+            <select name="calendar_<%= league.slug %>">
+              <% calendars.forEach((calendar) => { %>
+                <option value="<%= calendar.id %>" <%= Number(selectedCalendar?.id) === Number(calendar.id) ? 'selected' : '' %>><%= calendar.name %> · <%= calendar.roundCount %> Rennen<%= calendar.isActive ? ' · aktiv' : ' · inaktiv' %></option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="button button-small" type="submit">Kalender anzeigen</button>
+        </form>
+        <% if (calendarWarning) { %><div class="penalty-info"><%= calendarWarning %></div><% } %>
 
         <% if (!activeSeason) { %>
           <div class="empty-state">Keine aktive Saison vorhanden.</div>
@@ -860,6 +883,7 @@
       </div>
 
       <form method="get" action="/admin/penalty-ledger" class="penalty-calendar-picker">
+        <% safeLedgers.forEach((ledger) => { if (ledger.selectedCalendar?.id) { %><input type="hidden" name="calendar_<%= ledger.league.slug %>" value="<%= ledger.selectedCalendar.id %>"><% } }) %>
         <label>Rennkalender für die gemeinsame Rundenansicht
           <select name="calendar">
             <% safeGlobalCalendars.forEach((calendar) => { %>
@@ -1018,6 +1042,7 @@
       </div>
 
       <form method="get" action="/admin/penalty-ledger" class="penalty-calendar-picker">
+        <% safeLedgers.forEach((ledger) => { if (ledger.selectedCalendar?.id) { %><input type="hidden" name="calendar_<%= ledger.league.slug %>" value="<%= ledger.selectedCalendar.id %>"><% } }) %>
         <label>Rennkalender für die gemeinsame Rundenansicht
           <select name="calendar">
             <% safeGlobalCalendars.forEach((calendar) => { %>

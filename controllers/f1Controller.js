@@ -1745,37 +1745,6 @@ exports.publicPenaltyLedger =
         .trim()
         .toLowerCase();
 
-    const selectedLeagueSlug =
-      allowedLeagues.includes(
-        requestedLeague,
-      )
-        ? requestedLeague
-        : "freitag";
-
-    const data =
-      await loadLeagueData(
-        selectedLeagueSlug,
-        req.query.season,
-      );
-
-    if (!data) {
-      return res
-        .status(404)
-        .render(
-          "errors/404",
-          {
-            title:
-              "Liga nicht gefunden",
-          },
-        );
-    }
-
-    /*
-     * =====================================================
-     * ALLE F1-LIGEN FÜR COMMUNITY-TABS
-     * =====================================================
-     */
-
     const leagues =
       await League.findAll({
         where: {
@@ -1800,12 +1769,28 @@ exports.publicPenaltyLedger =
         ],
       });
 
-    const ledgers =
+    const allLedgers =
       await Promise.all(
-        leagues.map(
-          buildLeagueLedger,
+        leagues.map((league) =>
+          buildLeagueLedger(
+            league,
+            String(league.slug) === requestedLeague
+              ? req.query.kalender
+              : null,
+          ),
         ),
       );
+
+    /* Eine explizit ausgeblendete Liga darf weder als Tab noch
+       indirekt in den globalen Tabellen öffentlich erscheinen. */
+    const ledgers = allLedgers.filter(
+      (ledger) => ledger.setting?.publicVisible !== false,
+    );
+    const selectedLedger =
+      ledgers.find((ledger) => ledger.league.slug === requestedLeague) ||
+      ledgers[0] ||
+      null;
+    const selectedLeagueSlug = selectedLedger?.league?.slug || "";
 
     const globalLedgers =
       await buildGlobalLedgers(
@@ -1832,44 +1817,38 @@ exports.publicPenaltyLedger =
         viewMode,
 
         league:
-          data.league,
+          selectedLedger?.league || null,
 
         seasons:
-          data.seasons,
+          selectedLedger?.activeSeason ? [selectedLedger.activeSeason] : [],
 
         selectedSeason:
-          data.selectedSeason,
+          selectedLedger?.activeSeason || null,
 
         selectedLeagueSlug,
 
-        leagueTabs: [
-          {
-            slug:
-              "freitag",
-
-            label:
-              "Freitagsliga",
-          },
-
-          {
-            slug:
-              "samstag",
-
-            label:
-              "Samstagsliga",
-          },
-
-          {
-            slug:
-              "sonntag",
-
-            label:
-              "Sonntagsliga",
-          },
-        ],
+        leagueTabs: ledgers.map((ledger) => ({
+          slug: ledger.league.slug,
+          label: ledger.league.name,
+        })),
 
         ledger:
-          data.publicPenaltyLedger,
+          selectedLedger
+            ? {
+                threshold: selectedLedger.threshold,
+                rounds: selectedLedger.rounds,
+                rows: selectedLedger.groups.regular,
+              }
+            : { threshold: 12, rounds: [], rows: [] },
+
+        leagueCalendars:
+          selectedLedger?.calendars || [],
+
+        selectedLeagueCalendar:
+          selectedLedger?.selectedCalendar || null,
+
+        leagueCalendarWarning:
+          selectedLedger?.calendarWarning || null,
 
         reserveLedger:
           globalLedgers.reserve,
