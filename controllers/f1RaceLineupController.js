@@ -21,6 +21,7 @@ const {
   normalizeRegularStatus,
   normalizeReserveStatus,
   reserveRoleField,
+  selectWeekendReserves,
   regularRoleField,
 } = require("../services/raceLineup");
 
@@ -242,9 +243,11 @@ async function loadPlanningRows(league, race) {
    * Fahrer-Rang als Fallback.
    */
 
-  const reserves = structure?.unassignedDrivers?.length
-    ? structure.unassignedDrivers
-    : fallbackReserves;
+  const regularIds = new Set(teams.flatMap((team) => team.drivers.map((driver) => Number(driver.id))));
+  const reserves = [...new Map([
+    ...fallbackReserves,
+    ...entries.filter((entry) => entry.roleType === 'reserve' && entry.driver).map((entry) => entry.driver)
+  ].filter((driver) => !regularIds.has(Number(driver.id))).map((driver) => [Number(driver.id), driver])).values()];
 
   /*
    * =====================================================
@@ -597,11 +600,15 @@ exports.save = async (req, res) => {
      * laden.
      */
 
-    const { teamCards, reserves, bannedDriverIds } = await loadPlanningRows(
+    const { teamCards, reserves: candidates, bannedDriverIds } = await loadPlanningRows(
       race.league,
       race,
     );
 
+    const persistedReserves = await F1RaceLineupEntry.findAll({
+      where: { GrandPrixResultId: race.id, roleType: 'reserve' }
+    });
+    const reserves = selectWeekendReserves(candidates, persistedReserves, reserveInput);
     const regularRows = teamCards.flatMap((card) => card.rows);
 
     const reserveById = new Map(

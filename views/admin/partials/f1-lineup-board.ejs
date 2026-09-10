@@ -91,12 +91,23 @@
     </header>
 
 
+    <label>Ersatzfahrer für dieses Rennen hinzufügen
+      <select data-add-reserve aria-label="F1 Ersatzfahrer auswählen">
+        <option value="">Fahrer auswählen …</option>
+        <% reserveRows.filter((row) => !row.entry).forEach((row) => { %>
+          <option value="<%= row.driver.id %>"><%= row.driver.name %></option>
+        <% }) %>
+      </select>
+    </label>
+    <p>Nur manuell hinzugefügte Fahrer nehmen an dieser Einsatzplanung teil.</p>
     <div class="f1-lineup-reserve-pool__grid">
 
       <% reserveRows.forEach((row) => { %>
 
         <article
           class="f1-lineup-reserve"
+          <%= row.entry ? '' : 'hidden' %>
+          data-reserve-selected="<%= row.entry ? 'true' : 'false' %>"
           data-reserve-row
           data-reserve-id="<%= row.driver.id %>"
           data-reserve-name="<%= row.driver.name %>"
@@ -145,6 +156,7 @@
 
                 <select
                   name="reserve[d<%= row.driver.id %>][status]"
+                  <%= row.entry ? '' : 'disabled' %>
                   data-reserve-status-select
                   data-reserve-status-input
                   aria-label="Status <%= row.driver.name %>"

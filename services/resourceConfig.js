@@ -98,22 +98,10 @@ const DRIVER_RANKS = [
     matches: (driver) => Boolean(driver.roleF1Sunday),
   },
   {
-    value: "f1-reserve-friday",
-    label: "Ersatz Freitag",
-    where: { roleF1ReserveFriday: true },
-    matches: (driver) => Boolean(driver.roleF1ReserveFriday),
-  },
-  {
-    value: "f1-reserve-saturday",
-    label: "Ersatz Samstag",
-    where: { roleF1ReserveSaturday: true },
-    matches: (driver) => Boolean(driver.roleF1ReserveSaturday),
-  },
-  {
-    value: "f1-reserve-sunday",
-    label: "Ersatz Sonntag",
-    where: { roleF1ReserveSunday: true },
-    matches: (driver) => Boolean(driver.roleF1ReserveSunday),
+    value: "f1-reserve",
+    label: "F1 Ersatz",
+    where: { roleF1Reserve: true },
+    matches: (driver) => Boolean(driver.roleF1Reserve),
   },
   {
     value: "lmu-regular",
@@ -167,28 +155,13 @@ async function prepareDriver(values, body, existingDriver) {
       "roleF1Friday",
       "roleF1Saturday",
       "roleF1Sunday",
-      "roleF1ReserveFriday",
-      "roleF1ReserveSaturday",
-      "roleF1ReserveSunday",
+      "roleF1Reserve",
     ].some((name) => Object.prototype.hasOwnProperty.call(values, name))
   ) {
-    if (values.roleF1Friday && values.roleF1ReserveFriday)
-      throw new Error(
-        "Ein Fahrer kann in der Freitagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.",
-      );
-    if (values.roleF1Saturday && values.roleF1ReserveSaturday)
-      throw new Error(
-        "Ein Fahrer kann in der Samstagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.",
-      );
-    if (values.roleF1Sunday && values.roleF1ReserveSunday)
-      throw new Error(
-        "Ein Fahrer kann in der Sonntagsliga nicht gleichzeitig Stamm- und Ersatzfahrer sein.",
-      );
-    values.roleF1Reserve = Boolean(
-      values.roleF1ReserveFriday ||
-      values.roleF1ReserveSaturday ||
-      values.roleF1ReserveSunday,
-    );
+    values.roleF1Reserve = Boolean(values.roleF1Reserve);
+    values.roleF1ReserveFriday = false;
+    values.roleF1ReserveSaturday = false;
+    values.roleF1ReserveSunday = false;
     const regularSlugs = [
       ["freitag", values.roleF1Friday],
       ["samstag", values.roleF1Saturday],
@@ -240,9 +213,7 @@ const f1DriverWhere = () => ({
     { roleF1Friday: true },
     { roleF1Saturday: true },
     { roleF1Sunday: true },
-    { roleF1ReserveFriday: true },
-    { roleF1ReserveSaturday: true },
-    { roleF1ReserveSunday: true },
+    { roleF1Reserve: true },
     { roleLmuRegular: true },
     { roleLmuReserve: true },
     { roleFormerF1: true },
@@ -254,9 +225,7 @@ const hasF1Rank = (entry) =>
     entry?.roleF1Friday ||
     entry?.roleF1Saturday ||
     entry?.roleF1Sunday ||
-    entry?.roleF1ReserveFriday ||
-    entry?.roleF1ReserveSaturday ||
-    entry?.roleF1ReserveSunday ||
+    entry?.roleF1Reserve ||
     entry?.roleFormerF1,
   );
 const hasLmuRank = (entry) =>
@@ -1452,9 +1421,7 @@ module.exports = {
       checkbox("roleF1Friday", "Rang: Stamm Freitag"),
       checkbox("roleF1Saturday", "Rang: Stamm Samstag"),
       checkbox("roleF1Sunday", "Rang: Stamm Sonntag"),
-      checkbox("roleF1ReserveFriday", "Rang: Ersatz Freitag"),
-      checkbox("roleF1ReserveSaturday", "Rang: Ersatz Samstag"),
-      checkbox("roleF1ReserveSunday", "Rang: Ersatz Sonntag"),
+      checkbox("roleF1Reserve", "Rang: F1 Ersatz"),
       checkbox("roleFormerF1", "Rang: Ehemaliger Formel-1-Fahrer"),
       checkbox("roleLmuRegular", "Rang: LMU Stammfahrer"),
       checkbox("roleLmuReserve", "Rang: LMU Ersatzfahrer"),

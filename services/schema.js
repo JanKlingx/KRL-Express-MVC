@@ -63,8 +63,6 @@ async function ensureSchema() {
     });
   }
   const driverTable = await queryInterface.describeTable("drivers");
-  const hadFridayReserveRole = Boolean(driverTable.role_f1_reserve_friday);
-  const hadSundayReserveRole = Boolean(driverTable.role_f1_reserve_sunday);
   await addMissingColumn("drivers", driverTable, "platform", {
     type: DataTypes.STRING,
     allowNull: false,
@@ -1063,16 +1061,19 @@ async function ensureSchema() {
     { roleF1Reserve: true },
     { where: { f1Role: "reserve" } },
   );
-  if (!hadFridayReserveRole)
-    await Driver.update(
-      { roleF1ReserveFriday: true },
-      { where: { roleF1Reserve: true } },
-    );
-  if (!hadSundayReserveRole)
-    await Driver.update(
-      { roleF1ReserveSunday: true },
-      { where: { roleF1Reserve: true } },
-    );
+  // Alte Tagesränge einmalig zusammenführen und leeren, damit ein später
+  // entfernter zentraler Rang beim nächsten Start nicht wieder aktiviert wird.
+  await sequelize.transaction(async (transaction) => {
+    await Driver.update({ roleF1Reserve: true, f1Role: "reserve" }, {
+      where: { [Op.or]: [
+        { roleF1ReserveFriday: true }, { roleF1ReserveSaturday: true },
+        { roleF1ReserveSunday: true }
+      ] }, transaction
+    });
+    await Driver.update({
+      roleF1ReserveFriday: false, roleF1ReserveSaturday: false, roleF1ReserveSunday: false
+    }, { where: {}, transaction });
+  });
 
   const f1Rosters = await TeamRoster.findAll({
     where: { discipline: "f1" },

@@ -8,7 +8,7 @@
     <% if (error) { %><div class="form-error" role="alert"><strong>Speichern nicht möglich:</strong> <%= error %></div><% } %>
     <% if (duplicateDriver) { %><div class="duplicate-driver-warning"><div><strong>Namensgleiches Fahrerprofil gefunden</strong><span>Die Fahrer-ID bleibt eindeutig. Prüfe das vorhandene Profil und lege nur dann einen weiteren Fahrer an, wenn es wirklich eine andere Person ist.</span></div><a class="button button-small button-ghost" href="<%= adminBasePath %>/drivers/<%= duplicateDriver.id %>/edit" target="_blank">Profil #<%= duplicateDriver.id %> öffnen</a></div><% } %>
 
-    <form class="resource-form" method="post" enctype="multipart/form-data" action="<%= adminBasePath %>/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
+    <form <%= resource === "drivers" ? "data-driver-wizard" : "" %> class="resource-form" method="post" enctype="multipart/form-data" action="<%= adminBasePath %>/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
       <% config.fields.filter((field) => !field.visibleWhen || field.visibleWhen(entry)).forEach((field) => { const value = entry ? (entry[field.name] ?? '') : ''; const inputId = `${resource}-${field.name}`; %>
         <label for="<%= inputId %>" class="field-<%= field.type %>">
           <span><%= field.label %><% if (field.required) { %><b aria-hidden="true"> *</b><% } %></span>
@@ -45,4 +45,5 @@
     </form>
   </div>
 </section>
+<% if (resource === 'drivers') { %><script src="/js/driver-wizard.js" defer></script><% } %>
 <%- include('../partials/footer') %>

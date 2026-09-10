@@ -20,9 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const oldDriver = form.querySelector('[data-old-driver]');
   const newDriver = form.querySelector('[data-new-driver]');
   const reserveChoice = form.querySelector('[data-reserve-choice]');
-  const reserveDays = form.querySelector('[data-reserve-days]');
   const reserveRadios = [...form.querySelectorAll('input[name="staysReserve"]')];
-  const reserveChecks = [...form.querySelectorAll('input[name="reserveLeagues"]')];
   const reviewButton = form.querySelector('[data-review-button]');
 
   function activeRegularOptions() {
@@ -91,11 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const hasDriver = mode === 'release' ? Boolean(oldDriver.value) : Boolean(newDriver.value);
     reserveChoice.hidden = !(hasTeam && mode === 'release' && hasDriver);
     const reserveAnswer = reserveRadios.find((input) => input.checked)?.value;
-    reserveDays.hidden = reserveChoice.hidden || reserveAnswer !== '1';
+
 
     const reserveValid = mode !== 'release' || (
       reserveAnswer === '0' ||
-      (reserveAnswer === '1' && reserveChecks.some((input) => input.checked))
+      reserveAnswer === '1'
     );
     reviewButton.hidden = !(hasTeam && hasDriver && reserveValid);
   }
@@ -111,6 +109,5 @@ document.addEventListener('DOMContentLoaded', () => {
   oldDriver.addEventListener('change', refresh);
   newDriver.addEventListener('change', refresh);
   reserveRadios.forEach((input) => input.addEventListener('change', refresh));
-  reserveChecks.forEach((input) => input.addEventListener('change', refresh));
   refresh();
 });

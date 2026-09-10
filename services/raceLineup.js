@@ -52,10 +52,8 @@ const INTERNAL_ATTENDANCE_STATUS_VALUES = new Set([
   "fehlende_rueckmeldung_unsicher",
 ]);
 
-function reserveRoleField(leagueSlug) {
-  if (leagueSlug === "freitag") return "roleF1ReserveFriday";
-  if (leagueSlug === "samstag") return "roleF1ReserveSaturday";
-  return "roleF1ReserveSunday";
+function reserveRoleField() {
+  return "roleF1Reserve";
 }
 
 function regularRoleField(leagueSlug) {
@@ -96,7 +94,22 @@ function reserveStarts(status) {
   );
 }
 
+// Only this race's saved entries and explicitly selected candidates are planned.
+function selectWeekendReserves(candidates, savedEntries, input = {}) {
+  const savedIds = new Set(savedEntries.map((entry) => Number(entry.DriverId)));
+  const requestedIds = Object.keys(input).map((key) => Number(key.replace(/^d/, '')));
+  const allowedIds = new Set(candidates.filter((driver) =>
+    driver.roleF1Reserve || savedIds.has(Number(driver.id))
+  ).map((driver) => Number(driver.id)));
+  if (requestedIds.some((id) => !allowedIds.has(id))) {
+    throw new Error('Neue Ersatzfahrer müssen den Rang „F1 Ersatz“ besitzen und dürfen hier kein Stammcockpit belegen.');
+  }
+  const selectedIds = new Set([...savedIds, ...requestedIds]);
+  return candidates.filter((driver) => selectedIds.has(Number(driver.id)));
+}
+
 module.exports = {
+  selectWeekendReserves,
   REGULAR_STATUSES,
   RESERVE_STATUSES,
   ATTENDANCE_STATUSES,

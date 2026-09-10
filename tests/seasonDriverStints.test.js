@@ -34,7 +34,7 @@ test('SeasonDriverStint besitzt migrationssichere Rollen- und Zeitraumfelder', (
 
 test('Regular-Stints und Liga-Rollen werden ohne Überschneidung validiert', () => {
   assert.equal(driverCanBecomeRegular({ roleF1Sunday: true }, 'sonntag'), true);
-  assert.equal(driverCanBecomeRegular({ roleF1ReserveSunday: true }, 'sonntag'), true);
+  assert.equal(driverCanBecomeRegular({ roleF1Reserve: true }, 'sonntag'), true);
   assert.equal(driverCanBecomeRegular({ roleFormerF1: true }, 'sonntag'), true);
   assert.equal(driverCanBecomeRegular({ roleF1ReserveFriday: true }, 'sonntag'), false);
   assert.throws(() => validateRegularStintSet([
@@ -67,17 +67,17 @@ test('Punkteübertrag ist ausschließlich reserve -> regular im selben Team mög
 test('Fahrerwechsel setzt Stamm-, Ersatz- und Ehemaligen-Ränge automatisch', () => {
   const reserve = {
     roleF1Friday: false, roleF1Saturday: false, roleF1Sunday: false,
-    roleF1ReserveFriday: false, roleF1ReserveSaturday: false, roleF1ReserveSunday: true
+    roleF1Reserve: true
   };
   const promoted = driverRoleValuesAfterPromotion(reserve, 'sonntag');
   assert.equal(promoted.roleF1Sunday, true);
-  assert.equal(promoted.roleF1ReserveSunday, false);
+  assert.equal(promoted.roleF1Reserve, true);
   assert.equal(promoted.roleFormerF1, false);
 
   const releasedToReserve = driverRoleValuesAfterRelease(promoted, 'sonntag', ['freitag', 'samstag']);
   assert.equal(releasedToReserve.roleF1Sunday, false);
-  assert.equal(releasedToReserve.roleF1ReserveFriday, true);
-  assert.equal(releasedToReserve.roleF1ReserveSaturday, true);
+  assert.equal(releasedToReserve.roleF1Reserve, true);
+  assert.equal(releasedToReserve.roleF1ReserveSaturday, false);
   assert.equal(releasedToReserve.roleFormerF1, false);
 
   const former = driverRoleValuesAfterRelease(promoted, 'sonntag', []);

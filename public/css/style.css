@@ -12001,3 +12001,9 @@ select option {
   background: rgba(142, 154, 159, 0.08);
   opacity: 0.68;
 }
+
+/* Guided driver maintenance and league section links. */
+[data-driver-wizard] fieldset { border: 1px solid #444; padding: 1.25rem; display: grid; gap: 1rem; min-width: 0; }
+[data-driver-wizard] [hidden], [data-f1-lineup-matrix] [hidden] { display: none !important; }
+.league-section-nav { display: flex; flex-wrap: wrap; gap: .6rem; padding-top: 1rem; padding-bottom: 1rem; }
+#f1-standings-history, #season-history, #f1-calendar, #f1-gp-results, #rennstatistik { scroll-margin-top: 6rem; }

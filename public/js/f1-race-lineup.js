@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const allowedReserveStatuses = new Set(['anwesend', 'unsicher']);
+  const allowedReserveStatuses = new Set(['anwesend', 'unsicher', 'auf_abruf']);
   const replacementStatuses = new Set(['abgemeldet', 'unsicher']);
 
   document.querySelectorAll('[data-f1-lineup-matrix]').forEach((form) => {
@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const previous = String(select.value || select.dataset.currentReplacement || '');
       const used = usedReserveIds(select);
       const options = reserveRows
+        .filter((row) => row.dataset.reserveSelected !== 'false')
         .map(reserveState)
         .filter((reserve) => allowedReserveStatuses.has(reserve.status) || reserve.id === previous)
         .filter((reserve) => !used.has(reserve.id) || reserve.id === previous)
@@ -128,6 +129,22 @@ document.addEventListener('DOMContentLoaded', () => {
       feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
 
+    const addReserve = form.querySelector('[data-add-reserve]');
+    reserveRows.forEach((row) => {
+      if (row.dataset.reserveSelected === 'false') {
+        row.querySelectorAll('input, select').forEach((input) => { input.disabled = true; });
+      }
+    });
+    addReserve?.addEventListener('change', () => {
+      const row = reserveRows.find((candidate) => candidate.dataset.reserveId === addReserve.value);
+      if (!row) return;
+      row.hidden = false;
+      row.dataset.reserveSelected = 'true';
+      row.querySelectorAll('input, select').forEach((input) => { input.disabled = false; });
+      addReserve.selectedOptions[0].remove();
+      addReserve.value = '';
+      refresh();
+    });
     refresh();
   });
 });

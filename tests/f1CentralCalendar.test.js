@@ -205,7 +205,7 @@ test("Kalenderschritt besitzt nur Datum als editierbaren Rundeneingang", () => {
   const service = read("services/f1Calendar.js");
   assert.match(view, /class="setup-calendar-table"/);
   assert.match(view, /name="dates\[<%= round\.id %>\]"/);
-  assert.match(view, /type="time" value="<%= defaultTime %>" readonly/);
+  assert.doesNotMatch(view, /type="time"/);
   assert.doesNotMatch(view, /name="centralCalendar"/);
   assert.doesNotMatch(view, /name="F1TrackId"/);
   assert.doesNotMatch(view, /Runde hinzufügen|Termin hinzufügen/i);

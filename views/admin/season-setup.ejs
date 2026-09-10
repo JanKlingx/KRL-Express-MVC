@@ -486,7 +486,7 @@ const setupDriverRankFilter =
               <div class="table-wrap setup-calendar-table-wrap">
                 <table class="setup-calendar-table">
                   <thead>
-                    <tr><th>Runde</th><th>Flagge</th><th>Land</th><th>Strecke</th><th>Sprint</th><th>Testtag</th><th>Datum</th><th>Zeit</th></tr>
+                    <tr><th>Runde</th><th>Flagge</th><th>Land</th><th>Strecke</th><th>Sprint</th><th>Testtag</th><th>Datum</th></tr>
                   </thead>
                   <tbody>
                     <% (setupSelectedCentralCalendar.rounds || []).forEach((round) => {
@@ -503,14 +503,13 @@ const setupDriverRankFilter =
                         <td><span class="setup-readonly-state <%= round.hasSprint ? 'is-active' : '' %>"><%= round.hasSprint ? '✓' : '–' %></span></td>
                         <td><span class="setup-readonly-state <%= round.isTestDay ? 'is-active' : '' %>"><%= round.isTestDay ? '✓' : '–' %></span></td>
                         <td><input type="date" name="dates[<%= round.id %>]" value="<%= dateValue %>" required aria-label="Datum für <%= round.track?.name || round.circuit %>"></td>
-                        <td><input type="time" value="<%= defaultTime %>" readonly aria-readonly="true" tabindex="-1"></td>
                       </tr>
                     <% }) %>
                   </tbody>
                 </table>
               </div>
               <div class="setup-calendar-savebar">
-                <p>Beim Speichern wird jedes Datum serverseitig mit <strong><%= defaultTime %></strong> aus den Liga-Stammdaten kombiniert. Übermittelte Browser-Uhrzeiten werden ignoriert.</p>
+                <p>Wähle für jede Runde das Renndatum.</p>
                 <button class="button">Alle Renndaten speichern</button>
               </div>
             </form>

@@ -41,9 +41,9 @@ function isRoundInStint(stint, roundValue) {
 }
 
 function regularRoleFields(leagueSlug) {
-  if (leagueSlug === 'freitag') return ['roleF1Friday', 'roleF1ReserveFriday', 'roleFormerF1'];
-  if (leagueSlug === 'samstag') return ['roleF1Saturday', 'roleF1ReserveSaturday', 'roleFormerF1'];
-  if (leagueSlug === 'sonntag') return ['roleF1Sunday', 'roleF1ReserveSunday', 'roleFormerF1'];
+  if (leagueSlug === 'freitag') return ['roleF1Friday', 'roleF1Reserve', 'roleFormerF1'];
+  if (leagueSlug === 'samstag') return ['roleF1Saturday', 'roleF1Reserve', 'roleFormerF1'];
+  if (leagueSlug === 'sonntag') return ['roleF1Sunday', 'roleF1Reserve', 'roleFormerF1'];
   return [];
 }
 
