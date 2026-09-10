@@ -1281,12 +1281,10 @@
     );
 
 
-    const menuWidth =
-      200;
+    const menuWidth = colorMenu.offsetWidth;
 
 
-    const menuHeight =
-      135;
+    const menuHeight = colorMenu.offsetHeight;
 
 
     let left =
@@ -1376,6 +1374,10 @@
     }
   }
 
+
+  document.querySelectorAll('[data-color-preset]').forEach((button) => {
+    button.addEventListener('click', () => applyColor(button.dataset.colorPreset));
+  });
 
   colorPicker?.addEventListener(
     "change",

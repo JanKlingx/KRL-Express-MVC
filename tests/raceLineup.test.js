@@ -22,9 +22,9 @@ test('Statuslogik übernimmt nur bestätigte Fahrer in den aktuellen Saisonverla
   assert.equal(reserveStarts('anwesend'), true);
   assert.equal(reserveStarts('auf_abruf'), true);
   assert.equal(reserveStarts('angefragt'), false);
-  assert.equal(reserveRoleField('freitag'), 'roleF1ReserveFriday');
-  assert.equal(reserveRoleField('samstag'), 'roleF1ReserveSaturday');
-  assert.equal(reserveRoleField('sonntag'), 'roleF1ReserveSunday');
+  assert.equal(reserveRoleField('freitag'), 'roleF1Reserve');
+  assert.equal(reserveRoleField('samstag'), 'roleF1Reserve');
+  assert.equal(reserveRoleField('sonntag'), 'roleF1Reserve');
   assert.equal(regularRoleField('samstag'), 'roleF1Saturday');
 });
 

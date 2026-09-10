@@ -14,7 +14,6 @@ const {
 } = require('../services/seasonDriverChange');
 
 const OPERATIONS = new Set(['release', 'fill']);
-const RESERVE_LEAGUE_SLUGS = new Set(['freitag', 'samstag', 'sonntag']);
 
 function redirectUrl({ LeagueId, SeasonId, SeasonTeamId } = {}) {
   const query = new URLSearchParams();
@@ -116,11 +115,8 @@ async function loadPageData(query = {}) {
       }) : [];
       const staysReserve = operation === 'release' && query.staysReserve === '1';
       const reserveLeagueSlugs = staysReserve
-        ? [...new Set([].concat(query.reserveLeagues || []).filter((slug) => RESERVE_LEAGUE_SLUGS.has(slug)))]
+        ? [selectedLeague.slug]
         : [];
-      if (staysReserve && !reserveLeagueSlugs.length) {
-        throw new Error('Bitte mindestens einen Renntag für den Ersatzfahrer-Rang auswählen.');
-      }
       preview = {
         operation, team, oldStint, membership, effectiveRound: selectedRound, carryHistory,
         staysReserve, reserveLeagueSlugs
@@ -153,11 +149,8 @@ exports.save = async (req, res) => {
     const selectedCarryIds = [].concat(req.body.carryResultIds || []).map(Number).filter(Boolean);
     const staysReserve = operation === 'release' && req.body.staysReserve === '1';
     const reserveLeagueSlugs = staysReserve
-      ? [...new Set([].concat(req.body.reserveLeagues || []).filter((slug) => RESERVE_LEAGUE_SLUGS.has(slug)))]
+      ? ['f1']
       : [];
-    if (staysReserve && !reserveLeagueSlugs.length) {
-      throw new Error('Bitte mindestens einen Renntag für den Ersatzfahrer-Rang auswählen.');
-    }
     if (![ids.LeagueId, ids.SeasonId, ids.SeasonTeamId].every((value) => Number.isInteger(value) && value > 0)) {
       throw new Error('Liga, Saison und Team sind Pflichtfelder.');
     }
@@ -222,7 +215,7 @@ exports.save = async (req, res) => {
         } else {
           await oldStint.update({
             toRound: effectiveRound - 1,
-            endReason: reserveLeagueSlugs.includes(league.slug) ? 'demoted' : 'left'
+            endReason: staysReserve ? 'demoted' : 'left'
           }, { transaction });
         }
       }
@@ -273,7 +266,7 @@ exports.save = async (req, res) => {
           driverRoleValuesAfterRelease(oldDriver, league.slug, reserveLeagueSlugs),
           { transaction }
         );
-        if (reserveLeagueSlugs.includes(league.slug)) {
+        if (staysReserve) {
           releasedReserveStint = await SeasonDriverStint.create({
             SeasonId: season.id, SeasonTeamId: null, DriverId: ids.OldDriverId,
             roleType: 'reserve', fromRound: effectiveRound, toRound: null,
@@ -321,7 +314,7 @@ exports.save = async (req, res) => {
 
     const endingRound = Number(req.body.effectiveRound) - 1;
     const message = operation === 'release'
-      ? `${oldDriver.name} gibt das Cockpit nach R${endingRound} ab.${staysReserve ? ' Die ausgewählten Ersatzfahrer-Ränge wurden gesetzt.' : ' Der Rang „Ehemaliger Formel-1-Fahrer“ wurde gesetzt.'}`
+      ? `${oldDriver.name} gibt das Cockpit nach R${endingRound} ab.${staysReserve ? ' Der zentrale Rang „F1 Ersatz“ wurde gesetzt.' : ' Der Rang „Ehemaliger Formel-1-Fahrer“ wurde gesetzt.'}`
       : `${newDriver.name} besetzt den freien Stammplatz von ${team.name} ab R${req.body.effectiveRound} und erhält den passenden Stammfahrer-Rang.`;
     req.session.flash = { type: 'success', message: `${message} Vergangene Ergebnisse und Punkte blieben unverändert.` };
   } catch (error) {

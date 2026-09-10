@@ -487,7 +487,10 @@
     position: fixed;
     z-index: 99999;
     display: none;
-    width: 185px;
+    width: 245px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
     padding: 10px;
     border: 1px solid rgba(255,255,255,.18);
     border-radius: 9px;
@@ -1184,6 +1187,9 @@
 
 <div class="penalty-color-menu" data-color-menu>
   <div class="penalty-color-menu-title">Zellenfarbe</div>
+  <% [['#3c78d8', 'Unabgemeldet'], ['#8e7cc3', 'Zu spät abgemeldet'], ['#93c47d', '2 Verwarnungen'], ['#ffa559', 'administr./org. Strafe']].forEach(([color, label]) => { %>
+    <button type="button" class="penalty-color-button" data-color-preset="<%= color %>"><span style="display:inline-block;width:1em;height:1em;background:<%= color %>"></span> <%= label %></button>
+  <% }) %>
 
   <label class="penalty-color-picker-row">
     <span>Farbe wählen</span>
