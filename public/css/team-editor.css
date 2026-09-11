@@ -1,0 +1,19 @@
+#team[data-team-editor] .team-group { border:1px solid var(--team-color); border-radius:12px; padding:1.4rem; margin-top:1.5rem; }
+.team-group-heading,.team-editor-actions { display:flex; align-items:center; justify-content:space-between; gap:.6rem; }
+.team-editor-actions button { min-width:44px; min-height:44px; border:1px solid #6ef2f2; border-radius:6px; background:#152020; color:#fff; font-size:1.3rem; cursor:pointer; }
+.team-editor-actions button:disabled { opacity:.3; cursor:default; }
+.team-group-form,.team-member-form { display:grid; gap:1rem; padding:1rem 0; text-align:left; }
+.team-group-form { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:end; }
+.team-member-form label,.team-group-form label { display:grid; gap:.5rem; }
+.team-member-form input:not([type=checkbox]),.team-member-form select,.team-member-form textarea,.team-group-form input:not([type=checkbox]) { width:100%; min-width:0; padding:.65rem; border:1px solid #526363; border-radius:5px; background:#101818; color:#fff; }
+.team-member-editor,.team-group-editor { margin:1rem 0; }
+#team summary { cursor:pointer; }
+.team-add-member { border:2px dashed #6ef2f2; align-content:center; min-height:220px; }
+.team-add-member summary { display:grid; justify-items:center; gap:.6rem; color:#6ef2f2; }
+.team-add-member summary span { font-size:3.5rem; }
+.team-image-drop { padding:1rem; border:1px dashed #6ef2f2; border-radius:8px; }
+.team-image-drop.is-dragover { background:#254040; }
+.team-image-drop img { max-width:100%; max-height:150px; object-fit:contain; }
+.team-add-group { margin-top:2rem; padding:1.2rem; border:2px dashed #6ef2f2; border-radius:10px; }
+#team [hidden] { display:none !important; }
+#team[data-team-editor] .people-grid { grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr)); }

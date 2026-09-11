@@ -101,16 +101,16 @@ async function findRaceResult(season, league, round, event, raceType, transactio
     const linked = await GrandPrixResult.findByPk(event.GrandPrixResultId, { transaction });
     if (linked) return linked;
   }
+  if (event?.isTestDay) return null;
   const order = roundNumber(round);
   const matches = await GrandPrixResult.findAll({
     where: {
       SeasonId: season.id,
       LeagueId: league.id,
       raceType,
-      [Op.or]: [
-        { sortOrder: order },
-        { circuit: round.track.name },
-      ],
+      ...(event ? { sortOrder: event.sortOrder, circuit: event.circuit } : {
+        [Op.or]: [{ sortOrder: order }, { circuit: round.track.name }],
+      }),
     },
     order: [["id", "ASC"]],
     transaction,
@@ -138,7 +138,7 @@ async function findRaceEvent(season, round, transaction) {
   return fallback[0] || null;
 }
 
-async function syncSeasonRound({ season, league, round, date, transaction }) {
+async function syncSeasonRound({ season, league, round, date, transaction, knownResults }) {
   const order = roundNumber(round);
   if ((!round.isTestDay && (!Number.isInteger(order) || order < 1)) || !round.track) {
     throw new Error("Der zentrale Kalender enthält eine ungültige Runde oder Strecke.");
@@ -161,6 +161,9 @@ async function syncSeasonRound({ season, league, round, date, transaction }) {
   let event = await findRaceEvent(season, round, transaction);
   if (event?.hasLocalOverride) return event;
   const completed = event && await weekendHasEntries(season, league, round, event, transaction);
+  // Resolve result identities before changing the event order or circuit.
+  let main = knownResults ? knownResults.main : round.isTestDay ? null : await findRaceResult(season, league, round, event, "main", transaction);
+  let sprint = knownResults ? knownResults.sprint : round.isTestDay ? null : await findRaceResult(season, league, round, event, "sprint", transaction);
   if (!event) event = await RaceEvent.create(values, { transaction });
   else if (!completed) {
     const oldStart = new Date(event.startsAt).getTime();
@@ -177,9 +180,17 @@ async function syncSeasonRound({ season, league, round, date, transaction }) {
     await event.update({ F1CalendarRoundId: round.id }, { transaction });
   }
 
-  if (round.isTestDay) return event;
+  if (round.isTestDay) {
+    if (knownResults) {
+      if (event.GrandPrixResultId) await event.update({ GrandPrixResultId: null }, { transaction });
+      for (const result of [main, sprint].filter(Boolean)) {
+        if (await resultHasEntries(result.id, transaction)) throw new Error("Gewertete Rennen können nicht in Testtage umgewandelt werden.");
+        await result.destroy({ transaction });
+      }
+    }
+    return event;
+  }
 
-  let main = await findRaceResult(season, league, round, event, "main", transaction);
   const mainValues = {
     SeasonId: season.id,
     LeagueId: league.id,
@@ -199,7 +210,6 @@ async function syncSeasonRound({ season, league, round, date, transaction }) {
     await event.update({ GrandPrixResultId: main.id }, { transaction });
   }
 
-  let sprint = await findRaceResult(season, league, round, event, "sprint", transaction);
   if (round.hasSprint) {
     const sprintValues = { ...mainValues, title: `Sprint · ${values.circuit}`, raceType: "sprint" };
     if (!sprint) sprint = await GrandPrixResult.create(sprintValues, { transaction });
@@ -365,7 +375,26 @@ async function syncLinkedRaceEvents(round, transaction) {
   return { updated: events.length - skippedCompleted, skippedCompleted };
 }
 
+// Capture identities for the entire sequence before renumbering linked results.
+// This also covers calendars which visit the same track more than once.
+async function syncCalendarSequence(rounds, transaction) {
+  const jobs = [];
+  for (const row of rounds) {
+    const round = await F1CalendarRound.findByPk(row.id, { include: [{ association: "track", include: [{ association: "countryRecord" }] }], transaction });
+    const events = await RaceEvent.findAll({ where: { F1CalendarRoundId: row.id }, include: [{ association: "seasonRecord" }, { association: "league" }], transaction });
+    for (const event of events) {
+      if (event.hasLocalOverride || !event.seasonRecord || !event.league) continue;
+      const season = event.seasonRecord; const league = event.league;
+      const main = await findRaceResult(season, league, round, event, "main", transaction);
+      const sprint = await findRaceResult(season, league, round, event, "sprint", transaction);
+      jobs.push({ season, league, round, date: localDateTime(event.startsAt).slice(0, 10), transaction, knownResults: { main, sprint } });
+    }
+  }
+  for (const job of jobs) await syncSeasonRound(job);
+}
+
 module.exports = {
+  syncCalendarSequence,
   validateDates,
   extractLeagueTime,
   loadCalendar,

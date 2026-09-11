@@ -1281,6 +1281,7 @@ const KrlTeamAssignment = sequelize.define("KrlTeamAssignment", {
     allowNull: false,
   },
 
+  description: DataTypes.TEXT,
   imagePath: DataTypes.STRING,
 
   ...commonSort,

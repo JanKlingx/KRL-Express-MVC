@@ -1,12 +1,13 @@
 const {
-  SiteStatistic, League, RaceEvent, KrlTeam, KrlIcon
+  SiteStatistic, League, RaceEvent, KrlTeam, KrlIcon, Driver
 } = require('../models');
 const { Op, col } = require('sequelize');
 
 exports.index = async (req, res) => {
+  const teamEditing = Boolean(req.session?.userId && (!req.session.role || req.session.role === 'admin') && req.query.editTeam === '1');
   const [statistics, krlTeams, krlIcons, leagues, nextRace] = await Promise.all([
     SiteStatistic.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
-    KrlTeam.findAll({ where: req.session?.userId && (!req.session.role || req.session.role === 'admin') ? {} : { isVisible: true }, include: [{ association: 'assignments', include: [{ association: 'driver' }] }], order: [[col('KrlTeam.name'), 'ASC'], [col('assignments.sort_order'), 'ASC']] }),
+    KrlTeam.findAll({ where: teamEditing ? {} : { isVisible: true }, include: [{ association: 'assignments', include: [{ association: 'driver' }] }], order: [[col('KrlTeam.sort_order'), 'ASC'], [col('KrlTeam.id'), 'ASC'], [col('assignments.sort_order'), 'ASC']] }),
     KrlIcon.findAll({ include: [{ association: 'driver' }], order: [[col('KrlIcon.sort_order'), 'ASC'], [col('KrlIcon.id'), 'ASC']] }),
     League.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
     RaceEvent.findOne({
@@ -21,7 +22,8 @@ exports.index = async (req, res) => {
     date: new Intl.DateTimeFormat('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }).format(nextRace.startsAt),
     time: new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(nextRace.startsAt)
   };
-  res.render('home', { title: 'Katzes Racing League', statistics, krlTeams, krlIcons, leagues, teamGroupDraft: req.session?.teamGroupDraft || null, nextRace: nextRaceView });
+  const teamDrivers = teamEditing ? await Driver.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC'], ['id', 'ASC']] }) : [];
+  res.render('home', { title: 'Katzes Racing League', statistics, krlTeams, krlIcons, leagues, teamEditing, teamDrivers, teamMemberDraft: req.session?.teamMemberDraft || null, teamGroupDraft: req.session?.teamGroupDraft || null, nextRace: nextRaceView });
 };
 
 exports.endurance = (req, res) => res.render('placeholder', {
