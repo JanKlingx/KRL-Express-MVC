@@ -98,9 +98,9 @@ test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', a
   assert.doesNotMatch(html, /Runde hinzufügen|Termin hinzufügen/i);
   assert.doesNotMatch(html, /name="F1TrackId"/);
   assert.equal((html.match(/name="PointsSchemeId"/g) || []).length, 1);
-  assert.equal((html.match(/name="reservePointsForConstructors"/g) || []).length, 2);
+  assert.equal((html.match(/name="reservePointsForConstructors"/g) || []).length, 1);
   assert.match(html, /Ersatzfahrer-Punkte in Team-WM berücksichtigen/);
-  assert.match(html, /Nicht zugeordnete Fahrer bleiben automatisch als Ersatzfahrer/);
+  assert.match(html, /Jeder ausgewählte Stammfahrer benötigt ein Cockpit/);
 });
 
 test('Historische F1-Teams können im sechsten Schritt ausgewählt werden', async () => {

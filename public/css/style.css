@@ -12060,3 +12060,8 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .rulebook-section h3 { color: var(--accent); font-size: 1.5rem; }
 .rulebook-section h4 { color: #fff; font-size: 1.2rem; }
 .rulebook-layout nav a { color: #fff; font-size: 1rem; }
+.season-setup-shell [data-setup-step][hidden] { display: none; }
+.setup-steps [aria-disabled="true"] { opacity: .35; pointer-events: none; }
+.setup-steps [aria-current="step"] { border-color: var(--accent); background: #173138; }
+.setup-step-navigation { margin-top: 1.5rem; }
+.setup-driver-card[hidden] { display: none; }

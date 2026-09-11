@@ -78,7 +78,6 @@ async function loadData(query = {}) {
 
   const selectedLeague =
     leagues.find((league) => league.id === Number(query.league)) ||
-    leagues[0] ||
     null;
 
   const discipline = disciplineForLeague(selectedLeague);
@@ -109,8 +108,6 @@ async function loadData(query = {}) {
 
   const selectedSeason =
     seasons.find((season) => season.id === Number(query.season)) ||
-    seasons.find((season) => season.status === "active") ||
-    seasons[0] ||
     null;
 
   const allowedDriverRanks = ["all", "friday", "saturday", "sunday", "former"];
@@ -268,6 +265,11 @@ async function loadData(query = {}) {
 
     hasSprint: sprintKeys.has(`${event.circuit}::${event.sortOrder}`),
   }));
+  // The setup selection contains regular seats only; legacy reserves stay in their history.
+  const regularIds = new Set((structure.lineup || []).filter((row) => row.roleType === 'regular').map((row) => Number(row.DriverId)));
+  const reserveOnlyIds = new Set((structure.lineup || []).filter((row) => row.roleType === 'reserve' && !regularIds.has(Number(row.DriverId))).map((row) => Number(row.DriverId)));
+  structure.allDrivers = structure.allDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
+  structure.unassignedDrivers = structure.unassignedDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
   const lineupProtected = await seasonLineupIsProtected(selectedSeason);
 
   return {
@@ -314,7 +316,8 @@ async function loadData(query = {}) {
 
 exports.show = async (req, res) => {
   const data = await loadData(req.query);
-  res.render("admin/season-setup", { title: "Saison-Assistent", ...data });
+  const wizard = require('../services/seasonWizard').wizardState(data, req.query.step);
+  res.render("admin/season-setup", { title: "Saison-Assistent", ...data, wizard });
 };
 
 exports.createSeason = async (req, res) => {
@@ -744,16 +747,10 @@ exports.assignDrivers = async (req, res) => {
     const validDrivers = await Driver.findAll({
       where: { id: { [Op.in]: ids } },
     });
-    const eligible = validDrivers.filter(
-      (driver) =>
-        driver.roleF1Friday ||
-        driver.roleF1Saturday ||
-        driver.roleF1Sunday ||
-        driver.roleFormerF1,
-    );
+    const eligible = validDrivers.filter(require('../services/f1DriverPolicy').hasF1View);
     if (eligible.length !== ids.length)
       throw new Error(
-        "Mindestens ein Fahrer besitzt keinen zulässigen Formel-1-Rang.",
+        "Bitte für alle ausgewählten Fahrer zuerst die F1-Sicht in der Fahrerpflege aktivieren.",
       );
     await sequelize.transaction(async (transaction) => {
       await SeasonLineupEntry.destroy({
@@ -888,7 +885,6 @@ exports.assignLineup = async (req, res) => {
      */
     const postedLineup = req.body.lineup || {};
 
-    console.log("LINEUP BODY:", JSON.stringify(postedLineup, null, 2));
 
     const assignments = [];
 
@@ -959,7 +955,6 @@ exports.assignLineup = async (req, res) => {
       }
     }
 
-    console.log("LINEUP ASSIGNMENTS:", assignments);
 
     if (!assignments.length) {
       throw new Error("Es wurde keine gültige Line-up-Zuordnung empfangen.");
@@ -971,21 +966,8 @@ exports.assignLineup = async (req, res) => {
      * =====================================================
      */
 
-    const reserves = [...allowedDrivers]
-
-      .filter((DriverId) => !usedDrivers.has(DriverId))
-
-      .map((DriverId, index) => ({
-        SeasonId: Number(season.id),
-
-        SeasonTeamId: null,
-
-        DriverId,
-
-        roleType: "reserve",
-
-        sortOrder: assignments.length + index,
-      }));
+    if (usedDrivers.size !== allowedDrivers.size) throw new Error('Bitte jedem ausgewählten Stammfahrer ein Cockpit zuordnen oder die Fahrerauswahl korrigieren. Ersatzfahrer werden direkt im Rennwochenende hinzugefügt.');
+    if ([...allowedTeams].some((id) => assignments.filter((row) => row.SeasonTeamId === id).length > 2)) throw new Error('Pro Team sind maximal zwei Stammfahrer möglich.');
 
     /*
      * =====================================================
@@ -994,6 +976,8 @@ exports.assignLineup = async (req, res) => {
      */
 
     await sequelize.transaction(async (transaction) => {
+      await season.reload({ transaction, lock: transaction.LOCK.UPDATE });
+      if (await seasonLineupIsProtected(season, transaction)) throw new Error('Das Line-up ist inzwischen geschützt. Bitte Fahrerwechsel verwenden.');
       /*
        * Vorhandenes Line-up
        * dieser Saison komplett ersetzen.
@@ -1006,9 +990,9 @@ exports.assignLineup = async (req, res) => {
         transaction,
       });
 
-      await SeasonLineupEntry.bulkCreate([...assignments, ...reserves], {
-        transaction,
-      });
+      await SeasonLineupEntry.bulkCreate(assignments, { transaction });
+      await SeasonDriverStint.destroy({ where: { SeasonId: season.id }, transaction });
+      await seedSeasonDriverStints(season.id, transaction);
     });
 
     /*
@@ -1022,21 +1006,11 @@ exports.assignLineup = async (req, res) => {
       },
     });
 
-    console.log(
-      "GESPEICHERTE STAMMFAHRER:",
-      savedRegulars.map((row) => ({
-        id: row.id,
-
-        SeasonTeamId: row.SeasonTeamId,
-
-        DriverId: row.DriverId,
-      })),
-    );
 
     req.session.flash = {
       type: "success",
 
-      message: `Line-up gespeichert: ${assignments.length} Stammfahrer und ${reserves.length} Ersatzfahrer.`,
+      message: `Line-up gespeichert: ${assignments.length} Stammfahrer. Ersatzfahrer werden im Rennwochenende gewählt.`,
     };
   } catch (error) {
     console.error("LINE-UP SPEICHERN FEHLER:", error);
@@ -1101,7 +1075,7 @@ exports.finish = async (req, res) => {
       }),
     ]);
 
-    if (!calendar || !season.PointsSchemeId || !drivers || !teams || !lineup) {
+    if (!calendar || !season.PointsSchemeId || !drivers || !teams || lineup !== drivers) {
       throw new Error(
         "Der Assistent ist noch nicht vollständig. Bitte alle acht Schritte abschließen.",
       );
@@ -1153,3 +1127,23 @@ exports.finish = async (req, res) => {
 
 module.exports.loadData = loadData;
 
+
+exports.updateMetadata = async (req, res) => {
+  const season = await Season.findByPk(req.params.seasonId);
+  const league = season ? await League.findOne({ where: { type: 'f1', slug: season.scopeSlug } }) : null;
+  try {
+    if (!season || season.leagueType !== 'f1' || !league) throw new Error('Saison nicht gefunden.');
+    const name = String(req.body.name || '').trim();
+    if (!name || name.length > 255 || !/^#[0-9a-f]{6}$/i.test(req.body.accentColor || '')) throw new Error('Bitte Saisonname und Farbe prüfen.');
+    if (await Season.findOne({ where: { id: { [Op.ne]: season.id }, leagueType: 'f1', scopeSlug: season.scopeSlug, name } })) throw new Error('Dieser Saisonname ist bereits vergeben.');
+    const F1GameId = Number(req.body.F1GameId) || null;
+    if (F1GameId && !await F1Game.findByPk(F1GameId)) throw new Error('Spiel nicht gefunden.');
+    await sequelize.transaction(async (transaction) => {
+      await season.update({ name, accentColor: req.body.accentColor, F1GameId }, { transaction });
+      await GrandPrixResult.update({ season: name }, { where: { SeasonId: season.id }, transaction });
+      if (season.status === 'active' && season.isPublished) await league.update({ currentSeason: name }, { transaction });
+    });
+    req.session.flash = { type: 'success', message: 'Saisonangaben gespeichert.' };
+  } catch (error) { req.session.flash = { type: 'error', message: error.message }; }
+  res.redirect(setupRedirect({ league: league?.id, season: season?.id, step: 2 }));
+};

@@ -64,7 +64,7 @@ async function loadPageData(query = {}) {
       order: [['sortOrder', 'ASC'], ['id', 'ASC']]
     }),
     Driver.findAll({
-      where: { [Op.or]: regularRoleFields(selectedLeague.slug).map((field) => ({ [field]: true })) },
+      where: require('../services/f1DriverPolicy').f1ViewWhere,
       order: [['name', 'ASC'], ['id', 'ASC']]
     }),
     SeasonDriverStint.findAll({
@@ -123,7 +123,7 @@ async function loadPageData(query = {}) {
       const reserveLeagueSlugs = staysReserve
         ? [selectedLeague.slug]
         : [];
-      const retirement = operation === 'release' && !staysReserve && oldStint?.driver?.roleF1Reserve
+      const retirement = selectedSeason.status === 'active' && operation === 'release' && !staysReserve && oldStint?.driver?.roleF1Reserve
         ? await planReserveRetirement({ driver: oldStint.driver, seasonId: selectedSeason.id, effectiveRound: selectedRound }) : null;
       preview = {
         retirement, operation, team, oldStint, membership, effectiveRound: selectedRound, carryHistory,
@@ -280,19 +280,19 @@ exports.save = async (req, res) => {
           }, transaction
         });
         if (selectedCount) await newStint.update({ carryReservePoints: true }, { transaction });
-        await newDriver.update(driverRoleValuesAfterPromotion(newDriver, league.slug), { transaction });
+        if (season.status === 'active') await newDriver.update(driverRoleValuesAfterPromotion(newDriver, league.slug), { transaction });
       } else if (selectedCarryIds.length) {
         throw new Error('Carry-over ist nur bei der Besetzung mit einem neuen Fahrer zulässig.');
       }
 
       let releasedReserveStint = null;
       if (operation === 'release') {
-        if (!staysReserve && oldDriver.roleF1Reserve) {
+        if (season.status === 'active' && !staysReserve && oldDriver.roleF1Reserve) {
           const retirement = await planReserveRetirement({ driver: oldDriver, seasonId: season.id, effectiveRound, transaction });
           if (retirement.version !== req.body.retirementVersion) throw new Error('Die Ersatzfahrer-Pläne haben sich geändert. Bitte den Wechsel erneut prüfen.');
           await applyReserveRetirement({ driver: oldDriver, plan: retirement, transaction });
         }
-        await oldDriver.update(
+        if (season.status === 'active') await oldDriver.update(
           driverRoleValuesAfterRelease(oldDriver, league.slug, reserveLeagueSlugs),
           { transaction }
         );
@@ -343,7 +343,7 @@ exports.save = async (req, res) => {
     });
 
     const endingRound = Number(req.body.effectiveRound) - 1;
-    const message = operation === 'release'
+    const message = season.status === 'historical' ? `Historische Stammplatz-Zuordnung für ${season.name} ab R${req.body.effectiveRound} gespeichert. Aktuelle Ränge bleiben unverändert.` : operation === 'release'
       ? `${oldDriver.name} gibt das Cockpit nach R${endingRound} ab.${staysReserve ? ' Der zentrale Rang „F1 Ersatz“ wurde gesetzt.' : (oldDriver.roleFormerF1 ? ' Der Rang „Ehemaliger Formel-1-Fahrer“ wurde gesetzt.' : ' Weitere Stammfahrer-Ränge bleiben aktiv.')}`
       : `${newDriver.name} besetzt den freien Stammplatz von ${team.name} ab R${req.body.effectiveRound} und erhält den passenden Stammfahrer-Rang.`;
     req.session.flash = { type: 'success', message: `${message} Vergangene Ergebnisse und Punkte blieben unverändert.` };

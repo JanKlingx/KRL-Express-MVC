@@ -28,7 +28,7 @@ test('Sichtenpflege bewahrt nicht ausgewählte LMU-Angaben und validiert Sichten
   assert.equal(values.lmuDisplayName, 'LMU Name'); assert.equal(values.roleLmuRegular, true);
   assert.equal(values.viewF1, true); assert.equal(values.viewLmu, true);
   const fresh = {}; applyDriverViews(fresh, { driverViews: ['formerF1'] });
-  assert.equal(fresh.roleFormerF1, true); assert.equal(fresh.viewLmu, false);
+  assert.equal(Boolean(fresh.roleFormerF1), false); assert.equal(fresh.viewLmu, false);
   assert.throws(() => applyDriverViews({}, { driverViews: [] }), /Sicht/);
   assert.throws(() => applyDriverViews({}, { driverViews: ['invented'] }), /Sicht/);
 });

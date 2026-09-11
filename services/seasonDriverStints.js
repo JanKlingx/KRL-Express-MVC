@@ -48,7 +48,7 @@ function regularRoleFields(leagueSlug) {
 }
 
 function driverCanBecomeRegular(driver, leagueSlug) {
-  return regularRoleFields(leagueSlug).some((field) => driver?.[field] === true);
+  return Boolean(regularRoleFields(leagueSlug).length && require('./f1DriverPolicy').hasF1View(driver));
 }
 
 function stintRangesOverlap(left, right) {
@@ -87,7 +87,7 @@ function validateRegularStintSet(stints, maximumTeamSeats = 2) {
 
 async function seasonLineupIsProtected(season, transaction) {
   if (!season) return false;
-  if (season.isPublished || season.status === 'historical') return true;
+  if (season.isPublished) return true;
   const [stints, resultIds] = await Promise.all([
     SeasonDriverStint.findAll({
       where: { SeasonId: season.id },

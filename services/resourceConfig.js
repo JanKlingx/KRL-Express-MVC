@@ -194,9 +194,13 @@ async function prepareDriver(values, body, existingDriver) {
       values.LeagueId = null;
   }
   if (existingDriver?.id) {
-    for (const field of ['roleF1Friday', 'roleF1Saturday', 'roleF1Sunday', 'roleF1Reserve', 'roleFormerF1', 'roleF1ReserveFriday', 'roleF1ReserveSaturday', 'roleF1ReserveSunday', 'f1Role']) {
+    for (const field of ['roleF1Friday', 'roleF1Saturday', 'roleF1Sunday', 'roleFormerF1', 'roleF1ReserveFriday', 'roleF1ReserveSaturday', 'roleF1ReserveSunday', 'f1Role']) {
       delete values[field];
     }
+  }
+  if (Object.hasOwn(values, 'roleF1Reserve')) {
+    if (existingDriver?.roleF1Reserve && !values.roleF1Reserve) throw new Error('Ersatzfahrer-Ausstieg bitte über Fahrerwechsel erfassen, damit die Saisonhistorie erhalten bleibt.');
+    if (values.roleF1Reserve) { values.roleFormerF1 = false; values.f1Role = 'reserve'; }
   }
   if (values.TeamId) {
     const team = await models.Team.findByPk(values.TeamId);
@@ -269,7 +273,7 @@ async function prepareDriverForForm(entry) {
   if (!entry?.id) return entry;
   const values =
     typeof entry.toJSON === "function" ? entry.toJSON() : { ...entry };
-  const [aliases, stats] = await Promise.all([
+  const [aliases, stats, stints] = await Promise.all([
     models.DriverAlias.findAll({
       where: { DriverId: entry.id },
       order: [
@@ -278,9 +282,11 @@ async function prepareDriverForForm(entry) {
       ],
     }),
     getDriverStatistics(entry.id),
+    models.SeasonDriverStint.findAll({ where: { DriverId: entry.id, roleType: "regular" }, include: [{ association: "season" }], order: [["fromRound", "ASC"]] }),
   ]);
   return {
     ...values,
+    f1SeasonRanks: stints.filter((stint) => stint.season).map((stint) => `${require('./f1DriverPolicy').seasonRankLabel(stint.season)} · R${stint.fromRound}${stint.toRound == null ? '–Saisonende' : `–R${stint.toRound}`}`),
     aliasesText: aliases.map((alias) => alias.alias).join(", "),
     pointsF1: stats.f1.points,
     winsF1: stats.f1.wins,
@@ -1450,11 +1456,7 @@ module.exports = {
           entry?.roleLmuReserve ||
           entry?.roleFormerLmu,
       }),
-      checkbox("roleF1Friday", "Rang: Stamm Freitag"),
-      checkbox("roleF1Saturday", "Rang: Stamm Samstag"),
-      checkbox("roleF1Sunday", "Rang: Stamm Sonntag"),
       checkbox("roleF1Reserve", "Rang: F1 Ersatz"),
-      checkbox("roleFormerF1", "Rang: Ehemaliger Formel-1-Fahrer"),
       checkbox("roleLmuRegular", "Rang: LMU Stammfahrer"),
       checkbox("roleLmuReserve", "Rang: LMU Ersatzfahrer"),
       checkbox("roleFormerLmu", "Rang: Ehemaliger LMU-Fahrer"),
@@ -1652,27 +1654,6 @@ module.exports = {
       textarea("content", "Inhalt", true),
       checkbox("isPublished", "Im Frontend anzeigen"),
       number("sortOrder", "Reihenfolge", false, { min: 0 }),
-    ],
-  },
-  f1PenaltySettings: {
-    title: "F1 Rennleitungs-Stammdaten",
-    group: "Formel 1 Stammdaten",
-    description: "Strafpunktelimit für jede Formel-1-Liga festlegen.",
-    model: models.F1PenaltySetting,
-    listFields: ["LeagueId", "pointsLimit"],
-    fields: [
-      relation(
-        "LeagueId",
-        "Formel-1-Liga",
-        models.League,
-        (row) => row.name,
-        true,
-        { where: { type: "f1" } },
-      ),
-      number("pointsLimit", "Rennsperre ab Strafpunkten", true, {
-        min: 1,
-        step: 1,
-      }),
     ],
   },
   lmuDrivers: {

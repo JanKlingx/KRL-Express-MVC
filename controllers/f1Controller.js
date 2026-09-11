@@ -1028,11 +1028,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
   }
 
   const penaltyThreshold =
-    Number(
-      penaltySetting
-        ?.pointsLimit ||
-        12,
-    );
+    12;
 
   const penaltyRoundMap =
     new Map();

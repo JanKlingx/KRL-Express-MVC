@@ -95,14 +95,14 @@ function reserveStarts(status) {
 }
 
 // Only this race's saved entries and explicitly selected candidates are planned.
-function selectWeekendReserves(candidates, savedEntries, input = {}) {
+function selectWeekendReserves(candidates, savedEntries, input = {}, historical = false) {
   const savedIds = new Set(savedEntries.map((entry) => Number(entry.DriverId)));
   const requestedIds = Object.keys(input).map((key) => Number(key.replace(/^d/, '')));
   const allowedIds = new Set(candidates.filter((driver) =>
-    driver.roleF1Reserve || savedIds.has(Number(driver.id))
+    require('./f1DriverPolicy').reserveEligible(driver, historical)
   ).map((driver) => Number(driver.id)));
   if (requestedIds.some((id) => !allowedIds.has(id))) {
-    throw new Error('Neue Ersatzfahrer müssen den Rang „F1 Ersatz“ besitzen und dürfen hier kein Stammcockpit belegen.');
+    throw new Error(historical ? 'Historische Ersatzfahrer benötigen einen F1-Rang und dürfen im selben Rennen kein Stammcockpit belegen.' : 'Neue Ersatzfahrer müssen den Rang „F1 Ersatz“ besitzen und dürfen hier kein Stammcockpit belegen.');
   }
   const selectedIds = new Set([...savedIds, ...requestedIds]);
   return candidates.filter((driver) => selectedIds.has(Number(driver.id)));
