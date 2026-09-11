@@ -25,6 +25,9 @@ const pdfUpload = require("../middleware/pdfUpload");
 const router = express.Router();
 router.use(requireAdmin);
 router.get("/", asyncHandler(adminController.dashboard));
+router.get("/calendar-events/:eventId/edit", asyncHandler(require('../controllers/calendarEventController').edit));
+router.post("/calendar-events/:eventId", asyncHandler(require('../controllers/calendarEventController').update));
+router.get("/driver-edit", asyncHandler(require('../controllers/driverEditController').show));
 router.get("/f1-games", asyncHandler(f1GameController.index));
 router.post(
   "/f1-games",
@@ -222,6 +225,11 @@ router.post(
   "/race-weekend/f1/:raceId/attendance",
   asyncHandler(raceWeekendController.saveAttendance),
 );
+router.post("/race-weekend/f1/:raceId/reset-lineup", asyncHandler(raceWeekendController.resetLineup));
+router.post("/race-weekend/f1/:raceId/reset-attendance", asyncHandler(raceWeekendController.resetAttendance));
+router.post("/race-weekend/f1/:raceId/reset-results", asyncHandler(raceWeekendController.resetResults));
+router.post("/race-weekend/f1/:raceId/reopen-lineup", asyncHandler(raceWeekendController.reopenLineup));
+router.post("/race-weekend/f1/:raceId/reserves/:driverId/remove", asyncHandler(raceWeekendController.removeReserve));
 router.get("/race-editor", asyncHandler(raceEditorController.show));
 router.get(
   "/current-season-progress",

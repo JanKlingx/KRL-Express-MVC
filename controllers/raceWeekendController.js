@@ -1,3 +1,4 @@
+const { weekendProgress, resetWeekendStep, lineupFingerprint, lockLineup } = require('../services/weekendWorkflow');
 // =========================================================
 // DATENBANK IMPORT
 // =========================================================
@@ -983,6 +984,7 @@ exports.show =
           data.race,
 
         resultCount,
+        workflow: weekendProgress(data.entries),
 
         ...planning,
 
@@ -1209,7 +1211,13 @@ exports.saveAttendance =
       {};
 
 
+    const previousAttendance = lineupFingerprint(entries);
+    async function finishAttendance(transaction) {
+      if (!weekendProgress(entries).validSeats) throw new Error('Ein Cockpit darf nur einen bestätigten Starter haben. Bitte die Zuordnung korrigieren.');
+      if (lineupFingerprint(entries) !== previousAttendance) await resetWeekendStep(race, 3, transaction);
+    }
     try {
+    if (!weekendProgress(entries).lineupComplete) throw new Error("Bitte zuerst die Aufstellung speichern.");
 
       /*
        * Die Transaction bleibt.
@@ -1225,6 +1233,7 @@ exports.saveAttendance =
         async (
           transaction,
         ) => {
+          await lockLineup(race, entries, transaction);
 
 
           /*
@@ -1364,6 +1373,7 @@ exports.saveAttendance =
             /*
              * Korrekturformular beendet.
              */
+            await finishAttendance(transaction);
             return;
           }
 
@@ -2602,6 +2612,8 @@ exports.saveAttendance =
            * =================================================
            */
 
+          await finishAttendance(transaction);
+
           if (
             followUpRequired
           ) {
@@ -2739,409 +2751,41 @@ function raceWeekendRedirect(
 // STRAFKARTEI BLEIBT IMMER UNBERÜHRT.
 // =========================================================
 
-exports.resetResults =
-  async (
-    req,
-    res,
-  ) => {
-
-    const race =
-      await loadResetRace(
-        req.params.raceId,
-      );
-
-
-    try {
-
-      /*
-       * Hier wird nur eine Tabelle geändert.
-       * Deshalb ist keine Transaction notwendig.
-       */
-      await GrandPrixResultEntry.destroy({
-        where: {
-          GrandPrixResultId:
-            race.id,
-        },
-      });
-
-
-      req.session.flash = {
-        type:
-          "success",
-
-        message:
-          "Schritt 3 wurde zurückgesetzt. Das Rennergebnis wurde gelöscht.",
-      };
-
-    } catch (error) {
-
-      req.session.flash = {
-        type:
-          "error",
-
-        message:
-          `Ergebnis konnte nicht zurückgesetzt werden: ${error.message}`,
-      };
-    }
-
-
-    return res.redirect(
-      raceWeekendRedirect(
-        race,
-        "#ergebnisse",
-      ),
-    );
-  };
-
-
-// =========================================================
-// SCHRITT 2 RESETTEN
-//
-// Aufstellung bleibt.
-// Anwesenheit wird zurückgesetzt.
-// Ergebnis wird zurückgesetzt.
-//
-// STRAFKARTEI BLEIBT IMMER UNBERÜHRT.
-// =========================================================
-
-exports.resetAttendance =
-  async (
-    req,
-    res,
-  ) => {
-
-    const race =
-      await loadResetRace(
-        req.params.raceId,
-      );
-
-
-    try {
-
-      await sequelize.transaction(
-        async (
-          transaction,
-        ) => {
-
-          /*
-           * Aufstellung laden.
-           */
-          const entries =
-            await F1RaceLineupEntry.findAll({
-              where: {
-                GrandPrixResultId:
-                  race.id,
-              },
-
-              transaction,
-            });
-
-
-          /*
-           * Anwesenheitsdaten vollständig
-           * zurücksetzen.
-           */
-          for (
-            const entry
-            of entries
-          ) {
-
-            await entry.update(
-              {
-                attendanceStatus:
-                  null,
-
-                includeInResults:
-                  false,
-
-                uncertainPresent:
-                  null,
-
-                respondedInTime:
-                  null,
-              },
-              {
-                transaction,
-              },
-            );
-          }
-
-
-          /*
-           * Ergebnis hängt von der
-           * Anwesenheit ab.
-           *
-           * Deshalb ebenfalls löschen.
-           */
-          await GrandPrixResultEntry.destroy({
-            where: {
-              GrandPrixResultId:
-                race.id,
-            },
-
-            transaction,
-          });
-
-
-          /*
-           * WICHTIG:
-           *
-           * Keine PenaltyEntry wird gelöscht.
-           *
-           * Die Strafkartei ist vollständig
-           * unabhängig vom Rennwochenende.
-           */
-        },
-      );
-
-
-      req.session.flash = {
-        type:
-          "success",
-
-        message:
-          "Schritt 2 wurde zurückgesetzt. Aufstellung bleibt erhalten; Anwesenheit und Ergebnis wurden zurückgesetzt. Die Strafkartei bleibt unverändert.",
-      };
-
-    } catch (error) {
-
-      req.session.flash = {
-        type:
-          "error",
-
-        message:
-          `Anwesenheit konnte nicht zurückgesetzt werden: ${error.message}`,
-      };
-    }
-
-
-    return res.redirect(
-      raceWeekendRedirect(
-        race,
-        "#anwesenheit",
-      ),
-    );
-  };
-
-
-// =========================================================
-// SCHRITT 1 RESETTEN
-//
-// Aufstellung wird gelöscht.
-// Anwesenheit wird dadurch ebenfalls gelöscht.
-// Ergebnis wird gelöscht.
-//
-// STRAFKARTEI BLEIBT IMMER UNBERÜHRT.
-// =========================================================
-
-exports.resetLineup =
-  async (
-    req,
-    res,
-  ) => {
-
-    const race =
-      await loadResetRace(
-        req.params.raceId,
-      );
-
-
-    try {
-
-      await sequelize.transaction(
-        async (
-          transaction,
-        ) => {
-
-          /*
-           * =================================================
-           * 1. ERGEBNIS
-           * =================================================
-           */
-
-          await GrandPrixResultEntry.destroy({
-            where: {
-              GrandPrixResultId:
-                race.id,
-            },
-
-            transaction,
-          });
-
-
-          /*
-           * =================================================
-           * 2. OPERATIVE AUFSTELLUNG
-           * =================================================
-           *
-           * attendanceStatus usw. liegen direkt
-           * in F1RaceLineupEntry.
-           *
-           * Deshalb verschwinden sie zusammen
-           * mit der Aufstellung.
-           */
-
-          await F1RaceLineupEntry.destroy({
-            where: {
-              GrandPrixResultId:
-                race.id,
-            },
-
-            transaction,
-          });
-
-
-          /*
-           * WICHTIG:
-           *
-           * Keine Strafpunkte löschen.
-           */
-        },
-      );
-
-
-      req.session.flash = {
-        type:
-          "success",
-
-        message:
-          "Schritt 1 wurde zurückgesetzt. Aufstellung, Anwesenheit und Ergebnis sind wieder offen. Die Strafkartei bleibt unverändert.",
-      };
-
-    } catch (error) {
-
-      req.session.flash = {
-        type:
-          "error",
-
-        message:
-          `Aufstellung konnte nicht zurückgesetzt werden: ${error.message}`,
-      };
-    }
-
-
-    return res.redirect(
-      raceWeekendRedirect(
-        race,
-        "#aufstellung",
-      ),
-    );
-  };
-
-
-// =========================================================
-// KOMPLETTES OPERATIVES RENNWOCHENENDE RESETTEN
-//
-// Wird gelöscht:
-// - Aufstellung
-// - Anwesenheit
-// - Ergebnis
-//
-// Bleibt bestehen:
-// - Strafkartei
-// - Rennkalender
-// - RaceEvent
-// - Saison
-// - Stammdaten
-// =========================================================
-
-exports.resetAll =
-  async (
-    req,
-    res,
-  ) => {
-
-    const race =
-      await loadResetRace(
-        req.params.raceId,
-      );
-
-
-    try {
-
-      await sequelize.transaction(
-        async (
-          transaction,
-        ) => {
-
-          /*
-           * =================================================
-           * 1. ERGEBNIS
-           * =================================================
-           */
-
-          await GrandPrixResultEntry.destroy({
-            where: {
-              GrandPrixResultId:
-                race.id,
-            },
-
-            transaction,
-          });
-
-
-          /*
-           * =================================================
-           * 2. AUFSTELLUNG + ANWESENHEIT
-           * =================================================
-           */
-
-          await F1RaceLineupEntry.destroy({
-            where: {
-              GrandPrixResultId:
-                race.id,
-            },
-
-            transaction,
-          });
-
-
-          /*
-           * =================================================
-           * STRAFKARTEI
-           * =================================================
-           *
-           * Absichtlich NICHT anfassen.
-           */
-        },
-      );
-
-
-      req.session.flash = {
-        type:
-          "success",
-
-        message:
-          "Das operative Rennwochenende wurde vollständig zurückgesetzt. Die Strafkartei bleibt unverändert.",
-      };
-
-    } catch (error) {
-
-      req.session.flash = {
-        type:
-          "error",
-
-        message:
-          `Rennwochenende konnte nicht zurückgesetzt werden: ${error.message}`,
-      };
-    }
-
-
-    return res.redirect(
-      raceWeekendRedirect(
-        race,
-        "#aufstellung",
-      ),
-    );
-  };
-
-
-// =========================================================
-// EXPORTS FÜR ANDERE CONTROLLER / TESTS
-// =========================================================
-
-module.exports.loadF1Data =
-  loadF1Data;
-
-module.exports.selectCurrentEvent =
-  selectCurrentEvent;
+async function reset(req, res, step, hash) {
+  const race = await loadResetRace(req.params.raceId);
+  if (race.raceType !== 'main' || race.seasonRecord?.status !== 'active') throw new Error('Bitte ein aktuelles F1-Hauptrennen auswählen.');
+  await sequelize.transaction(async (transaction) => {
+    await GrandPrixResult.findByPk(race.id, { transaction, lock: transaction.LOCK.UPDATE });
+    await resetWeekendStep(race, step, transaction);
+  });
+  req.session.flash = { type: 'success', message: step === 3
+    ? 'Haupt- und Sprintergebnis zurückgesetzt. Aufstellung und Anwesenheit bleiben erhalten.'
+    : step === 2 ? 'Anwesenheit und Ergebnisse zurückgesetzt. Die Aufstellung bleibt erhalten.'
+    : 'Aufstellung und die davon abhängigen Schritte zurückgesetzt. Die Strafkartei bleibt erhalten.' };
+  return res.redirect(raceWeekendRedirect(race, hash));
+}
+exports.resetResults = (req, res) => reset(req, res, 3, '#ergebnisse');
+exports.resetAttendance = (req, res) => reset(req, res, 2, '#anwesenheit');
+exports.resetLineup = (req, res) => reset(req, res, 1, '#aufstellung');
+exports.reopenLineup = (req, res) => reset(req, res, 2, '#aufstellung');
+exports.resetAll = exports.resetLineup;
+exports.removeReserve = async (req, res) => {
+  const race = await loadResetRace(req.params.raceId);
+  if (race.raceType !== 'main' || race.seasonRecord?.status !== 'active') throw new Error('Bitte ein aktuelles F1-Hauptrennen auswählen.');
+  await sequelize.transaction(async (transaction) => {
+    await GrandPrixResult.findByPk(race.id, { transaction, lock: transaction.LOCK.UPDATE });
+    const entry = await F1RaceLineupEntry.findOne({ where: {
+      GrandPrixResultId: race.id, DriverId: Number(req.params.driverId), roleType: 'reserve'
+    }, transaction, lock: transaction.LOCK.UPDATE });
+    if (!entry) throw new Error('Dieser Ersatzfahrer gehört nicht zu diesem Rennwochenende.');
+    await resetWeekendStep(race, 2, transaction);
+    await F1RaceLineupEntry.update({ ReplacementForDriverId: null, TeamId: null }, { where: {
+      GrandPrixResultId: race.id, ReplacementForDriverId: entry.DriverId
+    }, transaction });
+    await entry.destroy({ transaction });
+  });
+  req.session.flash = { type: 'success', message: 'Ersatzfahrer entfernt. Bitte Anwesenheit und Ergebnisse erneut prüfen und speichern.' };
+  res.redirect(raceWeekendRedirect(race, '#aufstellung'));
+};
+module.exports.loadF1Data = loadF1Data;
+module.exports.selectCurrentEvent = selectCurrentEvent;

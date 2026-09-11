@@ -183,16 +183,7 @@
         ✎ Saison
       </a>
 
-      <% if (selectedSeason?.f1Calendar) { %>
-        <aside class="public-edit-calendar">
-          <span>AKTUELLER ZENTRALER RENNKALENDER</span>
-          <strong><%= selectedSeason.f1Calendar.name %></strong>
-          <small><%= selectedSeason.f1Calendar.rounds?.length || 0 %> Runden</small>
-          <a href="/admin/f1-calendars?calendar=<%= selectedSeason.f1Calendar.id %>">Zentralen Kalender öffnen</a>
-        </aside>
-      <% } else { %>
-        <a href="/admin/season-setup?league=<%= league.id %>&season=<%= selectedSeason?.id || '' %>#setup-season">Zentralen Kalender zuordnen</a>
-      <% } %>
+
 
     </div>
 

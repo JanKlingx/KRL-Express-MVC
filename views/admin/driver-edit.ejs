@@ -1,0 +1,9 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container narrow">
+<a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">FAHRERSTAMM</span><h1>FAHRER BEARBEITEN</h1>
+<p>Suche einen Fahrer nach Namen. Wähle danach die Sichten und bearbeite seine Angaben.</p>
+<form method="get" class="resource-form"><label>1 · Fahrername<input type="search" name="q" value="<%= query %>" required autofocus placeholder="Name oder Teil des Namens"></label><button class="button">Suchen</button></form>
+<% if (query) { %><div class="driver-search-results"><% drivers.forEach((driver) => { %>
+<a class="driver-search-result" href="/admin/drivers/<%= driver.id %>/edit"><strong><%= driver.name %></strong><span>ID <%= driver.id %> · <%= driver.platformRecord?.name || driver.platform || '' %></span><span>Auswählen →</span></a>
+<% }) %><% if (!drivers.length) { %><p>Kein Fahrer mit diesem Namen gefunden.</p><% } %><% if (drivers.length === 50) { %><p>Die ersten 50 Treffer werden angezeigt. Grenze den Namen weiter ein.</p><% } %></div><% } %>
+</div></section><%- include('../partials/footer') %>

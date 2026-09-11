@@ -25,9 +25,10 @@ test('Rennwochenende zeigt den dreistufigen F1-Prozess samt Ersatz in der Anwese
   });
   assert.match(html, /AUFSTELLUNG/);
   assert.match(html, /ANWESENHEITSKONTROLLE/);
-  assert.match(html, /ERGEBNISSE EINTRAGEN/);
+  assert.doesNotMatch(html, /id="ergebnisse"/);
   assert.match(html, /Ersatzfahrer/);
-  assert.match(html, /attendance\[6\]\[includeInResults\]/);
+  assert.match(html, /data-f1-attendance/);
+  assert.match(html, /reset-attendance/);
 });
 
 test('F1-Strafkartei rendert Stamm-, Ersatz- und ehemalige Fahrer ohne editierbaren Namen', async () => {

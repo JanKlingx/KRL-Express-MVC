@@ -6,6 +6,7 @@ const {
   TeamRoster,
   TeamRosterDriver,
   Driver,
+  Platform,
   PointsRule,
   PointsScheme,
   PointAllocation,
@@ -63,6 +64,11 @@ async function ensureSchema() {
     });
   }
   const driverTable = await queryInterface.describeTable("drivers");
+  await addMissingColumn("drivers", driverTable, "platform_id", { type: DataTypes.INTEGER, allowNull: true });
+  for (const name of ["view_f1", "view_lmu", "view_former_f1"]) {
+    await addMissingColumn("drivers", driverTable, name, { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  }
+
   await addMissingColumn("drivers", driverTable, "platform", {
     type: DataTypes.STRING,
     allowNull: false,
@@ -652,6 +658,7 @@ async function ensureSchema() {
   );
 
   const raceEventTable = await queryInterface.describeTable("race_events");
+  await addMissingColumn("race_events", raceEventTable, "has_local_override", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn(
     "race_events",
     raceEventTable,
@@ -1074,6 +1081,15 @@ async function ensureSchema() {
       roleF1ReserveFriday: false, roleF1ReserveSaturday: false, roleF1ReserveSunday: false
     }, { where: {}, transaction });
   });
+
+  const legacyPlatforms = await Driver.findAll({ attributes: ["platform"], group: ["platform"], raw: true });
+  for (const name of new Set(["PC", "PlayStation", "Xbox", ...legacyPlatforms.map((row) => row.platform)].filter(Boolean))) {
+    const [platform] = await Platform.findOrCreate({ where: { name }, defaults: { name } });
+    await Driver.update({ PlatformId: platform.id }, { where: { platform: name, PlatformId: null } });
+  }
+  await Driver.update({ viewF1: true }, { where: { [Op.or]: [{ roleF1Friday: true }, { roleF1Saturday: true }, { roleF1Sunday: true }, { roleF1Reserve: true }] } });
+  await Driver.update({ viewLmu: true }, { where: { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }, { roleFormerLmu: true }] } });
+  await Driver.update({ viewFormerF1: true }, { where: { roleFormerF1: true } });
 
   const f1Rosters = await TeamRoster.findAll({
     where: { discipline: "f1" },

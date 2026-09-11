@@ -1,3 +1,4 @@
+const { weekendProgress } = require('../services/weekendWorkflow');
 const { Op } = require("sequelize");
 
 const {
@@ -461,11 +462,7 @@ async function loadEligibleDrivers(
     /*
      * Wurde Schritt 2 bereits benutzt?
      */
-    const attendanceManaged =
-      planEntries.some(
-        (entry) =>
-          entry.attendanceStatus,
-      );
+    const attendanceManaged = weekendProgress(planEntries).attendanceComplete;
 
 
     /*
@@ -1805,6 +1802,16 @@ exports.save = async (
       async (
         transaction,
       ) => {
+        await GrandPrixResult.findByPk(race.id, { transaction, lock: transaction.LOCK.UPDATE });
+        if (race.seasonRecord.status === 'active') {
+          const currentLineup = await F1RaceLineupEntry.findAll({ where: { GrandPrixResultId: race.id }, transaction, lock: transaction.LOCK.UPDATE });
+          const expected = driverRows.map(({ driver, assignedTeam }) => `${driver.id}:${assignedTeam?.id || ''}`).sort();
+          const actual = currentLineup.filter((entry) => entry.includeInResults).map((entry) => `${entry.DriverId}:${entry.TeamId || ''}`).sort();
+          if (!weekendProgress(currentLineup).attendanceComplete || JSON.stringify(expected) !== JSON.stringify(actual)) {
+            throw new Error('Die Anwesenheit wurde zwischenzeitlich geändert. Bitte die Ergebniseingabe neu laden.');
+          }
+        }
+
 
 
         /*
