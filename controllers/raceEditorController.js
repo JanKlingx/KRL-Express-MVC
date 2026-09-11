@@ -1088,6 +1088,7 @@ async function showEditor(
 
 
     let eligible;
+    const managedLineup = await loadEligibleDrivers(teams, selectedLeague, selectedRace);
 
 
     /*
@@ -1098,7 +1099,7 @@ async function showEditor(
 
     if (
       selectedSeason.status ===
-      "historical"
+      "historical" && !managedLineup.managed
     ) {
       const structure =
         await loadSeasonStructure(
@@ -1156,12 +1157,7 @@ async function showEditor(
        * ===================================================
        */
 
-      const lineup =
-        await loadEligibleDrivers(
-          teams,
-          selectedLeague,
-          selectedRace,
-        );
+      const lineup = managedLineup;
 
 
       eligible =
@@ -1466,6 +1462,7 @@ exports.save = async (
 
 
   let eligible;
+  const managedLineup = await loadEligibleDrivers(teams, race.league, race);
 
 
   /*
@@ -1475,7 +1472,7 @@ exports.save = async (
    */
   if (
     race.seasonRecord.status ===
-    "historical"
+    "historical" && !managedLineup.managed
   ) {
     eligible =
       await Driver.findAll({
@@ -1505,12 +1502,7 @@ exports.save = async (
      * Fahrer kommen ausschließlich
      * aus Lineup + Anwesenheit.
      */
-    const lineup =
-      await loadEligibleDrivers(
-        teams,
-        race.league,
-        race,
-      );
+    const lineup = managedLineup;
 
 
     eligible =
@@ -1524,7 +1516,7 @@ exports.save = async (
       lineup.attendanceManaged;
   }
 
-  if (race.seasonRecord.status === "active" && (!lineupManaged || !attendanceManaged)) {
+  if ((race.seasonRecord.status === "active" || lineupManaged) && (!lineupManaged || !attendanceManaged)) {
     req.session.flash = {
       type: "error",
       message: "Bitte zuerst Aufstellung und Anwesenheitskontrolle vollständig abschließen.",
@@ -1679,7 +1671,7 @@ exports.save = async (
         submitted.included !==
           "on"
       ) {
-        if (race.seasonRecord.status === "active" && lineupManaged) {
+        if (lineupManaged) {
           req.session.flash = { type: "error", message: `${driver.name} fehlt im vollständigen Rennergebnis.` };
           return res.redirect(`${requestedEditorPath}?league=${race.LeagueId}&season=${race.SeasonId}&race=${race.id}`);
         }
@@ -1803,7 +1795,7 @@ exports.save = async (
         transaction,
       ) => {
         await GrandPrixResult.findByPk(race.id, { transaction, lock: transaction.LOCK.UPDATE });
-        if (race.seasonRecord.status === 'active') {
+        if (race.seasonRecord.status === 'active' || lineupManaged) {
           const currentLineup = await F1RaceLineupEntry.findAll({ where: { GrandPrixResultId: race.id }, transaction, lock: transaction.LOCK.UPDATE });
           const expected = driverRows.map(({ driver, assignedTeam }) => `${driver.id}:${assignedTeam?.id || ''}`).sort();
           const actual = currentLineup.filter((entry) => entry.includeInResults).map((entry) => `${entry.DriverId}:${entry.TeamId || ''}`).sort();
@@ -1895,7 +1887,7 @@ exports.save = async (
            */
           const team =
             race.seasonRecord.status ===
-              "historical"
+              "historical" && !lineupManaged
               ? selectedTeam
               : assignedTeam;
 

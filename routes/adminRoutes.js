@@ -24,6 +24,12 @@ const pdfUpload = require("../middleware/pdfUpload");
 
 const router = express.Router();
 router.use(requireAdmin);
+const teamGroupController = require('../controllers/teamGroupController');
+router.post('/team-groups', asyncHandler(teamGroupController.save));
+router.post('/team-groups/:id', asyncHandler(teamGroupController.save));
+router.post('/team-groups/:id/delete', asyncHandler(teamGroupController.remove));
+router.get(['/krlTeams', '/krlTeams/new', '/krlTeams/:id/edit'], (req, res) => res.redirect('/#team'));
+
 router.post('/season-setup/:seasonId/metadata', asyncHandler(seasonSetupController.updateMetadata));
 router.post("/rulebook", asyncHandler(require("../controllers/rulebookController").save));
 router.get(["/f1RuleSections", "/f1RuleSections/new", "/f1RuleSections/:id/edit"], (req, res) => res.redirect("/formel-1/regelwerk?edit=1"));

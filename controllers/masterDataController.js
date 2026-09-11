@@ -18,7 +18,7 @@ exports.masterData = async (req, res) => {
     ['tableHub', { group: 'Frontend', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
     
     // Unser-Team-Stammdaten
-    ['ourTeamMembers', { group: 'Unser-Team-Stammdaten', href: '/admin/our-team-members', title: 'Teamstammdaten', description: 'Teams und Fahrer zuordnen.' }],
+    ['ourTeamMembers', { group: 'Unser-Team-Stammdaten', href: '/#team', title: 'Teamgruppen pflegen', description: 'Gruppen direkt auf der Startseite pflegen.' }],
     
     // Stammdaten - general
     ['pointsSchemes', { group: 'Stammdaten', href: '/admin/point-schemes', title: 'Punktesystem-Pflege', description: 'Punktesysteme pro Disziplin definieren.' }],

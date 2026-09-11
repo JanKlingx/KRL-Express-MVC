@@ -1,6 +1,6 @@
 <%- include('../partials/header', { title }) %>
 <section class="admin-shell"><div class="container">
-  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">UNSER TEAM · PLANUNGSGRUPPEN</span><h1>MITGLIEDER ZUORDNEN</h1><p class="admin-intro">Mitglieder suchen, sammeln oder direkt per Drag-and-Drop in eine Planungsgruppe ziehen.</p></div><a class="button" href="/admin/krlTeams/new">+ Team anlegen</a></div>
+  <div class="admin-heading"><div><a class="back-link" href="/admin">← Dashboard</a><span class="form-kicker">UNSER TEAM · PLANUNGSGRUPPEN</span><h1>MITGLIEDER ZUORDNEN</h1><p class="admin-intro">Mitglieder suchen, sammeln oder direkt per Drag-and-Drop in eine Planungsgruppe ziehen.</p></div><a class="button" href="/#team">+ Team anlegen</a></div>
 
   <div class="fiori-stepbar"><span class="active">1 · Mitglieder wählen</span><span>2 · Team zuordnen</span><span>3 · Rolle bestätigen</span></div>
   <div class="team-planning-layout" data-team-planning>
@@ -19,7 +19,7 @@
 
     <div class="planning-team-grid">
       <% teams.forEach((team) => { %><article class="planning-team-card" style="--team-color:<%= team.accentColor %>" data-team-dropzone data-team-id="<%= team.id %>">
-        <header><div><span><%= team.isVisible ? 'IM FRONTEND SICHTBAR' : 'AUSGEBLENDET' %></span><h2><%= team.name %></h2></div><a href="/admin/krlTeams/<%= team.id %>/edit" aria-label="<%= team.name %> bearbeiten">✎</a></header>
+        <header><div><span><%= team.isVisible ? 'IM FRONTEND SICHTBAR' : 'AUSGEBLENDET' %></span><h2><%= team.name %></h2></div><a href="/#team" aria-label="<%= team.name %> bearbeiten">✎</a></header>
         <p class="drop-hint">Mitglied hier ablegen</p>
         <div class="planning-assignment-list"><% team.assignments.forEach((assignment) => { %><div class="planning-assignment" draggable="true" data-assignment-id="<%= assignment.id %>"><span><strong><%= assignment.driver.name %></strong><small><%= assignment.roleName %></small></span><div><a href="/admin/krlTeamAssignments/<%= assignment.id %>/edit" aria-label="Bearbeiten">✎</a><form method="post" action="/admin/krl-team-planning/<%= assignment.id %>?_method=DELETE" data-confirm="Mitglied aus dem Team entfernen?"><button type="submit">×</button></form></div></div><% }) %></div>
         <form method="post" action="/admin/krl-team-planning/assign" class="drop-submit-form" hidden><input name="KrlTeamId" value="<%= team.id %>"><input name="DriverId"><input name="roleName" value="Teammitglied"></form>

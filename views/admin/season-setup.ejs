@@ -505,7 +505,9 @@ const setupDriverRankFilter =
                     <% (setupSelectedCentralCalendar.rounds || []).forEach((round) => {
                       const event = eventByRound.get(Number(round.id)) || calendar.find((candidate) => Number(candidate.sortOrder) === Number(round.roundNumber || round.sortOrder) && Number(candidate.F1TrackId) === Number(round.F1TrackId));
                       const startsAt = event?.startsAt ? new Date(event.startsAt) : null;
-                      const dateValue = startsAt && !Number.isNaN(startsAt.getTime()) ? startsAt.toISOString().slice(0, 10) : '';
+                      const draft = typeof calendarDraft !== 'undefined' ? calendarDraft : null;
+                      const dateValue = draft && Object.hasOwn(draft.dates, round.id) ? draft.dates[round.id] : startsAt && !Number.isNaN(startsAt.getTime()) ? localDateTime(startsAt).slice(0, 10) : '';
+                      const dateError = draft?.errors?.[round.id];
                       const countryName = round.track?.countryRecord?.name || round.track?.country || '–';
                     %>
                       <tr class="<%= round.isTestDay ? 'is-test' : '' %>">
@@ -515,7 +517,7 @@ const setupDriverRankFilter =
                         <td><strong><%= round.track?.name || round.circuit %></strong></td>
                         <td><span class="setup-readonly-state <%= round.hasSprint ? 'is-active' : '' %>"><%= round.hasSprint ? '✓' : '–' %></span></td>
                         <td><span class="setup-readonly-state <%= round.isTestDay ? 'is-active' : '' %>"><%= round.isTestDay ? '✓' : '–' %></span></td>
-                        <td><input type="date" name="dates[<%= round.id %>]" value="<%= dateValue %>" required aria-label="Datum für <%= round.track?.name || round.circuit %>"></td>
+                        <td><input type="date" name="dates[<%= round.id %>]" value="<%= dateValue %>" required aria-invalid="<%= Boolean(dateError) %>" aria-label="Datum für <%= round.track?.name || round.circuit %>"><% if (dateError) { %><small role="alert"><%= dateError %></small><% } %></td>
                       </tr>
                     <% }) %>
                   </tbody>

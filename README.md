@@ -129,3 +129,11 @@ Nach dem Aktualisieren `npm install` ausführen und den Server neu starten. Neue
 - Neue historische Saisonentwürfe sind bis zur Veröffentlichung bzw. bis zum Vorliegen operativer Daten bearbeitbar. Bestehende Saisonhistorien bleiben geschützt.
 - Aktuelle Rennwochenenden: Ersatzfahrer benötigen `F1 Ersatz`, auch Stammfahrer einer anderen Liga. Historische Rennwochenenden: jeder Fahrer mit F1-Rang kann als Ersatzfahrer gewählt werden, sofern er im selben Rennen kein Stammcockpit belegt. Die Wertung folgt der Rolle des konkreten Einsatzes.
 - Die F1-Strafpunktgrenze beträgt fest 12 SP in allen Ligen. Die Pflege unterschiedlicher Grenzwerte entfällt; die Veröffentlichungssteuerung der Strafkartei bleibt bestehen.
+
+### Kalender- und Teamgruppenpflege
+
+- **Zentralen F1-Rennkalender bearbeiten:** Im Adminbereich zuerst eine Vorlage wählen, anschließend Rennen, Sprint und Testtage pflegen. Die Rundereihenfolge bleibt per Drag-and-drop änderbar; eine Sortierung der Vorlagen entfällt.
+- **Zentralen F1-Rennkalender erstellen:** Eigener Einstieg im Adminbereich. Erst einen noch nicht vergebenen Namen speichern, danach die Struktur aufbauen.
+- **Saisontermine:** Fehlerhafte Kalenderdaten werden einzeln markiert. Gültige Eingaben bleiben beim erneuten Öffnen desselben Saisonkalenders erhalten. Startzeiten werden in Europe/Berlin interpretiert.
+- **Historische Ergebnisse:** Existiert eine Rennaufstellung, gelten deren bestätigte Anwesenheit und Einsatzteams auch für Ersatzfahrer. Historische Rennen ohne Rennaufstellung behalten die bisherige manuelle Ergebnispflege.
+- **Unser Team:** Als Admin auf der Startseite unter „Unser Team“ Gruppen hinzufügen, per Stift bearbeiten oder löschen. „Mitglieder zuordnen“ öffnet die bestehende Mitgliederpflege. Beim Löschen einer Gruppe werden ihre Zuordnungen entfernt, die Fahrer bleiben erhalten. Die separate Transaktion „+ Fahrer-Rollen“ entfällt; Funktion und Bild bleiben am Mitglied bearbeitbar.

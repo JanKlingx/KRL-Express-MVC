@@ -20,6 +20,16 @@ function setFlash(req, type, message) {
   req.session.flash = { type, message };
 }
 
+async function validateName(value, excludedId) {
+  const name = String(value || "").trim();
+  if (!name || name.length > 255) throw new Error("Bitte einen Kalendernamen mit 1 bis 255 Zeichen eingeben.");
+  const calendars = await F1Calendar.findAll({ attributes: ["id", "name"] });
+  if (calendars.some((item) => Number(item.id) !== Number(excludedId) && item.name.trim().toLocaleLowerCase("de") === name.toLocaleLowerCase("de"))) {
+    throw new Error("Ein Rennkalender mit diesem Namen existiert bereits.");
+  }
+  return name;
+}
+
 async function validateTrack(trackId, transaction) {
   const track = await F1Track.findByPk(trackId, { transaction });
   if (!track) throw new Error("Bitte eine Strecke aus dem F1-Streckenstamm auswählen.");
@@ -57,7 +67,7 @@ exports.index = async (req, res) => {
       }],
       order: [
         ["isActive", "DESC"],
-        ["sortOrder", "ASC"],
+        ["name", "ASC"],
         ["id", "DESC"],
         [{ model: F1CalendarRound, as: "rounds" }, "sortOrder", "ASC"],
       ],
@@ -67,31 +77,33 @@ exports.index = async (req, res) => {
       order: [["country", "ASC"], ["name", "ASC"]],
     }),
   ]);
-  const selectedCalendar = calendars.find((item) => item.id === Number(req.query.calendar)) || calendars[0] || null;
+  const selectedCalendar = calendars.find((item) => item.id === Number(req.query.calendar)) || null;
   res.render("admin/f1-calendars", {
     title: "Zentrale F1-Rennkalender",
     calendars,
     selectedCalendar,
     tracks,
+    creating: req.query.mode === "create",
+    draftName: req.session.calendarDraftName || "",
   });
 };
 
 exports.create = async (req, res) => {
   try {
-    const name = String(req.body.name || "").trim();
-    if (!name) throw new Error("Bitte einen Kalendernamen eingeben.");
+    const name = await validateName(req.body.name, req.params.calendarId);
     const calendar = await sequelize.transaction(async (transaction) => F1Calendar.create({
       name,
       isActive: req.body.isActive === "on",
-      sortOrder: Number(req.body.sortOrder || 0),
     }, {
       transaction,
     }));
+    delete req.session.calendarDraftName;
     setFlash(req, "success", `Der Kalender „${calendar.name}“ wurde angelegt.`);
     return res.redirect(redirect(calendar.id));
   } catch (error) {
     setFlash(req, "error", error.message);
-    return res.redirect(redirect());
+    req.session.calendarDraftName = String(req.body.name || "").slice(0, 255);
+    return res.redirect("/admin/f1-calendars?mode=create");
   }
 };
 
@@ -99,12 +111,10 @@ exports.update = async (req, res) => {
   const calendar = await F1Calendar.findByPk(req.params.calendarId);
   try {
     if (!calendar) throw new Error("Der Kalender wurde nicht gefunden.");
-    const name = String(req.body.name || "").trim();
-    if (!name) throw new Error("Bitte einen Kalendernamen eingeben.");
+    const name = await validateName(req.body.name, req.params.calendarId);
     await sequelize.transaction(async (transaction) => calendar.update({
       name,
       isActive: req.body.isActive === "on",
-      sortOrder: Number(req.body.sortOrder || 0),
     }, { transaction }));
     setFlash(req, "success", "Kalenderdaten wurden gespeichert.");
   } catch (error) {

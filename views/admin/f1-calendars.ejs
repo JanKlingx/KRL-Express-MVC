@@ -222,6 +222,8 @@
     .f1-calendar-round-form { grid-template-columns: 1fr; }
     .f1-calendar-reorder { align-items: stretch; flex-direction: column; }
   }
+  .f1-calendar-layout { display: block; }
+  .f1-calendar-workspace [hidden] { display: none !important; }
 </style>
 
 <section class="admin-shell">
@@ -237,9 +239,22 @@
     </div>
 
     <div class="f1-calendar-layout">
-      <aside class="f1-calendar-sidebar">
+      <% if (!selectedCalendar) { %>
+        <p><a class="button button-ghost" href="/admin/f1-calendars">Kalender bearbeiten</a> <a class="button" href="/admin/f1-calendars?mode=create">+ Kalender erstellen</a></p>
+        <% if (creating) { %>
+
         <section class="f1-calendar-card">
-          <header class="f1-calendar-card__header"><div><span>Vorlagen</span><h2>Kalender auswählen</h2></div></header>
+          <header class="f1-calendar-card__header"><div><span>Schritt 1 von 2</span><h2>Kalender benennen</h2></div></header>
+          <div class="f1-calendar-card__body">
+            <form method="post" action="/admin/f1-calendars" class="f1-calendar-form">
+              <label class="f1-calendar-field"><span>Name</span><input name="name" maxlength="255" value="<%= draftName %>" placeholder="z. B. Saison 18 Rennkalender" required></label>
+              <label class="checkbox-control"><input type="checkbox" name="isActive" checked><span>Direkt zur Saisonwahl freigeben</span></label>
+              <button class="button" type="submit">Weiter zur Kalenderstruktur →</button>
+            </form>
+          </div>
+        </section>
+<% } else { %>        <section class="f1-calendar-card">
+          <header class="f1-calendar-card__header"><div><span>Schritt 1 von 2</span><h2>Kalender auswählen</h2></div></header>
           <div class="f1-calendar-card__body">
             <div class="f1-calendar-list">
               <% calendars.forEach((calendar) => { %>
@@ -251,33 +266,19 @@
               <% if (!calendars.length) { %><div class="empty-state">Noch kein Kalender vorhanden.</div><% } %>
             </div>
           </div>
-        </section>
-
-        <section class="f1-calendar-card">
-          <header class="f1-calendar-card__header"><div><span>Neue Vorlage</span><h2>Kalender anlegen</h2></div></header>
-          <div class="f1-calendar-card__body">
-            <form method="post" action="/admin/f1-calendars" class="f1-calendar-form">
-              <label class="f1-calendar-field"><span>Name</span><input name="name" placeholder="z. B. Saison 18 Rennkalender" required></label>
-              <label class="f1-calendar-field"><span>Sortierung der Vorlage</span><input type="number" name="sortOrder" value="0"></label>
-              <label class="checkbox-control"><input type="checkbox" name="isActive" checked><span>Direkt zur Saisonwahl freigeben</span></label>
-              <button class="button" type="submit">Kalender anlegen</button>
-            </form>
-          </div>
-        </section>
-      </aside>
-
+        </section><% } %>
+      <% } %>
       <main class="f1-calendar-workspace">
         <% if (selectedCalendar) { %>
+          <a class="back-link" href="/admin/f1-calendars">← Kalenderauswahl</a>
           <section class="f1-calendar-card">
-            <header class="f1-calendar-card__header"><div><span>Ausgewählte Vorlage</span><h2><%= selectedCalendar.name %></h2></div></header>
+            <header class="f1-calendar-card__header"><div><span>Schritt 2 von 2 · Kalenderstruktur</span><h2><%= selectedCalendar.name %></h2></div></header>
             <div class="f1-calendar-card__body">
               <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>" class="f1-calendar-meta-form">
                 <label class="f1-calendar-field"><span>Name</span><input name="name" value="<%= selectedCalendar.name %>" required></label>
-                <label class="f1-calendar-field"><span>Sortierung</span><input type="number" name="sortOrder" value="<%= selectedCalendar.sortOrder %>"></label>
                 <label class="checkbox-control"><input type="checkbox" name="isActive" <%= selectedCalendar.isActive ? 'checked' : '' %>><span>Aktiv</span></label>
                 <button class="button button-small" type="submit">Speichern</button>
               </form>
-              <div class="f1-calendar-transaction-note"><span>✓</span><div><strong>Sicher gespeichert:</strong> Jede Änderung läuft vollständig in einer Datenbank-Transaktion. Bereits verwendete oder abgeschlossene Rennen werden geschützt.</div></div>
               <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/delete" data-confirm="Dieser Kalender kann nur gelöscht werden, wenn ihn keine Saison und kein Rennen verwendet.">
                 <button class="button button-ghost button-small" type="submit">Unbenutzten Kalender löschen</button>
               </form>
@@ -304,7 +305,7 @@
             </header>
             <div class="f1-calendar-card__body">
               <% if (selectedRounds.length) { %>
-                <form id="calendar-reorder-form" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/reorder" class="f1-calendar-reorder">
+                <form id="calendar-reorder-form" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/reorder" class="f1-calendar-reorder">
                   <div><strong>Reihenfolge ändern</strong><div class="f1-calendar-help">Zeilen am Griff ziehen; nummeriert werden nur offizielle Rennen.</div></div>
                   <div data-reorder-inputs><% selectedRounds.forEach((round) => { %><input type="hidden" name="roundIds" value="<%= round.id %>"><% }) %></div>
                   <button class="button button-ghost button-small" type="submit">Reihenfolge speichern</button>
@@ -334,8 +335,7 @@
               <% if (!selectedRounds.length) { %><div class="empty-state">Dieser Kalender ist noch leer. Füge oben das erste Rennen oder einen Testtag hinzu.</div><% } %>
             </div>
           </section>
-        <% } else { %>
-          <div class="empty-state">Lege links zuerst einen zentralen F1-Rennkalender an.</div>
+
         <% } %>
       </main>
     </div>

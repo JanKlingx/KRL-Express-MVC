@@ -1,6 +1,7 @@
 <%- include('../partials/header', { title }) %>
 
 <%
+  const managedHistoricalLineup = typeof lineupManaged !== 'undefined' && lineupManaged;
   const currentMode =
     typeof currentOnly === 'boolean'
       ? currentOnly
@@ -52,7 +53,7 @@
       </div>
 
 
-      <% if (selectedSeason?.status === 'active') { %>
+      <% if (selectedSeason?.status === 'active' || managedHistoricalLineup) { %>
 
         <a
           class="button button-ghost"
@@ -305,7 +306,7 @@
       <!-- HISTORISCHE FAHRERWAHL -->
       <!-- ================================================= -->
 
-      <% if (selectedSeason.status === 'historical') { %>
+      <% if (selectedSeason.status === 'historical' && !managedHistoricalLineup) { %>
 
         <div class="historical-driver-picker">
 
@@ -1170,7 +1171,7 @@
 
                     const includedByDefault =
                       !hasSavedEntries &&
-                      selectedSeason.status === 'active' &&
+                      (selectedSeason.status === 'active' || managedHistoricalLineup) &&
                       (
                         planned ||
                         (
@@ -1261,7 +1262,7 @@
                     <td>
 
                       <select
-                        name="rows[<%= driver.id %>][TeamId]"
+                        name="rows[<%= driver.id %>][TeamId]" <%= managedHistoricalLineup ? 'disabled' : '' %>
                       >
 
                         <option value="">
@@ -1273,7 +1274,7 @@
 
                           <option
                             value="<%= team.id %>"
-                            <%= activeEntry?.teamName === team.name
+                            <%= (managedHistoricalLineup ? Number(assignedTeam?.id) === Number(team.id) : activeEntry?.teamName === team.name)
                               ? 'selected'
                               : ''
                             %>

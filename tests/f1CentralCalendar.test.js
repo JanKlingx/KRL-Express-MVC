@@ -210,7 +210,7 @@ test("Kalenderschritt besitzt nur Datum als editierbaren Rundeneingang", () => {
   assert.doesNotMatch(view, /name="centralCalendar"/);
   assert.doesNotMatch(view, /name="F1TrackId"/);
   assert.doesNotMatch(view, /Runde hinzufügen|Termin hinzufügen/i);
-  assert.match(service, /new Date\(`\$\{date\}T\$\{extractLeagueTime\(league\.raceTime\)\}:00`\)/);
+  assert.match(service, /parseBerlinDateTime\(`\$\{date\}T\$\{extractLeagueTime\(league\.raceTime\)\}`\)/);
 });
 
 test("öffentliche F1- und CSV-Exports bleiben vorhanden", () => {

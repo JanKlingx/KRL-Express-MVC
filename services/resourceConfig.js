@@ -2184,6 +2184,7 @@ module.exports = {
     ],
   },
   krlTeams: {
+    hidden: true,
     title: "Teamstamm pflegen",
     group: "Unser-Team-Stammdaten",
     description:
@@ -2199,7 +2200,9 @@ module.exports = {
     ],
   },
   krlTeamAssignments: {
-    title: "+ Fahrer-Rollen",
+    returnHref: "/#team",
+    hidden: true,
+    title: "Mitglied im Team",
     group: "Unser-Team-Stammdaten",
     description:
       "Einem KRL-Team per Plus-Zuordnung Fahrer und deren Funktion hinzufügen.",

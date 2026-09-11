@@ -1,0 +1,6 @@
+<form class="team-group-form" method="post" action="/admin/team-groups<%= group.id ? '/' + group.id : '' %>">
+  <label>Name der Gruppe<input name="name" value="<%= group.name || '' %>" maxlength="255" placeholder="z. B. Ligaleitung" required></label>
+  <label>Farbe<input type="color" name="accentColor" value="<%= group.accentColor || '#6ef2f2' %>" required></label>
+  <label><input type="checkbox" name="isVisible" <%= group.isVisible !== false ? 'checked' : '' %>> Auf der Startseite anzeigen</label>
+  <button class="button button-small" type="submit"><%= group.id ? 'Änderungen speichern' : 'Gruppe hinzufügen' %></button>
+</form>
