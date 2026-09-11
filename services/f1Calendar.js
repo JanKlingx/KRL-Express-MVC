@@ -1,3 +1,4 @@
+const { parseBerlinDateTime, localDateTime } = require("./calendarTime");
 const { Op } = require("sequelize");
 
 const {
@@ -36,9 +37,22 @@ function dateAndLeagueTime(date, league) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) {
     throw new Error("Für jede Kalenderrunde ist ein gültiges Datum erforderlich.");
   }
-  const startsAt = new Date(`${date}T${extractLeagueTime(league.raceTime)}:00`);
+  const startsAt = parseBerlinDateTime(`${date}T${extractLeagueTime(league.raceTime)}`);
   if (Number.isNaN(startsAt.getTime())) throw new Error("Datum oder Startzeit ist ungültig.");
   return startsAt;
+}
+
+function validateDates(rounds, dates, league) {
+  const dateErrors = {};
+  for (const round of rounds) {
+    try { dateAndLeagueTime(dates[round.id], league); }
+    catch { dateErrors[round.id] = "Bitte ein gültiges Datum eingeben."; }
+  }
+  if (Object.keys(dateErrors).length) {
+    const error = new Error("Bitte die markierten Kalenderdaten korrigieren. Die übrigen Eingaben bleiben erhalten.");
+    error.dateErrors = dateErrors;
+    throw error;
+  }
 }
 
 async function loadCalendar(calendarId, transaction) {
@@ -201,6 +215,7 @@ async function syncSeasonCalendar({ season, league, calendarId, dates, transacti
   if (!calendar || !calendar.isActive) throw new Error("Bitte einen gültigen aktiven F1-Kalender auswählen.");
   if (!calendar.rounds.length) throw new Error("Der zentrale F1-Kalender enthält noch keine Runden.");
 
+  validateDates(calendar.rounds, dates, league);
   const seen = new Set();
   for (const round of calendar.rounds) {
     const number = roundNumber(round);
@@ -272,6 +287,7 @@ async function syncSeasonDates({ season, league, calendarId, dates, transaction 
     throw new Error("Der gespeicherte Saisonkalender stimmt nicht mit der Anfrage überein.");
   }
   const calendar = await validateSeasonCalendar(calendarId, transaction);
+  validateDates(calendar.rounds, dates, league);
   const events = await RaceEvent.findAll({
     where: { SeasonId: season.id, LeagueId: league.id },
     transaction,
@@ -337,7 +353,7 @@ async function syncLinkedRaceEvents(round, transaction) {
       skippedCompleted += 1;
       continue;
     }
-    const date = new Date(event.startsAt).toISOString().slice(0, 10);
+    const date = localDateTime(event.startsAt).slice(0, 10);
     await syncSeasonRound({
       season: event.seasonRecord,
       league: event.league,
@@ -350,6 +366,7 @@ async function syncLinkedRaceEvents(round, transaction) {
 }
 
 module.exports = {
+  validateDates,
   extractLeagueTime,
   loadCalendar,
   roundNumber,

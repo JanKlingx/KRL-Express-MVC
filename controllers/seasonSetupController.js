@@ -317,7 +317,10 @@ async function loadData(query = {}) {
 exports.show = async (req, res) => {
   const data = await loadData(req.query);
   const wizard = require('../services/seasonWizard').wizardState(data, req.query.step);
-  res.render("admin/season-setup", { title: "Saison-Assistent", ...data, wizard });
+  const draft = req.session.seasonDateDraft;
+  const calendarDraft = draft && Number(draft.seasonId) === Number(data.selectedSeason?.id) && Number(draft.calendarId) === Number(data.selectedSeason?.F1CalendarId) ? draft : null;
+  if (calendarDraft && !req.query.step) wizard.current = 3;
+  res.render("admin/season-setup", { title: "Saison-Assistent", ...data, wizard, calendarDraft, localDateTime: require("../services/calendarTime").localDateTime });
 };
 
 exports.createSeason = async (req, res) => {
@@ -610,6 +613,7 @@ exports.saveCentralCalendar = async (req, res) => {
     const result = await sequelize.transaction(async (transaction) =>
       syncSeasonDates({ season, league, calendarId, dates, transaction }),
     );
+    delete req.session.seasonDateDraft;
     const warnings = [
       result.skippedCompleted ? `${result.skippedCompleted} abgeschlossene Rennen geschützt` : null,
       result.unmatched ? `${result.unmatched} Runden ohne eindeutiges bestehendes RaceEvent` : null,
@@ -619,6 +623,10 @@ exports.saveCentralCalendar = async (req, res) => {
       message: `${result.calendar.name}: ${result.created || result.updated} Termine wurden transaktional gespeichert.${warnings.length ? ` ${warnings.join("; ")}.` : ""}`,
     };
   } catch (error) {
+    if (season) {
+      const dates = Object.fromEntries(Object.entries(req.body.dates || {}).filter(([key, value]) => /^\d+$/.test(key) && typeof value === "string").map(([key, value]) => [key, error.dateErrors?.[key] ? "" : value.slice(0, 10)]));
+      req.session.seasonDateDraft = { seasonId: season.id, calendarId: season.F1CalendarId, dates, errors: error.dateErrors || {} };
+    }
     req.session.flash = { type: "error", message: error.message };
   }
   res.redirect(`${setupRedirect({ league: league?.id, season: season?.id })}#setup-calendar`);
