@@ -13,7 +13,8 @@ const {
   reserveWeekendHistory, saveCarryOvers, syncFutureLineups
 } = require('../services/seasonDriverChange');
 
-const OPERATIONS = new Set(['release', 'fill']);
+const { planReserveRetirement, applyReserveRetirement } = require('../services/reserveRetirement');
+const OPERATIONS = new Set(['release', 'fill', 'retireReserve']);
 
 function redirectUrl({ LeagueId, SeasonId, SeasonTeamId } = {}) {
   const query = new URLSearchParams();
@@ -95,6 +96,11 @@ async function loadPageData(query = {}) {
   if (query.check === '1') {
     try {
       const operation = OPERATIONS.has(query.operation) ? query.operation : 'fill';
+      if (operation === 'retireReserve') {
+        const driver = await Driver.findByPk(Number(query.reserveDriver));
+        const retirement = await planReserveRetirement({ driver, seasonId: selectedSeason.id, effectiveRound: selectedRound });
+        preview = { operation, driver, retirement, effectiveRound: selectedRound };
+      } else {
       const team = teams.find((row) => Number(row.id) === Number(query.team));
       if (!team) throw new Error('Bitte ein Saisonteam auswählen.');
       const oldStint = operation === 'release'
@@ -117,16 +123,20 @@ async function loadPageData(query = {}) {
       const reserveLeagueSlugs = staysReserve
         ? [selectedLeague.slug]
         : [];
+      const retirement = operation === 'release' && !staysReserve && oldStint?.driver?.roleF1Reserve
+        ? await planReserveRetirement({ driver: oldStint.driver, seasonId: selectedSeason.id, effectiveRound: selectedRound }) : null;
       preview = {
-        operation, team, oldStint, membership, effectiveRound: selectedRound, carryHistory,
+        retirement, operation, team, oldStint, membership, effectiveRound: selectedRound, carryHistory,
         staysReserve, reserveLeagueSlugs
       };
+      }
     } catch (error) { previewError = error.message; }
   }
 
   return {
     leagues, seasons, selectedLeague, selectedSeason, teams, lineup, memberships,
     eligibleMemberships, stints, rounds, completedRound: Number(completedRound) || 0,
+    reserveDrivers: eligibleDrivers.filter((driver) => driver.roleF1Reserve),
     selectedRound, selectedTeamId: Number(query.team) || null, teamSlots, preview, previewError
   };
 }
@@ -144,6 +154,19 @@ exports.save = async (req, res) => {
     NewDriverId: Number(req.body.NewDriverId) || null
   };
   try {
+    if (operation === 'retireReserve') {
+      await sequelize.transaction(async (transaction) => {
+        const driver = await Driver.findByPk(Number(req.body.ReserveDriverId), { transaction, lock: transaction.LOCK.UPDATE });
+        const season = await Season.findByPk(ids.SeasonId, { transaction });
+        const league = await League.findByPk(ids.LeagueId, { transaction });
+        if (!season || !league || season.scopeSlug !== league.slug || league.type !== 'f1') throw new Error('Saison und Liga passen nicht zusammen.');
+        const retirement = await planReserveRetirement({ driver, seasonId: ids.SeasonId, effectiveRound: normalizeRound(req.body.effectiveRound), transaction });
+        if (retirement.version !== req.body.retirementVersion) throw new Error('Die betroffenen Saisonpläne haben sich geändert. Bitte den Ausstieg erneut prüfen.');
+        await applyReserveRetirement({ driver, plan: retirement, transaction });
+        req.session.flash = { type: 'success', message: `${driver.name}: Ersatzfahrer-Ausstieg gespeichert. Folgerunden werden in den betroffenen Reservewertungen als DNA geführt. ${driver.roleFormerF1 ? 'Rang: Ehemaliger Formel-1-Fahrer.' : 'Bestehende Stammfahrer-Ränge bleiben aktiv.'}` };
+      });
+      return res.redirect(redirectUrl(ids));
+    }
     if (!operation) throw new Error('Die ausgewählte Fahrerwechsel-Aktion ist ungültig.');
     const effectiveRound = normalizeRound(req.body.effectiveRound, 'Wirksam-ab-Runde');
     const selectedCarryIds = [].concat(req.body.carryResultIds || []).map(Number).filter(Boolean);
@@ -171,6 +194,8 @@ exports.save = async (req, res) => {
     }
 
     await sequelize.transaction(async (transaction) => {
+      // Serialize rank changes for the same driver across different league transactions.
+      for (const driver of [oldDriver, newDriver].filter(Boolean).sort((a,b) => a.id - b.id)) await driver.reload({ transaction, lock: transaction.LOCK.UPDATE });
       const [completedRound, stints, raceCount] = await Promise.all([
         completedRoundForSeason(season.id, transaction),
         SeasonDriverStint.findAll({
@@ -262,6 +287,11 @@ exports.save = async (req, res) => {
 
       let releasedReserveStint = null;
       if (operation === 'release') {
+        if (!staysReserve && oldDriver.roleF1Reserve) {
+          const retirement = await planReserveRetirement({ driver: oldDriver, seasonId: season.id, effectiveRound, transaction });
+          if (retirement.version !== req.body.retirementVersion) throw new Error('Die Ersatzfahrer-Pläne haben sich geändert. Bitte den Wechsel erneut prüfen.');
+          await applyReserveRetirement({ driver: oldDriver, plan: retirement, transaction });
+        }
         await oldDriver.update(
           driverRoleValuesAfterRelease(oldDriver, league.slug, reserveLeagueSlugs),
           { transaction }
@@ -314,7 +344,7 @@ exports.save = async (req, res) => {
 
     const endingRound = Number(req.body.effectiveRound) - 1;
     const message = operation === 'release'
-      ? `${oldDriver.name} gibt das Cockpit nach R${endingRound} ab.${staysReserve ? ' Der zentrale Rang „F1 Ersatz“ wurde gesetzt.' : ' Der Rang „Ehemaliger Formel-1-Fahrer“ wurde gesetzt.'}`
+      ? `${oldDriver.name} gibt das Cockpit nach R${endingRound} ab.${staysReserve ? ' Der zentrale Rang „F1 Ersatz“ wurde gesetzt.' : (oldDriver.roleFormerF1 ? ' Der Rang „Ehemaliger Formel-1-Fahrer“ wurde gesetzt.' : ' Weitere Stammfahrer-Ränge bleiben aktiv.')}`
       : `${newDriver.name} besetzt den freien Stammplatz von ${team.name} ab R${req.body.effectiveRound} und erhält den passenden Stammfahrer-Rang.`;
     req.session.flash = { type: 'success', message: `${message} Vergangene Ergebnisse und Punkte blieben unverändert.` };
   } catch (error) {

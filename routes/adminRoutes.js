@@ -24,10 +24,12 @@ const pdfUpload = require("../middleware/pdfUpload");
 
 const router = express.Router();
 router.use(requireAdmin);
+router.post("/rulebook", asyncHandler(require("../controllers/rulebookController").save));
+router.get(["/f1RuleSections", "/f1RuleSections/new", "/f1RuleSections/:id/edit"], (req, res) => res.redirect("/formel-1/regelwerk?edit=1"));
 router.get("/", asyncHandler(adminController.dashboard));
 router.get("/calendar-events/:eventId/edit", asyncHandler(require('../controllers/calendarEventController').edit));
 router.post("/calendar-events/:eventId", asyncHandler(require('../controllers/calendarEventController').update));
-router.get("/driver-edit", asyncHandler(require('../controllers/driverEditController').show));
+router.get("/driver-edit", (req, res) => res.redirect("/admin/drivers"));
 router.get("/f1-games", asyncHandler(f1GameController.index));
 router.post(
   "/f1-games",

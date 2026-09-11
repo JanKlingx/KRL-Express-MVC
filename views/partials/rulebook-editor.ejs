@@ -1,0 +1,16 @@
+<form method="post" action="/admin/rulebook" class="rulebook-editor" data-rulebook-editor>
+  <input type="hidden" name="version" value="<%= rulebookVersion %>">
+  <input type="hidden" name="sections" data-rulebook-payload>
+  <p>Füge Abschnitte hinzu, wähle eine Überschrift und schreibe den Text. Mit ↑ und ↓ verschiebst du Abschnitte. Änderungen werden gemeinsam gespeichert.</p>
+  <div data-rulebook-blocks>
+  <% let editorRows = sections; if (draftSections) { try { const parsed = JSON.parse(draftSections); if (Array.isArray(parsed)) editorRows = parsed; } catch {} } %>
+  <% editorRows.forEach((section) => { %>
+    <%- include('rulebook-editor-block', { section }) %>
+  <% }) %>
+  </div>
+  <template data-rulebook-template><%- include('rulebook-editor-block', { section: { id: '', title: '', content: '', sectionType: 'rule', headingLevel: 2, isPublished: true } }) %></template>
+  <div class="form-actions"><button type="button" class="button button-ghost" data-add-rule="rule">+ Paragraph</button><button type="button" class="button button-ghost" data-add-rule="penalty">+ Strafe</button></div>
+  <div class="form-actions"><button type="submit" class="button">Änderungen speichern</button><a class="button button-ghost" href="/formel-1/regelwerk">Abbrechen</a></div>
+  <noscript>Bitte JavaScript aktivieren, um Abschnitte direkt zu bearbeiten.</noscript>
+</form>
+<script src="/js/rulebook-editor.js" defer></script>

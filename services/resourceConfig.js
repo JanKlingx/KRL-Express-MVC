@@ -159,7 +159,7 @@ async function prepareDriver(values, body, existingDriver) {
     throw warning;
   }
   if (
-    [
+    !existingDriver?.id && [
       "roleF1Friday",
       "roleF1Saturday",
       "roleF1Sunday",
@@ -192,6 +192,11 @@ async function prepareDriver(values, body, existingDriver) {
       values.LeagueId = league?.id || null;
     } else if (!values.roleLmuRegular && !values.roleLmuReserve)
       values.LeagueId = null;
+  }
+  if (existingDriver?.id) {
+    for (const field of ['roleF1Friday', 'roleF1Saturday', 'roleF1Sunday', 'roleF1Reserve', 'roleFormerF1', 'roleF1ReserveFriday', 'roleF1ReserveSaturday', 'roleF1ReserveSunday', 'f1Role']) {
+      delete values[field];
+    }
   }
   if (values.TeamId) {
     const team = await models.Team.findByPk(values.TeamId);
@@ -1042,7 +1047,7 @@ module.exports = {
   platforms: {
     title: "Plattformpflege", group: "Stammdaten", model: models.Platform,
     description: "Plattformen mit Name und Logo für die Fahrerpflege anlegen.",
-    listFields: ["name", "logoPath"], fields: [text("name", "Name", true), number("sortOrder", "Reihenfolge", false, { min: 0, step: 1 })],
+    listFields: ["name", "logoPath"], fields: [text("name", "Name", true)],
     upload: { field: "logoPath", label: "Plattformlogo", required: true },
     async prepareValues(values) {
       values.name = String(values.name || "").trim();
@@ -1426,7 +1431,6 @@ module.exports = {
         help: "Nur aktivieren, wenn wirklich eine zweite Person mit demselben Namen angelegt wird.",
       }),
       aliasesField(),
-      number("number", "Startnummer", false, { min: 0, step: 1 }),
       text("gamerTag", "GamerTag"),
       relation("PlatformId", "Plattform", models.Platform, (row) => row.name, true),
       number("racesF1", "Gefahrene Rennen F1", false, {
@@ -1627,6 +1631,7 @@ module.exports = {
     ],
   },
   f1RuleSections: {
+    hidden: true,
     title: "Formel-1-Regelwerk",
     group: "Formel 1 Stammdaten",
     description:
@@ -1891,7 +1896,6 @@ module.exports = {
       text("title", "Rennen", true),
       text("circuit", "Strecke", true),
       dateTime("startsAt", "Datum und Startzeit", true),
-      number("durationMinutes", "Dauer in Minuten", false, { min: 1 }),
       checkbox("isPublished", "Im Frontend anzeigen"),
       checkbox("isTestDay", "Als Testtag markieren"),
       number("sortOrder", "Reihenfolge", false, { min: 0 }),
@@ -2089,7 +2093,6 @@ module.exports = {
       text("title", "Rennen", true),
       text("circuit", "Strecke"),
       dateTime("startsAt", "Startdatum und Uhrzeit", true),
-      number("durationMinutes", "Dauer in Minuten", false, { min: 1, step: 1 }),
       checkbox("isPublished", "Auf Webseite anzeigen"),
       checkbox("isTestDay", "Als Testtag markieren"),
       number("sortOrder", "Reihenfolge", false, { min: 0 }),
@@ -2110,7 +2113,6 @@ module.exports = {
       text("title", "Rennen", true),
       text("circuit", "Strecke"),
       dateTime("startsAt", "Startdatum und Uhrzeit", true),
-      number("durationMinutes", "Dauer in Minuten", false, { min: 1, step: 1 }),
       checkbox("isPublished", "Auf Webseite anzeigen"),
       checkbox("isTestDay", "Als Testtag markieren"),
       number("sortOrder", "Reihenfolge", false, { min: 0 }),

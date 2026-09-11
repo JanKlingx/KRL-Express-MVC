@@ -1,0 +1,11 @@
+<fieldset class="rulebook-editor-block" data-rulebook-block data-id="<%= section.id || '' %>">
+  <legend>Abschnitt</legend>
+  <div class="rulebook-editor-tools">
+    <label>Bereich<select data-field="sectionType"><option value="rule" <%= section.sectionType === 'rule' ? 'selected' : '' %>>Regelwerk</option><option value="penalty" <%= section.sectionType === 'penalty' ? 'selected' : '' %>>Strafenkatalog</option></select></label>
+    <label>Überschrift<select data-field="headingLevel"><% [[2,'Hauptüberschrift'],[3,'Unterüberschrift'],[4,'Zwischenüberschrift']].forEach(([value,label]) => { %><option value="<%= value %>" <%= Number(section.headingLevel || 2) === value ? 'selected' : '' %>><%= label %></option><% }) %></select></label>
+    <button type="button" class="button button-small button-ghost" data-block-action="up" aria-label="Abschnitt nach oben">↑</button><button type="button" class="button button-small button-ghost" data-block-action="down" aria-label="Abschnitt nach unten">↓</button><button type="button" class="button button-small button-ghost" data-block-action="remove">Entfernen</button>
+  </div>
+  <label>Überschrift<input data-field="title" value="<%= section.title %>" maxlength="255" required placeholder="z. B. § 1 Teilnahme"></label>
+  <label>Text<textarea data-field="content" rows="7" maxlength="50000" placeholder="Regel oder Strafe beschreiben …"><%= section.content %></textarea></label>
+  <label class="checkbox-control"><input type="checkbox" data-field="isPublished" <%= section.isPublished ? 'checked' : '' %>> Öffentlich anzeigen</label>
+</fieldset>
