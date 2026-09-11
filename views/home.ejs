@@ -36,43 +36,7 @@
   </div>
 </section>
 
-<section class="section container" id="team">
-  <div class="section-heading">
-    <span>DIE MENSCHEN HINTER KRL</span>
-    <h2>UNSER TEAM</h2>
-  </div>
-
-  <% const groupDraft = typeof teamGroupDraft !== 'undefined' ? teamGroupDraft : null; %>
-  <% if (isAdmin) { %>
-    <style>.team-group-form { display:flex; flex-wrap:wrap; gap:1rem; align-items:end; padding:1rem 0; }.team-group-form label { display:grid; gap:.5rem; }.team-group-editor { margin:1rem 0; }.team-group-editor summary { cursor:pointer; }</style>
-    <details class="team-group-editor" <%= groupDraft && !groupDraft.id ? 'open' : '' %>><summary>+ Gruppe hinzufügen</summary><%- include('partials/team-group-form', { group: groupDraft && !groupDraft.id ? groupDraft : {} }) %></details>
-  <% } %>
-
-  <% krlTeams.forEach(team => { %>
-    <div class="team-group" style="--team-color:<%= team.accentColor %>">
-      <h3><%= team.name %><% if (isAdmin && !team.isVisible) { %> · ausgeblendet<% } %></h3>
-      <% if (isAdmin) { %>
-        <details class="team-group-editor" <%= String(groupDraft?.id) === String(team.id) ? 'open' : '' %>><summary aria-label="<%= team.name %> bearbeiten">✎ Gruppe bearbeiten</summary>
-          <%- include('partials/team-group-form', { group: String(groupDraft?.id) === String(team.id) ? groupDraft : team }) %>
-          <form method="post" action="/admin/team-groups/<%= team.id %>/delete" data-confirm="Gruppe und ihre Zuordnungen löschen? Die Fahrer bleiben erhalten."><button class="button button-ghost button-small" type="submit">Gruppe löschen</button></form>
-        </details>
-        <a class="button button-ghost button-small" href="/admin/krl-team-planning?team=<%= team.id %>">Mitglieder zuordnen</a>
-      <% } %>
-
-      <div class="people-grid">
-        <% team.assignments.forEach(assignment => { const member = assignment.driver; %>
-          <article class="person-card">
-
-            <div class="avatar"><% if (assignment.imagePath) { %><img src="<%= assignment.imagePath %>" alt="<%= member.name %>"><% } else { %><%= member.name.charAt(0) %><% } %></div>
-
-            <strong><%= member.name %></strong>
-            <span><%= assignment.roleName %></span><% if (isAdmin) { %><a class="admin-inline-action" href="/admin/krlTeamAssignments/<%= assignment.id %>/edit" aria-label="<%= member.name %> bearbeiten">✎</a><form class="admin-inline-form" method="post" action="/admin/krlTeamAssignments/<%= assignment.id %>?_method=DELETE" data-confirm="Person aus dem Team entfernen?"><button type="submit" aria-label="<%= member.name %> entfernen">×</button></form><% } %>
-          </article>
-        <% }) %>
-      </div>
-    </div>
-  <% }) %>
-</section>
+<%- include('partials/home-team') %>
 <% if (krlIcons.length) { %><section class="section section-dark icon-preview-section"><div class="container"><div class="section-heading"><span>AUSGEZEICHNET</span><h2>KRL ICONS</h2><a class="download-link" href="/krl-icons">Alle KRL Icons ansehen →</a></div><div class="icon-preview-grid"><% krlIcons.slice(0, 4).forEach((icon, index) => { const appointed = icon.appointedAt ? new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date(`${icon.appointedAt}T12:00:00Z`)) : null; %><article class="icon-preview-card"><span>KRL ICON · <%= String(index + 1).padStart(2, '0') %></span><strong><%= icon.driver.name %></strong><p><%= icon.text %></p><small><%= appointed ? `Ernannt ${appointed}` : 'Ernennung offen' %></small><a href="/krl-icons">Geschichte lesen →</a></article><% }) %></div></div></section><% } %>
 <section class="section cta"><div class="container"><span>BEREIT FÜR DIE STARTAUFSTELLUNG?</span><h2>WERDE TEIL DER KRL</h2><p>Besuche unseren Discord und finde die passende Liga für dich.</p><a class="button" href="https://discord.com" target="_blank" rel="noopener">Discord öffnen</a></div></section>
 <%- include('partials/footer') %>

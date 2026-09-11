@@ -26,9 +26,13 @@ const router = express.Router();
 router.use(requireAdmin);
 const teamGroupController = require('../controllers/teamGroupController');
 router.post('/team-groups', asyncHandler(teamGroupController.save));
+router.post('/team-groups/reorder', asyncHandler(teamGroupController.reorder));
+router.post('/team-groups/:id/members', upload.single('image'), asyncHandler(teamGroupController.saveMember));
+router.post('/team-groups/:id/members/:memberId', upload.single('image'), asyncHandler(teamGroupController.saveMember));
+router.post('/team-groups/:id/members/:memberId/delete', asyncHandler(teamGroupController.removeMember));
 router.post('/team-groups/:id', asyncHandler(teamGroupController.save));
 router.post('/team-groups/:id/delete', asyncHandler(teamGroupController.remove));
-router.get(['/krlTeams', '/krlTeams/new', '/krlTeams/:id/edit'], (req, res) => res.redirect('/#team'));
+router.get(['/krlTeams', '/krlTeams/new', '/krlTeams/:id/edit', '/krlTeamAssignments', '/krlTeamAssignments/new', '/krlTeamAssignments/:id/edit'], (req, res) => res.redirect('/?editTeam=1#team'));
 
 router.post('/season-setup/:seasonId/metadata', asyncHandler(seasonSetupController.updateMetadata));
 router.post("/rulebook", asyncHandler(require("../controllers/rulebookController").save));
@@ -53,11 +57,12 @@ router.get("/f1-calendars", asyncHandler(f1CalendarController.index));
 router.post("/f1-calendars", asyncHandler(f1CalendarController.create));
 router.post("/f1-calendars/:calendarId", asyncHandler(f1CalendarController.update));
 router.post("/f1-calendars/:calendarId/delete", asyncHandler(f1CalendarController.remove));
+router.post("/f1-calendars/:calendarId/structure", asyncHandler(f1CalendarController.saveStructure));
 router.post("/f1-calendars/:calendarId/rounds", asyncHandler(f1CalendarController.createRound));
 router.post("/f1-calendars/:calendarId/rounds/reorder", asyncHandler(f1CalendarController.reorder));
 router.post("/f1-calendars/:calendarId/rounds/:roundId", asyncHandler(f1CalendarController.updateRound));
 router.post("/f1-calendars/:calendarId/rounds/:roundId/delete", asyncHandler(f1CalendarController.removeRound));
-router.get("/krl-team-planning", asyncHandler(krlTeamPlanningController.show));
+router.get("/krl-team-planning", (req, res) => res.redirect("/?editTeam=1#team"));
 router.post(
   "/krl-team-planning/assign",
   asyncHandler(krlTeamPlanningController.assign),

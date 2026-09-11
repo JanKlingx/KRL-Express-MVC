@@ -12065,3 +12065,5 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .setup-steps [aria-current="step"] { border-color: var(--accent); background: #173138; }
 .setup-step-navigation { margin-top: 1.5rem; }
 .setup-driver-card[hidden] { display: none; }
+
+.team-member-description { white-space: pre-wrap; overflow-wrap: anywhere; margin: .75rem 0; }

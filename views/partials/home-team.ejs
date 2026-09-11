@@ -1,0 +1,53 @@
+<% const editing = Boolean(isAdmin && typeof teamEditing !== 'undefined' && teamEditing);
+const groupDraft = typeof teamGroupDraft !== 'undefined' ? teamGroupDraft : null;
+const memberDraft = typeof teamMemberDraft !== 'undefined' ? teamMemberDraft : null;
+const candidates = typeof teamDrivers !== 'undefined' ? teamDrivers : [];
+%>
+<section class="section container" id="team" <%= editing ? 'data-team-editor' : '' %>>
+  <div class="section-heading"><span>DIE MENSCHEN HINTER KRL</span><h2>UNSER TEAM</h2>
+    <% if (isAdmin) { %><a class="button button-ghost" href="<%= editing ? '/#team' : '/?editTeam=1#team' %>"><%= editing ? 'Bearbeiten beenden' : '✎ Bearbeiten' %></a><% } %>
+  </div>
+  <% if (editing) { %>
+    <link rel="stylesheet" href="/css/team-editor.css">
+    <p>Gruppen mit den Pfeilen verschieben und die Reihenfolge speichern. Mitglieder direkt in ihrer Gruppe hinzufügen oder bearbeiten.</p>
+    <form method="post" action="/admin/team-groups/reorder" data-team-order-form>
+      <input type="hidden" name="version" value="<%= krlTeams.map((group) => group.id).join(',') %>">
+      <div data-group-order-inputs><% krlTeams.forEach((group) => { %><input type="hidden" name="groupIds" value="<%= group.id %>"><% }) %></div>
+      <button class="button" type="submit">Gruppenreihenfolge speichern</button> <span data-group-order-status role="status"></span>
+    </form>
+  <% } %>
+  <div data-team-groups>
+  <% krlTeams.forEach((team) => { %>
+    <div class="team-group" data-team-group data-group-id="<%= team.id %>" style="--team-color:<%= team.accentColor %>">
+      <div class="team-group-heading"><h3><%= team.name %><% if (editing && !team.isVisible) { %> · ausgeblendet<% } %></h3>
+        <% if (editing) { %><div class="team-editor-actions"><button type="button" data-group-move="up" aria-label="<%= team.name %> nach oben">↑</button><button type="button" data-group-move="down" aria-label="<%= team.name %> nach unten">↓</button></div><% } %>
+      </div>
+      <% if (editing) { %>
+        <details class="team-group-editor" <%= String(groupDraft?.id) === String(team.id) ? 'open' : '' %>><summary>✎ Gruppe bearbeiten</summary>
+          <%- include('team-group-form', { group: String(groupDraft?.id) === String(team.id) ? groupDraft : team }) %>
+          <form method="post" action="/admin/team-groups/<%= team.id %>/delete" data-confirm="Gruppe und ihre Zuordnungen löschen? Die Fahrerprofile bleiben erhalten."><button class="button button-ghost button-small" type="submit">🗑 Gruppe löschen</button></form>
+        </details>
+      <% } %>
+      <div class="people-grid">
+        <% (team.assignments || []).forEach((assignment) => { const member = assignment.driver; if (!member) return;
+          const draft = String(memberDraft?.id) === String(assignment.id) && String(memberDraft?.groupId) === String(team.id) ? memberDraft : null;
+        %>
+          <article class="person-card">
+            <div class="avatar"><% if (assignment.imagePath) { %><img src="<%= assignment.imagePath %>" alt="<%= member.name %>"><% } else { %><%= member.name.charAt(0) %><% } %></div>
+            <strong><%= member.name %></strong><span><%= assignment.roleName %></span>
+            <% if (assignment.description) { %><p class="team-member-description"><%= assignment.description %></p><% } %>
+            <% if (editing) { %>
+              <details class="team-member-editor" <%= draft ? 'open' : '' %>><summary aria-label="<%= member.name %> bearbeiten">✎ Bearbeiten</summary><%- include('team-member-form', { groupId: team.id, memberEntry: draft ? { ...draft, imagePath: assignment.imagePath } : assignment, candidates }) %></details>
+              <form method="post" action="/admin/team-groups/<%= team.id %>/members/<%= assignment.id %>/delete" data-confirm="Diese Person aus dieser Gruppe entfernen? Das Fahrerprofil bleibt erhalten."><button class="button button-ghost button-small" type="submit" aria-label="<%= member.name %> aus Gruppe entfernen">🗑 Entfernen</button></form>
+            <% } %>
+          </article>
+        <% }) %>
+        <% if (editing) { const draft = memberDraft && !memberDraft.id && String(memberDraft.groupId) === String(team.id) ? memberDraft : null; %>
+          <details class="person-card team-add-member" <%= draft ? 'open' : '' %>><summary><span aria-hidden="true">+</span>Mitglied hinzufügen</summary><%- include('team-member-form', { groupId: team.id, memberEntry: draft || {}, candidates: candidates.filter((driver) => !(team.assignments || []).some((assignment) => Number(assignment.DriverId) === Number(driver.id))) }) %></details>
+        <% } %>
+      </div>
+    </div>
+  <% }) %>
+  </div>
+  <% if (editing) { %><details class="team-add-group" <%= groupDraft && !groupDraft.id ? 'open' : '' %>><summary>+ Gruppe hinzufügen</summary><%- include('team-group-form', { group: groupDraft && !groupDraft.id ? groupDraft : {} }) %></details><script src="/js/team-editor.js" defer></script><% } %>
+</section>

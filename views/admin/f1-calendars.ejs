@@ -269,138 +269,63 @@
         </section><% } %>
       <% } %>
       <main class="f1-calendar-workspace">
-        <% if (selectedCalendar) { %>
+        <% if (selectedCalendar) { const showStructure = typeof structureOpen === 'undefined' || structureOpen; %>
           <a class="back-link" href="/admin/f1-calendars">← Kalenderauswahl</a>
           <section class="f1-calendar-card">
-            <header class="f1-calendar-card__header"><div><span>Schritt 2 von 2 · Kalenderstruktur</span><h2><%= selectedCalendar.name %></h2></div></header>
+            <header class="f1-calendar-card__header"><div><span><%= showStructure ? 'Gewählter Kalender' : 'Schritt 1 von 2 · Name' %></span><h2><%= selectedCalendar.name %></h2></div></header>
             <div class="f1-calendar-card__body">
               <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>" class="f1-calendar-meta-form">
-                <label class="f1-calendar-field"><span>Name</span><input name="name" value="<%= selectedCalendar.name %>" required></label>
-                <label class="checkbox-control"><input type="checkbox" name="isActive" <%= selectedCalendar.isActive ? 'checked' : '' %>><span>Aktiv</span></label>
-                <button class="button button-small" type="submit">Speichern</button>
+                <label class="f1-calendar-field"><span>Name</span><input name="name" value="<%= selectedCalendar.name %>" maxlength="255" required></label>
+                <label class="checkbox-control"><input type="checkbox" name="isActive" <%= selectedCalendar.isActive ? 'checked' : '' %>><span>Zur Saisonwahl freigeben</span></label>
+                <button class="button button-small" type="submit"><%= showStructure ? 'Name speichern' : 'Weiter zur Kalenderstruktur →' %></button>
               </form>
-              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/delete" data-confirm="Dieser Kalender kann nur gelöscht werden, wenn ihn keine Saison und kein Rennen verwendet.">
-                <button class="button button-ghost button-small" type="submit">Unbenutzten Kalender löschen</button>
-              </form>
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/delete" data-confirm="Diesen unbenutzten Kalender löschen?"><button class="button button-ghost button-small">Kalender löschen</button></form>
             </div>
           </section>
-
+          <% if (showStructure) { %>
           <section class="f1-calendar-card">
-            <header class="f1-calendar-card__header"><div><span>Neuer Eintrag</span><h2>Rennen oder Testtag hinzufügen</h2></div></header>
+            <header class="f1-calendar-card__header"><div><span>Schritt 2 von 2</span><h2>Kalenderstruktur</h2></div></header>
             <div class="f1-calendar-card__body">
-              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds" class="f1-calendar-round-form" data-calendar-entry-form>
-                <label class="f1-calendar-field" data-round-number-field><span>Rennnummer</span><input type="number" name="roundNumber" min="1" value="<%= nextOfficialRound %>" required></label>
-                <label class="f1-calendar-field"><span>Strecke</span><select class="round-track" name="F1TrackId" required><option value="">Strecke wählen …</option><% tracks.forEach((track) => { %><option value="<%= track.id %>"><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></label>
-                <div class="f1-calendar-options"><label class="checkbox-control"><input type="checkbox" name="hasSprint" data-sprint-toggle><span>Sprint</span></label></div>
-                <div class="f1-calendar-options"><label class="checkbox-control"><input type="checkbox" name="isTestDay" data-test-toggle><span>Testtag</span></label></div>
-                <button class="button button-small" type="submit">Hinzufügen</button>
-              </form>
-              <p class="f1-calendar-help">Ein Testtag ist kein offizielles Rennen. Sobald „Testtag“ aktiv ist, verschwindet die Rennnummer und Sprint wird deaktiviert.</p>
-            </div>
-          </section>
-
-          <section class="f1-calendar-card">
-            <header class="f1-calendar-card__header">
-              <div><span>Kalenderstruktur</span><h2><%= officialRounds.length %> Rennen<%= selectedRounds.some((round) => round.isTestDay) ? ' + Testtag' : '' %></h2></div>
-            </header>
-            <div class="f1-calendar-card__body">
-              <% if (selectedRounds.length) { %>
-                <form id="calendar-reorder-form" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/reorder" class="f1-calendar-reorder">
-                  <div><strong>Reihenfolge ändern</strong><div class="f1-calendar-help">Zeilen am Griff ziehen; nummeriert werden nur offizielle Rennen.</div></div>
-                  <div data-reorder-inputs><% selectedRounds.forEach((round) => { %><input type="hidden" name="roundIds" value="<%= round.id %>"><% }) %></div>
-                  <button class="button button-ghost button-small" type="submit">Reihenfolge speichern</button>
-                </form>
-              <% } %>
-
-              <div class="f1-calendar-table-wrap">
-                <table class="f1-calendar-table">
-                  <thead><tr><th></th><th>Rennnummer</th><th>Land / Strecke</th><th>Sprint</th><th>Testtag</th><th>Aktionen</th></tr></thead>
+              <p>Mit ↑ und ↓ verschieben oder am Griff ziehen. Die Rennnummern werden automatisch vergeben; Testtage zählen nicht mit.</p>
+              <form id="calendar-structure" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/structure" data-calendar-structure>
+                <div class="f1-calendar-table-wrap"><table class="f1-calendar-table">
+                  <thead><tr><th>Verschieben</th><th>Rennen</th><th>Land / Strecke</th><th>Sprint</th><th>Testtag</th><th></th></tr></thead>
                   <tbody data-round-list>
-                    <% selectedRounds.forEach((round) => { %>
-                      <tr data-round-row data-round-id="<%= round.id %>" draggable="true" class="<%= round.isTestDay ? 'is-test' : '' %>">
-                        <td><button class="f1-calendar-drag" type="button" title="Zum Verschieben ziehen" aria-label="Eintrag verschieben">↕</button></td>
-                        <td class="f1-calendar-round-field">
-                          <label data-round-number-field <%= round.isTestDay ? 'hidden' : '' %>><input form="round-<%= round.id %>" type="number" name="roundNumber" min="1" value="<%= round.roundNumber || '' %>" <%= round.isTestDay ? 'disabled' : 'required' %>></label>
-                          <div class="f1-calendar-test-label" data-test-label <%= round.isTestDay ? '' : 'hidden' %>><strong>TESTTAG</strong><small>keine Rennnummer</small></div>
-                        </td>
-                        <td><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt=""><% } %><select form="round-<%= round.id %>" class="round-track" name="F1TrackId" required><% tracks.forEach((track) => { %><option value="<%= track.id %>" <%= Number(round.F1TrackId) === Number(track.id) ? 'selected' : '' %>><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></td>
-                        <td><input form="round-<%= round.id %>" type="checkbox" name="hasSprint" data-sprint-toggle <%= round.hasSprint ? 'checked' : '' %> <%= round.isTestDay ? 'disabled' : '' %>></td>
-                        <td><input form="round-<%= round.id %>" type="checkbox" name="isTestDay" data-test-toggle <%= round.isTestDay ? 'checked' : '' %>></td>
-                        <td><div class="f1-calendar-row-actions"><form id="round-<%= round.id %>" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>"><button class="button button-small" type="submit">Speichern</button></form><form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>/delete" data-confirm="Nur ein noch nicht verwendeter Eintrag kann gelöscht werden."><button class="button button-ghost button-small" type="submit">Löschen</button></form></div></td>
+                    <% let raceNumber = 0; selectedRounds.forEach((round) => { if (!round.isTestDay) raceNumber += 1; %>
+                      <tr data-round-row data-round-id="<%= round.id %>" class="<%= round.isTestDay ? 'is-test' : '' %>">
+                        <td><div class="f1-calendar-row-actions"><button class="f1-calendar-drag" type="button" draggable="true" data-drag-handle aria-label="Kalendereintrag ziehen">↕</button><button type="button" data-move="up" aria-label="Nach oben">↑</button><button type="button" data-move="down" aria-label="Nach unten">↓</button></div></td>
+                        <td><input type="hidden" name="roundIds" value="<%= round.id %>"><strong data-round-number-field <%= round.isTestDay ? 'hidden' : '' %>><%= round.isTestDay ? '' : `R${raceNumber}` %></strong><strong data-test-label title="keine Rennnummer" <%= round.isTestDay ? '' : 'hidden' %>>TESTTAG</strong></td>
+                        <td><% if (round.track?.countryRecord?.flagPath) { %><img src="<%= round.track.countryRecord.flagPath %>" alt=""><% } %><select name="rounds[<%= round.id %>][F1TrackId]" required aria-label="Strecke"><% tracks.forEach((track) => { %><option value="<%= track.id %>" <%= Number(round.F1TrackId) === Number(track.id) ? 'selected' : '' %>><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></td>
+                        <td><input type="checkbox" name="rounds[<%= round.id %>][hasSprint]" data-sprint-toggle aria-label="Sprint" <%= round.hasSprint ? 'checked' : '' %> <%= round.isTestDay ? 'disabled' : '' %>></td>
+                        <td><input type="checkbox" name="rounds[<%= round.id %>][isTestDay]" data-test-toggle aria-label="Testtag" <%= round.isTestDay ? 'checked' : '' %>></td>
+                        <td><button class="button button-ghost button-small" type="submit" form="delete-round-<%= round.id %>">Löschen</button></td>
                       </tr>
                     <% }) %>
                   </tbody>
-                </table>
-              </div>
-              <% if (!selectedRounds.length) { %><div class="empty-state">Dieser Kalender ist noch leer. Füge oben das erste Rennen oder einen Testtag hinzu.</div><% } %>
+                </table></div>
+                <% if (selectedRounds.length) { %><p><button class="button" type="submit">Kalenderstruktur speichern</button> <span data-order-status role="status"></span></p><% } else { %><p>Füge das erste Rennen oder einen Testtag hinzu.</p><% } %>
+              </form>
+              <% selectedRounds.forEach((round) => { %><form id="delete-round-<%= round.id %>" method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds/<%= round.id %>/delete" data-confirm="Diesen unbenutzten Kalendereintrag löschen? Ungespeicherte Strukturänderungen gehen verloren."></form><% }) %>
             </div>
           </section>
-
+          <section class="f1-calendar-card">
+            <header class="f1-calendar-card__header"><h2>+ Rennen oder Testtag hinzufügen</h2></header>
+            <div class="f1-calendar-card__body">
+              <form method="post" action="/admin/f1-calendars/<%= selectedCalendar.id %>/rounds" class="f1-calendar-round-form" data-calendar-entry-form>
+                <label class="f1-calendar-field"><span>Strecke</span><select name="F1TrackId" required><option value="">Strecke wählen …</option><% tracks.forEach((track) => { %><option value="<%= track.id %>"><%= track.countryRecord?.name || track.country %> · <%= track.name %></option><% }) %></select></label>
+                <label class="checkbox-control"><input type="checkbox" name="hasSprint" data-sprint-toggle><span>Sprint</span></label>
+                <label class="checkbox-control"><input type="checkbox" name="isTestDay" data-test-toggle><span>Testtag</span></label>
+                <button class="button" type="submit">Hinzufügen</button>
+              </form>
+            </div>
+          </section>
+          <% } %>
         <% } %>
       </main>
     </div>
   </div>
 </section>
 
-<script>
-  (() => {
-    function syncTestState(scope) {
-      const testToggle = scope.querySelector('[data-test-toggle]');
-      const sprintToggle = scope.querySelector('[data-sprint-toggle]');
-      const numberField = scope.querySelector('[data-round-number-field]');
-      const numberInput = numberField?.querySelector('input[name="roundNumber"]');
-      const testLabel = scope.querySelector('[data-test-label]');
-      if (!testToggle) return;
-      const isTest = testToggle.checked;
-      if (numberField) numberField.hidden = isTest;
-      if (numberInput) {
-        numberInput.disabled = isTest;
-        numberInput.required = !isTest;
-      }
-      if (testLabel) testLabel.hidden = !isTest;
-      if (sprintToggle) {
-        sprintToggle.disabled = isTest;
-        if (isTest) sprintToggle.checked = false;
-      }
-      scope.classList?.toggle('is-test', isTest);
-    }
-
-    document.querySelectorAll('[data-calendar-entry-form], [data-round-row]').forEach((scope) => {
-      syncTestState(scope);
-      scope.querySelector('[data-test-toggle]')?.addEventListener('change', () => syncTestState(scope));
-    });
-
-    const list = document.querySelector('[data-round-list]');
-    const inputHost = document.querySelector('[data-reorder-inputs]');
-    let dragged = null;
-    function syncOrderInputs() {
-      if (!list || !inputHost) return;
-      inputHost.innerHTML = '';
-      list.querySelectorAll('[data-round-row]').forEach((row) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'roundIds';
-        input.value = row.dataset.roundId;
-        inputHost.appendChild(input);
-      });
-    }
-    list?.addEventListener('dragstart', (event) => {
-      dragged = event.target.closest('[data-round-row]');
-      dragged?.classList.add('is-dragging');
-    });
-    list?.addEventListener('dragend', () => {
-      dragged?.classList.remove('is-dragging');
-      dragged = null;
-      syncOrderInputs();
-    });
-    list?.addEventListener('dragover', (event) => {
-      event.preventDefault();
-      const target = event.target.closest('[data-round-row]');
-      if (!dragged || !target || dragged === target) return;
-      const box = target.getBoundingClientRect();
-      target.parentNode.insertBefore(dragged, event.clientY < box.top + box.height / 2 ? target : target.nextSibling);
-    });
-  })();
-</script>
+<script src="/js/calendar-structure.js" defer></script>
 
 <%- include('../partials/footer') %>

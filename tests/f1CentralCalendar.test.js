@@ -37,10 +37,11 @@ test("zentrale Adminpflege rendert Strecke, Land, Flagge und Sprint kompakt", as
     ...layout, title: "Zentrale F1-Rennkalender", calendars: [calendar], selectedCalendar: calendar, tracks: [track],
   });
   assert.match(html, /KRL F1 Saison 17/);
-  assert.match(html, /name="roundNumber" min="1" value="1"/);
+  assert.match(html, /data-round-number-field[^>]*>R1</);
+  assert.doesNotMatch(html, /name="roundNumber"/);
   assert.match(html, /Australien · Melbourne/);
   assert.match(html, /\/uploads\/au\.png/);
-  assert.match(html, /name="hasSprint"[^>]*checked/);
+  assert.match(html, /name="rounds\[9\]\[hasSprint\]"[^>]*checked/);
 });
 
 test("Testtage besitzen keine sichtbare Rennnummer und werden nicht als Runde 0 ausgegeben", async () => {
@@ -62,8 +63,8 @@ test("Testtage besitzen keine sichtbare Rennnummer und werden nicht als Runde 0 
   assert.doesNotMatch(publicHtml, />00</);
   const controller = read("controllers/f1CalendarController.js");
   const service = read("services/f1Calendar.js");
-  assert.match(controller, /const number = isTestDay\s*\? null/);
-  assert.match(controller, /roundNumber: round\.isTestDay \? null : officialRoundNumber/);
+  assert.doesNotMatch(controller, /req\.body\.roundNumber/);
+  assert.match(read("services/calendarOrder.js"), /roundNumber: round\.isTestDay \? null : \+\+number/);
   assert.match(service, /if \(round\.isTestDay\) return null/);
 });
 
