@@ -11,14 +11,7 @@ const {
 } = require('../models');
 
 
-const eligibleSeasonDriverWhere = {
-  [Op.or]: [
-    { roleF1Friday: true },
-    { roleF1Saturday: true },
-    { roleF1Sunday: true },
-    { roleFormerF1: true }
-  ]
-};
+const eligibleSeasonDriverWhere = require('./f1DriverPolicy').f1ViewWhere;
 
 
 async function loadEligibleSeasonDrivers() {
@@ -168,6 +161,7 @@ async function loadSeasonStructure(seasonId, round = null) {
   effectiveLineup.forEach((entry) => {
 
     if (
+      entry.roleType !== 'regular' ||
       !entry.SeasonTeamId ||
       !entry.driver
     ) {

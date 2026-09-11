@@ -1,6 +1,7 @@
 <%- include('../partials/header', { title }) %>
 
 <%
+  const setupWizard = typeof wizard === 'undefined' ? { current: 1, available: 8 } : wizard;
   const setupStructure =
     typeof structure === 'undefined'
       ? { allDrivers: [], teams: [], unassignedDrivers: [] }
@@ -72,7 +73,7 @@ const setupDriverRankFilter =
 %>
 
 
-<section class="admin-shell season-setup-shell">
+<section class="admin-shell season-setup-shell" data-season-wizard data-current-step="<%= setupWizard.current %>" data-available-step="<%= setupWizard.available %>">
   <div class="container">
 
 
@@ -118,7 +119,7 @@ const setupDriverRankFilter =
     <nav class="setup-steps setup-steps-eight">
 
       <a
-        href="#setup-league"
+        href="#setup-league" data-step-link="1" aria-disabled="<%= setupWizard.available < 1 %>"
         class="is-complete"
       >
         <span>1</span>
@@ -126,7 +127,7 @@ const setupDriverRankFilter =
       </a>
 
       <a
-        href="#setup-season"
+        href="#setup-season" data-step-link="2" aria-disabled="<%= setupWizard.available < 2 %>"
         class="<%= selectedLeague ? 'is-complete' : '' %>"
       >
         <span>2</span>
@@ -134,7 +135,7 @@ const setupDriverRankFilter =
       </a>
 
       <a
-        href="#setup-calendar"
+        href="#setup-calendar" data-step-link="3" aria-disabled="<%= setupWizard.available < 3 %>"
         class="<%= calendar.length ? 'is-complete' : '' %>"
       >
         <span>3</span>
@@ -142,7 +143,7 @@ const setupDriverRankFilter =
       </a>
 
       <a
-        href="#setup-points"
+        href="#setup-points" data-step-link="4" aria-disabled="<%= setupWizard.available < 4 %>"
         class="<%= selectedSeason?.PointsSchemeId ? 'is-complete' : '' %>"
       >
         <span>4</span>
@@ -150,7 +151,7 @@ const setupDriverRankFilter =
       </a>
 
       <a
-        href="#setup-drivers"
+        href="#setup-drivers" data-step-link="5" aria-disabled="<%= setupWizard.available < 5 %>"
         class="<%= setupStructure.allDrivers.length ? 'is-complete' : '' %>"
       >
         <span>5</span>
@@ -158,7 +159,7 @@ const setupDriverRankFilter =
       </a>
 
       <a
-        href="#setup-teams"
+        href="#setup-teams" data-step-link="6" aria-disabled="<%= setupWizard.available < 6 %>"
         class="<%= setupStructure.teams.length ? 'is-complete' : '' %>"
       >
         <span>6</span>
@@ -166,7 +167,7 @@ const setupDriverRankFilter =
       </a>
 
       <a
-        href="#setup-lineup"
+        href="#setup-lineup" data-step-link="7" aria-disabled="<%= setupWizard.available < 7 %>"
         class="<%= setupStructure.teams.some((team) => (team.drivers || []).length) ? 'is-complete' : '' %>"
       >
         <span>7</span>
@@ -174,7 +175,7 @@ const setupDriverRankFilter =
       </a>
 
       <a
-        href="#setup-finish"
+        href="#setup-finish" data-step-link="8" aria-disabled="<%= setupWizard.available < 8 %>"
         class="<%= setupFinishReady ? 'is-complete' : '' %>"
       >
         <span>8</span>
@@ -196,7 +197,7 @@ const setupDriverRankFilter =
     <!-- ================================================= -->
 
     <section
-      id="setup-league"
+      id="setup-league" data-setup-step="1" <%= setupWizard.current !== 1 ? 'hidden' : '' %>
       class="setup-panel"
     >
 
@@ -267,7 +268,7 @@ const setupDriverRankFilter =
     <% if (selectedLeague) { %>
 
       <section
-        id="setup-season"
+        id="setup-season" data-setup-step="2" <%= setupWizard.current !== 2 ? 'hidden' : '' %>
         class="setup-panel"
       >
 
@@ -287,6 +288,17 @@ const setupDriverRankFilter =
 
           <div class="setup-two-column">
 
+            <% if (selectedSeason) { %>
+              <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/metadata" class="setup-form">
+                <p><strong><%= selectedSeason.status === 'historical' ? 'Historische Saison' : 'Aktuelle Saison' %></strong> · Angaben nachträglich bearbeiten</p>
+                <label>Saisonname<input name="name" value="<%= selectedSeason.name %>" maxlength="255" required></label>
+                <label>Farbe<input type="color" name="accentColor" value="<%= selectedSeason.accentColor || selectedLeague.accentColor %>" required></label>
+                <label>F1-Spiel<select name="F1GameId"><option value="">Kein Spiel</option><% setupF1Games.forEach((game) => { %><option value="<%= game.id %>" <%= Number(selectedSeason.F1GameId) === Number(game.id) ? 'selected' : '' %>><%= game.name %></option><% }) %></select></label>
+                <button class="button">Änderungen speichern</button>
+                <a href="/admin/season-setup?league=<%= selectedLeague.id %>&step=2">Neue Saison anlegen</a>
+                <a href="/admin/season-manager?league=<%= selectedLeague.id %>">Saisonstatus bearbeiten</a>
+              </form>
+            <% } else { %>
             <form
               method="post"
               action="/admin/season-setup/seasons"
@@ -382,6 +394,7 @@ const setupDriverRankFilter =
               </button>
 
             </form>
+            <% } %>
 
 
             <div class="setup-season-list">
@@ -458,7 +471,7 @@ const setupDriverRankFilter =
 
       <!-- ================================================= -->
       <!-- 03 RENNKALENDER -->
-      <section id="setup-calendar" class="setup-panel">
+      <section id="setup-calendar" data-setup-step="3" <%= setupWizard.current !== 3 ? 'hidden' : '' %> class="setup-panel">
         <div class="setup-panel-number">03</div>
         <div class="setup-panel-content">
           <span>DATUM + FESTE LIGA-UHRZEIT</span>
@@ -469,7 +482,7 @@ const setupDriverRankFilter =
             <div class="empty-state setup-calendar-required">
               <strong>Für diese Saison ist noch kein zentraler F1-Rennkalender gespeichert.</strong>
               <span>Wählen Sie den Kalender zuerst in Schritt 2 aus.</span>
-              <a class="button button-small" href="#setup-season">Zu Schritt 2</a>
+              <a class="button button-small" href="#setup-season" data-step-link="2" aria-disabled="<%= setupWizard.available < 2 %>">Zu Schritt 2</a>
             </div>
           <% } else { %>
             <div class="setup-calendar-master-summary">
@@ -523,7 +536,7 @@ const setupDriverRankFilter =
       <!-- ================================================= -->
 
       <section
-        id="setup-points"
+        id="setup-points" data-setup-step="4" <%= setupWizard.current !== 4 ? 'hidden' : '' %>
         class="setup-panel"
       >
 
@@ -623,9 +636,8 @@ const setupDriverRankFilter =
 <!-- ================================================= -->
 
 <section
-  id="setup-drivers"
+  id="setup-drivers" data-setup-step="5" <%= setupWizard.current !== 5 ? 'hidden' : '' %>
   class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
-  <%= setupLineupProtected ? 'inert' : '' %>
 >
 
   <div class="setup-panel-number">
@@ -635,7 +647,7 @@ const setupDriverRankFilter =
   <div class="setup-panel-content">
 
     <span>
-      Stammfahrer oder ehemaliger F1-Fahrer
+      Fahrer mit F1-Sicht
     </span>
 
     <h2>
@@ -644,97 +656,17 @@ const setupDriverRankFilter =
 
     <form
       method="post"
-      action="/admin/season-setup/<%= selectedSeason.id %>/drivers"
+      action="/admin/season-setup/<%= selectedSeason.id %>/drivers" <%= setupLineupProtected ? 'inert' : '' %>
     >
 
       <!-- FILTER -->
 
-<div class="setup-driver-filter">
-
-  <a
-    class="button button-small <%= setupDriverRankFilter === 'all' ? '' : 'button-ghost' %>"
-    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=all#setup-drivers"
-  >
-    Alle
-  </a>
-
-  <a
-    class="button button-small <%= setupDriverRankFilter === 'friday' ? '' : 'button-ghost' %>"
-    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=friday#setup-drivers"
-  >
-    Freitag
-  </a>
-
-  <a
-    class="button button-small <%= setupDriverRankFilter === 'saturday' ? '' : 'button-ghost' %>"
-    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=saturday#setup-drivers"
-  >
-    Samstag
-  </a>
-
-  <a
-    class="button button-small <%= setupDriverRankFilter === 'sunday' ? '' : 'button-ghost' %>"
-    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=sunday#setup-drivers"
-  >
-    Sonntag
-  </a>
-
-  <a
-    class="button button-small <%= setupDriverRankFilter === 'former' ? '' : 'button-ghost' %>"
-    href="/admin/season-setup?league=<%= selectedLeague.id %>&season=<%= selectedSeason.id %>&driverRank=former#setup-drivers"
-  >
-    Ehemalige F1
-  </a>
-
-</div>
-
-
-      <!-- FAHRER -->
-
-      <div class="setup-driver-grid">
-
-        <% setupEligibleDrivers.forEach((driver) => {
-
-  const roles = [];
-
-  if (driver.roleF1Friday) {
-    roles.push('Freitag');
-  }
-
-  if (driver.roleF1Saturday) {
-    roles.push('Samstag');
-  }
-
-  if (driver.roleF1Sunday) {
-    roles.push('Sonntag');
-  }
-
-  if (driver.roleFormerF1) {
-    roles.push('Ehemaliger F1-Fahrer');
-  }
-
-  let driverMatchesFilter = true;
-
-  if (setupDriverRankFilter === 'friday') {
-    driverMatchesFilter =
-      Boolean(driver.roleF1Friday);
-  }
-
-  if (setupDriverRankFilter === 'saturday') {
-    driverMatchesFilter =
-      Boolean(driver.roleF1Saturday);
-  }
-
-  if (setupDriverRankFilter === 'sunday') {
-    driverMatchesFilter =
-      Boolean(driver.roleF1Sunday);
-  }
-
-  if (setupDriverRankFilter === 'former') {
-    driverMatchesFilter =
-      Boolean(driver.roleFormerF1);
-  }
-
+<label>Stammfahrer suchen<input type="search" data-driver-search placeholder="Name oder Alias …"></label>
+<p>Nur Stammfahrer dieser Saison auswählen. Alle benötigen eine F1-Sicht. Ersatzfahrer werden im Rennwochenende hinzugefügt.</p>
+<p><%= selectedSeason.status === 'historical' ? `Die Zuordnung gilt nur für ${selectedSeason.name}; aktuelle Ränge bleiben unverändert.` : 'Aktuelle Stammränge werden beim Abschluss automatisch aus den besetzten Cockpits vergeben.' %></p>
+<div class="setup-driver-grid">
+<% setupEligibleDrivers.forEach((driver) => { const roles = []; const driverMatchesFilter = true;
+ if (selectedDriverIds.has(Number(driver.id))) roles.push(`Stamm ${selectedLeague.name} · ${selectedSeason.name}`);
 %>
 <label
   class="setup-driver-card <%= driverMatchesFilter ? '' : 'setup-driver-filter-hidden' %>"
@@ -759,7 +691,8 @@ const setupDriverRankFilter =
               <small>
                 #<%= driver.id %>
                 ·
-                <%= roles.join(' · ') || 'F1 Fahrer' %>
+                <%= roles.join(' · ') || 'F1-Sicht' %>
+                <span class="sr-only"><%= (driver.aliases || []).map((alias) => alias.alias).join(' ') %></span>
               </small>
 
             </span>
@@ -790,10 +723,9 @@ const setupDriverRankFilter =
       <!-- ================================================= -->
 
       <section
-        id="setup-teams"
+        id="setup-teams" data-setup-step="6" <%= setupWizard.current !== 6 ? 'hidden' : '' %>
         class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
-        <%= setupLineupProtected ? 'inert' : '' %>
-      >
+            >
 
         <div class="setup-panel-number">
           06
@@ -811,7 +743,7 @@ const setupDriverRankFilter =
 
           <form
             method="post"
-            action="/admin/season-setup/<%= selectedSeason.id %>/teams"
+            action="/admin/season-setup/<%= selectedSeason.id %>/teams" <%= setupLineupProtected ? 'inert' : '' %>
           >
 
 
@@ -936,10 +868,9 @@ const setupDriverRankFilter =
       <!-- ================================================= -->
 
       <section
-        id="setup-lineup"
+        id="setup-lineup" data-setup-step="7" <%= setupWizard.current !== 7 ? 'hidden' : '' %>
         class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
-        <%= setupLineupProtected ? 'inert' : '' %>
-      >
+            >
 
         <div class="setup-panel-number">
           07
@@ -957,7 +888,7 @@ const setupDriverRankFilter =
 
           <p class="setup-note">
             Ordne jedem Team maximal zwei Stammfahrer zu.
-            Nicht zugeordnete Fahrer bleiben automatisch als Ersatzfahrer erhalten.
+            Jeder ausgewählte Stammfahrer benötigt ein Cockpit.
             Ein Fahrer kann nur einem Team zugeordnet werden.
           </p>
 
@@ -981,7 +912,7 @@ const setupDriverRankFilter =
             <form
               id="season-lineup-form"
               method="post"
-              action="/admin/season-setup/<%= selectedSeason.id %>/lineup"
+              action="/admin/season-setup/<%= selectedSeason.id %>/lineup" <%= setupLineupProtected ? 'inert' : '' %>
             >
 
               <div class="season-lineup-grid">
@@ -1103,8 +1034,7 @@ const setupDriverRankFilter =
               <div class="season-lineup-footer">
 
                 <p>
-                  Alle nicht zugeordneten Fahrer werden automatisch
-                  als Ersatzfahrer gespeichert.
+                  Bitte alle ausgewählten Stammfahrer zuordnen. Ersatzfahrer werden direkt im Rennwochenende ausgewählt.
                 </p>
 
                 <% if (setupLineupProtected) { %>
@@ -1133,7 +1063,7 @@ const setupDriverRankFilter =
 <!-- ================================================= -->
 
 <section
-  id="setup-finish"
+  id="setup-finish" data-setup-step="8" <%= setupWizard.current !== 8 ? 'hidden' : '' %>
   class="setup-panel setup-finish-panel"
 >
 
@@ -1332,70 +1262,6 @@ const setupDriverRankFilter =
     <!-- ERSATZFAHRER -->
     <!-- =============================== -->
 
-    <div class="setup-finish-reserves">
-
-      <div class="setup-finish-section-heading">
-
-        <div>
-          <span>
-            Nicht einem Team zugeordnet
-          </span>
-
-          <h3>
-            ERSATZFAHRER
-          </h3>
-        </div>
-
-        <strong>
-          <%= setupStructure.unassignedDrivers.length %>
-        </strong>
-
-      </div>
-
-
-      <% if (setupStructure.unassignedDrivers.length) { %>
-
-        <div class="setup-reserve-driver-grid">
-
-          <% setupStructure.unassignedDrivers.forEach((driver) => { %>
-
-            <div class="setup-reserve-driver">
-
-              <div class="setup-reserve-driver-number">
-                <%= driver.number ? `#${driver.number}` : 'RES' %>
-              </div>
-
-              <div>
-                <strong>
-                  <%= driver.name %>
-                </strong>
-
-                <small>
-                  Ersatzfahrer
-                </small>
-              </div>
-
-            </div>
-
-          <% }) %>
-
-        </div>
-
-      <% } else { %>
-
-        <div class="empty-state">
-          Aktuell gibt es keine Ersatzfahrer.
-        </div>
-
-      <% } %>
-
-    </div>
-
-
-    <!-- =============================== -->
-    <!-- ABSCHLIESSEN -->
-    <!-- =============================== -->
-
     <div class="setup-finish-action">
 
       <div>
@@ -1534,5 +1400,6 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 
+<script src="/js/season-wizard.js" defer></script>
 <%- include('../partials/footer') %>
 

@@ -161,6 +161,9 @@ async function loadPlanningRows(league, race) {
     ? await loadSeasonStructure(race.SeasonId, race.sortOrder)
     : null;
 
+  const season = race?.SeasonId ? await Season.findByPk(race.SeasonId) : null;
+  const historical = season?.status === 'historical' || Boolean(race?.isHistorical);
+  const { reserveWhere, reserveEligible } = require('../services/f1DriverPolicy');
   const today = new Date().toISOString().slice(0, 10);
 
   const [teams, fallbackReserves, entries, penalties, penaltySetting] =
@@ -168,9 +171,7 @@ async function loadPlanningRows(league, race) {
       loadRosterTeams(league, race),
 
       Driver.findAll({
-        where: {
-          [reserveRoleField(league.slug)]: true,
-        },
+        where: reserveWhere(historical),
 
         include: [
           {
@@ -248,7 +249,7 @@ async function loadPlanningRows(league, race) {
   const reserves = [...new Map([
     ...fallbackReserves,
     ...entries.filter((entry) => entry.roleType === 'reserve' && entry.driver).map((entry) => entry.driver)
-  ].filter((driver) => !regularIds.has(Number(driver.id))).map((driver) => [Number(driver.id), driver])).values()];
+  ].filter((driver) => reserveEligible(driver, historical) && !regularIds.has(Number(driver.id))).map((driver) => [Number(driver.id), driver])).values()];
 
   /*
    * =====================================================
@@ -256,7 +257,7 @@ async function loadPlanningRows(league, race) {
    * =====================================================
    */
 
-  const threshold = Number(penaltySetting?.pointsLimit || 12);
+  const threshold = 12;
 
   const pointsByDriver = new Map();
 
@@ -421,6 +422,7 @@ async function loadPlanningRows(league, race) {
     reserves,
 
     reserveRows,
+    historical,
 
     hasSavedPlan: entries.length > 0,
 
@@ -604,7 +606,7 @@ exports.save = async (req, res) => {
      * laden.
      */
 
-    const { teamCards, reserves: candidates, bannedDriverIds } = await loadPlanningRows(
+    const { teamCards, reserves: candidates, bannedDriverIds, historical } = await loadPlanningRows(
       race.league,
       race,
     );
@@ -612,7 +614,7 @@ exports.save = async (req, res) => {
     const persistedReserves = await F1RaceLineupEntry.findAll({
       where: { GrandPrixResultId: race.id, roleType: 'reserve' }
     });
-    const reserves = selectWeekendReserves(candidates, persistedReserves, reserveInput);
+    const reserves = selectWeekendReserves(candidates, persistedReserves, reserveInput, historical);
     const regularRows = teamCards.flatMap((card) => card.rows);
 
     if (!regularRows.length) throw new Error("Bitte zuerst Stammcockpits für diese Saison einrichten.");

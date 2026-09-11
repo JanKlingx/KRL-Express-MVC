@@ -105,7 +105,7 @@ Controller enthalten die Request-Logik, Models verwalten die Datenbank, Routes o
 ### Fahrerpflege und Rennwochenende
 
 - **Fahrer anlegen:** `/admin/drivers/new` – Name, Sichten (F1, LMU, ehemaliger Formel-1-Fahrer), Ränge und Profilangaben.
-- **Fahrer bearbeiten:** direkt in `/admin/drivers` suchen und den Eintrag öffnen. Nicht ausgewählte bestehende Sichten bleiben erhalten. F1-Ränge können bei bestehenden Fahrern ausschließlich über Fahrerwechsel geändert werden.
+- **Fahrer bearbeiten:** direkt in `/admin/drivers` suchen und den Eintrag öffnen. Nicht ausgewählte bestehende Sichten bleiben erhalten. Stammränge werden aus Saisonzuordnungen vergeben und über Fahrerwechsel geändert. F1 Ersatz kann in der Fahrerpflege vergeben werden; der Ausstieg läuft über Fahrerwechsel.
 - **Plattformpflege:** `/admin/platforms` – Name und PNG/JPG/WebP-Logo, Upload per Drag-and-drop. Bestehende Plattformnamen werden beim Serverstart übernommen. Bereits zugeordnete Plattformen können nicht gelöscht werden.
 - **Rennwochenende:** Folgeschritte werden erst nach vollständigen Voraussetzungen geöffnet. Der Plus-Knopf fügt Ersatzfahrer hinzu, X entfernt sie. Bestätigte Zuordnungen bleiben bis zur ausdrücklichen Bearbeitung geschützt.
 - **Reset:** Schritt 3 löscht Haupt-/Sprintergebnisse. Schritt 2 setzt zusätzlich Anwesenheit zurück; Schritt 1 zusätzlich die Aufstellung. Die Strafkartei bleibt erhalten. Bei geänderter Anwesenheit werden Ergebnisse zur erneuten Eingabe zurückgesetzt. Die Oberfläche nennt diese Auswirkungen vor der Aktion.
@@ -120,3 +120,12 @@ Nach dem Aktualisieren `npm install` ausführen und den Server neu starten. Neue
 - Bei **Cockpit abgeben → hört auf** endet ein zusätzlicher Ersatzstatus ebenfalls ligaübergreifend. **Cockpit abgeben → bleibt Ersatzfahrer** und **Stammcockpit besetzen** behalten ihre bisherigen getrennten Stamm-/Reservewertungen.
 - Plattformpflege ohne Reihenfolge, Fahrerpflege ohne Startnummer, Kalenderpflege ohne Minuten-Dauer. Bereits gespeicherte Werte bleiben in der Datenbank erhalten.
 - **Regelwerk & Strafenkatalog** werden als Admin direkt auf `/formel-1/regelwerk?edit=1` bearbeitet. Abschnitte hinzufügen, Überschriftentyp auswählen, Text eingeben und mit Pfeilen verschieben. Öffentlich sichtbare Inhalte bleiben reiner Text; Änderungen werden gemeinsam gespeichert und konkurrierende Änderungen erkannt. Beim Neustart ergänzt die Schema-Aktualisierung `f1_rule_sections.heading_level`.
+
+### Geführter Saison-Assistent und F1-Ränge
+
+- Der Assistent beginnt mit der Liga, zeigt anschließend jeweils den nächsten erreichbaren Schritt und behält gespeicherte Saisonangaben. Erreichte Schritte können über die Navigation erneut geöffnet werden; Saisonname, Farbe und Spiel lassen sich direkt ändern. Die Abschlussübersicht erscheint nach vollständiger Zuordnung aller gewählten Stammfahrer.
+- In der Fahrerauswahl werden Fahrer mit F1-Sicht (einschließlich bisheriger F1-Ränge) nach Namen oder Alias gesucht. Hier ausschließlich Stammfahrer auswählen und jedem ein Cockpit zuweisen; nicht zugeordnete Fahrer werden nicht mehr automatisch Ersatzfahrer.
+- Beim Abschluss einer aktuellen Saison werden die aktuellen Stammränge der jeweiligen Liga aus deren Stammplätzen übernommen. Andere Ligaränge und der zentrale Ersatzrang bleiben erhalten. Historische Saisons ändern keine aktuellen Ränge; im Fahrerprofil werden Stammplätze mit Liga, Saison und Rundengültigkeit angezeigt.
+- Neue historische Saisonentwürfe sind bis zur Veröffentlichung bzw. bis zum Vorliegen operativer Daten bearbeitbar. Bestehende Saisonhistorien bleiben geschützt.
+- Aktuelle Rennwochenenden: Ersatzfahrer benötigen `F1 Ersatz`, auch Stammfahrer einer anderen Liga. Historische Rennwochenenden: jeder Fahrer mit F1-Rang kann als Ersatzfahrer gewählt werden, sofern er im selben Rennen kein Stammcockpit belegt. Die Wertung folgt der Rolle des konkreten Einsatzes.
+- Die F1-Strafpunktgrenze beträgt fest 12 SP in allen Ligen. Die Pflege unterschiedlicher Grenzwerte entfällt; die Veröffentlichungssteuerung der Strafkartei bleibt bestehen.

@@ -872,10 +872,7 @@ async function buildLeagueLedger(
 
 
   const threshold =
-    Number(
-      setting?.pointsLimit ||
-      12,
-    );
+    12;
 
 
   const regularRows = [];
@@ -1823,10 +1820,7 @@ exports.create = async (
 
 
     const threshold =
-      Number(
-        setting?.pointsLimit ||
-        12,
-      );
+      12;
 
 
     const result =

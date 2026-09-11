@@ -27,7 +27,7 @@ function applyDriverViews(values, body, existing = {}) {
       for (const field of fields) values[field] = existing[field] ?? (field.startsWith('role') ? false : null);
     }
   }
-  if (views.includes('formerF1')) values.roleFormerF1 = true;
+  // Selecting a view never assigns a driver rank.
   return views;
 }
 module.exports = { VIEW_FIELDS, driverFieldView, inferredViews, applyDriverViews };

@@ -77,6 +77,7 @@ async function activateSeason(season) {
     const leagueType = season.leagueType === 'wdl' ? 'competition' : season.leagueType;
     const league = await League.findOne({ where: { slug: season.scopeSlug, type: leagueType } });
     if (league) await league.update({ currentSeason: season.name });
+    await require('./f1DriverPolicy').syncActivatedSeasonRanks(season);
   }
   const relatedSeasons = await Season.findAll({ where: { leagueType: season.leagueType, scopeSlug: season.scopeSlug } });
   for (const related of relatedSeasons) {
