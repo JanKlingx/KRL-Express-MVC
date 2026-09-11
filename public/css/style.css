@@ -12039,3 +12039,24 @@ select option {
 @media (max-width: 650px) { .league-section-nav { flex-wrap: nowrap; overflow-x: auto; } .league-section-nav .button { flex: 0 0 auto; } }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* Readable race statistics without hiding columns. */
+section.f1-race-statistics { min-width: 0; background: transparent; }
+.f1-race-statistics__scroll { overflow-x: auto; border: 1px solid #2b3b41; border-radius: 14px; }
+.f1-race-statistics table { width: 100%; min-width: 1350px; border-collapse: collapse; background: #0a1114; }
+.f1-race-statistics th, .f1-race-statistics td { height: 64px; padding: 1rem; font-size: 1rem; line-height: 1.5; }
+.f1-race-statistics thead th { font-size: .85rem; background: #14252b; }
+.f1-race-statistics tbody th { color: #fff; font-size: 1.05rem; }
+.f1-race-statistics tbody tr:nth-child(even) { background: #101c21; }
+.f1-race-statistics tbody tr:hover { background: #193139; }
+.f1-race-statistics td img { width: 42px; height: 28px; }
+.rulebook-editor { max-width: 1000px; margin: 2rem auto; }
+.rulebook-editor-block { padding: 1.5rem; margin: 1.5rem 0; border: 1px solid #35505a; border-radius: 12px; background: #101c21; }
+.rulebook-editor-block label { display: grid; gap: .5rem; margin-bottom: 1rem; }
+.rulebook-editor-block input:not([type=checkbox]), .rulebook-editor-block textarea, .rulebook-editor-block select { width: 100%; padding: .8rem; font: inherit; color: #fff; background: #081115; border: 1px solid #45616b; border-radius: 6px; }
+.rulebook-editor-tools { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.rulebook-editor-tools label { flex: 1 1 180px; }
+.rulebook-section p { white-space: pre-wrap; line-height: 1.7; }
+.rulebook-section h3 { color: var(--accent); font-size: 1.5rem; }
+.rulebook-section h4 { color: #fff; font-size: 1.2rem; }
+.rulebook-layout nav a { color: #fff; font-size: 1rem; }

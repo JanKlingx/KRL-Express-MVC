@@ -14,7 +14,6 @@ exports.masterData = async (req, res) => {
   // Master Data Modules - organized by section
   const masterDataModules = [
     ['driverCreate', { group: 'Stammdaten', href: '/admin/drivers/new', title: 'Fahrer anlegen', description: 'Name und Sichten auswählen.' }],
-    ['driverEdit', { group: 'Stammdaten', href: '/admin/driver-edit', title: 'Fahrer bearbeiten', description: 'Fahrer nach Namen suchen und Sichten bearbeiten.' }],
     // Frontend
     ['tableHub', { group: 'Frontend', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
     
@@ -27,6 +26,7 @@ exports.masterData = async (req, res) => {
     ['raceCalendarEditor', { group: 'Stammdaten', href: '/admin/race-calendar', title: 'Rennkalender bearbeiten', description: 'Liga, Saison, Termine bearbeiten.' }],
     
     // Formel 1 Stammdaten
+    ['f1Rules', { group: 'Formel 1 Stammdaten', href: '/formel-1/regelwerk?edit=1', title: 'Regelwerk & Strafenkatalog', description: 'Abschnitte direkt auf der Seite bearbeiten.' }],
     ['teams', { group: 'Formel 1 Stammdaten', href: '/admin/teams', title: 'Formel-1-Teams', description: 'Aktuelle F1-Teams mit Farben verwalten.' }],
     ['f1Tracks', { group: 'Formel 1 Stammdaten', href: '/admin/f1-tracks', title: 'F1 Strecken pflegen', description: 'Land und Streckennamen für Rennkalender.' }],
     

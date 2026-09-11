@@ -14,7 +14,7 @@
       <a class="back-link" href="/admin">← Dashboard</a>
       <span class="form-kicker">FORMEL 1 · SAISONHISTORIE</span>
       <h1>FAHRERWECHSEL</h1>
-      <p class="admin-intro">Cockpit ab einer noch nicht gefahrenen Runde besetzen oder abgeben. Vergangene Ergebnisse und Punkte bleiben unverändert.</p>
+      <p class="admin-intro">Cockpit oder Ersatzfahrerstatus ab einer noch nicht gefahrenen Runde ändern. Vergangene Ergebnisse und Punkte bleiben unverändert.</p>
     </div>
     <a class="button button-ghost" href="/admin/season-setup">Saison-Line-up ansehen</a>
   </div>
@@ -51,7 +51,11 @@
               <select name="round" data-change-round required><option value="">Runde auswählen …</option><% safeRounds.filter((row) => row.round > completedRound).forEach((row) => { %><option value="<%= row.round %>" <%= safePreview && Number(safeSelectedRound) === Number(row.round) ? 'selected' : '' %>>R<%= row.round %> · <%= row.title %></option><% }) %></select>
             </label>
             <label data-stage="operation" hidden>2. Was soll passieren?
-              <select name="operation" data-change-operation required><option value="">Aktion auswählen …</option><option value="fill" <%= safePreview?.operation === 'fill' ? 'selected' : '' %>>Stammcockpit besetzen</option><option value="release" <%= safePreview?.operation === 'release' ? 'selected' : '' %>>Cockpit abgeben</option></select>
+              <select name="operation" data-change-operation required><option value="">Aktion auswählen …</option><option value="fill" <%= safePreview?.operation === 'fill' ? 'selected' : '' %>>Stammcockpit besetzen</option><option value="release" <%= safePreview?.operation === 'release' ? 'selected' : '' %>>Cockpit abgeben</option><option value="retireReserve" <%= safePreview?.operation === 'retireReserve' ? 'selected' : '' %>>Ersatzfahrer hört auf (alle aktuellen Ligen)</option></select>
+            </label>
+            <label data-reserve-driver-field hidden>3. Ersatzfahrer, der aufhört
+              <select name="reserveDriver" data-retiring-reserve><option value="">Fahrer auswählen …</option><% (typeof reserveDrivers === 'undefined' ? [] : reserveDrivers).forEach((driver) => { %><option value="<%= driver.id %>" <%= Number(safePreview?.driver?.id) === Number(driver.id) ? 'selected' : '' %>><%= driver.name %> · #<%= driver.id %></option><% }) %></select>
+              <small>Ab dem Datum der gewählten Runde endet der zentrale Ersatzstatus. Die Prüfung zeigt die betroffenen Runden aller aktuellen Ligen.</small>
             </label>
             <label data-stage="team" hidden>3. Team
               <select name="team" data-change-team required><option value="">Team auswählen …</option><% safeTeamSlots.forEach((slot) => { %><option value="<%= slot.team.id %>" <%= Number(selectedTeamId) === Number(slot.team.id) ? 'selected' : '' %>><%= slot.team.name %></option><% }) %></select>
@@ -75,13 +79,27 @@
       </div>
     </section>
 
-    <% if (safePreview) { const oldName = safePreview.oldStint?.driver?.name || stints.find((row) => Number(row.id) === Number(safePreview.oldStint?.id))?.driver?.name; const newName = safePreview.membership?.driver?.name; %>
+    <% if (safePreview?.operation === 'retireReserve') { %>
+      <section class="setup-panel"><div class="setup-panel-number">03</div><div class="setup-panel-content">
+        <h2>ERSATZFAHRER-AUSSTIEG PRÜFEN</h2>
+        <p><strong><%= safePreview.driver.name %></strong> hört als Ersatzfahrer ab <%= safePreview.retirement.date %> auf. Ohne weiteren aktiven Stammplatz erhält er automatisch den Rang „Ehemaliger Formel-1-Fahrer“.</p>
+        <ul><% safePreview.retirement.scopes.forEach((scope) => { %><li><%= scope.season.name %> · <%= scope.season.scopeSlug %>: Reservewertung ab R<%= scope.round %> DNA.</li><% }) %></ul>
+        <p>Vergangene Ergebnisse bleiben erhalten. Der Fahrer kann anschließend nicht mehr als Ersatzfahrer ausgewählt werden.</p>
+        <form method="post" action="/admin/season-driver-change">
+          <input type="hidden" name="operation" value="retireReserve"><input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><input type="hidden" name="ReserveDriverId" value="<%= safePreview.driver.id %>"><input type="hidden" name="effectiveRound" value="<%= safePreview.effectiveRound %>"><input type="hidden" name="retirementVersion" value="<%= safePreview.retirement.version %>">
+          <button class="button" type="submit">ERSATZFAHRER-AUSSTIEG SPEICHERN</button>
+        </form>
+      </div></section>
+    <% } %>
+    <% if (safePreview && safePreview.operation !== 'retireReserve') { const oldName = safePreview.oldStint?.driver?.name || stints.find((row) => Number(row.id) === Number(safePreview.oldStint?.id))?.driver?.name; const newName = safePreview.membership?.driver?.name; %>
       <section class="setup-panel driver-change-confirm">
         <div class="setup-panel-number">03</div>
         <div class="setup-panel-content">
           <span>GEPRÜFTE ZUSAMMENFASSUNG</span><h2><%= safePreview.team.name %></h2>
-          <div class="driver-change-preview"><% if (safePreview.operation === 'fill') { %><strong><%= newName %> besetzt ab R<%= safePreview.effectiveRound %> ein freies Stammcockpit.</strong><small>Passender Stammfahrer-Rang: <%= selectedLeague.name %>. Alle Runden davor werden in der Stammfahrerwertung als DNA geführt.</small><% } else { %><strong><%= oldName %> gibt das Cockpit nach R<%= safePreview.effectiveRound - 1 %> ab.</strong><small><%= safePreview.staysReserve ? 'Danach: F1 Ersatz.' : 'Danach wird der Rang „Ehemaliger Formel-1-Fahrer“ gesetzt.' %> Alle späteren Runden der Stammfahrerwertung werden DNA.</small><% } %></div>
+          <div class="driver-change-preview"><% if (safePreview.operation === 'fill') { %><strong><%= newName %> besetzt ab R<%= safePreview.effectiveRound %> ein freies Stammcockpit.</strong><small>Passender Stammfahrer-Rang: <%= selectedLeague.name %>. Alle Runden davor werden in der Stammfahrerwertung als DNA geführt.</small><% } else { %><strong><%= oldName %> gibt das Cockpit nach R<%= safePreview.effectiveRound - 1 %> ab.</strong><small><%= safePreview.staysReserve ? 'Danach: F1 Ersatz.' : 'Ohne weitere aktive Stammplätze: Ehemaliger Formel-1-Fahrer. Ein bestehender Ersatzstatus endet ligaübergreifend.' %> Alle späteren Runden der Stammfahrerwertung werden DNA.</small><% } %></div>
+          <% if (safePreview.retirement) { %><ul><% safePreview.retirement.scopes.forEach((scope) => { %><li><%= scope.season.name %> · <%= scope.season.scopeSlug %>: zusätzlich Reservewertung ab R<%= scope.round %> DNA.</li><% }) %></ul><% } %>
           <form method="post" action="/admin/season-driver-change" class="setup-form">
+            <input type="hidden" name="retirementVersion" value="<%= safePreview.retirement?.version || '' %>">
             <input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><input type="hidden" name="SeasonTeamId" value="<%= safePreview.team.id %>"><input type="hidden" name="operation" value="<%= safePreview.operation %>"><input type="hidden" name="effectiveRound" value="<%= safePreview.effectiveRound %>"><input type="hidden" name="OldDriverId" value="<%= safePreview.oldStint?.DriverId || '' %>"><input type="hidden" name="NewDriverId" value="<%= safePreview.membership?.DriverId || '' %>"><input type="hidden" name="staysReserve" value="<%= safePreview.staysReserve ? '1' : '0' %>"><% safePreview.reserveLeagueSlugs.forEach((slug) => { %><input type="hidden" name="reserveLeagues" value="<%= slug %>"><% }) %>
             <% if (safePreview.carryHistory.length) { %><div class="driver-change-carry-list"><header><strong>VORHERIGE ERSATZEINSÄTZE FÜR <%= safePreview.team.name.toUpperCase() %></strong><span>Optional der neuen Stammplatzhistorie zuordnen – Punkte werden nicht doppelt gebucht.</span></header><table><thead><tr><th>Anrechnen</th><th>Runde</th><th>Grand Prix</th><th>GP</th><th>Sprint</th><th>Gesamt</th></tr></thead><tbody><% safePreview.carryHistory.forEach((race) => { %><tr><td><input type="checkbox" name="carryResultIds" value="<%= race.GrandPrixResultId %>"></td><td>R<%= race.round %></td><td><%= race.title %></td><td><%= race.mainPoints %></td><td><%= race.sprintPoints %></td><td><strong><%= race.totalPoints %></strong></td></tr><% }) %></tbody></table></div><% } %>
             <button class="button" type="submit"><%= safePreview.operation === 'release' ? 'COCKPIT ABGEBEN' : 'STAMMCOCKPIT BESETZEN' %></button>

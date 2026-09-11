@@ -36,8 +36,6 @@ exports.update = async (req, res, next) => {
         circuit = track.name;
       }
       if (!circuit || circuit.length > 255) throw new Error('Bitte eine gültige Strecke eingeben.');
-      const duration = req.body.durationMinutes === '' ? null : Number(req.body.durationMinutes);
-      if (duration != null && (!Number.isInteger(duration) || duration < 1 || duration > 10080)) throw new Error('Die Dauer muss zwischen 1 und 10080 Minuten liegen.');
       const isTestDay = req.body.isTestDay === 'on';
       const hasSprint = !isTestDay && event.league.type === 'f1' && req.body.hasSprint === 'on';
       const main = event.GrandPrixResultId ? await GrandPrixResult.findByPk(event.GrandPrixResultId, { transaction }) : null;
@@ -63,7 +61,7 @@ exports.update = async (req, res, next) => {
           else await GrandPrixResult.create({ ...sprintValues, SeasonId: event.SeasonId, LeagueId: event.LeagueId, season: event.seasonRecord?.name || '', discipline: 'f1', raceType: 'sprint', sortOrder: event.sortOrder, pointsMode: 'database', isHistorical: event.seasonRecord?.status === 'historical' }, { transaction });
         } else if (sprint) await sprint.destroy({ transaction });
       }
-      await event.update({ title, circuit, startsAt, durationMinutes: duration, ...(track ? { F1TrackId: track.id } : {}), isTestDay, isPublished: req.body.isPublished === 'on', hasLocalOverride: true, calendarChanged: true, previousStartsAt: new Date(oldStart).getTime() !== startsAt.getTime() ? oldStart : event.previousStartsAt }, { transaction });
+      await event.update({ title, circuit, startsAt, ...(track ? { F1TrackId: track.id } : {}), isTestDay, isPublished: req.body.isPublished === 'on', hasLocalOverride: true, calendarChanged: true, previousStartsAt: new Date(oldStart).getTime() !== startsAt.getTime() ? oldStart : event.previousStartsAt }, { transaction });
     });
     req.session.flash = { type: 'success', message: 'Der Termin dieser Liga und Saison wurde gespeichert.' };
     res.redirect(returnHref(event));

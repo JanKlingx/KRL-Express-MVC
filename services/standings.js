@@ -941,8 +941,7 @@ function buildSeasonData(
       driver.starts =
         driver.results.filter(
           (result) =>
-            result.status !==
-              "DNS" &&
+            !["DNS", "DNA"].includes(result.status) &&
             result.value !==
               "–",
         ).length;

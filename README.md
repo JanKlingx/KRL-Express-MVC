@@ -105,10 +105,18 @@ Controller enthalten die Request-Logik, Models verwalten die Datenbank, Routes o
 ### Fahrerpflege und Rennwochenende
 
 - **Fahrer anlegen:** `/admin/drivers/new` – Name, Sichten (F1, LMU, ehemaliger Formel-1-Fahrer), Ränge und Profilangaben.
-- **Fahrer bearbeiten:** `/admin/driver-edit` – Namenssuche mit eindeutiger Fahrer-ID; danach Sichten wählen. Nicht ausgewählte bestehende Sichten werden nicht gelöscht.
+- **Fahrer bearbeiten:** direkt in `/admin/drivers` suchen und den Eintrag öffnen. Nicht ausgewählte bestehende Sichten bleiben erhalten. F1-Ränge können bei bestehenden Fahrern ausschließlich über Fahrerwechsel geändert werden.
 - **Plattformpflege:** `/admin/platforms` – Name und PNG/JPG/WebP-Logo, Upload per Drag-and-drop. Bestehende Plattformnamen werden beim Serverstart übernommen. Bereits zugeordnete Plattformen können nicht gelöscht werden.
 - **Rennwochenende:** Folgeschritte werden erst nach vollständigen Voraussetzungen geöffnet. Der Plus-Knopf fügt Ersatzfahrer hinzu, X entfernt sie. Bestätigte Zuordnungen bleiben bis zur ausdrücklichen Bearbeitung geschützt.
 - **Reset:** Schritt 3 löscht Haupt-/Sprintergebnisse. Schritt 2 setzt zusätzlich Anwesenheit zurück; Schritt 1 zusätzlich die Aufstellung. Die Strafkartei bleibt erhalten. Bei geänderter Anwesenheit werden Ergebnisse zur erneuten Eingabe zurückgesetzt. Die Oberfläche nennt diese Auswirkungen vor der Aktion.
-- **Kalenderkacheln:** Der Stift ist nur für Administratoren sichtbar. Datum, Startzeit (Europe/Berlin), Strecke, Titel, Dauer, Sichtbarkeit und Rennformat sind je Termin pflegbar. Die Rundenzuordnung bleibt für Fahrerwechsel und Saisonverlauf stabil. Lokale Änderungen werden nicht durch zentrale Vorlagenänderungen überschrieben; Formatwechsel mit vorhandenen operativen Daten werden abgewiesen.
+- **Kalenderkacheln:** Der Stift ist nur für Administratoren sichtbar. Datum, Startzeit (Europe/Berlin), Strecke, Titel, Sichtbarkeit und Rennformat sind je Termin pflegbar. Die Rundenzuordnung bleibt für Fahrerwechsel und Saisonverlauf stabil. Lokale Änderungen werden nicht durch zentrale Vorlagenänderungen überschrieben; Formatwechsel mit vorhandenen operativen Daten werden abgewiesen.
 
 Nach dem Aktualisieren `npm install` ausführen und den Server neu starten. Neue Plattform- und Sichtfelder werden durch die vorhandene Schema-Ergänzung angelegt. Die neuen Funktionstests liegen in `tests/driverViewsWorkflow.test.js` und verwenden JSDOM für Formularabläufe; sie ersetzen keinen vollständigen MariaDB-/Browsertest.
+
+### Fahrer-Ausstieg und vereinfachte Pflege
+
+- In **Fahrerwechsel** zuerst Liga/Saison und eine offene Runde wählen, dann **Ersatzfahrer hört auf**. Das Datum dieser Runde bestimmt den Ausstieg in allen betroffenen aktuellen F1-Saisons. Vor dem Speichern zeigt die Prüfung die jeweilige erste DNA-Runde; verschiedene Ligen können unterschiedliche Rundennummern haben. Fehlende Kalenderdaten und bestätigte Folgerennwochenenden müssen zuerst korrigiert werden.
+- Der zentrale Ersatzrang entfällt. Ohne weitere aktive Stammränge wird der Fahrer automatisch ehemaliger Formel-1-Fahrer. Frühere Punkte und Einsätze bleiben erhalten; geschlossene Reserve-Stints erzeugen die DNA-Zellen. Auch Legacy-Einsätze ohne bisherigen Reserve-Stint werden berücksichtigt. Historische/abgeschlossene Saisons werden nicht umgeschrieben.
+- Bei **Cockpit abgeben → hört auf** endet ein zusätzlicher Ersatzstatus ebenfalls ligaübergreifend. **Cockpit abgeben → bleibt Ersatzfahrer** und **Stammcockpit besetzen** behalten ihre bisherigen getrennten Stamm-/Reservewertungen.
+- Plattformpflege ohne Reihenfolge, Fahrerpflege ohne Startnummer, Kalenderpflege ohne Minuten-Dauer. Bereits gespeicherte Werte bleiben in der Datenbank erhalten.
+- **Regelwerk & Strafenkatalog** werden als Admin direkt auf `/formel-1/regelwerk?edit=1` bearbeitet. Abschnitte hinzufügen, Überschriftentyp auswählen, Text eingeben und mit Pfeilen verschieben. Öffentlich sichtbare Inhalte bleiben reiner Text; Änderungen werden gemeinsam gespeichert und konkurrierende Änderungen erkannt. Beim Neustart ergänzt die Schema-Aktualisierung `f1_rule_sections.heading_level`.

@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const newField = form.querySelector('[data-new-driver-field]');
   const oldDriver = form.querySelector('[data-old-driver]');
   const newDriver = form.querySelector('[data-new-driver]');
+  const retiringReserve = form.querySelector('[data-retiring-reserve]');
+  const retiringField = form.querySelector('[data-reserve-driver-field]');
   const reserveChoice = form.querySelector('[data-reserve-choice]');
   const reserveRadios = [...form.querySelectorAll('input[name="staysReserve"]')];
   const reviewButton = form.querySelector('[data-review-button]');
@@ -74,16 +76,23 @@ document.addEventListener('DOMContentLoaded', () => {
   function refresh() {
     const hasRound = Boolean(round.value);
     const mode = operation.value;
-    const hasOperation = hasRound && ['fill', 'release'].includes(mode);
+    const hasOperation = hasRound && ['fill', 'release', 'retireReserve'].includes(mode);
     operationStage.hidden = !hasRound;
-    teamStage.hidden = !hasOperation;
+    const retiring = hasOperation && mode === 'retireReserve';
+    teamStage.hidden = !hasOperation || retiring;
+    team.disabled = retiring || !hasOperation;
+    team.required = hasOperation && !retiring;
+    if (retiringField) retiringField.hidden = !retiring;
+    if (retiringReserve) { retiringReserve.required = retiring; retiringReserve.disabled = !retiring; }
 
-    if (hasOperation) updateTeams();
-    const hasTeam = hasOperation && Boolean(team.value);
+    if (hasOperation && !retiring) updateTeams();
+    const hasTeam = hasOperation && !retiring && Boolean(team.value);
     oldField.hidden = !(hasTeam && mode === 'release');
     newField.hidden = !(hasTeam && mode === 'fill');
     oldDriver.required = hasTeam && mode === 'release';
     newDriver.required = hasTeam && mode === 'fill';
+    oldDriver.disabled = !(hasTeam && mode === 'release');
+    newDriver.disabled = !(hasTeam && mode === 'fill');
     if (hasTeam) updateDrivers();
 
     const hasDriver = mode === 'release' ? Boolean(oldDriver.value) : Boolean(newDriver.value);
@@ -95,7 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
       reserveAnswer === '0' ||
       reserveAnswer === '1'
     );
-    reviewButton.hidden = !(hasTeam && hasDriver && reserveValid);
+    reserveRadios.forEach((input) => { input.disabled = reserveChoice.hidden; });
+    reviewButton.hidden = retiring ? !retiringReserve?.value : !(hasTeam && hasDriver && reserveValid);
   }
 
   round.addEventListener('change', refresh);
@@ -106,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refresh();
   });
   team.addEventListener('change', refresh);
+  retiringReserve?.addEventListener('change', refresh);
   oldDriver.addEventListener('change', refresh);
   newDriver.addEventListener('change', refresh);
   reserveRadios.forEach((input) => input.addEventListener('change', refresh));

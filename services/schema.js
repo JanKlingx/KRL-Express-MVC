@@ -63,6 +63,10 @@ async function ensureSchema() {
       updated_at: { type: DataTypes.DATE, allowNull: false },
     });
   }
+  if (knownTables.includes("f1_rule_sections")) {
+    const ruleTable = await queryInterface.describeTable("f1_rule_sections");
+    await addMissingColumn("f1_rule_sections", ruleTable, "heading_level", { type: DataTypes.INTEGER, allowNull: false, defaultValue: 2 });
+  }
   const driverTable = await queryInterface.describeTable("drivers");
   await addMissingColumn("drivers", driverTable, "platform_id", { type: DataTypes.INTEGER, allowNull: true });
   for (const name of ["view_f1", "view_lmu", "view_former_f1"]) {

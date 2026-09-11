@@ -31,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     groups.forEach((group, index) => { group.hidden = index !== current; });
     back.hidden = current === 0; next.hidden = current === 3; submit.hidden = current !== 3;
   }
-  back.addEventListener('click', () => { current--; refresh(); });
+  function hasRanks() { return [...groups[2].querySelectorAll('input')].some((input) => !input.disabled); }
+  back.addEventListener('click', () => { current--; if (current === 2 && !hasRanks()) current--; refresh(); });
   next.addEventListener('click', () => {
     if (current === 0) form.elements.namedItem('name').value = form.elements.namedItem('name').value.trim();
     if (current === 1) {
@@ -40,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (missing) return;
     }
     if (![...groups[current].querySelectorAll('input, select, textarea')].every((input) => input.disabled || input.reportValidity())) return;
-    current++; refresh();
+    current++; if (current === 2 && !hasRanks()) current++; refresh();
   });
   form.querySelectorAll('[name="driverViews"]').forEach((input) => input.addEventListener('change', refresh));
   form.addEventListener('keydown', (event) => {

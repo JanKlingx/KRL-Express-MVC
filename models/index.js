@@ -1298,6 +1298,7 @@ const KrlIcon = sequelize.define("KrlIcon", {
 });
 
 const F1RuleSection = sequelize.define("F1RuleSection", {
+  headingLevel: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 2 },
   title: {
     type: DataTypes.STRING,
     allowNull: false,
