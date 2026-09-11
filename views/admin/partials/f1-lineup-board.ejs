@@ -91,17 +91,10 @@
     </header>
 
 
-    <label>Ersatzfahrer für dieses Rennen hinzufügen
-      <select data-add-reserve aria-label="F1 Ersatzfahrer auswählen">
-        <option value="">Fahrer auswählen …</option>
-        <% reserveRows.filter((row) => !row.entry).forEach((row) => { %>
-          <option value="<%= row.driver.id %>"><%= row.driver.name %></option>
-        <% }) %>
-      </select>
-    </label>
-    <p>Nur manuell hinzugefügte Fahrer nehmen an dieser Einsatzplanung teil.</p>
     <div class="f1-lineup-reserve-pool__grid">
-
+      <div class="reserve-add-card"><button type="button" class="reserve-add-button" data-open-reserve-picker aria-expanded="false"><span aria-hidden="true">＋</span>Ersatzfahrer hinzufügen</button>
+        <label data-reserve-picker hidden>Fahrer auswählen<select data-add-reserve aria-label="F1 Ersatzfahrer auswählen"><option value="">Fahrer auswählen …</option><% reserveRows.filter((row) => !row.entry).forEach((row) => { %><option value="<%= row.driver.id %>"><%= row.driver.name %></option><% }) %></select></label>
+      </div>
       <% reserveRows.forEach((row) => { %>
 
         <article
@@ -115,6 +108,7 @@
           data-locked="<%= row.isAttendanceLocked ? 'true' : 'false' %>"
         >
 
+          <% if (row.entry) { %><button class="reserve-remove" type="submit" formaction="/admin/race-weekend/f1/<%= selectedRace.id %>/reserves/<%= row.driver.id %>/remove" data-remove-saved-reserve formnovalidate aria-label="<%= row.driver.name %> entfernen" title="Ersatzfahrer entfernen">×</button><% } else { %><button class="reserve-remove" type="button" data-remove-reserve aria-label="<%= row.driver.name %> entfernen">×</button><% } %>
           <div class="f1-lineup-reserve__name">
 
             <strong>
@@ -122,7 +116,7 @@
             </strong>
 
             <small>
-              <%= row.driver.platform || 'F1 Ersatz' %>
+              <%- include('../../partials/platform-badge', { driver: row.driver }) %>
             </small>
 
           </div>
@@ -305,14 +299,12 @@
 
             <img
               src="<%= card.team.logoPath %>"
-              alt=""
+              alt="<%= card.team.name %>"
             >
 
           <% } %>
 
-          <strong>
-            <%= card.team.name %>
-          </strong>
+
 
         </div>
 
@@ -338,9 +330,7 @@
               data-team-name="<%= card.team.name %>"
             >
 
-              <div class="f1-lineup-driver__team-mobile">
-                <%= card.team.name %>
-              </div>
+              <div class="f1-lineup-driver__team-mobile"><% if (card.team.logoPath) { %><img src="<%= card.team.logoPath %>" alt="<%= card.team.name %>"><% } %></div>
 
 
               <div class="f1-lineup-driver__name">
@@ -350,10 +340,7 @@
                 </strong>
 
                 <small>
-                  <%= row.isBanned
-                    ? 'Rennsperre · kein Ersatz zulässig'
-                    : (row.driver.platform || '')
-                  %>
+                  <% if (row.isBanned) { %>Rennsperre · kein Ersatz zulässig<% } else { %><%- include('../../partials/platform-badge', { driver: row.driver }) %><% } %>
                 </small>
 
               </div>

@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const allowedReserveStatuses = new Set(['anwesend', 'unsicher', 'auf_abruf']);
-  const replacementStatuses = new Set(['abgemeldet', 'unsicher']);
+  const replacementStatuses = new Set(['abgemeldet', 'unsicher', 'zu_spaet_abgemeldet']);
 
   document.querySelectorAll('[data-f1-lineup-matrix]').forEach((form) => {
     const reserveRows = [...form.querySelectorAll('[data-reserve-row]')];
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       select.replaceChildren(new Option('Kein Ersatz', ''));
       options.forEach((reserve) => {
-        const statusLabel = reserve.status === 'anwesend' ? 'ANWESEND' : 'UNSICHER';
+        const statusLabel = reserve.status === 'auf_abruf' ? 'AUF ABRUF' : reserve.status === 'anwesend' ? 'ANWESEND' : 'UNSICHER';
         select.add(new Option(`${reserve.name} · ${statusLabel}`, reserve.id, reserve.id === previous, reserve.id === previous));
       });
       if (![...select.options].some((option) => option.value === previous)) select.value = '';
@@ -64,9 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const assignment = assignments.get(String(row.dataset.reserveId));
         row.classList.toggle('is-assigned', Boolean(assignment));
         if (!target) return;
-        target.innerHTML = assignment
-          ? `<span>EINGETEILT</span><strong>${assignment.team}</strong><small>Ersatz für ${assignment.driver}</small>`
-          : '<span>FREI</span><small>Noch keinem Cockpit zugeordnet</small>';
+        target.replaceChildren();
+        const state = document.createElement('span'); state.textContent = assignment ? 'EINGETEILT' : 'FREI';
+        const detail = document.createElement('small'); detail.textContent = assignment ? `Ersatz für ${assignment.driver}` : 'Noch keinem Cockpit zugeordnet';
+        target.append(state, detail);
       });
     }
 
@@ -74,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const status = row.querySelector('[data-regular-status]');
       const field = row.querySelector('[data-replacement-field]');
       const replacement = row.querySelector('[data-replacement-select]');
-      if (!status || !field || !replacement) return;
+      if (!status || !field || !replacement || status.disabled) return;
       status.dataset.status = status.value;
       const allowed = replacementStatuses.has(status.value);
       field.hidden = !allowed;
@@ -112,6 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     form.addEventListener('submit', (event) => {
+      if (event.submitter?.matches('[data-remove-saved-reserve]')) {
+        if (!window.confirm('Ersatzfahrer entfernen? Anwesenheit und Haupt-/Sprintergebnisse werden zurückgesetzt. Nicht gespeicherte Formularänderungen werden verworfen.')) event.preventDefault();
+        return;
+      }
       const selected = [...form.querySelectorAll('[data-replacement-select]')]
         .filter((select) => !select.disabled && select.value)
         .map((select) => String(select.value));
@@ -130,6 +135,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const addReserve = form.querySelector('[data-add-reserve]');
+    const picker = form.querySelector('[data-reserve-picker]');
+    form.querySelector('[data-open-reserve-picker]')?.addEventListener('click', (event) => {
+      picker.hidden = !picker.hidden; event.currentTarget.setAttribute('aria-expanded', String(!picker.hidden));
+      if (!picker.hidden) addReserve.focus();
+    });
+    reserveRows.forEach((row) => row.querySelector('[data-remove-reserve]')?.addEventListener('click', () => {
+      const id = row.dataset.reserveId;
+      regularRows.forEach((regular) => {
+        const select = regular.querySelector('[data-replacement-select]');
+        if (select?.value === id && !select.disabled) { select.value = ''; select.dataset.currentReplacement = ''; }
+      });
+      row.hidden = true; row.dataset.reserveSelected = 'false';
+      row.querySelectorAll('input, select').forEach((input) => { input.disabled = true; });
+      if (![...addReserve.options].some((option) => option.value === id)) addReserve.add(new Option(row.dataset.reserveName, id));
+      refresh();
+    }));
     reserveRows.forEach((row) => {
       if (row.dataset.reserveSelected === 'false') {
         row.querySelectorAll('input, select').forEach((input) => { input.disabled = true; });
@@ -143,6 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
       row.querySelectorAll('input, select').forEach((input) => { input.disabled = false; });
       addReserve.selectedOptions[0].remove();
       addReserve.value = '';
+      picker.hidden = true;
+      form.querySelector('[data-open-reserve-picker]')?.setAttribute('aria-expanded', 'false');
       refresh();
     });
     refresh();

@@ -190,12 +190,13 @@ test("bestehende Saisons werden sicher verknüpft und nicht neu aufgebaut", () =
   assert.match(existingSync, /skippedCompleted \+= 1/);
 });
 
-test("F1-Ligaseite zeigt nur den zentralen Saisonkalender im Adminbereich", () => {
+test("F1-Ligaseite entfernt den zentralen Kalenderblock zugunsten einzelner Termine", () => {
   const view = read("views/f1.ejs");
   const dashboard = read("controllers/adminController.js");
   assert.doesNotMatch(view, /✎ Teams & Fahrer/);
   assert.doesNotMatch(view, /href="\/admin\/season-calendar/);
-  assert.match(view, /AKTUELLER ZENTRALER RENNKALENDER/);
+  assert.doesNotMatch(view, /AKTUELLER ZENTRALER RENNKALENDER/);
+  assert.match(read("views/partials/race-calendar.ejs"), /calendar-events/);
   assert.doesNotMatch(dashboard, /F1 Rennkalender bearbeiten \/ löschen/);
   assert.doesNotMatch(dashboard, /title: 'F1-Fahrerfeld'/);
 });

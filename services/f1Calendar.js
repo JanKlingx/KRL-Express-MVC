@@ -145,6 +145,7 @@ async function syncSeasonRound({ season, league, round, date, transaction }) {
   };
 
   let event = await findRaceEvent(season, round, transaction);
+  if (event?.hasLocalOverride) return event;
   const completed = event && await weekendHasEntries(season, league, round, event, transaction);
   if (!event) event = await RaceEvent.create(values, { transaction });
   else if (!completed) {
@@ -299,7 +300,7 @@ async function syncSeasonDates({ season, league, calendarId, dates, transaction 
       unmatched += 1;
       continue;
     }
-    if (await weekendHasEntries(season, league, round, event, transaction)) {
+    if (event.hasLocalOverride || await weekendHasEntries(season, league, round, event, transaction)) {
       skippedCompleted += 1;
       continue;
     }
@@ -328,7 +329,7 @@ async function syncLinkedRaceEvents(round, transaction) {
   });
   let skippedCompleted = 0;
   for (const event of events) {
-    if (!event.seasonRecord || !event.league) {
+    if (event.hasLocalOverride || !event.seasonRecord || !event.league) {
       skippedCompleted += 1;
       continue;
     }

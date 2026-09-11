@@ -13,6 +13,8 @@ exports.masterData = async (req, res) => {
 
   // Master Data Modules - organized by section
   const masterDataModules = [
+    ['driverCreate', { group: 'Stammdaten', href: '/admin/drivers/new', title: 'Fahrer anlegen', description: 'Name und Sichten auswählen.' }],
+    ['driverEdit', { group: 'Stammdaten', href: '/admin/driver-edit', title: 'Fahrer bearbeiten', description: 'Fahrer nach Namen suchen und Sichten bearbeiten.' }],
     // Frontend
     ['tableHub', { group: 'Frontend', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
     

@@ -1,0 +1,16 @@
+<%- include('../partials/header', { title }) %>
+<section class="admin-shell"><div class="container narrow"><a class="back-link" href="<%= returnHref %>">← Zur Ligaseite</a><span class="form-kicker"><%= event.league.name %> · <%= event.seasonRecord?.name %></span><h1>RENNTERMIN BEARBEITEN</h1>
+<p>Die Änderungen gelten für diese Kalenderkachel. Die zentrale Vorlage und andere Ligen bleiben bestehen.</p>
+<% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
+<form method="post" action="/admin/calendar-events/<%= event.id %>" class="resource-form">
+<label>Titel<input name="title" value="<%= values.title || '' %>" maxlength="255" required></label>
+<% if (event.league.type === 'f1') { %><label>Strecke<select name="F1TrackId" required><option value="">Strecke auswählen …</option><% tracks.forEach((track) => { %><option value="<%= track.id %>" <%= Number(values.F1TrackId) === Number(track.id) ? 'selected' : '' %>><%= track.country %> · <%= track.name %></option><% }) %></select></label><% } else { %><label>Strecke<input name="circuit" value="<%= values.circuit || '' %>" required></label><% } %>
+<label>Datum und Startzeit (Deutschland)<input type="datetime-local" name="localStart" value="<%= startsAtValue %>" required></label>
+<label>Dauer in Minuten (optional)<input type="number" min="1" max="10080" name="durationMinutes" value="<%= values.durationMinutes ?? '' %>"></label>
+<label>Runde<input value="<%= event.sortOrder %>" readonly><small>Die Rundenzuordnung bleibt für Fahrerwechsel und Saisonverlauf erhalten.</small></label>
+<label class="checkbox-control"><input type="checkbox" name="isPublished" <%= (error ? values.isPublished === 'on' : event.isPublished) ? 'checked' : '' %>><span>Öffentlich anzeigen</span></label>
+<label class="checkbox-control"><input type="checkbox" name="isTestDay" <%= (error ? values.isTestDay === 'on' : event.isTestDay) ? 'checked' : '' %>><span>Testtag</span></label>
+<% if (event.league.type === 'f1') { %><label class="checkbox-control"><input type="checkbox" name="hasSprint" <%= (error ? values.hasSprint === 'on' : hasSprint) ? 'checked' : '' %>><span>Sprint</span></label><% } %>
+<p class="form-hint">Ein Wechsel des Rennformats ist bei vorhandener Aufstellung oder Ergebnissen gesperrt.</p>
+<div class="form-actions"><button class="button">Speichern</button><a class="button button-ghost" href="<%= returnHref %>">Abbrechen</a></div>
+</form></div></section><%- include('../partials/footer') %>

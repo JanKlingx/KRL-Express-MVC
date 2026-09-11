@@ -245,7 +245,16 @@ const TeamRosterDriver = sequelize.define(
   },
 );
 
+const Platform = sequelize.define("Platform", {
+  name: { type: DataTypes.STRING, allowNull: false, unique: true },
+  logoPath: DataTypes.STRING,
+  ...commonSort,
+});
+
 const Driver = sequelize.define("Driver", {
+  viewF1: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  viewLmu: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  viewFormerF1: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -1085,6 +1094,7 @@ const F1RaceLineupEntry = sequelize.define(
 );
 
 const RaceEvent = sequelize.define("RaceEvent", {
+  hasLocalOverride: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   title: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -2683,7 +2693,11 @@ KrlIcon.belongsTo(Driver, {
 // EXPORTS
 // =========================================================
 
+Driver.belongsTo(Platform, { as: "platformRecord", foreignKey: "PlatformId", onDelete: "RESTRICT" });
+Platform.hasMany(Driver, { as: "drivers", foreignKey: "PlatformId", onDelete: "RESTRICT" });
+
 module.exports = {
+  Platform,
   sequelize,
 
   User,

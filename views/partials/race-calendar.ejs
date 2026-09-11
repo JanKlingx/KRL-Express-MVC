@@ -1,8 +1,9 @@
-<% if (calendar.length) { %>
+<% const visibleCalendar = calendar.filter((race) => race.isPublished !== false || (typeof isAdmin !== 'undefined' && isAdmin)); %>
+<% if (visibleCalendar.length) { %>
 
   <div class="race-calendar-grid">
 
-    <% calendar.forEach((race, index) => {
+    <% visibleCalendar.forEach((race, index) => {
 
       const startsAt =
         new Date(race.startsAt);
@@ -47,6 +48,7 @@
         style="--calendar-accent:<%= league.accentColor || '#6ef2f2' %>"
       >
 
+        <% if (typeof isAdmin !== 'undefined' && isAdmin && Number.isInteger(Number(race.id))) { %><a class="calendar-edit-pencil" href="/admin/calendar-events/<%= race.id %>/edit" aria-label="<%= race.title %> bearbeiten" title="Termin bearbeiten">✎</a><% } %>
         <% if (league.logoPath) { %>
 
           <img class="race-calendar-watermark" src="<%= league.logoPath %>" alt="" aria-hidden="true">

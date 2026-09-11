@@ -9,8 +9,18 @@
     <% if (duplicateDriver) { %><div class="duplicate-driver-warning"><div><strong>Namensgleiches Fahrerprofil gefunden</strong><span>Die Fahrer-ID bleibt eindeutig. Prüfe das vorhandene Profil und lege nur dann einen weiteren Fahrer an, wenn es wirklich eine andere Person ist.</span></div><a class="button button-small button-ghost" href="<%= adminBasePath %>/drivers/<%= duplicateDriver.id %>/edit" target="_blank">Profil #<%= duplicateDriver.id %> öffnen</a></div><% } %>
 
     <form <%= resource === "drivers" ? "data-driver-wizard" : "" %> class="resource-form" method="post" enctype="multipart/form-data" action="<%= adminBasePath %>/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
+      <% if (resource === 'drivers') { const selectedViews = entry?.driverViews ? [].concat(entry.driverViews) : config.inferredViews(entry || {}); %>
+        <input type="hidden" name="driverWizard" value="1">
+        <fieldset data-driver-view-picker><legend>2 · Sichten auswählen</legend>
+          <p>Wähle die Bereiche, die du pflegen möchtest. Bestehende Angaben in anderen Sichten bleiben erhalten.</p>
+          <% [['f1', 'F1'], ['lmu', 'LMU'], ['formerF1', 'Ehemaliger Formel-1-Fahrer']].forEach(([value, label]) => { %>
+            <label class="driver-view-choice"><input type="checkbox" name="driverViews" value="<%= value %>" <%= selectedViews.includes(value) ? 'checked' : '' %>><strong><%= label %></strong></label>
+          <% }) %>
+          <p data-view-error role="alert" hidden>Bitte mindestens eine Sicht auswählen.</p>
+        </fieldset>
+      <% } %>
       <% config.fields.filter((field) => !field.visibleWhen || field.visibleWhen(entry)).forEach((field) => { const value = entry ? (entry[field.name] ?? '') : ''; const inputId = `${resource}-${field.name}`; %>
-        <label for="<%= inputId %>" class="field-<%= field.type %>">
+        <label for="<%= inputId %>" class="field-<%= field.type %>" <%- resource === 'drivers' ? `data-driver-view="${config.driverFieldView(field.name)}"` : '' %>>
           <span><%= field.label %><% if (field.required) { %><b aria-hidden="true"> *</b><% } %></span>
           <% if (field.type === 'textarea') { %>
             <textarea id="<%= inputId %>" name="<%= field.name %>" rows="4" placeholder="<%= field.placeholder || '' %>" <%= field.required ? 'required' : '' %>><%= value %></textarea>

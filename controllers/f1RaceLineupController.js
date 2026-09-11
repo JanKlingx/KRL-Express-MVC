@@ -1,3 +1,4 @@
+const { lockLineup } = require('../services/weekendWorkflow');
 const { Op } = require("sequelize");
 
 const {
@@ -365,6 +366,9 @@ async function loadPlanningRows(league, race) {
    * =====================================================
    */
 
+  await require('../services/platforms').attachPlatforms([
+    ...reserves, ...teamCards.flatMap((card) => card.rows.map((row) => row.driver))
+  ]);
   const reserveRows = reserves.map((driver) => {
     const driverId = Number(driver.id);
 
@@ -610,6 +614,8 @@ exports.save = async (req, res) => {
     });
     const reserves = selectWeekendReserves(candidates, persistedReserves, reserveInput);
     const regularRows = teamCards.flatMap((card) => card.rows);
+
+    if (!regularRows.length) throw new Error("Bitte zuerst Stammcockpits für diese Saison einrichten.");
 
     const reserveById = new Map(
       reserves.map((driver) => [Number(driver.id), driver]),
@@ -982,7 +988,16 @@ if (
      * =====================================================
      */
 
+    const planChanged = records.length !== existingEntries.length || records.some((record) => {
+      const old = existingByDriver.get(Number(record.DriverId));
+      return !old || ['roleType', 'status'].some((key) => old[key] !== record[key]) ||
+        ['TeamId', 'ReplacementForDriverId'].some((key) => Number(old[key] || 0) !== Number(record[key] || 0));
+    });
+    if (planChanged && existingEntries.some((entry) => entry.attendanceStatus || entry.includeInResults)) {
+      throw new Error('Bitte zuerst „Aufstellung bearbeiten“ öffnen. Dadurch werden die abhängigen Schritte kontrolliert zurückgesetzt.');
+    }
     await sequelize.transaction(async (transaction) => {
+      await lockLineup(race, existingEntries, transaction);
       const currentByDriver = new Map(
         existingEntries.map((entry) => [Number(entry.DriverId), entry]),
       );

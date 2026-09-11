@@ -1,3 +1,4 @@
+const { applyDriverViews, driverFieldView, inferredViews } = require('./driverViews');
 const models = require("../models");
 const { Op } = require("sequelize");
 const {
@@ -131,6 +132,13 @@ const DRIVER_RANKS = [
 
 async function prepareDriver(values, body, existingDriver) {
   values.name = String(values.name || "").trim();
+  if (!values.name) throw new Error("Bitte einen Fahrernamen eingeben.");
+  if (body.driverWizard === "1") {
+    applyDriverViews(values, body, existingDriver || {});
+    const platform = await models.Platform.findByPk(Number(values.PlatformId));
+    if (!platform) throw new Error("Bitte eine Plattform aus den Stammdaten auswählen.");
+    values.platform = platform.name;
+  }
   const duplicateName = await models.Driver.findOne({
     where: {
       id: { [Op.ne]: existingDriver?.id || 0 },
@@ -1031,6 +1039,22 @@ const penaltyRuleResource = (discipline, title, group) => ({
 });
 
 module.exports = {
+  platforms: {
+    title: "Plattformpflege", group: "Stammdaten", model: models.Platform,
+    description: "Plattformen mit Name und Logo für die Fahrerpflege anlegen.",
+    listFields: ["name", "logoPath"], fields: [text("name", "Name", true), number("sortOrder", "Reihenfolge", false, { min: 0, step: 1 })],
+    upload: { field: "logoPath", label: "Plattformlogo", required: true },
+    async prepareValues(values) {
+      values.name = String(values.name || "").trim();
+      if (!values.name) throw new Error("Bitte einen Plattformnamen eingeben.");
+    },
+    async afterSave(platform) {
+      await models.Driver.update({ platform: platform.name }, { where: { PlatformId: platform.id } });
+    },
+    async beforeRemove(platform) {
+      if (await models.Driver.count({ where: { PlatformId: platform.id } })) throw new Error("Diese Plattform ist noch Fahrern zugeordnet.");
+    }
+  },
   statistics: {
     title: "Startseiten-Statistiken",
     group: "Frontend",
@@ -1382,6 +1406,8 @@ module.exports = {
   },
   drivers: {
     title: "Fahrer-Pflege",
+    driverFieldView,
+    inferredViews,
     group: "Liga-Stammdaten",
     description:
       "Zentrale Fahrer-Stammdaten. Gleiche Namen sind nach einer Warnung zulässig, weil die Fahrer-ID die Personen eindeutig trennt.",
@@ -1400,7 +1426,9 @@ module.exports = {
         help: "Nur aktivieren, wenn wirklich eine zweite Person mit demselben Namen angelegt wird.",
       }),
       aliasesField(),
-      platformField(),
+      number("number", "Startnummer", false, { min: 0, step: 1 }),
+      text("gamerTag", "GamerTag"),
+      relation("PlatformId", "Plattform", models.Platform, (row) => row.name, true),
       number("racesF1", "Gefahrene Rennen F1", false, {
         min: 0,
         step: 1,
