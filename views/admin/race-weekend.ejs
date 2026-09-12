@@ -578,10 +578,10 @@
           </p>
 
 
-          <% if (lineupComplete) { %><div class="weekend-actions">
-            <form method="post" action="/admin/race-weekend/f1/<%= race.id %>/reopen-lineup" data-confirm="Aufstellung zur Bearbeitung öffnen? Anwesenheit und Haupt-/Sprintergebnisse werden zurückgesetzt. Die geplanten Fahrer bleiben erhalten."><button class="button button-small button-ghost">✎ Aufstellung bearbeiten</button></form>
+          <div class="weekend-actions"><% if (lineupComplete) { %>
+            <form method="post" action="/admin/race-weekend/f1/<%= race.id %>/reopen-lineup" data-confirm="Aufstellung zur Bearbeitung öffnen? Anwesenheit und Haupt-/Sprintergebnisse werden zurückgesetzt. Die geplanten Fahrer bleiben erhalten."><button class="button button-small button-ghost">✎ Aufstellung bearbeiten</button></form><% } %>
             <form method="post" action="/admin/race-weekend/f1/<%= race.id %>/reset-lineup" data-confirm="Aufstellung, Anwesenheit und Haupt-/Sprintergebnisse zurücksetzen? Die Strafkartei bleibt erhalten."><button class="button button-small button-ghost">Schritt 1 zurücksetzen</button></form>
-          </div><% } %>
+          </div>
           <%- include(
             'partials/f1-lineup-board',
             {
@@ -965,7 +965,7 @@
                               data-attendance-status
                             >
 
-                              <% allowedAttendance.forEach((status) => { %>
+                              <% allowedAttendance.filter((status) => !regularIsUncertain || ['anwesend', 'zu_spaet_vorbesprechung'].includes(status.value)).forEach((status) => { %>
 
                                 <option
                                   value="<%= status.value %>"
@@ -1388,7 +1388,7 @@
                                   data-attendance-status
                                 >
 
-                                  <% allowedAttendance.forEach((status) => { %>
+                                  <% allowedAttendance.filter((status) => !replacementUncertain || ['anwesend', 'zu_spaet_vorbesprechung'].includes(status.value)).forEach((status) => { %>
 
                                     <option
                                       value="<%= status.value %>"

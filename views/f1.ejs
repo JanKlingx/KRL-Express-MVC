@@ -1007,15 +1007,15 @@
 
             <tr>
 
-              <td>
+              <td data-label="Runde">
                 R<%= row.round %>
               </td>
 
-              <th>
+              <th data-label="Land">
                 <%= row.countryName || '–' %>
               </th>
 
-              <td>
+              <td data-label="Flagge">
 
                 <% if (row.flagPath) { %>
 
@@ -1032,7 +1032,7 @@
 
               </td>
 
-              <td>
+              <td data-label="Datum">
                 <%= row.date
                   ? new Intl.DateTimeFormat('de-DE').format(
                       new Date(`${row.date}T12:00:00Z`)
@@ -1041,27 +1041,27 @@
                 %>
               </td>
 
-              <td>
+              <td data-label="Driver of the Day">
                 <%= row.driverOfTheDay || '–' %>
               </td>
 
-              <td>
+              <td data-label="1. Platz">
                 <%= row.first || '–' %>
               </td>
 
-              <td>
+              <td data-label="2. Platz">
                 <%= row.second || '–' %>
               </td>
 
-              <td>
+              <td data-label="3. Platz">
                 <%= row.third || '–' %>
               </td>
 
-              <td>
+              <td data-label="Poleposition">
                 <%= row.pole || '–' %>
               </td>
 
-              <td>
+              <td data-label="Schnellste Runde">
                 <%= row.fastestLap || '–' %>
               </td>
 

@@ -26,5 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const query = search.value.trim().toLocaleLowerCase('de-DE');
     shell.querySelectorAll('.setup-driver-card').forEach((card) => { card.hidden = !card.textContent.toLocaleLowerCase('de-DE').includes(query); });
   });
+  shell.querySelectorAll('[data-selection-count]').forEach((counter) => {
+    const name = counter.dataset.selectionCount;
+    const choices = [...counter.closest('form').querySelectorAll(`input[name="${name}"]`)];
+    const refresh = () => { counter.textContent = `${choices.filter((input) => input.checked).length} ${name === 'driverIds' ? 'Stammfahrer' : 'Teams'} ausgewählt`; };
+    choices.forEach((input) => input.addEventListener('change', refresh));
+    refresh();
+  });
   show(current);
 });

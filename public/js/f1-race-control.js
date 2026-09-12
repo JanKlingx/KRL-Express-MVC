@@ -46,7 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!visible && replacementSelect) replacementSelect.value = '';
   }
 
+  // Hidden alternatives share field names. Only the visible branch may submit.
+  function syncVisibleControls() {
+    form.querySelectorAll('[data-present-panel] select, [data-present-panel] input, [data-planned-replacement] select, [data-planned-replacement] input').forEach((control) => {
+      control.disabled = Boolean(control.closest('[hidden]'));
+    });
+  }
+
   function updateReplacementAvailability() {
+    syncVisibleControls();
     const selects = [...form.querySelectorAll('[data-replacement-choice]')].filter((select) => !select.disabled && !select.closest('[hidden]'));
     const used = new Set(selects.map((select) => select.value).filter(Boolean));
     selects.forEach((select) => {
@@ -84,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   form.addEventListener('submit', (event) => {
+    syncVisibleControls();
     const unresolved = [...form.querySelectorAll('[data-uncertain-case]')].filter((caseNode) => {
       if (caseNode.closest('[hidden]')) return false;
       return !caseNode.querySelector('[data-uncertain-present]:checked');
