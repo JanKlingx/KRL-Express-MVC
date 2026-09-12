@@ -72,11 +72,17 @@
 
   document.querySelectorAll('[data-carousel]').forEach((carousel) => {
     const slides = [...carousel.querySelectorAll('.carousel-slide')];
+    if (!slides.length) return;
+    const jumpLabel = document.createElement('label'); jumpLabel.className = 'carousel-jump'; jumpLabel.textContent = 'Ergebnis auswählen';
+    const jump = document.createElement('select'); jump.setAttribute('aria-label', 'Ergebnis auswählen');
+    slides.forEach((slide, i) => { const option = document.createElement('option'); option.value = String(i); option.textContent = slide.dataset.slideLabel || `Ergebnis ${i + 1}`; jump.append(option); });
+    jumpLabel.append(jump); carousel.prepend(jumpLabel);
     const dots = carousel.querySelector('.carousel-dots');
     let index = 0;
     let touchStart = null;
     const show = (next) => {
       index = (next + slides.length) % slides.length;
+      jump.value = String(index);
       slides.forEach((slide, i) => {
         slide.classList.toggle('active', i === index);
         slide.setAttribute('aria-hidden', String(i !== index));
@@ -90,9 +96,11 @@
       dot.addEventListener('click', () => show(i));
       dots?.appendChild(dot);
     });
+    jump.addEventListener('change', () => show(Number(jump.value)));
     carousel.querySelector('.prev')?.addEventListener('click', () => show(index - 1));
     carousel.querySelector('.next')?.addEventListener('click', () => show(index + 1));
     carousel.addEventListener('keydown', (event) => {
+      if (event.target.matches('select, input, textarea')) return;
       if (event.key === 'ArrowLeft') show(index - 1);
       if (event.key === 'ArrowRight') show(index + 1);
     });

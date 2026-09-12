@@ -50,6 +50,7 @@ const SiteStatistic = sequelize.define("SiteStatistic", {
 });
 
 const Country = sequelize.define("Country", {
+  abbreviation: { type: DataTypes.STRING(8), allowNull: true },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -1094,6 +1095,7 @@ const F1RaceLineupEntry = sequelize.define(
 );
 
 const RaceEvent = sequelize.define("RaceEvent", {
+  isCompleted: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   hasLocalOverride: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   title: {
     type: DataTypes.STRING,

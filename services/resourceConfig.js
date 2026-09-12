@@ -1121,7 +1121,7 @@ module.exports = {
     title: "Länderstamm",
     group: "Liga-Stammdaten",
     description:
-      "Länder mit Kontinent und Flagge pflegen. Die Flagge wird automatisch in Strecken und Rennkalender übernommen.",
+      "Länder mit Kontinent, Flagge und optionaler Abkürzung pflegen. Die Flagge wird automatisch in Strecken und Rennkalender übernommen.",
     model: models.Country,
     upload: { field: "flagPath", label: "Flagge", required: true },
     filters: [
@@ -1138,9 +1138,15 @@ module.exports = {
         ],
       },
     ],
-    listFields: ["name", "continent"],
+    listFields: ["name", "abbreviation", "continent"],
+    prepareValues(values) {
+      const code = String(values.abbreviation || '').trim().toUpperCase();
+      if (code && !/^[A-Z]{2,8}$/.test(code)) throw new Error('Die Länderabkürzung muss aus 2 bis 8 Buchstaben bestehen, z. B. ESP.');
+      values.abbreviation = code || null;
+    },
     fields: [
       text("name", "Name", true, { placeholder: "Belgien" }),
+      text("abbreviation", "Abkürzung (optional)", false, { placeholder: "BEL" }),
       select(
         "continent",
         "Kontinent",

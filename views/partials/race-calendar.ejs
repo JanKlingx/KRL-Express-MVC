@@ -49,6 +49,13 @@
       >
 
         <% if (typeof isAdmin !== 'undefined' && isAdmin && Number.isInteger(Number(race.id))) { %><a class="calendar-edit-pencil" href="/admin/calendar-events/<%= race.id %>/edit" aria-label="<%= race.title %> bearbeiten" title="Termin bearbeiten">✎</a><% } %>
+        <% if (typeof isAdmin !== 'undefined' && isAdmin && Number.isInteger(Number(race.id))) { %>
+          <form class="calendar-completion-action" method="post" action="/admin/calendar-events/<%= race.id %>/completion">
+            <input type="hidden" name="completed" value="<%= race.isCompleted ? '0' : '1' %>">
+            <button type="submit" aria-label="<%= race.isCompleted ? 'Wieder als offen markieren' : 'Als gefahren markieren' %>" title="<%= race.isCompleted ? 'Wieder als offen markieren' : 'Als gefahren markieren' %>"><%= race.isCompleted ? '×' : '✓' %></button>
+          </form>
+        <% } %>
+        <% if (race.isCompleted) { %><span class="calendar-completed-badge">✓ Gefahren</span><% } %>
         <% if (league.logoPath) { %>
 
           <img class="race-calendar-watermark" src="<%= league.logoPath %>" alt="" aria-hidden="true">

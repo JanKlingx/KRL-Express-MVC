@@ -436,6 +436,7 @@
 
               <article
                 class="standings-history-slide standings-history-slide-wide <%= snapshotIndex === safeStandingsHistory.length - 1 ? 'is-active' : '' %>"
+                data-slide-label="WM nach R<%= snapshot.round %> · <%= displayTitle %>"
                 data-standings-slide
                 data-slide-index="<%= snapshotIndex %>"
                 aria-hidden="<%= snapshotIndex === safeStandingsHistory.length - 1 ? 'false' : 'true' %>"
@@ -1004,12 +1005,13 @@
 
             <tr>
 
-              <td data-label="Runde">
+              <td data-label="Runde" class="race-statistics-round">
+                <% if (row.flagPath) { %><img class="race-statistics-watermark" src="<%= row.flagPath %>" alt="" aria-hidden="true"><% } %>
                 R<%= row.round %>
               </td>
 
               <th data-label="Land">
-                <%= row.countryName || '–' %>
+                <%= row.countryCode || row.countryName || '–' %>
               </th>
 
               <td data-label="Flagge">

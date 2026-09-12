@@ -67,6 +67,8 @@ async function ensureSchema() {
     const ruleTable = await queryInterface.describeTable("f1_rule_sections");
     await addMissingColumn("f1_rule_sections", ruleTable, "heading_level", { type: DataTypes.INTEGER, allowNull: false, defaultValue: 2 });
   }
+  const countryTable = await queryInterface.describeTable("countries");
+  await addMissingColumn("countries", countryTable, "abbreviation", { type: DataTypes.STRING(8), allowNull: true });
   const driverTable = await queryInterface.describeTable("drivers");
   await addMissingColumn("drivers", driverTable, "platform_id", { type: DataTypes.INTEGER, allowNull: true });
   for (const name of ["view_f1", "view_lmu", "view_former_f1"]) {
@@ -663,6 +665,7 @@ async function ensureSchema() {
   );
 
   const raceEventTable = await queryInterface.describeTable("race_events");
+  await addMissingColumn("race_events", raceEventTable, "is_completed", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn("race_events", raceEventTable, "has_local_override", { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   await addMissingColumn(
     "race_events",

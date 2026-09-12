@@ -737,7 +737,8 @@
                           <div class="penalty-round-head">
                             <strong>R<%= round.roundNumber %></strong>
 
-                            <% if (round.flagPath) { %>
+                            <% if (round.countryCode) { %><span class="country-code"><%= round.countryCode %></span><% } %>
+<% if (round.flagPath) { %>
                               <img
                                 class="penalty-round-flag"
                                 src="<%= round.flagPath %>"
@@ -919,7 +920,8 @@
                         <div class="penalty-round-head">
                           <strong>R<%= column.roundNumber %></strong>
 
-                          <% if (column.flagPath) { %>
+                          <% if (column.countryCode) { %><span class="country-code"><%= column.countryCode %></span><% } %>
+<% if (column.flagPath) { %>
                             <img
                               class="penalty-round-flag"
                               src="<%= column.flagPath %>"
@@ -1080,7 +1082,8 @@
                         <div class="penalty-round-head">
                           <strong>R<%= column.roundNumber %></strong>
 
-                          <% if (column.flagPath) { %>
+                          <% if (column.countryCode) { %><span class="country-code"><%= column.countryCode %></span><% } %>
+<% if (column.flagPath) { %>
                             <img
                               class="penalty-round-flag"
                               src="<%= column.flagPath %>"

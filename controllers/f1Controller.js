@@ -739,6 +739,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
               ?.circuit ||
             race.circuit,
 
+          countryCode: country?.abbreviation || null,
           countryName:
             country?.name ||
             track?.country ||
@@ -827,6 +828,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
           flagPath:
             race.countryFlagPath,
 
+          countryCode: race.countryCode || null,
           countryName:
             race.countryName,
 
@@ -956,6 +958,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
             country?.flagPath ||
             null;
 
+          historyRace.countryCode = country?.abbreviation || null;
           historyRace.countryName =
             country?.name ||
             track?.country ||
@@ -1035,6 +1038,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
             track?.country ||
             null,
 
+          countryCode: country?.abbreviation || null,
           flagPath:
             country?.flagPath ||
             null,

@@ -1310,7 +1310,8 @@
                             </strong>
 
 
-                            <% if (round.flagPath) { %>
+                            <% if (round.countryCode) { %><span class="country-code"><%= round.countryCode %></span><% } %>
+<% if (round.flagPath) { %>
 
                               <img
                                 src="<%= round.flagPath %>"
@@ -1584,7 +1585,8 @@
                         </strong>
 
 
-                        <% if (column.flagPath) { %>
+                        <% if (column.countryCode) { %><span class="country-code"><%= column.countryCode %></span><% } %>
+<% if (column.flagPath) { %>
 
                           <img
                             src="<%= column.flagPath %>"
@@ -1862,7 +1864,8 @@
                         </strong>
 
 
-                        <% if (column.flagPath) { %>
+                        <% if (column.countryCode) { %><span class="country-code"><%= column.countryCode %></span><% } %>
+<% if (column.flagPath) { %>
 
                           <img
                             src="<%= column.flagPath %>"

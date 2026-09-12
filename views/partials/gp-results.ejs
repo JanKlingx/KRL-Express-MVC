@@ -200,6 +200,7 @@
 
         <article
           class="carousel-slide gp-broadcast-card <%= index === 0 ? 'active' : '' %>"
+          data-slide-label="R<%= item.sortOrder %> · <%= item.displayTitle || item.title %> · <%= item.raceType === 'sprint' ? 'Sprint' : 'Hauptrennen' %>"
           aria-hidden="<%= index !== 0 %>"
         >
 

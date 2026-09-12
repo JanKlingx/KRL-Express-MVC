@@ -296,6 +296,7 @@ async function loadRounds(
         startsAt:
           event.startsAt,
 
+        countryCode: event.track?.countryRecord?.abbreviation || null,
         flagPath:
           event.track
             ?.countryRecord
@@ -337,6 +338,7 @@ function centralCalendarRounds(calendar) {
         round.track?.name ||
         round.circuit,
       circuit: round.track?.name || round.circuit || null,
+      countryCode: round.track?.countryRecord?.abbreviation || null,
       flagPath: round.track?.countryRecord?.flagPath || null,
       country:
         round.track?.countryRecord?.name ||

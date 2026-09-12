@@ -42,6 +42,12 @@
         currentIndex = slides.length - 1;
       }
 
+      const jumpLabel = document.createElement('label'); jumpLabel.className = 'carousel-jump'; jumpLabel.textContent = 'WM-Stand auswählen';
+      const jump = document.createElement('select'); jump.setAttribute('aria-label', 'WM-Stand auswählen');
+      slides.forEach((slide, index) => { const option = document.createElement('option'); option.value = String(index); option.textContent = slide.dataset.slideLabel || `WM-Stand ${index + 1}`; jump.append(option); });
+      jumpLabel.append(jump); carousel.prepend(jumpLabel);
+      jump.addEventListener('change', () => showSlide(Number(jump.value)));
+
       function showSlide(nextIndex) {
         /*
          * Endlosschleife.
@@ -49,6 +55,7 @@
         currentIndex =
           (nextIndex + slides.length) %
           slides.length;
+        jump.value = String(currentIndex);
 
         slides.forEach((slide, index) => {
           const active =
@@ -143,6 +150,7 @@
       carousel.addEventListener(
         "keydown",
         (event) => {
+          if (event.target.matches("select, input, textarea")) return;
           if (event.key === "ArrowLeft") {
             event.preventDefault();
 

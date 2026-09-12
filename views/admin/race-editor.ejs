@@ -861,12 +861,12 @@
 
                           <% } %>
 
-                          <% if (selectedRace.pointsMode === 'database' && editorPointsScheme?.polePositionEnabled) { %>
+
                             <label class="result-checkbox result-fastest">
                               <input type="checkbox" name="rows[d<%= driver.id %>][polePosition]" data-result-pole="main" <%= entry?.polePosition ? 'checked' : '' %>>
                               <span>Pole Position</span>
                             </label>
-                          <% } %>
+
 
                           <label class="result-checkbox result-driver-of-the-day">
                             <input type="checkbox" name="rows[d<%= driver.id %>][driverOfTheDay]" data-result-dotd="main" <%= entry?.driverOfTheDay ? 'checked' : '' %>>
@@ -976,7 +976,7 @@
 
                                 </label>
 
-                                <% if (editorPointsScheme?.polePositionEnabled) { %>
+                                <% if (sprintRace) { %>
                                   <label class="result-checkbox result-fastest">
                                     <input type="checkbox" name="rows[d<%= driver.id %>][sprintPolePosition]" data-result-pole="sprint" <%= sprintEntry?.polePosition ? 'checked' : '' %>>
                                     <span>Pole Position</span>
