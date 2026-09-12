@@ -425,6 +425,33 @@ function buildSeasonData(
     ) || null;
   }
 
+  function recognizedReserveResult(driver, race) {
+    const main = mainRaceForSprint(race);
+    if (!main) return false;
+    const entry = actualEntryFor(driver, race);
+    const mainEntry = actualEntryFor(driver, main);
+    if (!entry || !mainEntry) return false;
+    return stintsFor(driver.id, "regular").some((stint) => {
+      if (Number(main.sortOrder) >= Number(stint.fromRound)) return false;
+      const team = plain(stint.seasonTeam);
+      const sameTeam = team?.sourceType === 'current'
+        ? Number(mainEntry.TeamId) === Number(team.sourceId) && Number(entry.TeamId) === Number(team.sourceId)
+        : team?.sourceType === 'historical' && Number(mainEntry.TeamId) > 0 && Number(entry.TeamId) === Number(mainEntry.TeamId);
+      // Historical team names may differ from their base team. The saved carry-over
+      // was validated against that base team when the cockpit was assigned.
+      return sameTeam && (stint.carryOvers || []).map(plain).some((carry) =>
+        carry.selected && Number(carry.GrandPrixResultId) === Number(main.id) &&
+        Number(carry.DriverId) === Number(driver.id) &&
+        Number(carry.SeasonTeamId) === Number(stint.SeasonTeamId)
+      );
+    });
+  }
+
+  function regularScoringApplies(driver, race) {
+    const periods = stintsFor(driver.id, "regular");
+    return !periods.length || periods.some((stint) => isRoundInStint(stint, race.sortOrder)) || recognizedReserveResult(driver, race);
+  }
+
   /*
    * =====================================================
    * STAMMFAHRER-ERGEBNISSE
@@ -438,7 +465,6 @@ function buildSeasonData(
     ] of drivers.entries()
   ) {
     let cumulative = 0;
-    const regularStints = stintsFor(driver.id, "regular");
     driver.roleTotal = 0;
 
     driver.results =
@@ -452,8 +478,7 @@ function buildSeasonData(
                 )
               : race;
 
-          const isRegularInRound = !regularStints.length ||
-            regularStints.some((stint) => isRoundInStint(stint, race.sortOrder));
+          const isRegularInRound = regularScoringApplies(driver, race);
           if (!isRegularInRound) {
             return {
               value: "DNA",
@@ -588,8 +613,7 @@ function buildSeasonData(
           };
         },
       );
-    /* Punkte außerhalb eines Stammfahrer-Stints gehören ausschließlich
-       in die Ersatzfahrerwertung. */
+    /* Nur ausdrücklich anerkannte frühere Einsätze zählen zusätzlich zur Stammwertung. */
     driver.total = driver.roleTotal;
   }
 
@@ -603,9 +627,8 @@ function buildSeasonData(
     [...drivers.values()]
       .filter((driver) => {
         if (!driver.isFormerDriver) return true;
-        const regularStints = stintsFor(driver.id, "regular");
         return races.some((race) =>
-          regularStints.some((stint) => isRoundInStint(stint, race.sortOrder)) &&
+          regularScoringApplies(driver, race) &&
           Boolean(actualEntryFor(driver, race))
         );
       })
@@ -644,8 +667,7 @@ function buildSeasonData(
           Array.isArray(race.entries) &&
           race.entries.length &&
           (
-            !stintsFor(driver.id, "regular").length ||
-            stintsFor(driver.id, "regular").some((stint) => isRoundInStint(stint, race.sortOrder))
+            regularScoringApplies(driver, race)
           )
         );
       const startedMainResults = completedMainIndexes
@@ -1388,12 +1410,10 @@ function buildSeasonData(
     return rankedDrivers
       .map(
         (driver) => {
-          const regularStints = stintsFor(driver.id, "regular");
           const includedRaces = races.filter((race) =>
             number(race.sortOrder) <= number(targetWeekend.round) &&
             (
-              !regularStints.length ||
-              regularStints.some((stint) => isRoundInStint(stint, race.sortOrder))
+              regularScoringApplies(driver, race)
             )
           );
           const points = includedRaces.reduce((sum, race) => sum + number(actualEntryFor(driver, race)?.points), 0);

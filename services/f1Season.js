@@ -136,7 +136,8 @@ async function loadSeasonStructure(seasonId, round = null) {
       where: { SeasonId: seasonId },
       include: [
         { association: 'driver', include: [{ association: 'aliases' }] },
-        { association: 'seasonTeam' }
+        { association: 'seasonTeam' },
+        { association: 'carryOvers' }
       ],
       order: [['fromRound', 'ASC'], ['id', 'ASC']]
     })

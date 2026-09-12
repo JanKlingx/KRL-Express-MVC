@@ -663,7 +663,7 @@ const setupDriverRankFilter =
 
       <!-- FILTER -->
 
-<label>Stammfahrer suchen<input type="search" data-driver-search placeholder="Name oder Alias …"></label>
+<div class="setup-selection-toolbar"><label class="setup-driver-search">Stammfahrer suchen<input type="search" data-driver-search placeholder="Name oder Alias …"></label><output class="setup-selection-count" data-selection-count="driverIds" aria-live="polite"><%= selectedDriverIds.size %> Stammfahrer ausgewählt</output></div>
 <p>Für eine aktuelle Saison Fahrer aus dem F1-Ersatzfahrerpool auswählen. Beim Abschluss erhalten sie den Stammrang dieser Liga und verlieren den Ersatzrang. Einsätze als Ersatzfahrer anderer Ligen werden im Rennwochenende erfasst.</p>
 <p><%= selectedSeason.status === 'historical' ? `Die Zuordnung gilt nur für ${selectedSeason.name}; aktuelle Ränge bleiben unverändert.` : 'Aktuelle Stammränge werden beim Abschluss automatisch aus den besetzten Cockpits vergeben.' %></p>
 <div class="setup-driver-grid">
@@ -749,6 +749,7 @@ const setupDriverRankFilter =
           >
 
 
+            <output class="setup-selection-count" data-selection-count="teamTokens" aria-live="polite"><%= selectedTeamTokens.size %> Teams ausgewählt</output>
             <!-- AKTUELLE TEAMS -->
 
             <div class="setup-team-source">
@@ -963,9 +964,7 @@ const setupDriverRankFilter =
 
                       <div class="season-lineup-team-title">
 
-                        <span>
-                          SAISONTEAM
-                        </span>
+
 
                         <strong>
                           <%= team.name %>
@@ -1147,17 +1146,7 @@ const setupDriverRankFilter =
       </article>
 
 
-      <article class="setup-final-card">
-        <span>Ersatzfahrer</span>
 
-        <strong>
-          <%= setupStructure.unassignedDrivers.length %>
-        </strong>
-
-        <small>
-          verfügbar
-        </small>
-      </article>
 
     </div>
 
@@ -1209,9 +1198,7 @@ const setupDriverRankFilter =
               <% } %>
 
               <div>
-                <span>
-                  Saisonteam
-                </span>
+
 
                 <strong>
                   <%= team.name %>
