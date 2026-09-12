@@ -102,7 +102,7 @@ function selectWeekendReserves(candidates, savedEntries, input = {}, historical 
     require('./f1DriverPolicy').reserveEligible(driver, historical)
   ).map((driver) => Number(driver.id)));
   if (requestedIds.some((id) => !allowedIds.has(id))) {
-    throw new Error(historical ? 'Historische Ersatzfahrer benötigen einen F1-Rang und dürfen im selben Rennen kein Stammcockpit belegen.' : 'Neue Ersatzfahrer müssen den Rang „F1 Ersatz“ besitzen und dürfen hier kein Stammcockpit belegen.');
+    throw new Error(historical ? 'Historische Ersatzfahrer benötigen einen F1-Rang und dürfen im selben Rennen kein Stammcockpit belegen.' : 'Ersatzfahrer benötigen F1 Ersatz oder einen Stammrang einer anderen Liga und dürfen hier kein Stammcockpit belegen.');
   }
   const selectedIds = new Set([...savedIds, ...requestedIds]);
   return candidates.filter((driver) => selectedIds.has(Number(driver.id)));

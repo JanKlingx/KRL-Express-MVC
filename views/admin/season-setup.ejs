@@ -517,7 +517,7 @@ const setupDriverRankFilter =
                         <td><strong><%= round.track?.name || round.circuit %></strong></td>
                         <td><span class="setup-readonly-state <%= round.hasSprint ? 'is-active' : '' %>"><%= round.hasSprint ? '✓' : '–' %></span></td>
                         <td><span class="setup-readonly-state <%= round.isTestDay ? 'is-active' : '' %>"><%= round.isTestDay ? '✓' : '–' %></span></td>
-                        <td><input type="date" name="dates[<%= round.id %>]" value="<%= dateValue %>" required aria-invalid="<%= Boolean(dateError) %>" aria-label="Datum für <%= round.track?.name || round.circuit %>"><% if (dateError) { %><small role="alert"><%= dateError %></small><% } %></td>
+                        <td><input type="date" name="dates[r<%= round.id %>]" value="<%= dateValue %>" required aria-invalid="<%= Boolean(dateError) %>" aria-label="Datum für <%= round.track?.name || round.circuit %>"><% if (dateError) { %><small role="alert"><%= dateError %></small><% } %></td>
                       </tr>
                     <% }) %>
                   </tbody>
@@ -664,7 +664,7 @@ const setupDriverRankFilter =
       <!-- FILTER -->
 
 <label>Stammfahrer suchen<input type="search" data-driver-search placeholder="Name oder Alias …"></label>
-<p>Nur Stammfahrer dieser Saison auswählen. Alle benötigen eine F1-Sicht. Ersatzfahrer werden im Rennwochenende hinzugefügt.</p>
+<p>Für eine aktuelle Saison Fahrer aus dem F1-Ersatzfahrerpool auswählen. Beim Abschluss erhalten sie den Stammrang dieser Liga und verlieren den Ersatzrang. Einsätze als Ersatzfahrer anderer Ligen werden im Rennwochenende erfasst.</p>
 <p><%= selectedSeason.status === 'historical' ? `Die Zuordnung gilt nur für ${selectedSeason.name}; aktuelle Ränge bleiben unverändert.` : 'Aktuelle Stammränge werden beim Abschluss automatisch aus den besetzten Cockpits vergeben.' %></p>
 <div class="setup-driver-grid">
 <% setupEligibleDrivers.forEach((driver) => { const roles = []; const driverMatchesFilter = true;
@@ -994,7 +994,7 @@ const setupDriverRankFilter =
 
 <select
   class="season-lineup-driver-select"
-  name="lineup[<%= team.id %>][]"
+  name="lineup[t<%= team.id %>][]"
   data-team-id="<%= team.id %>"
   data-slot="<%= slot + 1 %>"
   <%= setupLineupProtected ? 'disabled' : '' %>
@@ -1327,79 +1327,7 @@ const setupDriverRankFilter =
 <!-- JAVASCRIPT -->
 <!-- ===================================================== -->
 
-<script>
-
-
-
-
-document.addEventListener('DOMContentLoaded', function () {
-
-
-  /*
-   * =====================================================
-   * LINE-UP
-   * Ein Fahrer darf nur einmal verwendet werden.
-   * =====================================================
-   */
-
-  const lineupSelects = Array.from(
-    document.querySelectorAll(
-      '.season-lineup-driver-select'
-    )
-  );
-
-
-  function updateLineupDriverOptions() {
-
-  const selectedDrivers = new Set();
-
-  lineupSelects.forEach(function (select) {
-    if (select.value) {
-      selectedDrivers.add(select.value);
-    }
-  });
-
-  lineupSelects.forEach(function (select) {
-
-    Array.from(select.options).forEach(function (option) {
-
-      if (!option.value) {
-        option.disabled = false;
-        option.hidden = false;
-        return;
-      }
-
-      if (option.value === select.value) {
-        option.disabled = false;
-        option.hidden = false;
-        return;
-      }
-
-      const used =
-        selectedDrivers.has(option.value);
-
-      option.disabled = used;
-      option.hidden = used;
-    });
-
-  });
-
-}
-
-  lineupSelects.forEach(function (select) {
-
-    select.addEventListener(
-      'change',
-      updateLineupDriverOptions
-    );
-
-  });
-
-
-  updateLineupDriverOptions();
-
-});
-</script>
+<script src="/js/season-lineup-select.js" defer></script>
 
 
 <script src="/js/season-wizard.js" defer></script>

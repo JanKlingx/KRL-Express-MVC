@@ -12,12 +12,12 @@ const { selectWeekendReserves } = require('../services/raceLineup');
 const { seasonLineupIsProtected } = require('../services/seasonDriverStints');
 const root = path.join(__dirname, '..');
 
-test('Aktuelle Ersatzfahrer brauchen Ersatzrang; historische Einsätze akzeptieren F1-Stammränge anderer Ligen', () => {
+test('Ersatzfahrerpool akzeptiert Ersatzrang und Stammränge anderer Ligen', () => {
   const regular = { id: 1, roleF1Sunday: true };
   assert.equal(policy.hasF1View({ viewF1: true }), true);
-  assert.equal(policy.reserveEligible(regular, false), false);
+  assert.equal(policy.reserveEligible(regular, false), true);
   assert.equal(policy.reserveEligible(regular, true), true);
-  assert.throws(() => selectWeekendReserves([regular], [], { d1: {} }), /F1 Ersatz/);
+  assert.deepEqual(selectWeekendReserves([regular], [], { d1: {} }), [regular]);
   assert.deepEqual(selectWeekendReserves([regular], [], { d1: {} }, true), [regular]);
   assert.throws(() => selectWeekendReserves([{ id: 2, viewLmu: true }], [], { d2: {} }, true), /F1-Rang/);
   assert.equal(policy.reserveEligible({ roleF1Sunday: true, roleF1Reserve: true }, false), true);
@@ -39,7 +39,7 @@ test('Saison-Assistent gibt nur erreichte Schritte und Abschluss nach vollständ
   assert.equal(wizardState(data).current, 8);
 });
 
-test('Aktivierung vergibt nur eigenen Ligastammrang und bewahrt weitere Stamm- und Ersatzränge', async (t) => {
+test('Aktivierung vergibt Ligastammrang, entfernt Ersatzrang und bewahrt andere Stammränge', async (t) => {
   const transaction = { LOCK: { UPDATE: 'update' } };
   const rows = [
     { id: 1, roleF1Sunday: false, roleF1Friday: true, roleF1Reserve: true },
@@ -51,7 +51,7 @@ test('Aktivierung vergibt nur eigenen Ligastammrang und bewahrt weitere Stamm- u
   await policy.syncActivatedSeasonRanks({ id: 10, leagueType: 'f1', scopeSlug: 'sonntag', status: 'historical', isPublished: true });
   assert.equal(rows[0].roleF1Sunday, false);
   await policy.syncActivatedSeasonRanks({ id: 10, leagueType: 'f1', scopeSlug: 'sonntag', status: 'active', isPublished: true });
-  assert.equal(rows[0].roleF1Sunday, true); assert.equal(rows[0].roleF1Friday, true); assert.equal(rows[0].roleF1Reserve, true);
+  assert.equal(rows[0].roleF1Sunday, true); assert.equal(rows[0].roleF1Friday, true); assert.equal(rows[0].roleF1Reserve, false);
   assert.equal(rows[1].roleF1Sunday, false); assert.equal(rows[1].roleFormerF1, true);
   assert.equal(policy.seasonRankLabel({ name: 'Saison 10', status: 'historical', scopeSlug: 'sonntag' }), 'Stamm Sonntag · Saison 10 (historisch)');
 });

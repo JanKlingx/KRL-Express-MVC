@@ -104,8 +104,8 @@ Controller enthalten die Request-Logik, Models verwalten die Datenbank, Routes o
 
 ### Fahrerpflege und Rennwochenende
 
-- **Fahrer anlegen:** `/admin/drivers/new` – Name, Sichten (F1, LMU, ehemaliger Formel-1-Fahrer), Ränge und Profilangaben.
-- **Fahrer bearbeiten:** direkt in `/admin/drivers` suchen und den Eintrag öffnen. Nicht ausgewählte bestehende Sichten bleiben erhalten. Stammränge werden aus Saisonzuordnungen vergeben und über Fahrerwechsel geändert. F1 Ersatz kann in der Fahrerpflege vergeben werden; der Ausstieg läuft über Fahrerwechsel.
+- **Fahrerpflege:** `/admin/drivers` – bestehende Fahrer bearbeiten oder über „Neu“ anlegen. Neue Fahrer mit F1-Sicht starten automatisch als F1 Ersatz; Stammränge werden aus Saisonplätzen vergeben.
+- **Fahrer bearbeiten:** direkt in `/admin/drivers` suchen und den Eintrag öffnen. Nicht ausgewählte bestehende Sichten bleiben erhalten. Stammränge werden aus Saisonzuordnungen vergeben und über Fahrerwechsel geändert. F1-Ränge werden aus Stammplätzen und Ersatzfahrereinsätzen vergeben; der Ausstieg läuft über Fahrerwechsel.
 - **Plattformpflege:** `/admin/platforms` – Name und PNG/JPG/WebP-Logo, Upload per Drag-and-drop. Bestehende Plattformnamen werden beim Serverstart übernommen. Bereits zugeordnete Plattformen können nicht gelöscht werden.
 - **Rennwochenende:** Folgeschritte werden erst nach vollständigen Voraussetzungen geöffnet. Der Plus-Knopf fügt Ersatzfahrer hinzu, X entfernt sie. Bestätigte Zuordnungen bleiben bis zur ausdrücklichen Bearbeitung geschützt.
 - **Reset:** Schritt 3 löscht Haupt-/Sprintergebnisse. Schritt 2 setzt zusätzlich Anwesenheit zurück; Schritt 1 zusätzlich die Aufstellung. Die Strafkartei bleibt erhalten. Bei geänderter Anwesenheit werden Ergebnisse zur erneuten Eingabe zurückgesetzt. Die Oberfläche nennt diese Auswirkungen vor der Aktion.
@@ -124,10 +124,10 @@ Nach dem Aktualisieren `npm install` ausführen und den Server neu starten. Neue
 ### Geführter Saison-Assistent und F1-Ränge
 
 - Der Assistent beginnt mit der Liga, zeigt anschließend jeweils den nächsten erreichbaren Schritt und behält gespeicherte Saisonangaben. Erreichte Schritte können über die Navigation erneut geöffnet werden; Saisonname, Farbe und Spiel lassen sich direkt ändern. Die Abschlussübersicht erscheint nach vollständiger Zuordnung aller gewählten Stammfahrer.
-- In der Fahrerauswahl werden Fahrer mit F1-Sicht (einschließlich bisheriger F1-Ränge) nach Namen oder Alias gesucht. Hier ausschließlich Stammfahrer auswählen und jedem ein Cockpit zuweisen; nicht zugeordnete Fahrer werden nicht mehr automatisch Ersatzfahrer.
-- Beim Abschluss einer aktuellen Saison werden die aktuellen Stammränge der jeweiligen Liga aus deren Stammplätzen übernommen. Andere Ligaränge und der zentrale Ersatzrang bleiben erhalten. Historische Saisons ändern keine aktuellen Ränge; im Fahrerprofil werden Stammplätze mit Liga, Saison und Rundengültigkeit angezeigt.
+- In der aktuellen Fahrerauswahl werden F1 Ersatzfahrer nach Namen oder Alias gesucht; bereits ausgewählte Saisonfahrer bleiben erreichbar. Historische Saisons können weiterhin Fahrer mit F1-Sicht auswählen. Hier ausschließlich Stammfahrer auswählen und jedem ein Cockpit zuweisen; nicht zugeordnete Fahrer werden nicht mehr automatisch Ersatzfahrer.
+- Beim Abschluss einer aktuellen Saison werden die aktuellen Stammränge der jeweiligen Liga aus deren Stammplätzen übernommen. Andere Stammränge bleiben erhalten, der bisherige Ersatzrang entfällt bei der Stammplatzvergabe. Historische Saisons ändern keine aktuellen Ränge; im Fahrerprofil werden Stammplätze mit Liga, Saison und Rundengültigkeit angezeigt.
 - Neue historische Saisonentwürfe sind bis zur Veröffentlichung bzw. bis zum Vorliegen operativer Daten bearbeitbar. Bestehende Saisonhistorien bleiben geschützt.
-- Aktuelle Rennwochenenden: Ersatzfahrer benötigen `F1 Ersatz`, auch Stammfahrer einer anderen Liga. Historische Rennwochenenden: jeder Fahrer mit F1-Rang kann als Ersatzfahrer gewählt werden, sofern er im selben Rennen kein Stammcockpit belegt. Die Wertung folgt der Rolle des konkreten Einsatzes.
+- Aktuelle Rennwochenenden: Als Ersatz sind F1 Ersatzfahrer sowie Stammfahrer anderer Ligen auswählbar. Beim Hinzufügen als Ersatzfahrer erhält ein Stammfahrer zusätzlich F1 Ersatz. Historische Rennwochenenden: jeder Fahrer mit F1-Rang kann als Ersatzfahrer gewählt werden, sofern er im selben Rennen kein Stammcockpit belegt. Die Wertung folgt der Rolle des konkreten Einsatzes.
 - Die F1-Strafpunktgrenze beträgt fest 12 SP in allen Ligen. Die Pflege unterschiedlicher Grenzwerte entfällt; die Veröffentlichungssteuerung der Strafkartei bleibt bestehen.
 
 ### Kalender- und Teamgruppenpflege
@@ -138,3 +138,11 @@ Nach dem Aktualisieren `npm install` ausführen und den Server neu starten. Neue
 - **Historische Ergebnisse:** Existiert eine Rennaufstellung, gelten deren bestätigte Anwesenheit und Einsatzteams auch für Ersatzfahrer. Historische Rennen ohne Rennaufstellung behalten die bisherige manuelle Ergebnispflege.
 - **Unser Team:** Auf der Startseite „Bearbeiten“ öffnen. Erst dann erscheinen alle Pflegekästen. Gruppen mit Pfeilen anordnen und die Reihenfolge speichern; Gruppen direkt hinzufügen, bearbeiten und löschen. Pro Gruppe Mitglieder über die Plus-Kachel hinzufügen, per Stift Funktion, Beschreibung und Bild pflegen (auch Drag-and-drop) oder per Papierkorb nur aus der Gruppe entfernen. Fahrerprofile bleiben erhalten. Die bisherigen Team-Transaktionen verweisen auf diesen Bearbeitungsmodus.
 - Nach dem Aktualisieren den Server neu starten. Die bestehende Schema-Aktualisierung ergänzt automatisch das optionale Feld `krl_team_assignments.description`.
+
+### Korrektur von Kalenderformularen und F1-Standardrängen
+
+- Kalender-, Datums- und Cockpitfelder verwenden vorangestellte Buchstaben in ihren Formularschlüsseln, damit Express numerische Datenbank-IDs nicht als Arraypositionen verändert. Verschieben, Speichern von Terminen und Cockpitzuordnung behalten damit ihre IDs.
+- Testtage und offizielle Rennen werden beim Saisonimport getrennt zugeordnet. Fehlende, eindeutig ergänzbare Termine werden angelegt; offene Haupt- und Sprintergebnisse erhalten das geänderte Datum. Ungültige Daten lassen die übrigen Eingaben erhalten.
+- Beim Serverstart werden bisherige F1-Rangflags mit den Stammplätzen aktiver Saisons abgeglichen. Unbelegte Stammflags werden zu F1 Ersatz; echte Stammplätze und Ehemalige bleiben entsprechend erhalten. Die Sichtbarkeit einer aktiven Saison beeinflusst ihren Stammrang nicht.
+- Neue Ersatzteilnahmen erhalten einen Zeitraum ab der ersten erfassten Runde je Saison/Liga: davor DNA, bei späterem Nichteinsatz DNS. Frühere Ergebnisse werden nicht verändert. Saisonaufstellung und Fahrerwechsel vergeben Stammränge; das manuelle Vergeben von F1-Rängen entfällt in der Fahrerpflege.
+- Den Server nach dem Pull neu starten, damit der Abgleich bestehender Ränge ausgeführt wird. Keine neue Datenbankspalte erforderlich.

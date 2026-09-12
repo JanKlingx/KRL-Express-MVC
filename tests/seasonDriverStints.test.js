@@ -71,7 +71,7 @@ test('Fahrerwechsel setzt Stamm-, Ersatz- und Ehemaligen-Ränge automatisch', ()
   };
   const promoted = driverRoleValuesAfterPromotion(reserve, 'sonntag');
   assert.equal(promoted.roleF1Sunday, true);
-  assert.equal(promoted.roleF1Reserve, true);
+  assert.equal(promoted.roleF1Reserve, false);
   assert.equal(promoted.roleFormerF1, false);
 
   const releasedToReserve = driverRoleValuesAfterRelease(promoted, 'sonntag', ['freitag', 'samstag']);

@@ -130,7 +130,7 @@ async function findRaceEvent(season, round, transaction) {
   if (linked[0]) return linked[0];
 
   const fallback = await RaceEvent.findAll({
-    where: { SeasonId: season.id, sortOrder: eventSortOrder(round) },
+    where: { SeasonId: season.id, sortOrder: eventSortOrder(round), isTestDay: Boolean(round.isTestDay), [Op.or]: [{ F1CalendarRoundId: null }, { F1CalendarRoundId: round.id }] },
     order: [["id", "ASC"]],
     transaction,
   });
@@ -273,7 +273,8 @@ async function linkExistingSeasonCalendar({ season, league, calendarId, transact
   let unmatched = 0;
   for (const round of calendar.rounds) {
     const matches = events.filter((event) =>
-      Number(event.sortOrder) === roundNumber(round) &&
+      Boolean(event.isTestDay) === Boolean(round.isTestDay) &&
+      Number(event.sortOrder) === (round.isTestDay ? eventSortOrder(round) : roundNumber(round)) &&
       Number(event.F1TrackId) === Number(round.F1TrackId));
     if (matches.length > 1) {
       throw new Error(`R${roundNumber(round)} besitzt mehrere RaceEvents mit derselben Strecke.`);
@@ -308,6 +309,7 @@ async function syncSeasonDates({ season, league, calendarId, dates, transaction 
     return { calendar, created: calendar.rounds.length, updated: 0, skippedCompleted: 0, unmatched: 0 };
   }
 
+  let created = 0;
   let updated = 0;
   let skippedCompleted = 0;
   let unmatched = 0;
@@ -315,7 +317,8 @@ async function syncSeasonDates({ season, league, calendarId, dates, transaction 
     const startsAt = dateAndLeagueTime(dates[round.id], league);
     const linked = events.filter((event) => Number(event.F1CalendarRoundId) === Number(round.id));
     const exact = events.filter((event) =>
-      Number(event.sortOrder) === roundNumber(round) &&
+      Boolean(event.isTestDay) === Boolean(round.isTestDay) &&
+      Number(event.sortOrder) === (round.isTestDay ? eventSortOrder(round) : roundNumber(round)) &&
       Number(event.F1TrackId) === Number(round.F1TrackId));
     const candidates = linked.length ? linked : exact;
     if (candidates.length > 1) {
@@ -323,7 +326,10 @@ async function syncSeasonDates({ season, league, calendarId, dates, transaction 
     }
     const event = candidates[0] || null;
     if (!event) {
-      unmatched += 1;
+      const conflicting = events.some((row) => Boolean(row.isTestDay) === Boolean(round.isTestDay) && Number(row.sortOrder) === eventSortOrder(round));
+      if (conflicting) throw new Error(`Der bestehende Termin für R${roundNumber(round)} passt nicht zur gewählten Kalenderstrecke. Bitte zuerst den Saisonkalender prüfen.`);
+      events.push(await syncSeasonRound({ season, league, round, date: dates[round.id], transaction }));
+      created += 1;
       continue;
     }
     if (event.hasLocalOverride || await weekendHasEntries(season, league, round, event, transaction)) {
@@ -338,9 +344,13 @@ async function syncSeasonDates({ season, league, calendarId, dates, transaction 
       previousStartsAt: dateChanged ? event.startsAt : event.previousStartsAt,
       calendarChanged: Boolean(event.calendarChanged || dateChanged),
     }, { transaction });
+    if (!round.isTestDay) {
+      const results = await GrandPrixResult.findAll({ where: { SeasonId: season.id, LeagueId: league.id, sortOrder: event.sortOrder, raceType: { [Op.in]: ["main", "sprint"] } }, transaction });
+      for (const result of results) await result.update({ raceDate: dates[round.id] }, { transaction });
+    }
     updated += 1;
   }
-  return { calendar, created: 0, updated, skippedCompleted, unmatched };
+  return { calendar, created, updated, skippedCompleted, unmatched };
 }
 
 async function syncLinkedRaceEvents(round, transaction) {
