@@ -12107,3 +12107,40 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
   .driver-change-carry-list table { width: 100%; table-layout: fixed; }
   .driver-change-carry-list th, .driver-change-carry-list td { padding: .5rem .25rem; white-space: normal; overflow-wrap: anywhere; }
 }
+
+/* Öffentliche Rennwochenenden: gespeicherte Planung und Anwesenheit je Rennen. */
+.public-weekend [hidden] { display: none !important; }
+.public-weekend-nav { display: flex; justify-content: center; align-items: end; gap: .75rem; margin-bottom: 1.5rem; }
+.public-weekend-nav label { display: grid; gap: .4rem; width: min(32rem, 70%); }
+.public-weekend-nav select { width: 100%; min-width: 0; padding: .75rem; background: #101d22; border: 1px solid #40585f; border-radius: .5rem; color: #fff; font: inherit; }
+.public-weekend h3, .public-weekend h4, .public-weekend article > p { text-align: center; }
+.public-weekend h4 { background: #1ac4c8; color: #041418; padding: .65rem; margin: 1.25rem 0 .6rem; }
+.public-reserve-pool { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: .4rem; }
+.public-lineup-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.public-lineup-table th, .public-lineup-table td { border: 1px solid #40585f; text-align: center; vertical-align: middle; padding: .45rem; overflow-wrap: anywhere; }
+.public-lineup-table thead { background: #1ac4c8; color: #041418; }
+.public-lineup-table th img { display: block; width: 100%; max-width: 110px; height: 48px; object-fit: contain; margin: 0 auto .4rem; }
+.public-driver-status { display: grid; gap: .25rem; padding: .55rem .4rem; border-radius: .2rem; text-align: center; overflow-wrap: anywhere; background: #24363d; color: #fff; }
+.public-driver-status + .public-driver-status { margin-top: .35rem; }
+.public-driver-status small { font-size: .75rem; line-height: 1.35; }
+.public-driver-status[data-status=angefragt] { background: #00dfe5; color: #002021; }
+.public-driver-status[data-status=abgemeldet] { background: #eb342f; color: #160100; }
+.public-driver-status[data-status=unsicher] { background: #ffde00; color: #261e00; }
+.public-driver-status[data-status=anwesend] { background: #21eb26; color: #032704; }
+.public-driver-status[data-status=auf_abruf] { background: #149918; color: #fff; }
+.public-driver-status[data-status=rennsperre] { background: #db36e8; color: #27002a; }
+.public-driver-status[data-status=unabgemeldet], .public-driver-status[data-status=fehlende_rueckmeldung_unsicher] { background: #3c78d8; color: #fff; }
+.public-driver-status[data-status=zu_spaet_abgemeldet], .public-driver-status[data-status=rueckmeldung_unsicher] { background: #8e7cc3; color: #100925; }
+.public-driver-status[data-status=zu_spaet_vorbesprechung] { background: #b36bff; color: #17002e; }
+.public-weekend-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; margin-top: 1rem; }
+.public-weekend-legend .public-driver-status { margin: 0; font-size: .75rem; }
+.f1-race-statistics th, .f1-race-statistics td, .season-sheet-table th, .season-sheet-table td { text-align: center; vertical-align: middle; }
+.season-sheet-table .sheet-driver, .season-sheet-table .sheet-team { text-align: center; }
+.season-sheet-table td img, .f1-race-statistics td img { margin-inline: auto; }
+@media (max-width: 650px) {
+  .public-lineup-table, .public-lineup-table tbody, .public-lineup-table tr { display: block; width: 100%; }
+  .public-lineup-table thead { display: none; }
+  .public-lineup-table tr { margin-bottom: 1rem; }
+  .public-lineup-table th, .public-lineup-table td { display: block; }
+  .public-lineup-table td::before { content: attr(data-label); display: block; color: #bbd0d9; margin-bottom: .4rem; font-size: .8rem; }
+}

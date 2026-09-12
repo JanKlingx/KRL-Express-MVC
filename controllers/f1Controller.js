@@ -1,3 +1,4 @@
+const { calendarEventForRace, isTestDayResult, buildPublicWeekends } = require("../services/publicRaceWeekend");
 const { Op } = require("sequelize");
 
 const {
@@ -250,6 +251,10 @@ async function loadLeagueData(slug, requestedSeasonId) {
       },
     }),
   ]);
+
+  // Test days never contribute to results, standings or weekend snapshots.
+  const competitionRaces = gpResults.filter((race) => !isTestDayResult(race, activeCalendar, gpResults));
+  gpResults.splice(0, gpResults.length, ...competitionRaces);
 
   const completedMainRound =
     gpResults
@@ -698,65 +703,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
     );
   }
 
-  function calendarForRace(
-    race,
-  ) {
-    const exactMatch =
-      plainCalendar.find(
-        (event) =>
-          Number(
-            event.sortOrder,
-          ) ===
-            Number(
-              race.sortOrder,
-            ) &&
-          String(
-            event.circuit || "",
-          )
-            .trim()
-            .toLowerCase() ===
-            String(
-              race.circuit || "",
-            )
-              .trim()
-              .toLowerCase(),
-      );
-
-    if (exactMatch) {
-      return exactMatch;
-    }
-
-    const circuitMatch =
-      plainCalendar.find(
-        (event) =>
-          String(
-            event.circuit || "",
-          )
-            .trim()
-            .toLowerCase() ===
-          String(
-            race.circuit || "",
-          )
-            .trim()
-            .toLowerCase(),
-      );
-
-    if (circuitMatch) {
-      return circuitMatch;
-    }
-
-    return (
-      plainCalendar.find(
-        (event) =>
-          Number(
-            event.sortOrder,
-          ) ===
-          Number(
-            race.sortOrder,
-          ),
-      ) || null
-    );
-  }
+  function calendarForRace(race) { return calendarEventForRace(race, plainCalendar, gpResults); }
 
   const decoratedGpResults =
     gpResults.map(
@@ -1465,6 +1412,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
     selectedSeason,
 
     publicPenaltyLedger,
+    publicWeekends: buildPublicWeekends({ races: gpResults, entries: raceLineupEntries, teams, stints: seasonStructure.stints, calendar: activeCalendar }),
 
     ...standingsData,
   };

@@ -63,8 +63,7 @@ test('Öffentliche F1-Teamkarte verwendet Teamfarbe, Logo-Wasserzeichen und link
   assert.match(html, /Fahrer A/);
   assert.match(html, /Fahrer B/);
   assert.doesNotMatch(html, /f1-driver-dot/);
-  assert.match(html, /data-png-title="Freitagsliga · Fahrer-WM"/);
-  assert.match(html, /data-png-title="Freitagsliga · GP-Results"/);
+  assert.doesNotMatch(html, /data-png-export|standings-png-download/);
   assert.doesNotMatch(html, /Mercedes/);
   assert.doesNotMatch(html, /Fahrer 1:/);
   assert.doesNotMatch(html, /· PC/);
@@ -104,7 +103,7 @@ test('LMU-Fahrerfeld verwendet das zentrale Team und zeigt persönliche Autologo
   assert.match(html, /roster-logo-fallback">ME</);
   assert.match(html, /src="\/uploads\/porsche.png"/);
   assert.doesNotMatch(html, />Porsche 963</);
-  assert.match(html, /data-png-title="LMU · Fahrer-WM"/);
+  assert.doesNotMatch(html, /data-png-export/);
 });
 
 test('WDL-Kachel kombiniert Liga- und zentrales Teamlogo', async () => {
@@ -119,8 +118,7 @@ test('WDL-Kachel kombiniert Liga- und zentrales Teamlogo', async () => {
   assert.match(html, /src="\/uploads\/mercedes\.png"/);
   assert.match(html, /F1-Team: Mercedes/);
   assert.match(html, /class="league-hero-logo" src="\/uploads\/wdl.png"/);
-  assert.match(html, /data-png-title="Wettkampf der Ligen · Liga-Standings"/);
-  assert.match(html, /data-png-title="Wettkampf der Ligen · Results"/);
+  assert.doesNotMatch(html, /data-png-export/);
 });
 
 test('KRL Icons besitzen eine eigene öffentliche Seite', async () => {
