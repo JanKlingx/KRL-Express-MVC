@@ -157,7 +157,7 @@ exports.saveStructure = async (req, res) => {
       const ordered = orderedRounds(rounds, req.body.roundIds);
       await protectCompleted(rounds, transaction);
       for (const round of ordered) {
-        const values = req.body.rounds?.[round.id];
+        const values = require("../services/formRecords").formRecord(req.body.rounds, round.id);
         if (!values) throw new Error("Ein Kalendereintrag fehlt. Bitte neu laden.");
         const track = await validateTrack(values.F1TrackId, transaction);
         const isTestDay = values.isTestDay === "on";

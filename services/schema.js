@@ -1063,16 +1063,6 @@ async function ensureSchema() {
     await seedSeasonDriverStints(seasonId);
   }
 
-  await Driver.update({ roleF1Friday: true }, { where: { f1Role: "friday" } });
-  await Driver.update(
-    { roleF1Saturday: true },
-    { where: { f1Role: "saturday" } },
-  );
-  await Driver.update({ roleF1Sunday: true }, { where: { f1Role: "sunday" } });
-  await Driver.update(
-    { roleF1Reserve: true },
-    { where: { f1Role: "reserve" } },
-  );
   // Alte Tagesränge einmalig zusammenführen und leeren, damit ein später
   // entfernter zentraler Rang beim nächsten Start nicht wieder aktiviert wird.
   await sequelize.transaction(async (transaction) => {
@@ -1095,6 +1085,7 @@ async function ensureSchema() {
   await Driver.update({ viewF1: true }, { where: { [Op.or]: [{ roleF1Friday: true }, { roleF1Saturday: true }, { roleF1Sunday: true }, { roleF1Reserve: true }] } });
   await Driver.update({ viewLmu: true }, { where: { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }, { roleFormerLmu: true }] } });
   await Driver.update({ viewFormerF1: true }, { where: { roleFormerF1: true } });
+  await require('./f1DriverPolicy').reconcileF1Ranks();
 
   const f1Rosters = await TeamRoster.findAll({
     where: { discipline: "f1" },

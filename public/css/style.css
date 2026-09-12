@@ -12067,3 +12067,8 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .setup-driver-card[hidden] { display: none; }
 
 .team-member-description { white-space: pre-wrap; overflow-wrap: anywhere; margin: .75rem 0; }
+
+.season-setup-shell [hidden], .f1-calendar-workspace [hidden] { display: none !important; }
+.setup-calendar-table input[aria-invalid="true"] { border: 2px solid #ff7272; }
+.setup-calendar-table td { vertical-align: middle; }
+.setup-calendar-table input[type="date"] { min-width: 9rem; max-width: 100%; }

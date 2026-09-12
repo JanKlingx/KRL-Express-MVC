@@ -88,7 +88,6 @@ exports.dashboard = async (req, res) => {
     return result;
   }, []);
   const progressModules = [
-    ['driverCreate', { group: 'Stammdaten', href: '/admin/drivers/new', title: 'Fahrer anlegen', description: 'Name, Sichten und Angaben Schritt für Schritt pflegen.' }],
     ['teamGroups', { group: 'Unser-Team-Stammdaten', href: '/?editTeam=1#team', title: 'Unser Team bearbeiten', description: 'Gruppen auf der Startseite hinzufügen, bearbeiten und löschen.' }],
     ['f1Calendars', { group: 'Formel 1 Stammdaten', href: '/admin/f1-calendars', title: 'Zentrale F1-Rennkalender', description: 'Runden, Strecken, Sprint und Testtage einmal für Freitag, Samstag und Sonntag pflegen.' }],
     ['f1Games', { group: 'Formel 1 Stammdaten', href: '/admin/f1-games', title: 'F1-Spiele', description: 'Spielname, Logo, Aktivstatus und Reihenfolge zentral für alle F1-Saisons pflegen.' }],

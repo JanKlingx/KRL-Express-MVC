@@ -29,7 +29,7 @@ function driverRoleValuesAfterPromotion(driver, leagueSlug) {
   if (!field) throw new Error('Die F1-Liga ist ungültig.');
   return normalizedF1RoleValues({
     roleF1Friday: Boolean(driver.roleF1Friday), roleF1Saturday: Boolean(driver.roleF1Saturday),
-    roleF1Sunday: Boolean(driver.roleF1Sunday), roleF1Reserve: Boolean(driver.roleF1Reserve),
+    roleF1Sunday: Boolean(driver.roleF1Sunday), roleF1Reserve: false,
     [field]: true
   });
 }

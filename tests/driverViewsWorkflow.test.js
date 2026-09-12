@@ -92,13 +92,12 @@ test('Fahrer-Wizard zeigt Name, Sichten, Ränge und nur ausgewählte Profilfelde
     assert.equal(d.querySelector('[data-driver-view-picker]').hidden, false);
     next(); assert.equal(d.querySelector('[data-view-error]').hidden, false);
     const f1 = d.querySelector('[name=driverViews][value=f1]'); f1.checked = true; f1.dispatchEvent(new dom.window.Event('change'));
-    next(); assert.equal(d.querySelector('[name=roleF1Reserve]').disabled, false);
+    next(); assert.equal(d.querySelector('[name=roleF1Reserve]'), null);
     assert.equal(d.querySelector('[name=lmuDisplayName]').disabled, true);
-    d.querySelector('[name=roleF1Reserve]').checked = true; next();
     d.querySelector('[name=PlatformId]').value = '1';
     const data = new dom.window.FormData(d.querySelector('form'));
     assert.equal(data.get('PlatformId'), '1'); assert.equal(data.has('lmuDisplayName'), false);
-    assert.equal(data.get('roleF1Reserve'), 'on');
+    assert.equal(data.has('roleF1Reserve'), false);
   } finally { dom.window.close(); }
 });
 

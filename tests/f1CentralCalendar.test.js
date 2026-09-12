@@ -25,7 +25,7 @@ test("Saisonmapping ist transaktional und aktualisiert statt blind zu dupliziere
   const service = read("services/f1Calendar.js");
   assert.match(setup, /sequelize\.transaction\(async \(transaction\) =>\s*syncSeasonDates/);
   assert.match(service, /F1CalendarRoundId: round\.id/);
-  assert.match(service, /where: \{ SeasonId: season\.id, sortOrder: eventSortOrder\(round\) \}/);
+  assert.match(service, /where: \{ SeasonId: season\.id, sortOrder: eventSortOrder\(round\), isTestDay: Boolean\(round\.isTestDay\)/);
   assert.doesNotMatch(service, /sprint\.destroy/);
 });
 
@@ -41,7 +41,7 @@ test("zentrale Adminpflege rendert Strecke, Land, Flagge und Sprint kompakt", as
   assert.doesNotMatch(html, /name="roundNumber"/);
   assert.match(html, /Australien · Melbourne/);
   assert.match(html, /\/uploads\/au\.png/);
-  assert.match(html, /name="rounds\[9\]\[hasSprint\]"[^>]*checked/);
+  assert.match(html, /name="rounds\[r9\]\[hasSprint\]"[^>]*checked/);
 });
 
 test("Testtage besitzen keine sichtbare Rennnummer und werden nicht als Runde 0 ausgegeben", async () => {
@@ -177,7 +177,7 @@ test("bestehende Saisons werden sicher verknüpft und nicht neu aufgebaut", () =
   assert.match(setup, /exports\.selectCentralCalendar/);
   assert.match(setup, /sequelize\.transaction\(async \(transaction\)/);
   assert.match(service, /linkExistingSeasonCalendar/);
-  assert.match(service, /Number\(event\.sortOrder\) === roundNumber\(round\)/);
+  assert.match(service, /Boolean\(event\.isTestDay\) === Boolean\(round\.isTestDay\)/);
   assert.match(service, /Number\(event\.F1TrackId\) === Number\(round\.F1TrackId\)/);
   assert.doesNotMatch(setup, /createCentralCalendarFromSeason/);
   assert.doesNotMatch(view, /Vorlagenname|Legacy-Kalendereditor/);
@@ -187,7 +187,7 @@ test("bestehende Saisons werden sicher verknüpft und nicht neu aufgebaut", () =
   );
   assert.doesNotMatch(existingSync, /GrandPrixResult\.(create|update|destroy)/);
   assert.doesNotMatch(existingSync, /RaceEvent\.(create|destroy)/);
-  assert.doesNotMatch(existingSync, /F1TrackId:\s*round\.F1TrackId|circuit:|title:|sortOrder:/);
+  assert.doesNotMatch(existingSync, /F1TrackId:\s*round\.F1TrackId|circuit:|title:/);
   assert.match(existingSync, /skippedCompleted \+= 1/);
 });
 
@@ -206,7 +206,7 @@ test("Kalenderschritt besitzt nur Datum als editierbaren Rundeneingang", () => {
   const view = read("views/admin/season-setup.ejs");
   const service = read("services/f1Calendar.js");
   assert.match(view, /class="setup-calendar-table"/);
-  assert.match(view, /name="dates\[<%= round\.id %>\]"/);
+  assert.match(view, /name="dates\[r<%= round\.id %>\]"/);
   assert.doesNotMatch(view, /type="time"/);
   assert.doesNotMatch(view, /name="centralCalendar"/);
   assert.doesNotMatch(view, /name="F1TrackId"/);

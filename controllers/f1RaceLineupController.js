@@ -1000,6 +1000,7 @@ if (
     }
     await sequelize.transaction(async (transaction) => {
       await lockLineup(race, existingEntries, transaction);
+      await require('../services/reserveParticipation').registerReserveParticipation(race, records, historical, transaction);
       const currentByDriver = new Map(
         existingEntries.map((entry) => [Number(entry.DriverId), entry]),
       );

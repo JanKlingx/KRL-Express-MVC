@@ -39,7 +39,7 @@ const contentSecurityDirectives = {
   scriptSrc: ["'self'"],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
-  imgSrc: ["'self'", 'data:'],
+  imgSrc: ["'self'", 'data:', 'blob:'],
   connectSrc: ["'self'"],
   frameSrc: ["'self'"],
   objectSrc: ["'none'"],

@@ -158,49 +158,17 @@ async function prepareDriver(values, body, existingDriver) {
     };
     throw warning;
   }
-  if (
-    !existingDriver?.id && [
-      "roleF1Friday",
-      "roleF1Saturday",
-      "roleF1Sunday",
-      "roleF1Reserve",
-    ].some((name) => Object.prototype.hasOwnProperty.call(values, name))
-  ) {
-    values.roleF1Reserve = Boolean(values.roleF1Reserve);
-    values.roleF1ReserveFriday = false;
-    values.roleF1ReserveSaturday = false;
-    values.roleF1ReserveSunday = false;
-    const regularSlugs = [
-      ["freitag", values.roleF1Friday],
-      ["samstag", values.roleF1Saturday],
-      ["sonntag", values.roleF1Sunday],
-    ]
-      .filter(([, enabled]) => enabled)
-      .map(([slug]) => slug);
-    values.f1Role = values.roleF1Reserve
-      ? "reserve"
-      : regularSlugs.length === 1
-        ? { freitag: "friday", samstag: "saturday", sonntag: "sunday" }[
-            regularSlugs[0]
-          ]
-        : null;
-    if (regularSlugs.length === 1) {
-      const slug = regularSlugs[0];
-      const league = await models.League.findOne({
-        where: { slug, type: "f1" },
-      });
-      values.LeagueId = league?.id || null;
-    } else if (!values.roleLmuRegular && !values.roleLmuReserve)
-      values.LeagueId = null;
-  }
+  const rankFields = ['roleF1Friday', 'roleF1Saturday', 'roleF1Sunday', 'roleFormerF1', 'roleF1ReserveFriday', 'roleF1ReserveSaturday', 'roleF1ReserveSunday', 'f1Role', 'roleF1Reserve'];
   if (existingDriver?.id) {
-    for (const field of ['roleF1Friday', 'roleF1Saturday', 'roleF1Sunday', 'roleFormerF1', 'roleF1ReserveFriday', 'roleF1ReserveSaturday', 'roleF1ReserveSunday', 'f1Role']) {
-      delete values[field];
+    for (const field of rankFields) delete values[field];
+    // Activating F1 for an existing LMU-only profile starts it in the reserve pool.
+    if (values.viewF1 && !require('./f1DriverPolicy').hasF1View(existingDriver)) {
+      values.roleF1Reserve = true; values.f1Role = 'reserve';
     }
-  }
-  if (Object.hasOwn(values, 'roleF1Reserve')) {
-    if (existingDriver?.roleF1Reserve && !values.roleF1Reserve) throw new Error('Ersatzfahrer-Ausstieg bitte über Fahrerwechsel erfassen, damit die Saisonhistorie erhalten bleibt.');
-    if (values.roleF1Reserve) { values.roleFormerF1 = false; values.f1Role = 'reserve'; }
+  } else {
+    for (const field of rankFields) values[field] = field === 'f1Role' ? null : false;
+    if (values.viewF1) { values.roleF1Reserve = true; values.f1Role = 'reserve'; }
+    else if (values.viewFormerF1) values.roleFormerF1 = true;
   }
   if (values.TeamId) {
     const team = await models.Team.findByPk(values.TeamId);
@@ -1456,7 +1424,6 @@ module.exports = {
           entry?.roleLmuReserve ||
           entry?.roleFormerLmu,
       }),
-      checkbox("roleF1Reserve", "Rang: F1 Ersatz"),
       checkbox("roleLmuRegular", "Rang: LMU Stammfahrer"),
       checkbox("roleLmuReserve", "Rang: LMU Ersatzfahrer"),
       checkbox("roleFormerLmu", "Rang: Ehemaliger LMU-Fahrer"),

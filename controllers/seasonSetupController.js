@@ -283,7 +283,7 @@ async function loadData(query = {}) {
     f1Teams,
     carProfiles,
     tracks,
-    eligibleDrivers,
+    eligibleDrivers: eligibleDrivers.filter((driver) => require('../services/f1DriverPolicy').seasonDriverEligible(driver, selectedSeason, structure.allDrivers.map((row) => Number(row.id)))),
     structure,
     driverRankFilter,
     f1Games,
@@ -609,7 +609,7 @@ exports.saveCentralCalendar = async (req, res) => {
     }
     const calendarId = Number(season.F1CalendarId || 0);
     if (!calendarId) throw new Error("Bitte zuerst in Schritt 2 einen zentralen F1-Kalender auswählen.");
-    const dates = req.body.dates && typeof req.body.dates === "object" ? req.body.dates : {};
+    const dates = require("../services/formRecords").dateRecords(req.body.dates);
     const result = await sequelize.transaction(async (transaction) =>
       syncSeasonDates({ season, league, calendarId, dates, transaction }),
     );
@@ -620,11 +620,11 @@ exports.saveCentralCalendar = async (req, res) => {
     ].filter(Boolean);
     req.session.flash = {
       type: "success",
-      message: `${result.calendar.name}: ${result.created || result.updated} Termine wurden transaktional gespeichert.${warnings.length ? ` ${warnings.join("; ")}.` : ""}`,
+      message: `${result.calendar.name}: ${Number(result.created || 0) + Number(result.updated || 0)} Termine wurden transaktional gespeichert.${warnings.length ? ` ${warnings.join("; ")}.` : ""}`,
     };
   } catch (error) {
     if (season) {
-      const dates = Object.fromEntries(Object.entries(req.body.dates || {}).filter(([key, value]) => /^\d+$/.test(key) && typeof value === "string").map(([key, value]) => [key, error.dateErrors?.[key] ? "" : value.slice(0, 10)]));
+      const dates = Object.fromEntries(Object.entries(require("../services/formRecords").dateRecords(req.body.dates)).filter(([key, value]) => /^\d+$/.test(key) && typeof value === "string").map(([key, value]) => [key, error.dateErrors?.[key] ? "" : value.slice(0, 10)]));
       req.session.seasonDateDraft = { seasonId: season.id, calendarId: season.F1CalendarId, dates, errors: error.dateErrors || {} };
     }
     req.session.flash = { type: "error", message: error.message };
@@ -755,10 +755,11 @@ exports.assignDrivers = async (req, res) => {
     const validDrivers = await Driver.findAll({
       where: { id: { [Op.in]: ids } },
     });
-    const eligible = validDrivers.filter(require('../services/f1DriverPolicy').hasF1View);
+    const selected = await SeasonDriver.findAll({ where: { SeasonId: season.id } });
+    const eligible = validDrivers.filter((driver) => require('../services/f1DriverPolicy').seasonDriverEligible(driver, season, selected.map((row) => Number(row.DriverId))));
     if (eligible.length !== ids.length)
       throw new Error(
-        "Bitte für alle ausgewählten Fahrer zuerst die F1-Sicht in der Fahrerpflege aktivieren.",
+        "Bitte Fahrer aus dem F1-Ersatzfahrerpool auswählen. Bestehende Saisonzuordnungen bleiben bearbeitbar.",
       );
     await sequelize.transaction(async (transaction) => {
       await SeasonLineupEntry.destroy({
@@ -905,7 +906,7 @@ exports.assignLineup = async (req, res) => {
      */
 
     for (const [teamIdRaw, rawIds] of Object.entries(postedLineup)) {
-      const SeasonTeamId = Number(teamIdRaw);
+      const SeasonTeamId = Number(teamIdRaw.replace(/^t/, ""));
 
       if (!Number.isInteger(SeasonTeamId) || !allowedTeams.has(SeasonTeamId)) {
         continue;

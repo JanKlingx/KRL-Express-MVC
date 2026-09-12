@@ -43,7 +43,7 @@ test('Fahrerbearbeitung weist manipulierte F1-Ränge ab und erhält den bisherig
   const values = { name: 'Max', PlatformId: 1, roleF1Friday: true, roleFormerF1: true, roleF1Reserve: true };
   t.mock.method(models.League, 'findOne', async () => ({ id: 1 }));
   await config.drivers.prepareValues(values, { driverWizard: '1', driverViews: ['formerF1'] }, existing);
-  assert.equal(Object.hasOwn(values, 'roleF1Friday'), false); assert.equal(values.roleFormerF1, false); assert.equal(values.roleF1Reserve, true); assert.equal(values.f1Role, 'reserve');
+  assert.equal(Object.hasOwn(values, 'roleF1Friday'), false); assert.equal(Object.hasOwn(values, 'roleFormerF1'), false); assert.equal(Object.hasOwn(values, 'roleF1Reserve'), false); assert.equal(Object.hasOwn(values, 'f1Role'), false); assert.equal(existing.roleF1Reserve, true);
 });
 
 test('Regelwerk prüft IDs, Typen und Überschriften und erkennt konkurrierende Änderungen', () => {

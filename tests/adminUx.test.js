@@ -24,7 +24,7 @@ test('Fahrerpflege nutzt feste Nationalitäten und Rangfilter', () => {
   assert.equal(resourceConfig.drivers.groupByRanks, true);
   assert.equal(resourceConfig.drivers.rankFilters.some((rank) => rank.value === 'f1-friday'), true);
   assert.equal(resourceConfig.drivers.rankFilters.some((rank) => rank.value === 'f1-saturday'), true);
-  assert.ok(resourceConfig.drivers.fields.some((field) => field.name === 'roleF1Reserve'));
+  assert.equal(resourceConfig.drivers.fields.some((field) => field.name === 'roleF1Reserve'), false);
 });
 
 test('Fahrerpflege warnt bei Namensgleichheit und erlaubt eine bestätigte zweite Person', async () => {
@@ -94,7 +94,7 @@ test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', a
   assert.match(html, /LINE-UP ERSTELLEN/);
   assert.match(html, /ABSCHLUSS/);
   assert.doesNotMatch(html, /type="time"/);
-  assert.match(html, /name="dates\[30\]"/);
+  assert.match(html, /name="dates\[r30\]"/);
   assert.doesNotMatch(html, /Runde hinzufügen|Termin hinzufügen/i);
   assert.doesNotMatch(html, /name="F1TrackId"/);
   assert.equal((html.match(/name="PointsSchemeId"/g) || []).length, 1);
