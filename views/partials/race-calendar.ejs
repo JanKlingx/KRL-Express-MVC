@@ -210,7 +210,7 @@
 
 
             <h3>
-              <%= race.title %>
+              <%= race.isTestDay ? (race.track?.countryRecord?.name || race.track?.country || String(race.title || '').replace(/^testtag\s*[·:–-]?\s*/i, '')) : race.title %>
             </h3>
 
           </div>

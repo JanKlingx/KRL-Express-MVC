@@ -124,6 +124,7 @@
     <a class="button button-small button-ghost" href="#f1-standings-history">WM-Tabelle</a>
     <a class="button button-small button-ghost" href="#season-history">Saisonverlauf</a>
     <a class="button button-small button-ghost" href="#f1-calendar">Rennkalender</a>
+    <a class="button button-small button-ghost" href="#f1-lineup">Fahrereinteilung</a>
     <a class="button button-small button-ghost" href="#f1-gp-results">GP-Ergebnisse</a>
     <a class="button button-small button-ghost" href="#rennstatistik">Rennstatistik</a>
   </nav>
@@ -282,6 +283,8 @@
   <!-- KALENDER -->
   <!-- ================================================= -->
 
+  <%- include('partials/public-weekend-lineup') %>
+
   <section class="section container" id="f1-calendar">
 
     <div class="section-heading">
@@ -333,13 +336,7 @@
 
         <div class="export-actions">
 
-          <button
-            class="button button-small"
-            type="button"
-            id="standings-png-download"
-          >
-            PNG ↓
-          </button>
+
 
         </div>
 
@@ -1118,19 +1115,7 @@
         </a>
 
 
-        <button
-          class="button button-small"
-          type="button"
-          data-png-export
-          data-png-target="#f1-gp-results"
-          data-png-title="<%= league.name %> · GP-Results"
-          data-png-subtitle="<%= selectedSeason?.name || league.currentSeason %>"
-          data-png-filename="<%= league.slug %>-gp-results"
-          data-png-logo="<%= league.logoPath || '/images/krl-placeholder.svg' %>"
-          data-png-accent="<%= league.accentColor %>"
-        >
-          PNG ↓
-        </button>
+
 
       </div>
 

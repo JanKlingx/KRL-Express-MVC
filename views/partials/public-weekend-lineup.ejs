@@ -1,0 +1,40 @@
+<% const board = typeof publicWeekends !== 'undefined' ? publicWeekends : { snapshots: [], currentIndex: 0 }; %>
+<section class="section container public-weekend" id="f1-lineup" data-public-weekends>
+  <div class="section-heading"><span>AUFSTELLUNG UND ANWESENHEIT</span><h2>FAHREREINTEILUNG</h2></div>
+  <% if (!board.snapshots.length) { %><p class="empty-state">Noch keine Rennwochenenden vorhanden.</p><% } else { %>
+    <div class="public-weekend-nav">
+      <button type="button" class="button button-small" data-weekend-prev aria-label="Vorheriges Rennen">←</button>
+      <label>Rennen auswählen<select data-weekend-select>
+        <% board.snapshots.forEach((weekend, index) => { %><option value="<%= index %>" <%= index === board.currentIndex ? 'selected' : '' %>>R<%= weekend.round %> · <%= weekend.title %></option><% }) %>
+      </select></label>
+      <button type="button" class="button button-small" data-weekend-next aria-label="Nächstes Rennen">→</button>
+    </div>
+    <% board.snapshots.forEach((weekend, index) => { %>
+      <article data-weekend-panel="<%= index %>" <%= index === board.currentIndex ? '' : 'hidden' %>>
+        <h3>R<%= weekend.round %> · <%= weekend.title %></h3>
+        <p><%= weekend.saved ? 'Gespeicherte Aufstellung – Änderungen der Rennleitung erscheinen nach dem Neuladen.' : 'Vorläufige Stammaufstellung – die Rennleitung hat dieses Wochenende noch nicht gespeichert.' %></p>
+        <h4>ERSATZFAHRER</h4>
+        <div class="public-reserve-pool">
+          <% weekend.reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>"><strong><%= driver.name %></strong><small><%= driver.statusLabel %><%= driver.confirmed ? ' · Start bestätigt' : '' %></small></div><% }) %>
+          <% if (!weekend.reserves.length) { %><p>Noch keine Ersatzfahrer angemeldet.</p><% } %>
+        </div>
+        <h4>TEAMS UND COCKPITS</h4>
+        <table class="public-lineup-table"><thead><tr><th scope="col">Team</th><th scope="col">Stammfahrer 1</th><th scope="col">Stammfahrer 2</th><th scope="col">Eingeteilte Ersatzfahrer</th></tr></thead><tbody>
+          <% weekend.teams.forEach((team) => { %>
+            <tr>
+              <th scope="row" data-label="Team"><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt=""><% } %><strong><%= team.name %></strong></th>
+              <% [team.regulars.slice(0, 1), team.regulars.slice(1)].forEach((drivers, slot) => { %>
+                <td data-label="Stammfahrer <%= slot + 1 %>"><% drivers.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>"><strong><%= driver.name %></strong><small><%= driver.statusLabel %><%= driver.confirmed ? ' · Start bestätigt' : '' %></small></div><% }); %><% if (!drivers.length) { %><span>Freies Cockpit</span><% } %></td>
+              <% }) %>
+              <td data-label="Ersatzfahrer"><% team.reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>"><strong><%= driver.name %></strong><small>für <%= driver.replacesName %> · <%= driver.statusLabel %><%= driver.confirmed ? ' · Start bestätigt' : '' %></small></div><% }) %><% if (!team.reserves.length) { %>–<% } %></td>
+            </tr>
+          <% }) %>
+        </tbody></table>
+      </article>
+    <% }) %>
+    <div class="public-weekend-legend" aria-label="Statuslegende">
+      <% [['angefragt','Angefragt'],['abgemeldet','Abgemeldet'],['unsicher','Unsicher'],['anwesend','Anwesend'],['auf_abruf','Auf Abruf'],['rennsperre','Rennsperre'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['offen','Noch nicht bestätigt']].forEach(([status, label]) => { %><span class="public-driver-status" data-status="<%= status %>"><%= label %></span><% }) %>
+    </div>
+  <% } %>
+</section>
+<script src="/js/public-weekend-lineup.js" defer></script>

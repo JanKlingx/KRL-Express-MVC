@@ -1710,76 +1710,7 @@
             <!-- KORREKTUR -->
             <!-- =========================================== -->
 
-            <% if (correctionRows.length) { %>
 
-              <details class="f1-attendance-corrections">
-
-                <summary>
-                  Ausgeschiedene Fahrer ausdrücklich korrigieren
-                </summary>
-
-
-                <form
-                  method="post"
-                  action="/admin/race-weekend/f1/<%= race.id %>/attendance"
-                >
-
-                  <% correctionRows.forEach(({ entry: row }) => { %>
-
-                    <label>
-
-                      <strong>
-                        <%= row.driver.name %>
-                      </strong>
-
-                      <div class="field-with-edit">
-
-                        <select
-                          name="correction[d<%= row.id %>][status]"
-                        >
-
-                          <% allowedAttendance.forEach((status) => { %>
-
-                            <option
-                              value="<%= status.value %>"
-                              <%= row.attendanceStatus === status.value
-                                ? 'selected'
-                                : ''
-                              %>
-                            >
-                              <%= attendanceLabel(status) %>
-                            </option>
-
-                          <% }) %>
-
-                        </select>
-
-                        <span
-                          class="field-edit-pencil"
-                          aria-hidden="true"
-                        >
-                       
-                        </span>
-
-                      </div>
-
-                    </label>
-
-                  <% }) %>
-
-
-                  <button
-                    class="button button-small"
-                    type="submit"
-                  >
-                    KORREKTUR SPEICHERN
-                  </button>
-
-                </form>
-
-              </details>
-
-            <% } %>
 
 
           <% } %>
@@ -1817,7 +1748,7 @@
 
           <p>
             Nur Fahrer mit bestätigter Anwesenheit werden übernommen.
-            Die Ergebniseingabe bleibt direkt im Rennwochenende geöffnet.
+            Die Ergebniseingabe öffnet sich direkt, ohne eingebettetes Fenster.
           </p>
 
 
@@ -1831,40 +1762,9 @@
           <% } else { %>
 
 
-            <details
-              class="f1-weekend-inline-results"
-              <%= savedResultCount
-                ? 'open'
-                : ''
-              %>
-            >
+            <a class="button" href="<%= resultsHref %>"><%= savedResultCount ? 'ERGEBNIS ANZEIGEN / BEARBEITEN' : 'ERGEBNIS EINTRAGEN' %></a>
+            <p>Die Ergebnispflege öffnet sich mit diesem Rennen und den bestätigten Startern. Dort kannst du Haupt- und Sprintergebnisse speichern und zum Rennwochenende zurückkehren.</p>
 
-              <summary class="button">
-                <%= savedResultCount
-                  ? 'ERGEBNIS ANZEIGEN / BEARBEITEN'
-                  : 'ERGEBNIS EINTRAGEN'
-                %>
-              </summary>
-
-
-              <div class="f1-weekend-inline-results__frame">
-
-                <iframe
-                  src="<%= resultsHref %>"
-                  title="F1 Ergebniseingabe"
-                  loading="lazy"
-                  style="
-                    width:100%;
-                    min-height:1400px;
-                    border:0;
-                    display:block;
-                  "
-                >
-                </iframe>
-
-              </div>
-
-            </details>
 
 
           <% } %>

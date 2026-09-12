@@ -97,6 +97,7 @@ async function weekendHasEntries(season, league, round, event, transaction) {
 }
 
 async function findRaceResult(season, league, round, event, raceType, transaction) {
+  if (round.isTestDay || event?.isTestDay) return null;
   if (raceType === "main" && event?.GrandPrixResultId) {
     const linked = await GrandPrixResult.findByPk(event.GrandPrixResultId, { transaction });
     if (linked) return linked;
