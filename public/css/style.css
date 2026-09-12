@@ -12144,3 +12144,28 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
   .public-lineup-table th, .public-lineup-table td { display: block; }
   .public-lineup-table td::before { content: attr(data-label); display: block; color: #bbd0d9; margin-bottom: .4rem; font-size: .8rem; }
 }
+
+/* Gedämpfte Statusflächen: Farbe unterstützt den ausgeschriebenen Status. */
+.public-weekend h4, .public-lineup-table thead { background: #1d343b; color: #dce9eb; }
+.public-driver-status { border: 1px solid #3a5059; background: #202e35; color: #dce5e9; }
+.public-driver-status[data-status=angefragt] { background: #1c3d44; border-color: #35646d; color: #b7dce1; }
+.public-driver-status[data-status=abgemeldet] { background: #472c31; border-color: #6d434b; color: #e7bdc1; }
+.public-driver-status[data-status=unsicher] { background: #463f29; border-color: #6f6442; color: #e3d7aa; }
+.public-driver-status[data-status=anwesend] { background: #243e34; border-color: #416651; color: #bddbc9; }
+.public-driver-status[data-status=auf_abruf] { background: #293b31; border-color: #49604e; color: #b9ccb7; }
+.public-driver-status[data-status=rennsperre] { background: #422d46; border-color: #69496d; color: #dbbedf; }
+.public-driver-status[data-status=unabgemeldet], .public-driver-status[data-status=fehlende_rueckmeldung_unsicher] { background: #29394e; border-color: #455c7a; color: #bbcee6; }
+.public-driver-status[data-status=zu_spaet_abgemeldet], .public-driver-status[data-status=rueckmeldung_unsicher] { background: #393248; border-color: #605277; color: #d0c2e3; }
+.public-driver-status[data-status=zu_spaet_vorbesprechung] { background: #40324b; border-color: #67527a; color: #d5c2e4; }
+.standing-wide-team-row .standing-wide-name { font-family: inherit; font-weight: 500; font-size: .63rem; text-transform: none; }
+.country-code { display: block; font-size: .7rem; font-weight: 600; letter-spacing: .06em; line-height: 1.4; text-align: center; }
+.season-sheet-table .sheet-fastest-lap-badge { display: inline-grid; place-items: center; padding: .1rem .22rem; border-radius: 3px; background: #8b55b1 !important; color: #fff !important; font-size: .55rem; font-weight: 700; font-style: normal; line-height: 1.15; }
+.calendar-completion-action { position: absolute; top: .65rem; right: 3.3rem; z-index: 3; margin: 0; }
+.calendar-completion-action button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #607e78; border-radius: 50%; background: #172b28; color: #c6e2d7; font-size: 1.2rem; cursor: pointer; }
+.calendar-completion-action button:hover { background: #29483f; }
+.calendar-completed-badge { display: inline-block; padding: .3rem .6rem; margin-bottom: .6rem; background: #243e34; border: 1px solid #416651; border-radius: .35rem; color: #bddbc9; font-size: .8rem; }
+.carousel-jump { display: grid; gap: .4rem; width: min(100%, 34rem); margin: 0 auto 1rem; color: #bfd0d8; font-size: .85rem; position: relative; z-index: 2; }
+.carousel-jump select { box-sizing: border-box; width: 100%; min-width: 0; padding: .75rem; border: 1px solid #40585f; border-radius: .5rem; background: #15242b; color: #e2eaf0; font: inherit; }
+.f1-race-statistics tbody tr { position: relative; isolation: isolate; }
+.f1-race-statistics tbody .race-statistics-round { position: static; }
+.f1-race-statistics tbody img.race-statistics-watermark { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center; opacity: .065; pointer-events: none; z-index: -1; }

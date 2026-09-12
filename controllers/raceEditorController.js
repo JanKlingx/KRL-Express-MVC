@@ -1986,7 +1986,7 @@ exports.save = async (
 
               const poleField = prefix ? `${prefix}PolePosition` : "polePosition";
               const polePosition =
-                eventRace.pointsMode === "database" && submitted[poleField] === "on";
+                submitted[poleField] === "on";
 
               // Driver of the Day ist eine reine Auszeichnung des
               // Hauptrennens und verändert die bestehende Punkteberechnung nie.

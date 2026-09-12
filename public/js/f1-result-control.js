@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const section = document.createElement('section');
     section.className = `result-control-board result-control-${raceType}`;
     section.dataset.resultBoard = raceType;
-    section.innerHTML = `<header><div><span>${raceType === 'sprint' ? 'SPRINT' : 'HAUPTRENNEN'}</span><strong>Positionsturm</strong></div><div class="result-control-badges"><button type="button" draggable="true" data-bonus="pole">POLE</button><button type="button" draggable="true" data-bonus="fastest">SCHNELLSTE RUNDE</button>${raceType === 'main' ? '<button type="button" draggable="true" data-bonus="dotd">DRIVER OF THE DAY</button>' : ''}</div></header><div class="result-control-workspace"><div class="result-position-tower" data-position-tower></div><aside class="result-driver-pool" data-driver-pool><header><strong>FAHRERPOOL</strong><small>Fahrer auf eine Position ziehen</small></header><div data-pool-cards></div></aside></div><div class="result-control-summary" data-result-summary></div>`;
+    section.innerHTML = `<header><div><span>${raceType === 'sprint' ? 'SPRINT' : 'HAUPTRENNEN'}</span><strong>Positionsturm</strong></div><div class="result-control-badges"><button type="button" draggable="true" data-bonus="pole">POLE POSITION</button><button type="button" draggable="true" data-bonus="fastest">SCHNELLSTE RUNDE</button>${raceType === 'main' ? '<button type="button" draggable="true" data-bonus="dotd">DRIVER OF THE DAY</button>' : ''}</div></header><div class="result-control-workspace"><div class="result-position-tower" data-position-tower></div><aside class="result-driver-pool" data-driver-pool><header><strong>FAHRERPOOL</strong><small>Fahrer auf eine Position ziehen</small></header><div data-pool-cards></div></aside></div><div class="result-control-summary" data-result-summary></div>`;
     const tower = section.querySelector('[data-position-tower]');
     const pool = section.querySelector('[data-pool-cards]');
 
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     section.querySelector('[data-driver-pool]').addEventListener('drop', (event) => { event.preventDefault(); unassign(event.dataTransfer.getData('text/plain')); });
     section.querySelectorAll('[data-bonus]').forEach((badge) => {
       const kind = badge.dataset.bonus;
-      if ((kind === 'pole' && !config.polePositionEnabled) || (kind === 'fastest' && !config.fastestLapEnabled)) badge.hidden = true;
+      if (kind === 'fastest' && !config.fastestLapEnabled) badge.hidden = true;
       badge.addEventListener('dragstart', (event) => event.dataTransfer.setData('application/x-result-bonus', kind));
       badge.addEventListener('click', () => { badge.classList.toggle('is-active'); section.dataset.activeBonus = badge.classList.contains('is-active') ? kind : ''; });
     });

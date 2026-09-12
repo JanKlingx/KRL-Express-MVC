@@ -67,3 +67,16 @@ exports.update = async (req, res, next) => {
     res.redirect(returnHref(event));
   } catch (error) { return render(res, event, req.body, error.message); }
 };
+
+exports.setCompletion = async (req, res, next) => {
+  if (!['0', '1'].includes(req.body.completed)) return res.status(400).send('Ungültiger Kalenderstatus.');
+  let event;
+  await sequelize.transaction(async (transaction) => {
+    event = await loadEvent(req.params.eventId, transaction);
+    if (!event || !['f1', 'lmu'].includes(event.league?.type)) return;
+    await event.update({ isCompleted: req.body.completed === '1' }, { transaction });
+  });
+  if (!event || !['f1', 'lmu'].includes(event.league?.type)) return next();
+  req.session.flash = { type: 'success', message: event.isCompleted ? 'Termin als gefahren markiert.' : 'Termin ist wieder offen.' };
+  return res.redirect(returnHref(event));
+};
