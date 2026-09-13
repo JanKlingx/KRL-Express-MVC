@@ -606,10 +606,9 @@ function buildSeasonData(
 
             position,
 
-            fastestLap:
-              Boolean(
-                entry.fastestLap,
-              ),
+            fastestLap: race.raceType !== "sprint" && Boolean(entry.fastestLap),
+            polePosition: race.raceType !== "sprint" && Boolean(entry.polePosition),
+            driverOfTheDay: race.raceType !== "sprint" && Boolean(entry.driverOfTheDay),
           };
         },
       );
@@ -694,7 +693,7 @@ function buildSeasonData(
   const reserveDrivers =
     new Map();
 
-  usedReserveEntries.forEach(
+  lineups.filter((entry) => entry.roleType === "reserve").forEach(
     (lineupEntry) => {
       const driverId =
         Number(
@@ -775,12 +774,16 @@ function buildSeasonData(
   ) {
     let cumulative = 0;
     const reserveStints = stintsFor(reserveDriverId, "reserve");
+    const appearanceRounds = lineups.filter(entry => entry.roleType === "reserve" && Number(entry.DriverId) === reserveDriverId)
+      .map(entry => races.find(race => Number(race.id) === Number(entry.GrandPrixResultId)))
+      .filter(Boolean).map(race => Number(race.sortOrder));
+    const firstAppearance = Math.min(...appearanceRounds);
 
     reserveDriver.results =
       races.map(
         (race) => {
-          const isReserveInRound = !reserveStints.length ||
-            reserveStints.some((stint) => isRoundInStint(stint, race.sortOrder));
+          const isReserveInRound = Number(race.sortOrder) >= firstAppearance && (!reserveStints.length ||
+            reserveStints.some((stint) => isRoundInStint(stint, race.sortOrder)));
           if (!isReserveInRound) {
             return {
               value: "DNA",
@@ -914,10 +917,9 @@ function buildSeasonData(
 
             position,
 
-            fastestLap:
-              Boolean(
-                entry.fastestLap,
-              ),
+            fastestLap: race.raceType !== "sprint" && Boolean(entry.fastestLap),
+            polePosition: race.raceType !== "sprint" && Boolean(entry.polePosition),
+            driverOfTheDay: race.raceType !== "sprint" && Boolean(entry.driverOfTheDay),
           };
         },
       );
@@ -1294,11 +1296,9 @@ function buildSeasonData(
         main?.status ||
         null,
 
-      fastestLap:
-        Boolean(
-          main?.fastestLap ||
-          sprint?.fastestLap,
-        ),
+      fastestLap: Boolean(main?.fastestLap),
+      polePosition: Boolean(main?.polePosition),
+      driverOfTheDay: Boolean(main?.driverOfTheDay),
     };
   }
 

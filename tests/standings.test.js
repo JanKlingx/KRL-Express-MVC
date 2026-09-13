@@ -159,7 +159,7 @@ test('Beförderter Ersatzfahrer trennt Ersatz- und Stammfahrerwertung am Wechsel
   assert.equal(reserve.total, 16);
   assert.equal(reserve.promotedToRegular, true);
   assert.equal(reserve.promotedFromRound, 5);
-  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNS', 'P7', 'DNS', 'P5', 'DNA', 'DNA']);
+  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNA', 'P7', 'DNS', 'P5', 'DNA', 'DNA']);
 
   scenario.races[1].entries.find((entry) => entry.DriverId === 2).points = 8;
   const corrected = buildSeasonData(league, scenario.races, scenario.drivers, scenario.lineups, {}, scenario.stints);
@@ -214,7 +214,7 @@ test('Cockpitabgabe trennt spätere Ersatzeinsätze von der Stammfahrer-WM', () 
 
   assert.equal(data.driverStandings.find((row) => row.driver.name === 'Chris').points, 12);
   assert.deepEqual(regular.results.map((row) => row.main.value), ['P4', 'DNA', 'DNA']);
-  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNA', 'DNS', 'P6']);
+  assert.deepEqual(reserve.results.map((row) => row.main.value), ['DNA', 'DNA', 'P6']);
   assert.equal(data.reserveStandings.find((row) => row.driver.name === 'Chris').points, 8);
 });
 

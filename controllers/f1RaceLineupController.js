@@ -370,6 +370,7 @@ async function loadPlanningRows(league, race) {
   await require('../services/platforms').attachPlatforms([
     ...reserves, ...teamCards.flatMap((card) => card.rows.map((row) => row.driver))
   ]);
+  const carriedOverIds = await require('../services/reserveRollover').suggestedReserves(race, entries, reserves);
   const reserveRows = reserves.map((driver) => {
     const driverId = Number(driver.id);
 
@@ -382,6 +383,7 @@ async function loadPlanningRows(league, race) {
       driver,
 
       entry: saved || null,
+      isCarriedOver: carriedOverIds.has(driverId),
 
       /*
        * Neu:
@@ -392,7 +394,7 @@ async function loadPlanningRows(league, race) {
        * => exakt DB-Status verwenden
        */
 
-      status: saved ? normalizeReserveStatus(saved.status) : "anwesend",
+      status: saved ? normalizeReserveStatus(saved.status) : carriedOverIds.has(driverId) ? "angefragt" : "anwesend",
 
       assignedTo: replacementForDriverId
         ? regularById.get(replacementForDriverId) || null

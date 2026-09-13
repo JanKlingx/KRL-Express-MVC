@@ -91,16 +91,17 @@
     </header>
 
 
+    <% if (reserveRows.some((row) => row.isCarriedOver)) { %><p class="form-hint">Ersatzfahrer aus der letzten gespeicherten Aufstellung sind vorausgewählt. Bitte ihre Rückmeldung für dieses Rennen neu bestätigen.</p><% } %>
     <div class="f1-lineup-reserve-pool__grid">
       <div class="reserve-add-card"><button type="button" class="reserve-add-button" data-open-reserve-picker aria-expanded="false"><span aria-hidden="true">＋</span>Ersatzfahrer hinzufügen</button>
-        <label data-reserve-picker hidden>Fahrer auswählen<select data-add-reserve aria-label="F1 Ersatzfahrer auswählen"><option value="">Fahrer auswählen …</option><% reserveRows.filter((row) => !row.entry).forEach((row) => { %><option value="<%= row.driver.id %>"><%= row.driver.name %></option><% }) %></select></label>
+        <label data-reserve-picker hidden>Fahrer auswählen<select data-add-reserve aria-label="F1 Ersatzfahrer auswählen"><option value="">Fahrer auswählen …</option><% reserveRows.filter((row) => !row.entry && !row.isCarriedOver).forEach((row) => { %><option value="<%= row.driver.id %>"><%= row.driver.name %></option><% }) %></select></label>
       </div>
       <% reserveRows.forEach((row) => { %>
 
         <article
           class="f1-lineup-reserve"
-          <%= row.entry ? '' : 'hidden' %>
-          data-reserve-selected="<%= row.entry ? 'true' : 'false' %>"
+          <%= (row.entry || row.isCarriedOver) ? '' : 'hidden' %>
+          data-reserve-selected="<%= (row.entry || row.isCarriedOver) ? 'true' : 'false' %>"
           data-reserve-row
           data-reserve-id="<%= row.driver.id %>"
           data-reserve-name="<%= row.driver.name %>"
@@ -150,7 +151,7 @@
 
                 <select
                   name="reserve[d<%= row.driver.id %>][status]"
-                  <%= row.entry ? '' : 'disabled' %>
+                  <%= (row.entry || row.isCarriedOver) ? '' : 'disabled' %>
                   data-reserve-status-select
                   data-reserve-status-input
                   aria-label="Status <%= row.driver.name %>"
