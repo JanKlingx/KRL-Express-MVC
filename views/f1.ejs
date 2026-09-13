@@ -986,7 +986,6 @@
           <tr>
             <th>#</th>
             <th>Land</th>
-            <th>Flagge</th>
             <th>Datum</th>
             <th>Driver of the Day</th>
             <th>1. Platz</th>
@@ -1013,23 +1012,6 @@
               <th data-label="Land">
                 <%= row.countryCode || row.countryName || '–' %>
               </th>
-
-              <td data-label="Flagge">
-
-                <% if (row.flagPath) { %>
-
-                  <img
-                    src="<%= row.flagPath %>"
-                    alt="<%= row.countryName || '' %>"
-                  >
-
-                <% } else { %>
-
-                  –
-
-                <% } %>
-
-              </td>
 
               <td data-label="Datum">
                 <%= row.date
@@ -1073,7 +1055,7 @@
 
             <tr>
 
-              <td colspan="10">
+              <td colspan="9">
                 Noch keine Hauptrennenergebnisse vorhanden.
               </td>
 

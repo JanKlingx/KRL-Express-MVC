@@ -12169,3 +12169,81 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .f1-race-statistics tbody tr { position: relative; isolation: isolate; }
 .f1-race-statistics tbody .race-statistics-round { position: static; }
 .f1-race-statistics tbody img.race-statistics-watermark { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: center; opacity: .065; pointer-events: none; z-index: -1; }
+
+/* Completed dates retain precisely the same calendar grid. */
+.race-calendar-card { position: relative; }
+.race-calendar-card.is-completed { border-color: #465158; background: #171e22; }
+.race-calendar-card.is-completed > .race-calendar-round,
+.race-calendar-card.is-completed > time,
+.race-calendar-card.is-completed > .race-calendar-info { filter: grayscale(1); opacity: .6; }
+.race-calendar-card .calendar-completed-badge { position: absolute; bottom: .3rem; right: .6rem; margin: 0; padding: 0; border: 0; background: transparent; color: #a7b4ba; font-size: .65rem; line-height: 1; }
+.race-calendar-card .calendar-completion-action { margin: 0; width: auto; }
+.race-calendar-card .calendar-completion-action button { margin: 0; min-height: 0; }
+/* Keep FL inside the result flow instead of clipping an absolute overlay. */
+.season-sheet-table .sheet-result-single.has-fastest-lap,
+.season-sheet-table .sheet-result-part.has-fastest-lap { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; padding: 2px; box-sizing: border-box; }
+.season-sheet-table .sheet-fastest-lap-badge { position: static; inset: auto; flex: 0 0 auto; width: auto; min-width: 14px; height: auto; min-height: 12px; box-sizing: border-box; padding: 1px 2px; line-height: 1.2; font-size: 7px; background: #8b55b1 !important; color: white !important; }
+.public-reserve-pool { grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); grid-auto-rows: 3rem; }
+.public-weekend .public-driver-status { display: flex; align-items: center; justify-content: center; min-height: 3rem; box-sizing: border-box; margin: 0; padding: .4rem; border: 0; line-height: 1.25; }
+.public-weekend .public-driver-status strong { color: inherit; font: inherit; font-weight: 600; }
+.public-weekend .public-weekend-legend .public-driver-status { min-height: 2rem; padding: .4rem .65rem; }
+.public-lineup-table th img { margin: 0 auto; }
+
+/* Shared weekend palette: admin status fields, public names and legend. */
+.status-angefragt, .public-weekend .public-driver-status[data-status="angefragt"], .f1-attendance select[data-status="angefragt"] { background: #18dff2 !important; color: #04191c !important; border-color: #18dff2 !important; border-left-color: #18dff2 !important; }
+.status-abgemeldet, .public-weekend .public-driver-status[data-status="abgemeldet"], .f1-attendance select[data-status="abgemeldet"] { background: #f01625 !important; color: #fff !important; border-color: #f01625 !important; border-left-color: #f01625 !important; }
+.status-unsicher, .public-weekend .public-driver-status[data-status="unsicher"], .f1-attendance select[data-status="unsicher"] { background: #fff200 !important; color: #151500 !important; border-color: #fff200 !important; border-left-color: #fff200 !important; }
+.status-anwesend, .public-weekend .public-driver-status[data-status="anwesend"], .f1-attendance select[data-status="anwesend"] { background: #12ed35 !important; color: #041807 !important; border-color: #12ed35 !important; border-left-color: #12ed35 !important; }
+.status-auf_abruf, .public-weekend .public-driver-status[data-status="auf_abruf"], .f1-attendance select[data-status="auf_abruf"] { background: #23a85b !important; color: #041807 !important; border-color: #23a85b !important; border-left-color: #23a85b !important; }
+.status-rennsperre, .public-weekend .public-driver-status[data-status="rennsperre"], .f1-attendance select[data-status="rennsperre"] { background: #ff12d8 !important; color: #170014 !important; border-color: #ff12d8 !important; border-left-color: #ff12d8 !important; }
+.status-unabgemeldet, .public-weekend .public-driver-status[data-status="unabgemeldet"], .f1-attendance select[data-status="unabgemeldet"] { background: #8b4513 !important; color: #fff !important; border-color: #8b4513 !important; border-left-color: #8b4513 !important; }
+.status-zu_spaet_abgemeldet, .public-weekend .public-driver-status[data-status="zu_spaet_abgemeldet"], .f1-attendance select[data-status="zu_spaet_abgemeldet"] { background: #ff8d12 !important; color: #1d0d00 !important; border-color: #ff8d12 !important; border-left-color: #ff8d12 !important; }
+.status-zu_spaet_vorbesprechung, .public-weekend .public-driver-status[data-status="zu_spaet_vorbesprechung"], .f1-attendance select[data-status="zu_spaet_vorbesprechung"] { background: #bc36ff !important; color: #fff !important; border-color: #bc36ff !important; border-left-color: #bc36ff !important; }
+/* KRL career explorer */
+.career-statistics { padding-block: 4rem; max-width: 1400px; }
+.career-hero { max-width: 850px; padding-block: 1rem 3rem; }
+.career-eyebrow { font-size: .75rem; letter-spacing: .14em; color: #91cfcf; }
+.career-hero h1 { font-family: Inter, sans-serif; font-size: clamp(2.6rem, 7vw, 5.6rem); line-height: 1.07; letter-spacing: -.055em; margin: 1.2rem 0; text-transform: none; }
+.career-hero p { max-width: 640px; color: #abbcc4; font-size: 1.1rem; line-height: 1.7; }
+.career-toolbar { display: grid; grid-template-columns: 2fr repeat(4, 1fr) auto; align-items: end; gap: .8rem; background: #152026; border: 1px solid #304047; border-radius: 1rem; padding: 1.25rem; }
+.career-toolbar label { display: grid; gap: .5rem; font-size: .8rem; color: #bdcdd2; min-width: 0; }
+.career-toolbar input, .career-toolbar select { width: 100%; min-width: 0; padding: .8rem; color: #edf5f7; background: #0e171c; border: 1px solid #405158; border-radius: .6rem; font: inherit; }
+.career-statistics :focus-visible { outline: 2px solid #94dddd; outline-offset: 3px; }
+.career-note { color: #a7b9c2; font-size: .8rem; line-height: 1.7; }
+.career-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-block: 2rem; }
+.career-summary > div { padding: 1.5rem; background: linear-gradient(145deg, #20343b, #152128); border-radius: 1rem; display: grid; gap: .3rem; }
+.career-summary strong { font-size: clamp(1.6rem, 3vw, 2.6rem); font-weight: 500; color: #e6f8f8; }
+.career-summary span { color: #adbec5; font-size: .85rem; }
+.career-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .8rem; }
+.career-statistics h2, .career-statistics h3, .career-statistics h4 { font-family: Inter, sans-serif; text-transform: none; letter-spacing: -.02em; }
+.career-drivers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
+.career-driver, .career-comparison { border: 1px solid #34454d; border-radius: 1.2rem; background: #121e24; padding: 1.5rem; min-width: 0; }
+.career-comparison { margin-bottom: 2.5rem; }
+.career-comparison p { color: #adbec5; font-size: .9rem; }
+.career-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.career-metrics dt { color: #aabdc5; font-size: .7rem; line-height: 1.5; }
+.career-metrics dd { margin: .35rem 0 0; color: #f1f6f8; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.career-best { font-size: .85rem; line-height: 1.6; color: #addbd7; border-top: 1px solid #304047; padding-top: 1rem; }
+.career-driver summary { cursor: pointer; padding-block: .7rem; color: #c3d2d8; font-size: .85rem; }
+.career-season { border-top: 1px solid #304047; padding-block: .6rem; }
+.career-comparison table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.career-comparison th, .career-comparison td { padding: .85rem .5rem; border-bottom: 1px solid #304047; text-align: center; overflow-wrap: anywhere; font-size: .9rem; font-weight: 400; }
+.career-comparison th { color: #aec4cd; }
+.career-leader { display: block; color: #92d8c7; font-size: .65rem; }
+.career-statistics button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 1100px) { .career-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) {
+  .career-statistics { padding-block: 2rem; }
+  .career-toolbar, .career-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .career-drivers { grid-template-columns: 1fr; }
+  .career-driver, .career-comparison { padding: 1rem; }
+  .career-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .career-comparison th, .career-comparison td { font-size: .75rem; padding: .6rem .2rem; }
+}
+.public-weekend .public-driver-status[data-status="fehlende_rueckmeldung_unsicher"] { background: #8b4513 !important; color: #fff !important; }
+.public-weekend .public-driver-status[data-status="rueckmeldung_unsicher"] { background: #ff8d12 !important; color: #1d0d00 !important; }
+@media (max-width: 650px) {
+  .public-lineup-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .public-lineup-table tbody th { grid-column: 1 / -1; }
+  .public-lineup-table tbody td { min-width: 0; }
+}

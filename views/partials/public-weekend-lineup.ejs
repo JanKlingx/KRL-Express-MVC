@@ -15,25 +15,25 @@
         <p><%= weekend.saved ? 'Gespeicherte Aufstellung – Änderungen der Rennleitung erscheinen nach dem Neuladen.' : 'Vorläufige Stammaufstellung – die Rennleitung hat dieses Wochenende noch nicht gespeichert.' %></p>
         <h4>ERSATZFAHRER</h4>
         <div class="public-reserve-pool">
-          <% weekend.reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>"><strong><%= driver.name %></strong><small><%= driver.statusLabel %><%= driver.confirmed ? ' · Start bestätigt' : '' %></small></div><% }) %>
+          <% weekend.reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>" title="<%= driver.statusLabel || driver.status %><%= driver.replacesName ? ` · für ${driver.replacesName}` : '' %>"><strong><%= driver.name %></strong></div><% }) %>
           <% if (!weekend.reserves.length) { %><p>Noch keine Ersatzfahrer angemeldet.</p><% } %>
         </div>
         <h4>TEAMS UND COCKPITS</h4>
-        <table class="public-lineup-table"><thead><tr><th scope="col">Team</th><th scope="col">Stammfahrer 1</th><th scope="col">Stammfahrer 2</th><th scope="col">Eingeteilte Ersatzfahrer</th></tr></thead><tbody>
+        <table class="public-lineup-table"><thead><tr><th scope="col">Team</th><th scope="col">Stammfahrer 1</th><th scope="col">Stammfahrer 2</th><th scope="col">Ersatzfahrer 1</th><th scope="col">Ersatzfahrer 2</th></tr></thead><tbody>
           <% weekend.teams.forEach((team) => { %>
             <tr>
               <th scope="row" data-label="Team"><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt="<%= team.name %>" title="<%= team.name %>"><% } else { %><span><%= team.name %></span><% } %></th>
               <% [team.regulars.slice(0, 1), team.regulars.slice(1)].forEach((drivers, slot) => { %>
-                <td data-label="Stammfahrer <%= slot + 1 %>"><% drivers.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>"><strong><%= driver.name %></strong><small><%= driver.statusLabel %><%= driver.confirmed ? ' · Start bestätigt' : '' %></small></div><% }); %><% if (!drivers.length) { %><span>Freies Cockpit</span><% } %></td>
+                <td data-label="Stammfahrer <%= slot + 1 %>"><% drivers.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>" title="<%= driver.statusLabel || driver.status %><%= driver.replacesName ? ` · für ${driver.replacesName}` : '' %>"><strong><%= driver.name %></strong></div><% }); %><% if (!drivers.length) { %><span>Freies Cockpit</span><% } %></td>
               <% }) %>
-              <td data-label="Ersatzfahrer"><% team.reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>"><strong><%= driver.name %></strong><small>für <%= driver.replacesName %> · <%= driver.statusLabel %><%= driver.confirmed ? ' · Start bestätigt' : '' %></small></div><% }) %><% if (!team.reserves.length) { %>–<% } %></td>
+              <% [team.reserves.filter((_, i) => i % 2 === 0), team.reserves.filter((_, i) => i % 2 === 1)].forEach((reserves, slot) => { %><td data-label="Ersatzfahrer <%= slot + 1 %>"><% reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>" title="<%= driver.statusLabel || driver.status %><%= driver.replacesName ? ` · für ${driver.replacesName}` : '' %>"><strong><%= driver.name %></strong></div><% }) %><% if (!reserves.length) { %>–<% } %></td><% }) %>
             </tr>
           <% }) %>
         </tbody></table>
       </article>
     <% }) %>
     <div class="public-weekend-legend" aria-label="Statuslegende">
-      <% [['angefragt','Angefragt'],['abgemeldet','Abgemeldet'],['unsicher','Unsicher'],['anwesend','Anwesend'],['auf_abruf','Auf Abruf'],['rennsperre','Rennsperre'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['offen','Noch nicht bestätigt']].forEach(([status, label]) => { %><span class="public-driver-status" data-status="<%= status %>"><%= label %></span><% }) %>
+      <% [['angefragt','Angefragt'],['abgemeldet','Abgemeldet'],['unsicher','Unsicher'],['anwesend','Anwesend'],['auf_abruf','Auf Abruf'],['rennsperre','Rennsperre'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['rueckmeldung_unsicher','Nicht dabei · zurückgemeldet'],['fehlende_rueckmeldung_unsicher','Nicht dabei · keine Rückmeldung'],['offen','Noch nicht bestätigt']].forEach(([status, label]) => { %><span class="public-driver-status" data-status="<%= status %>"><%= label %></span><% }) %>
     </div>
   <% } %>
 </section>
