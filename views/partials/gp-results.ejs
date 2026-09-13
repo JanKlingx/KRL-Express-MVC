@@ -15,6 +15,14 @@
       : [];
 
 
+  const datedItems = availableItems.map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.imagePath || item.entries?.length);
+  const latestIndex = (datedItems.length ? datedItems : availableItems.map((item, index) => ({ item, index })))
+    .sort((a, b) => (Date.parse(b.item.raceDate || '') || 0) - (Date.parse(a.item.raceDate || '') || 0)
+      || Number(b.item.sortOrder || 0) - Number(a.item.sortOrder || 0)
+      || Number(b.item.raceType !== 'sprint') - Number(a.item.raceType !== 'sprint')
+      || b.index - a.index)[0]?.index || 0;
+
   const findResultTeam = (entry) => {
 
     const byName =
@@ -91,6 +99,7 @@
   <div
     class="carousel gp-carousel gp-broadcast-carousel"
     data-carousel
+    data-initial-slide="<%= latestIndex %>"
     tabindex="0"
     aria-label="<%= label %>"
   >
@@ -199,9 +208,9 @@
 
 
         <article
-          class="carousel-slide gp-broadcast-card <%= index === 0 ? 'active' : '' %>"
+          class="carousel-slide gp-broadcast-card <%= index === latestIndex ? 'active' : '' %>"
           data-slide-label="R<%= item.sortOrder %> · <%= item.displayTitle || item.title %> · <%= item.raceType === 'sprint' ? 'Sprint' : 'Hauptrennen' %>"
-          aria-hidden="<%= index !== 0 %>"
+          aria-hidden="<%= index !== latestIndex %>"
         >
 
 

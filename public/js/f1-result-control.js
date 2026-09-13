@@ -4,19 +4,44 @@ document.addEventListener('DOMContentLoaded', () => {
   const dataNode = form?.querySelector('[data-result-control-points]');
   if (!form || !mount || !dataNode) return;
 
+  let refreshSearch = () => {};
   function addDriverSearch() {
     const search = document.createElement('div'); search.className = 'result-driver-search';
     search.innerHTML = '<label>Fahrer suchen<input type="search" placeholder="Name eingeben …" autocomplete="off" data-result-search></label><div data-result-search-matches aria-live="polite"></div>';
     mount.prepend(search);
     const input = search.querySelector('input'), matches = search.querySelector('[data-result-search-matches]');
     input.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
-    input.addEventListener('input', () => {
+    refreshSearch = () => {
       matches.replaceChildren(); const query = input.value.trim().toLocaleLowerCase('de');
       if (!query) return;
       const rows = [...form.querySelectorAll('[data-result-driver]')].filter(row => String(row.dataset.driverName).toLocaleLowerCase('de').includes(query));
       if (!rows.length) matches.textContent = 'Kein Fahrer gefunden.';
       rows.forEach(row => {
-        const button = document.createElement('button'); button.type = 'button'; button.textContent = row.dataset.driverName;
+        const hit = document.createElement('article'); hit.className = 'result-search-hit';
+        const name = document.createElement('strong'); name.textContent = row.dataset.driverName; hit.append(name);
+        const board = [...mount.querySelectorAll('[data-result-board]')].find(item => !item.hidden);
+        const type = board?.dataset.resultBoard || 'main';
+        const positionInput = row.querySelector(`[data-result-position="${type}"]`);
+        if (board && positionInput) {
+          const label = document.createElement('label'); label.textContent = type === 'sprint' ? 'Sprint-Platz' : 'GP-Platz';
+          const select = document.createElement('select'); select.dataset.searchPosition = row.dataset.resultDriver;
+          select.setAttribute('aria-label', `${row.dataset.driverName}: ${label.textContent}`);
+          const count = form.querySelectorAll('[data-result-driver]').length;
+          for (let i = 0; i <= count; i++) { const option = document.createElement('option'); option.value = i ? String(i) : ''; option.textContent = i ? `P${i}` : 'Noch nicht eingeteilt'; select.append(option); }
+          select.value = positionInput.value;
+          select.addEventListener('change', () => board.dispatchEvent(new CustomEvent('result-search-position', { detail: { driverId: row.dataset.resultDriver, position: select.value } })));
+          label.append(select); hit.append(label);
+        }
+        if (!board) {
+          row.querySelectorAll('input[type="number"]').forEach(source => {
+            const label = document.createElement('label'); label.textContent = source.name.includes('sprint') ? 'Sprint-Punkte' : 'GP-Punkte';
+            const field = source.cloneNode(); field.removeAttribute('name'); field.removeAttribute('id'); field.required = false; field.value = source.value;
+            field.setAttribute('aria-label', `${row.dataset.driverName}: ${label.textContent}`);
+            field.addEventListener('input', () => { source.value = field.value; source.dispatchEvent(new Event('input', { bubbles: true })); });
+            label.append(field); hit.append(label);
+          });
+        }
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Zur Kachel';
         button.addEventListener('click', () => {
           const board = [...mount.querySelectorAll('[data-result-board]')].find(item => !item.hidden);
           const card = board ? [...board.querySelectorAll('[data-driver-id]')].find(item => item.dataset.driverId === row.dataset.resultDriver) : row;
@@ -24,9 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
           mount.querySelectorAll('.is-search-match').forEach(item => item.classList.remove('is-search-match'));
           card.classList.add('is-search-match'); card.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
           if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '-1'); card.focus({ preventScroll: true });
-        }); matches.append(button);
+        }); hit.append(button); matches.append(hit);
       });
-    });
+    };
+    input.addEventListener('input', refreshSearch);
   }
 
   const config = JSON.parse(dataNode.textContent || '{}');
@@ -129,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         (target || pool).append(card);
       });
       updateSummary();
+      refreshSearch();
     }
 
     function assign(driverId, targetPosition) {
@@ -149,6 +176,11 @@ document.addEventListener('DOMContentLoaded', () => {
       activeDriver = null;
       render();
     }
+
+    section.addEventListener('result-search-position', event => {
+      if (event.detail.position) assign(event.detail.driverId, event.detail.position);
+      else unassign(event.detail.driverId);
+    });
 
     function setExclusive(kind, driverId) {
       if (raceType !== 'main') return;
@@ -228,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => {
       boards.forEach((item, itemIndex) => { item.hidden = itemIndex !== index; });
       [...tabs.children].forEach((item, itemIndex) => { item.classList.toggle('is-active', itemIndex === index); item.setAttribute('aria-pressed', String(itemIndex === index)); });
+      refreshSearch();
     });
     tabs.append(button);
   });

@@ -429,6 +429,7 @@ if (
   <!-- ================================================= -->
 
   <%
+    const raceColumns = selectedHistory.races.flatMap((race, index) => (race.hasSprint ? ["sprint", "main"] : ["main"]).map(type => ({ ...race, weekendIndex: index, type })));
     const renderSheet = (
       drivers,
       mode
@@ -444,7 +445,7 @@ if (
           : 'season-sheet-wrap-regular'
         %>
       "
-      data-season-rounds="<%= selectedHistory.races.length %>"
+      data-season-rounds="<%= selectedHistory.races.length %>" style="--sheet-columns:<%= raceColumns.length %>"
     >
 
 
@@ -487,7 +488,7 @@ if (
 
           <!-- RENNEN -->
 
-          <% selectedHistory.races.forEach(() => { %>
+          <% raceColumns.forEach(() => { %>
 
             <col class="col-race">
 
@@ -551,7 +552,7 @@ if (
 
             <!-- RENNEN -->
 
-            <% selectedHistory.races.forEach((race) => { %>
+            <% raceColumns.forEach((race) => { %>
 
               <th
                 class="
@@ -565,7 +566,7 @@ if (
                     : ''
                   %>
                 "
-                title="Runde <%= race.round %> · <%= race.title %>"
+                title="Runde <%= race.round %> · <%= race.title %> · <%= race.type === 'sprint' ? 'Sprint' : 'Grand Prix' %>"
               >
 
 
@@ -604,7 +605,7 @@ if (
                 <% if (race.hasSprint) { %>
 
                   <small>
-                    SPR
+                    <%= race.type === 'sprint' ? 'SPR' : 'GP' %>
                   </small>
 
                 <% } %>
@@ -616,12 +617,12 @@ if (
 
             <!-- STATISTIK -->
 
-            <th class="sheet-stat-head">
-              Σ
+            <th class="sheet-stat-head sheet-total-head" title="Kumulierte Gesamtpunkte der bisherigen Rennen">
+              Gesamt
             </th>
 
-            <th class="sheet-stat-head">
-              Δ
+            <th class="sheet-stat-head" title="Punkteabstand zum Führenden">
+              Abstand
             </th>
 
             <th class="sheet-stat-head">
@@ -802,172 +803,20 @@ if (
               <!-- RENNWOCHENENDEN -->
               <!-- ======================================= -->
 
-              <%
-              driver.results.forEach(
-                (
-                  weekend,
-                  index
-                ) => {
-
-                  const race =
-                    selectedHistory.races[
-                      index
-                    ];
-
-
-                  const main =
-                    weekend.main ||
-                    (
-                      !Object.prototype
-                        .hasOwnProperty
-                        .call(
-                          weekend,
-                          'main'
-                        )
-                        ? weekend
-                        : null
-                    );
-
-
-                  const sprint =
-                    weekend.sprint;
-
-
-                  const mainView =
-                    resultLabel(
-                      main,
-                      mode,
-                      race
-                    );
-
-
-                  const sprintView =
-                    resultLabel(
-                      sprint,
-                      mode,
-                      race
-                    );
-
-
-                  /*
-                   * Schnellste Runde
-                   */
-
-                  const mainFastestLap =
-                    hasFastestLap(
-                      main
-                    );
+              <% raceColumns.forEach((column) => {
+                const weekend = driver.results[column.weekendIndex] || {};
+                const result = column.type === 'sprint' ? weekend.sprint :
+                  (Object.prototype.hasOwnProperty.call(weekend, 'main') ? weekend.main : weekend);
+                const view = resultLabel(result, mode, column);
+                const awards = { ...result, fastestLap: hasFastestLap(result) };
               %>
-
-
-                <td
-                  class="
-                    sheet-result
-                    <%= race?.hasSprint
-                      ? 'has-sprint'
-                      : ''
-                    %>
-                  "
-                >
-
-
-                  <!-- ================================= -->
-                  <!-- SPRINT + GP -->
-                  <!-- ================================= -->
-
-                  <% if (race?.hasSprint) { %>
-
-
-                    <!-- SPRINT -->
-
-                    <span
-                      class="
-                        sheet-result-part
-                        is-sprint
-                        <%= `is-${sprintView.kind}` %>
-                        <%= podiumClass(sprint) %>
-                      "
-                      title="<%= sprintView.title || '' %>"
-                    >
-
-                      <i>
-                        S
-                      </i>
-
-                      <b>
-                        <%= sprintView.text %>
-                      </b>
-
-                    </span>
-
-
-                    <!-- HAUPTRENNEN -->
-
-                    <span
-                      class="
-                        sheet-result-part
-                        is-main
-                        <%= `is-${mainView.kind}` %>
-                        <%= podiumClass(main) %>
-                        <%= mainFastestLap
-                          ? 'has-fastest-lap'
-                          : ''
-                        %>
-                      "
-                      title="<%= mainView.title || '' %>"
-                    >
-
-                      <i>
-                        GP
-                      </i>
-
-                      <b>
-                        <%= mainView.text %>
-                      </b>
-
-
-                      <%- include("race-awards", { result: { ...main, fastestLap: mainFastestLap }, isMain: true }) %>
-
-                    </span>
-
-
-                  <% } else { %>
-
-
-                    <!-- NORMALES RENNEN -->
-
-                    <span
-                      class="
-                        sheet-result-single
-                        <%= `is-${mainView.kind}` %>
-                        <%= podiumClass(main) %>
-                        <%= mainFastestLap
-                          ? 'has-fastest-lap'
-                          : ''
-                        %>
-                      "
-                      title="<%= mainView.title || '' %>"
-                    >
-
-                      <%= mainView.text %>
-
-
-                      <%- include("race-awards", { result: { ...main, fastestLap: mainFastestLap }, isMain: true }) %>
-
-                    </span>
-
-
-                  <% } %>
-
-
+                <td class="sheet-result" data-race-type="<%= column.type %>" data-round="<%= column.round %>">
+                  <div class="sheet-result-tile <%= podiumClass(result) %> is-<%= view.kind %>" title="<%= view.title || `${column.title || ''} · ${column.type === 'sprint' ? 'Sprint' : 'Grand Prix'}` %>">
+                    <b class="sheet-result-value"><%= view.text %></b>
+                    <div class="sheet-result-awards"><%- include('race-awards', { result: awards, isMain: column.type === 'main' }) %></div>
+                  </div>
                 </td>
-
-
-              <%
-                }
-              );
-              %>
-
+              <% }) %>
 
               <!-- ======================================= -->
               <!-- GESAMTPUNKTE -->

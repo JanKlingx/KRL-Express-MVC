@@ -12287,3 +12287,26 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 [data-result-search-matches] { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
 [data-result-search-matches] button { padding: .6rem .8rem; background: #29424e; color: #e6f6fc; border: 1px solid #5b7e8e; border-radius: .4rem; cursor: pointer; font: inherit; }
 .result-control-driver.is-search-match { outline: 3px solid #b3ece6; outline-offset: 2px; }
+
+/* One consistent result tile per session; awards never change podium dimensions. */
+.season-sheet-wrap { overflow-x: auto; }
+.season-sheet-table { min-width: calc(480px + var(--sheet-columns, 20) * 48px); }
+.season-sheet-table .col-position { width: 36px; }
+.season-sheet-table .col-driver { width: 110px; }
+.season-sheet-table .col-team { width: 54px; }
+.season-sheet-table .col-stat { width: 64px; }
+.season-sheet-table .col-rate { width: 58px; }
+.season-sheet-table .col-race { width: 48px; }
+.season-sheet-table td.sheet-result { padding: 3px; height: 70px; vertical-align: middle; }
+.season-sheet-table .sheet-result-tile { display: grid; grid-template-rows: 23px 31px; align-content: center; width: 100%; height: 64px; box-sizing: border-box; padding: 3px 1px; border-radius: 3px; background: #111c22; color: #e3edf2; }
+.season-sheet-table .sheet-result-value { display: block; color: inherit; font: 700 .8rem/23px Inter, sans-serif; }
+.season-sheet-table .sheet-result-awards { display: flex; align-items: center; justify-content: center; min-width: 0; }
+.season-sheet-table .sheet-result-awards .race-awards { gap: 2px; align-content: center; }
+.season-sheet-table .sheet-result-awards .race-award { font-size: 6px; line-height: 10px; padding: 0 2px; }
+.season-sheet-table .sheet-total-head { color: #a5e4df; font-size: .65rem; }
+.season-sheet-table td.sheet-total { background: #24403f !important; color: #d5f5ef !important; font-size: .9rem; }
+.season-sheet-table .sheet-race-head small { display: block; min-height: 10px; }
+.result-search-hit { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(9rem, 1fr) auto; gap: .8rem; align-items: center; width: 100%; padding: .75rem; background: #203640; border: 1px solid #4e727f; border-radius: .5rem; }
+.result-search-hit label { font-size: .75rem; }
+.result-search-hit select { padding: .65rem; color: #fff; background: #101e26; border: 1px solid #7297a5; border-radius: .4rem; font: inherit; }
+@media (max-width: 600px) { .result-search-hit { grid-template-columns: minmax(0, 1fr); } }
