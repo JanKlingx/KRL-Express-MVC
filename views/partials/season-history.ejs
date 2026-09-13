@@ -434,18 +434,21 @@ if (
       drivers,
       mode
     ) => {
+      const groups = raceColumns.length > 6 ? [raceColumns, ...Array.from({ length: Math.ceil(raceColumns.length / 6) }, (_, i) => raceColumns.slice(i * 6, (i + 1) * 6))] : [raceColumns];
+      groups.forEach((columns, groupIndex) => {
   %>
 
 
     <div
       class="
         season-sheet-wrap
+        <%= groups.length > 1 ? (groupIndex === 0 ? 'sheet-wide' : 'sheet-narrow') : '' %>
         <%= mode === 'reserve'
           ? 'season-sheet-wrap-reserve'
           : 'season-sheet-wrap-regular'
         %>
       "
-      data-season-rounds="<%= selectedHistory.races.length %>" style="--sheet-columns:<%= raceColumns.length %>"
+      data-season-rounds="<%= selectedHistory.races.length %>" style="--sheet-columns:<%= columns.length %>"
     >
 
 
@@ -488,7 +491,7 @@ if (
 
           <!-- RENNEN -->
 
-          <% raceColumns.forEach(() => { %>
+          <% columns.forEach(() => { %>
 
             <col class="col-race">
 
@@ -552,7 +555,7 @@ if (
 
             <!-- RENNEN -->
 
-            <% raceColumns.forEach((race) => { %>
+            <% columns.forEach((race) => { %>
 
               <th
                 class="
@@ -803,7 +806,7 @@ if (
               <!-- RENNWOCHENENDEN -->
               <!-- ======================================= -->
 
-              <% raceColumns.forEach((column) => {
+              <% columns.forEach((column) => {
                 const weekend = driver.results[column.weekendIndex] || {};
                 const result = column.type === 'sprint' ? weekend.sprint :
                   (Object.prototype.hasOwnProperty.call(weekend, 'main') ? weekend.main : weekend);
@@ -912,7 +915,7 @@ if (
     </div>
 
 
-  <% }; %>
+  <% }); }; %>
 
 
   <!-- ================================================= -->

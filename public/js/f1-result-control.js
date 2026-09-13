@@ -2,16 +2,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('[data-result-race-control]');
   const mount = form?.querySelector('[data-result-control-mount]');
   const dataNode = form?.querySelector('[data-result-control-points]');
-  if (!form || !mount || !dataNode) return;
+  if (!form || !mount || !dataNode || form.dataset.resultInitialized) return;
+  form.dataset.resultInitialized = 'true';
 
   let refreshSearch = () => {};
   function addDriverSearch() {
     const search = document.createElement('div'); search.className = 'result-driver-search';
-    search.innerHTML = '<label>Fahrer suchen<input type="search" placeholder="Name eingeben …" autocomplete="off" data-result-search></label><div data-result-search-matches aria-live="polite"></div>';
+    search.innerHTML = '<label>Fahrer suchen<input type="search" placeholder="Name eingeben …" autocomplete="off" data-result-search></label><button type="button" data-clear-result-search>Suche leeren</button><div data-result-search-matches aria-live="polite"></div>';
     mount.prepend(search);
     const input = search.querySelector('input'), matches = search.querySelector('[data-result-search-matches]');
     input.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
     refreshSearch = () => {
+      const focused = matches.contains(document.activeElement) ? { driver: document.activeElement.dataset.searchPosition, status: document.activeElement.dataset.searchStatus } : null;
       matches.replaceChildren(); const query = input.value.trim().toLocaleLowerCase('de');
       if (!query) return;
       const rows = [...form.querySelectorAll('[data-result-driver]')].filter(row => String(row.dataset.driverName).toLocaleLowerCase('de').includes(query));
@@ -32,6 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
           select.addEventListener('change', () => board.dispatchEvent(new CustomEvent('result-search-position', { detail: { driverId: row.dataset.resultDriver, position: select.value } })));
           label.append(select); hit.append(label);
         }
+        const sessionStatus = row.querySelector(`[data-result-status-race="${type}"]`) || (type === 'main' ? row.querySelector('[data-result-status]') : null);
+        if (board && sessionStatus) {
+          const label = document.createElement('label'); label.textContent = 'Status';
+          const field = sessionStatus.cloneNode(true); field.removeAttribute('name'); field.removeAttribute('data-result-status'); field.removeAttribute('data-result-status-race'); field.dataset.searchStatus = row.dataset.resultDriver; field.value = sessionStatus.value;
+          field.addEventListener('change', () => { sessionStatus.value = field.value; sessionStatus.dispatchEvent(new Event('change', { bubbles: true })); }); label.append(field); hit.append(label);
+        }
         if (!board) {
           row.querySelectorAll('input[type="number"]').forEach(source => {
             const label = document.createElement('label'); label.textContent = source.name.includes('sprint') ? 'Sprint-Punkte' : 'GP-Punkte';
@@ -51,8 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '-1'); card.focus({ preventScroll: true });
         }); hit.append(button); matches.append(hit);
       });
+      if (focused) { const field = [...matches.querySelectorAll('select')].find(node => focused.driver ? node.dataset.searchPosition === focused.driver : node.dataset.searchStatus === focused.status); field?.focus({ preventScroll: true }); }
     };
     input.addEventListener('input', refreshSearch);
+    search.querySelector('[data-clear-result-search]').addEventListener('click', () => { input.value = ''; refreshSearch(); input.focus(); });
   }
 
   const config = JSON.parse(dataNode.textContent || '{}');
@@ -83,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }[character]));
 
   function inputFor(driver, raceType, kind) {
+    if (kind === 'status') return driver.row.querySelector(`[data-result-status-race="${raceType}"]`) || (raceType === 'main' ? driver.row.querySelector('[data-result-status]') : null);
     if (kind === 'position') return driver.row.querySelector(`[data-result-position="${raceType}"]`);
     if (kind === 'fastest') return driver.row.querySelector(`[data-result-fastest="${raceType}"]`);
     if (kind === 'pole') return driver.row.querySelector(`[data-result-pole="${raceType}"]`);
@@ -96,7 +107,8 @@ document.addEventListener('DOMContentLoaded', () => {
     card.className = `result-control-driver ${driver.reserve ? 'is-reserve' : ''}`;
     card.dataset.driverId = driver.id;
     card.draggable = true;
-    const status = driver.status?.value || '';
+    const statusInput = inputFor(driver, raceType, 'status');
+    const status = statusInput?.value || '';
     const visualLogo = driver.reserve ? config.leagueLogo : driver.logo;
     const bonuses = [
       raceType === 'main' && inputFor(driver, raceType, 'pole')?.checked ? 'POLE' : '',
@@ -109,8 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
     statusBadge.addEventListener('click', (event) => {
       event.stopPropagation();
       const values = ['', 'DNF', 'DSQ'];
-      driver.status.value = values[(values.indexOf(driver.status.value) + 1) % values.length];
-      driver.status.dispatchEvent(new Event('change', { bubbles: true }));
+      if (!statusInput) return;
+      statusInput.value = values[(values.indexOf(statusInput.value) + 1) % values.length];
+      statusInput.dispatchEvent(new Event('change', { bubbles: true }));
     });
     card.addEventListener('dragstart', (event) => event.dataTransfer.setData('text/plain', driver.id));
     card.addEventListener('dragover', (event) => {
@@ -207,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pole = Boolean(raceType === 'main' && inputFor(driver, raceType, 'pole')?.checked && config.polePositionEnabled);
         const bonus = (fastest ? Number(config.fastestLapPoints || 0) : 0) + (pole ? Number(config.polePositionPoints || 0) : 0);
         bonuses += bonus;
-        if (driver.status?.value === 'DSQ') deductions += base + bonus;
+        if (inputFor(driver, raceType, 'status')?.value === 'DSQ') deductions += base + bonus;
         else actual += base + bonus;
       });
       const expected = theoretical + bonuses - deductions;
@@ -240,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const kind = section.dataset.activeBonus;
       if (card && kind) { setExclusive(kind, card.dataset.driverId); section.dataset.activeBonus = ''; section.querySelectorAll('[data-bonus]').forEach((badge) => badge.classList.remove('is-active')); }
     });
-    driverData.forEach((driver) => driver.status?.addEventListener('change', render));
+    driverData.forEach((driver) => inputFor(driver, raceType, 'status')?.addEventListener('change', render));
     render();
     return section;
   }
