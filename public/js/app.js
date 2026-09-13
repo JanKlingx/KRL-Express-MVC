@@ -111,7 +111,8 @@
       if (Math.abs(delta) > 45) show(index + (delta < 0 ? 1 : -1));
       touchStart = null;
     }, { passive: true });
-    show(0);
+    const initial = Number(carousel.dataset.initialSlide || 0);
+    show(Number.isInteger(initial) && initial >= 0 && initial < slides.length ? initial : 0);
   });
 
   document.querySelectorAll('[data-lightbox]').forEach((button) => {
