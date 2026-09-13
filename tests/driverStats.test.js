@@ -16,6 +16,6 @@ test('Fahrerstatistiken trennen F1 und LMU und zählen Sprint nicht als Grand-Pr
     { position: 1, points: 30, status: null, grandPrixResult: { discipline: 'lmu', raceType: 'main' } }
   ];
   const stats = summarizeDriverEntries(entries);
-  assert.deepEqual(stats.f1, { points: 47, starts: 2, wins: 1, podium1: 1, podium2: 0, podium3: 1, winRate: 50 });
-  assert.deepEqual(stats.lmu, { points: 30, starts: 1, wins: 1, podium1: 1, podium2: 0, podium3: 0, winRate: 100 });
+  assert.deepEqual(stats.f1, { points: 47, starts: 2, wins: 1, podium1: 1, podium2: 0, podium3: 1, poles: 0, fastestLaps: 0, driverOfTheDays: 0, winRate: 50 });
+  assert.deepEqual(stats.lmu, { points: 30, starts: 1, wins: 1, podium1: 1, podium2: 0, podium3: 0, poles: 0, fastestLaps: 0, driverOfTheDays: 0, winRate: 100 });
 });

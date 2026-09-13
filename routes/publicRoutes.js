@@ -16,6 +16,7 @@ const f1ContentController = require("../controllers/f1ContentController");
 
 
 const router = express.Router();
+router.get("/krl-statistik", asyncHandler(require("../controllers/statisticsController").show));
 
 
 router.get(

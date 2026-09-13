@@ -256,6 +256,9 @@ async function prepareDriverForForm(entry) {
     ...values,
     f1SeasonRanks: stints.filter((stint) => stint.season).map((stint) => `${require('./f1DriverPolicy').seasonRankLabel(stint.season)} · R${stint.fromRound}${stint.toRound == null ? '–Saisonende' : `–R${stint.toRound}`}`),
     aliasesText: aliases.map((alias) => alias.alias).join(", "),
+    polesF1: stats.f1.poles,
+    fastestLapsF1: stats.f1.fastestLaps,
+    driverOfTheDaysF1: stats.f1.driverOfTheDays,
     pointsF1: stats.f1.points,
     winsF1: stats.f1.wins,
     winRateF1: stats.f1.winRate,
@@ -1445,6 +1448,7 @@ module.exports = {
         false,
       ),
       nationalityField(),
+      ...[["polesF1", "Polepositions F1"], ["fastestLapsF1", "Schnellste Runden F1"], ["driverOfTheDaysF1", "Driver of the Day F1"]].map(([key, label]) => number(key, label, false, { readonly: true, persist: false, visibleWhen: hasF1Rank })),
       number("pointsF1", "F1-Punkte", false, {
         readonly: true,
         persist: false,
