@@ -667,7 +667,6 @@
                         const selectedStatus =
                           String(
                             entry?.status ||
-                            sprintEntry?.status ||
                             ''
                           );
 
@@ -836,6 +835,14 @@
 
                           </label>
 
+
+                          <% if (sprintRace) { %>
+                            <label class="result-field"><span>Sprint-Status</span>
+                              <select name="rows[d<%= driver.id %>][sprintStatus]" data-result-status data-result-status-race="sprint">
+                                <% currentResultStatuses.forEach((status) => { %><option value="<%= status.value %>" <%= (sprintEntry?.status || '') === status.value ? 'selected' : '' %>><%= status.label %></option><% }) %>
+                              </select>
+                            </label>
+                          <% } %>
 
                           <!-- SCHNELLSTE RUNDE -->
 
@@ -1363,8 +1370,7 @@
                             value="<%= status %>"
                             <%= String(
                               entry?.status ||
-                              sprintEntry?.status ||
-                              ''
+                                ''
                             ) === status
                               ? 'selected'
                               : ''
@@ -1377,6 +1383,9 @@
 
                       </select>
 
+                      <% if (sprintRace) { %><label>Sprint-Status<select name="rows[<%= driver.id %>][sprintStatus]">
+                        <% statuses.forEach((status) => { %><option value="<%= status %>" <%= (sprintEntry?.status || '') === status ? 'selected' : '' %>><%= status || 'Gewertet' %></option><% }) %>
+                      </select></label><% } %>
                     </td>
 
 

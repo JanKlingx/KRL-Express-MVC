@@ -14,6 +14,9 @@ function isRoundInStint(stint, roundValue) {
     (stint.toRound === null || stint.toRound === undefined || round <= Number(stint.toRound));
 }
 
+function dnsCount(driver) {
+  return (driver.results || []).filter(result => result.status === 'DNS').length;
+}
 function raceCode(race, index) {
   const words = String(race?.title || race?.circuit || "")
     .replace(/gro(?:ss|ß)er preis (?:von|der)/i, "")
@@ -536,7 +539,7 @@ function buildSeasonData(
               value: "–",
               points: 0,
               cumulative,
-              status: null,
+              status: (race.isCompleted || race.entries?.length) ? "DNS" : null,
               position: null,
               fastestLap: false,
             };
@@ -639,6 +642,7 @@ function buildSeasonData(
           b.wins -
             a.wins ||
 
+          dnsCount(b) - dnsCount(a) ||
           a.name.localeCompare(
             b.name,
             "de",
@@ -935,6 +939,7 @@ function buildSeasonData(
           b.wins -
             a.wins ||
 
+          dnsCount(b) - dnsCount(a) ||
           a.name.localeCompare(
             b.name,
             "de",
@@ -1432,8 +1437,8 @@ function buildSeasonData(
               driver.teamLogoPath,
 
             points,
-
             wins,
+            results: driver.results.filter((_, index) => number(races[index]?.sortOrder) <= number(targetWeekend.round)),
           };
         },
       )
@@ -1445,6 +1450,7 @@ function buildSeasonData(
           b.wins -
             a.wins ||
 
+          dnsCount(b) - dnsCount(a) ||
           a.name.localeCompare(
             b.name,
             "de",

@@ -1908,12 +1908,7 @@ exports.save = async (
            * =================================================
            */
 
-          const status =
-            statuses.includes(
-              submitted.status,
-            )
-              ? submitted.status
-              : "";
+
 
 
           /*
@@ -1936,6 +1931,7 @@ exports.save = async (
               }
 
 
+              const status = require('../services/resultStatus').sessionResultStatus(submitted, current, prefix ? 'sprint' : eventRace.raceType);
               const positionField =
                 prefix
                   ? `${prefix}Position`

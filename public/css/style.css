@@ -12310,3 +12310,50 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .result-search-hit label { font-size: .75rem; }
 .result-search-hit select { padding: .65rem; color: #fff; background: #101e26; border: 1px solid #7297a5; border-radius: .4rem; font: inherit; }
 @media (max-width: 600px) { .result-search-hit { grid-template-columns: minmax(0, 1fr); } }
+
+/* Fit the complete desktop history; smaller screens use stacked round blocks. */
+.season-sheet-wrap { overflow: visible; min-width: 0; }
+.season-sheet-wrap.sheet-narrow { display: none; }
+.season-sheet-table { min-width: 0; width: 100%; table-layout: fixed; }
+.season-sheet-table .col-position { width: 2.5%; }
+.season-sheet-table .col-driver { width: 9%; }
+.season-sheet-table .col-team { width: 4%; }
+.season-sheet-table .col-stat { width: 4%; }
+.season-sheet-table .col-rate { width: 4%; }
+.season-sheet-table .col-race { width: auto; }
+.season-sheet-table td.sheet-result { height: auto; padding: 2px; }
+.season-sheet-table .sheet-result-tile { aspect-ratio: 1; height: auto; min-height: 25px; display: flex; flex-direction: column; justify-content: center; gap: 1px; padding: 1px; }
+.season-sheet-table .sheet-result-value { font-size: clamp(7px, .75vw, 12px); line-height: 1.2; }
+.season-sheet-table .sheet-result-awards { min-height: 8px; }
+.season-sheet-table .sheet-result-awards .race-award { font-size: 0; padding: 0 1px; line-height: 8px; }
+.season-sheet-table .sheet-result-awards .race-award::after { font-size: 5px; }
+.season-sheet-table .sheet-result-awards .race-award-fl::after { content: 'FL'; }
+.season-sheet-table .sheet-result-awards .race-award-pole::after { content: 'P'; }
+.season-sheet-table .sheet-result-awards .race-award-dotd::after { content: 'D'; }
+.season-sheet-table .season-race-position-1 { background: #c9b979 !important; color: #292719 !important; }
+.season-sheet-table .season-race-position-2 { background: #acb8bf !important; color: #242d32 !important; }
+.season-sheet-table .season-race-position-3 { background: #ba977e !important; color: #30261e !important; }
+.season-sheet-table .sheet-result-tile.is-dna { background: #2d3439; color: #869198; }
+.season-sheet-table .sheet-result-tile.is-dns { background: #465959; color: #d9e8df; }
+.season-sheet-table .sheet-stat-head { font-size: clamp(6px, .6vw, 10px); overflow-wrap: anywhere; }
+.result-search-hit { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
+[data-clear-result-search] { margin-top: .6rem; padding: .5rem .75rem; border: 1px solid #577881; border-radius: .4rem; color: #d5e8eb; background: #243d45; cursor: pointer; }
+@media (max-width: 1100px) {
+  .season-sheet-wrap.sheet-wide { display: none; }
+  .season-sheet-wrap.sheet-narrow { display: block; margin-top: 1.5rem; }
+  .season-sheet-table .col-position { width: 4%; }
+  .season-sheet-table .col-driver { width: 14%; }
+  .season-sheet-table .col-team { width: 6%; }
+  .season-sheet-table .col-stat { width: 7%; }
+  .season-sheet-table .col-rate { width: 6%; }
+  .season-sheet-table .sheet-result-value { font-size: clamp(7px, 1.7vw, 12px); }
+  .season-sheet-table .sheet-result-tile { min-height: 20px; }
+  .season-sheet-table .sheet-stat-head { font-size: 7px; }
+}
+@media (max-width: 600px) {
+  .result-search-hit { grid-template-columns: 1fr 1fr; }
+  .result-search-hit > strong { grid-column: 1 / -1; }
+  .season-sheet-table .sheet-driver strong { font-size: 8px; white-space: normal; overflow-wrap: anywhere; }
+  .season-sheet-table .country-code { font-size: 7px; }
+  .season-sheet-table td.sheet-total, .season-sheet-table td.sheet-stat { font-size: 8px; }
+}
