@@ -1757,6 +1757,7 @@ exports.save = async (
     { race, prefix: "" },
     ...(sprintRace ? [{ race: sprintRace, prefix: "sprint" }] : []),
   ]) {
+    if (event.prefix || event.race.raceType === "sprint") continue;
     const fastestField = event.prefix ? "sprintFastestLap" : "fastestLap";
     const poleField = event.prefix ? "sprintPolePosition" : "polePosition";
     const fastestCount = driverRows.filter(({ driver }) => getSubmittedRow(submittedRows, driver.id)[fastestField] === "on").length;
@@ -1773,7 +1774,7 @@ exports.save = async (
   const driverOfTheDayCount = driverRows.filter(({ driver }) =>
     getSubmittedRow(submittedRows, driver.id).driverOfTheDay === "on",
   ).length;
-  if (driverOfTheDayCount > 1) {
+  if (race.raceType !== "sprint" && driverOfTheDayCount > 1) {
     req.session.flash = {
       type: "error",
       message: "Der Driver of the Day darf im Hauptrennen nur einmal vergeben werden.",
@@ -1947,10 +1948,7 @@ exports.save = async (
                   : "points";
 
 
-              const fastestField =
-                prefix
-                  ? `${prefix}FastestLap`
-                  : "fastestLap";
+
 
 
               /*
@@ -1976,21 +1974,9 @@ exports.save = async (
               /*
                * Schnellste Runde
                */
-              const fastestLap =
-                eventRace.pointsMode ===
-                  "database" &&
-                submitted[
-                  fastestField
-                ] ===
-                  "on";
+              const { fastestLap, polePosition, driverOfTheDay } =
+                require('../services/raceAwards').submittedRaceAwards(eventRace, submitted, prefix);
 
-              const poleField = prefix ? `${prefix}PolePosition` : "polePosition";
-              const polePosition =
-                submitted[poleField] === "on";
-
-              // Driver of the Day ist eine reine Auszeichnung des
-              // Hauptrennens und verändert die bestehende Punkteberechnung nie.
-              const driverOfTheDay = !prefix && submitted.driverOfTheDay === "on";
 
 
               /*

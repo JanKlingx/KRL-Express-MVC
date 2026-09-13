@@ -86,7 +86,7 @@ test('Reservewertung zeigt DNA vor Eintritt und DNS bei späterem Nichteinsatz',
   const driver = { id: 7, name: 'Sonntagsstamm', roleF1Sunday: true, roleF1Reserve: true };
   const races = [4, 5, 6].map((round) => ({ id: round, SeasonId: 2, LeagueId: 1, sortOrder: round, title: `GP ${round}`, raceType: 'main', entries: [] }));
   const stint = { DriverId: 7, SeasonId: 2, roleType: 'reserve', fromRound: 5, toRound: null, driver };
-  const data = buildSeasonData({ id: 1, name: 'Freitag' }, races, [], [], {}, [stint]);
+  const data = buildSeasonData({ id: 1, name: 'Freitag' }, races, [], [{ GrandPrixResultId: 5, DriverId: 7, roleType: 'reserve', driver, includeInResults: false }], {}, [stint]);
   const results = data.selectedHistory.reserveDrivers.find((row) => row.id === 7).results;
   assert.deepEqual(results.map((row) => row.status), ['DNA', 'DNS', 'DNS']);
 });

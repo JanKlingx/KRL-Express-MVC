@@ -957,32 +957,6 @@
 
                                 </label>
 
-
-                                <label class="result-checkbox result-fastest">
-
-                                  <input
-                                    type="checkbox"
-                                    name="rows[d<%= driver.id %>][sprintFastestLap]"
-                                    data-result-fastest="sprint"
-                                    <%= sprintEntry?.fastestLap
-                                      ? 'checked'
-                                      : ''
-                                    %>
-                                  >
-
-                                  <span>
-                                    Schnellste Runde
-                                  </span>
-
-                                </label>
-
-                                <% if (sprintRace) { %>
-                                  <label class="result-checkbox result-fastest">
-                                    <input type="checkbox" name="rows[d<%= driver.id %>][sprintPolePosition]" data-result-pole="sprint" <%= sprintEntry?.polePosition ? 'checked' : '' %>>
-                                    <span>Pole Position</span>
-                                  </label>
-                                <% } %>
-
                               <% } %>
 
                             </div>
@@ -1128,9 +1102,7 @@
                         Sprint-Platz
                       </th>
 
-                      <th>
-                        Sprint-SR
-                      </th>
+
 
                     <% } %>
 
@@ -1368,20 +1340,6 @@
                             min="1"
                             name="rows[<%= driver.id %>][sprintPosition]"
                             value="<%= sprintEntry?.position || '' %>"
-                          >
-
-                        </td>
-
-
-                        <td>
-
-                          <input
-                            type="checkbox"
-                            name="rows[<%= driver.id %>][sprintFastestLap]"
-                            <%= sprintEntry?.fastestLap
-                              ? 'checked'
-                              : ''
-                            %>
                           >
 
                         </td>

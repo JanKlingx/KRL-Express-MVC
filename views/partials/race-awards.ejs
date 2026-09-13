@@ -1,0 +1,5 @@
+<% if (isMain) { %><span class="race-awards">
+  <% if (result?.fastestLap) { %><em class="race-award race-award-fl" title="Schnellste Runde">FL</em><% } %>
+  <% if (result?.polePosition) { %><em class="race-award race-award-pole" title="Pole Position">POLE</em><% } %>
+  <% if (result?.driverOfTheDay) { %><em class="race-award race-award-dotd" title="Driver of the Day">DotD</em><% } %>
+</span><% } %>

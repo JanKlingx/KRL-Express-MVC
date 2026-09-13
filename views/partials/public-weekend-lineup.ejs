@@ -33,7 +33,7 @@
       </article>
     <% }) %>
     <div class="public-weekend-legend" aria-label="Statuslegende">
-      <% [['angefragt','Angefragt'],['abgemeldet','Abgemeldet'],['unsicher','Unsicher'],['anwesend','Anwesend'],['auf_abruf','Auf Abruf'],['rennsperre','Rennsperre'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['rueckmeldung_unsicher','Nicht dabei · zurückgemeldet'],['fehlende_rueckmeldung_unsicher','Nicht dabei · keine Rückmeldung'],['offen','Noch nicht bestätigt']].forEach(([status, label]) => { %><span class="public-driver-status" data-status="<%= status %>"><%= label %></span><% }) %>
+      <% [['angefragt','Angefragt'],['abgemeldet','Abgemeldet'],['unsicher','Unsicher'],['anwesend','Anwesend'],['auf_abruf','Auf Abruf'],['rennsperre','Rennsperre'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['offen','Noch nicht bestätigt']].forEach(([status, label]) => { %><span class="public-driver-status" data-status="<%= status %>"><%= label %></span><% }) %>
     </div>
   <% } %>
 </section>

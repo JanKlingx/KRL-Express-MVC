@@ -416,16 +416,7 @@
                     </div>
 
 
-                    <% if (entry.fastestLap) { %>
-
-                      <span
-                        class="gp-broadcast-fastest"
-                        title="Schnellste Runde"
-                      >
-                        SR
-                      </span>
-
-                    <% } %>
+                    <%- include("race-awards", { result: entry, isMain: item.raceType !== "sprint" }) %>
 
 
                     <% if (
@@ -434,7 +425,7 @@
                     ) { %>
 
                       <span
-                        class="gp-broadcast-status"
+                        class="gp-broadcast-status race-status-chip"
                       >
                         <%= status %>
                       </span>
@@ -546,7 +537,7 @@
                       ) { %>
 
                         <small
-                          class="status-<%= statusClass %>"
+                          class="race-status-chip"
                         >
                           <%= status %>
                         </small>
@@ -554,16 +545,7 @@
                       <% } %>
 
 
-                      <% if (entry.fastestLap) { %>
-
-                        <span
-                          class="gp-broadcast-row-sr"
-                          title="Schnellste Runde"
-                        >
-                          SR
-                        </span>
-
-                      <% } %>
+                      <%- include("race-awards", { result: entry, isMain: item.raceType !== "sprint" }) %>
 
                     </div>
 
@@ -682,7 +664,7 @@
                       ) { %>
 
                         <small
-                          class="status-<%= statusClass %>"
+                          class="race-status-chip"
                         >
                           <%= status %>
                         </small>
@@ -690,16 +672,7 @@
                       <% } %>
 
 
-                      <% if (entry.fastestLap) { %>
-
-                        <span
-                          class="gp-broadcast-row-sr"
-                          title="Schnellste Runde"
-                        >
-                          SR
-                        </span>
-
-                      <% } %>
+                      <%- include("race-awards", { result: entry, isMain: item.raceType !== "sprint" }) %>
 
                     </div>
 
@@ -787,3 +760,4 @@
   </div>
 
 <% } %>
+<% if (availableItems.length) { %><%- include("race-result-legend") %><% } %>

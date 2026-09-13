@@ -4,9 +4,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const dataNode = form?.querySelector('[data-result-control-points]');
   if (!form || !mount || !dataNode) return;
 
+  function addDriverSearch() {
+    const search = document.createElement('div'); search.className = 'result-driver-search';
+    search.innerHTML = '<label>Fahrer suchen<input type="search" placeholder="Name eingeben …" autocomplete="off" data-result-search></label><div data-result-search-matches aria-live="polite"></div>';
+    mount.prepend(search);
+    const input = search.querySelector('input'), matches = search.querySelector('[data-result-search-matches]');
+    input.addEventListener('keydown', event => { if (event.key === 'Enter') event.preventDefault(); });
+    input.addEventListener('input', () => {
+      matches.replaceChildren(); const query = input.value.trim().toLocaleLowerCase('de');
+      if (!query) return;
+      const rows = [...form.querySelectorAll('[data-result-driver]')].filter(row => String(row.dataset.driverName).toLocaleLowerCase('de').includes(query));
+      if (!rows.length) matches.textContent = 'Kein Fahrer gefunden.';
+      rows.forEach(row => {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = row.dataset.driverName;
+        button.addEventListener('click', () => {
+          const board = [...mount.querySelectorAll('[data-result-board]')].find(item => !item.hidden);
+          const card = board ? [...board.querySelectorAll('[data-driver-id]')].find(item => item.dataset.driverId === row.dataset.resultDriver) : row;
+          if (!card) return;
+          mount.querySelectorAll('.is-search-match').forEach(item => item.classList.remove('is-search-match'));
+          card.classList.add('is-search-match'); card.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+          if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '-1'); card.focus({ preventScroll: true });
+        }); matches.append(button);
+      });
+    });
+  }
+
   const config = JSON.parse(dataNode.textContent || '{}');
   if (config.pointsMode === 'manual') {
     mount.innerHTML = '<div class="result-manual-notice"><strong>MANUELLE PUNKTE</strong><span>Positionen bleiben eindeutig; Punktwerte werden wie bisher manuell gepflegt.</span></div>';
+    addDriverSearch();
     return;
   }
 
@@ -47,8 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const status = driver.status?.value || '';
     const visualLogo = driver.reserve ? config.leagueLogo : driver.logo;
     const bonuses = [
-      inputFor(driver, raceType, 'pole')?.checked ? 'POLE' : '',
-      inputFor(driver, raceType, 'fastest')?.checked ? 'SCHNELLSTE RUNDE' : '',
+      raceType === 'main' && inputFor(driver, raceType, 'pole')?.checked ? 'POLE' : '',
+      raceType === 'main' && inputFor(driver, raceType, 'fastest')?.checked ? 'SCHNELLSTE RUNDE' : '',
       raceType === 'main' && inputFor(driver, raceType, 'dotd')?.checked ? 'DRIVER OF THE DAY' : '',
     ].filter(Boolean);
     card.innerHTML = `${visualLogo ? `<img src="${escapeHtml(visualLogo)}" alt="">` : '<span class="result-control-logo">KRL</span>'}<span><strong>${escapeHtml(driver.name)}</strong><small>${driver.reserve ? 'ERSATZ · ' : ''}${escapeHtml(driver.team || 'Team')}</small><em>${bonuses.map(escapeHtml).join(' · ')}</em></span><b data-result-card-status>${escapeHtml(status || 'GEWERTET')}</b>`;
@@ -79,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const section = document.createElement('section');
     section.className = `result-control-board result-control-${raceType}`;
     section.dataset.resultBoard = raceType;
-    section.innerHTML = `<header><div><span>${raceType === 'sprint' ? 'SPRINT' : 'HAUPTRENNEN'}</span><strong>Positionsturm</strong></div><div class="result-control-badges"><button type="button" draggable="true" data-bonus="pole">POLE POSITION</button><button type="button" draggable="true" data-bonus="fastest">SCHNELLSTE RUNDE</button>${raceType === 'main' ? '<button type="button" draggable="true" data-bonus="dotd">DRIVER OF THE DAY</button>' : ''}</div></header><div class="result-control-workspace"><div class="result-position-tower" data-position-tower></div><aside class="result-driver-pool" data-driver-pool><header><strong>FAHRERPOOL</strong><small>Fahrer auf eine Position ziehen</small></header><div data-pool-cards></div></aside></div><div class="result-control-summary" data-result-summary></div>`;
+    section.innerHTML = `<header><div><span>${raceType === 'sprint' ? 'SPRINT' : 'HAUPTRENNEN'}</span><strong>Positionsturm</strong></div><div class="result-control-badges">${raceType === 'main' ? `<button type="button" draggable="true" data-bonus="pole">POLE POSITION</button><button type="button" draggable="true" data-bonus="fastest">SCHNELLSTE RUNDE</button><button type="button" draggable="true" data-bonus="dotd">DRIVER OF THE DAY</button>` : ''}</div></header><div class="result-control-workspace"><div class="result-position-tower" data-position-tower></div><aside class="result-driver-pool" data-driver-pool><header><strong>FAHRERPOOL</strong><small>Fahrer auf eine Position ziehen</small></header><div data-pool-cards></div></aside></div><div class="result-control-summary" data-result-summary></div>`;
     const tower = section.querySelector('[data-position-tower]');
     const pool = section.querySelector('[data-pool-cards]');
 
@@ -125,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setExclusive(kind, driverId) {
+      if (raceType !== 'main') return;
       driverData.forEach((driver) => {
         const input = inputFor(driver, raceType, kind);
         if (input) input.checked = driver.id === String(driverId);
@@ -144,8 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const position = positionOf(driver.id);
         if (!position) return;
         const base = points.get(position) || 0;
-        const fastest = Boolean(inputFor(driver, raceType, 'fastest')?.checked && config.fastestLapEnabled);
-        const pole = Boolean(inputFor(driver, raceType, 'pole')?.checked && config.polePositionEnabled);
+        const fastest = Boolean(raceType === 'main' && inputFor(driver, raceType, 'fastest')?.checked && config.fastestLapEnabled);
+        const pole = Boolean(raceType === 'main' && inputFor(driver, raceType, 'pole')?.checked && config.polePositionEnabled);
         const bonus = (fastest ? Number(config.fastestLapPoints || 0) : 0) + (pole ? Number(config.polePositionPoints || 0) : 0);
         bonuses += bonus;
         if (driver.status?.value === 'DSQ') deductions += base + bonus;
@@ -167,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     section.querySelector('[data-driver-pool]').addEventListener('drop', (event) => { event.preventDefault(); unassign(event.dataTransfer.getData('text/plain')); });
     section.querySelectorAll('[data-bonus]').forEach((badge) => {
       const kind = badge.dataset.bonus;
-      if (kind === 'fastest' && !config.fastestLapEnabled) badge.hidden = true;
+      // Awards remain available even when their points bonus is disabled.
       badge.addEventListener('dragstart', (event) => event.dataTransfer.setData('application/x-result-bonus', kind));
       badge.addEventListener('click', () => { badge.classList.toggle('is-active'); section.dataset.activeBonus = badge.classList.contains('is-active') ? kind : ''; });
     });
@@ -197,12 +224,15 @@ document.addEventListener('DOMContentLoaded', () => {
     button.type = 'button';
     button.textContent = index ? 'SPRINT' : 'HAUPTRENNEN';
     button.className = index ? '' : 'is-active';
+    button.setAttribute('aria-pressed', String(index === 0));
     button.addEventListener('click', () => {
       boards.forEach((item, itemIndex) => { item.hidden = itemIndex !== index; });
-      [...tabs.children].forEach((item, itemIndex) => item.classList.toggle('is-active', itemIndex === index));
+      [...tabs.children].forEach((item, itemIndex) => { item.classList.toggle('is-active', itemIndex === index); item.setAttribute('aria-pressed', String(itemIndex === index)); });
     });
     tabs.append(button);
   });
+
+  addDriverSearch();
 
   form.addEventListener('submit', (event) => {
     const missing = driverData.filter((driver) => !inputFor(driver, 'main', 'position')?.value || (config.hasSprint && !inputFor(driver, 'sprint', 'position')?.value));

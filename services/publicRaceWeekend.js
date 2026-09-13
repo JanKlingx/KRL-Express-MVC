@@ -29,7 +29,8 @@ const statusLabels = {
 };
 function publicDriver(entry) {
   const driver = plain(entry.driver) || {};
-  const status = entry.attendanceStatus || entry.status || 'offen';
+  const rawStatus = entry.attendanceStatus || entry.status || 'offen';
+  const status = ({ rueckmeldung_unsicher: 'abgemeldet', fehlende_rueckmeldung_unsicher: 'unabgemeldet' })[rawStatus] || rawStatus;
   return { id: Number(entry.DriverId || driver.id), name: driver.name || 'Fahrer',
     status: statusLabels[status] ? status : 'offen', statusLabel: statusLabels[status] || statusLabels.offen,
     confirmed: Boolean(entry.includeInResults), replacementFor: Number(entry.ReplacementForDriverId) || null };
