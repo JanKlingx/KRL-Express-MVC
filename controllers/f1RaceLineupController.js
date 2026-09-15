@@ -45,7 +45,6 @@ async function loadRosterTeams(league, race) {
     if (structure.teams.length) {
       return Promise.all(
         structure.teams
-          .filter((seasonTeam) => seasonTeam.drivers.length)
           .map(async (seasonTeam) => {
             let actualTeam = null;
 
@@ -146,8 +145,7 @@ async function loadRosterTeams(league, race) {
             assignment.driver?.[roleField],
         )
         .map((assignment) => assignment.driver),
-    }))
-    .filter((team) => team.drivers.length);
+    }));
 }
 
 /*
@@ -419,7 +417,7 @@ async function loadPlanningRows(league, race) {
   });
 
   return {
-    teamCards,
+    teamCards: teamCards.map(card => ({ ...card, vacantSlots: require('../services/vacantSeats').vacantSlots([card], entries) })),
 
     reserves,
 
@@ -616,10 +614,13 @@ exports.save = async (req, res) => {
     const persistedReserves = await F1RaceLineupEntry.findAll({
       where: { GrandPrixResultId: race.id, roleType: 'reserve' }
     });
+    for (const driverId of Object.values(req.body.vacant || {}).filter(Boolean)) {
+      if (!reserveInput[`d${driverId}`] && !reserveInput[String(driverId)]) reserveInput[`d${driverId}`] = { status: 'anwesend' };
+    }
     const reserves = selectWeekendReserves(candidates, persistedReserves, reserveInput, historical);
     const regularRows = teamCards.flatMap((card) => card.rows);
 
-    if (!regularRows.length) throw new Error("Bitte zuerst Stammcockpits für diese Saison einrichten.");
+    if (!teamCards.length) throw new Error("Bitte zuerst Stammcockpits für diese Saison einrichten.");
 
     const reserveById = new Map(
       reserves.map((driver) => [Number(driver.id), driver]),
@@ -968,6 +969,7 @@ if (
      * =====================================================
      */
 
+    require('../services/vacantSeats').applyVacantPlan(records, req.body.vacant, require('../services/vacantSeats').vacantSlots(teamCards));
     const driverIds = records.map((record) => Number(record.DriverId));
 
     if (new Set(driverIds).size !== driverIds.length) {
@@ -994,7 +996,7 @@ if (
 
     const planChanged = records.length !== existingEntries.length || records.some((record) => {
       const old = existingByDriver.get(Number(record.DriverId));
-      return !old || ['roleType', 'status'].some((key) => old[key] !== record[key]) ||
+      return !old || ['roleType', 'status', 'vacantSeat'].some((key) => old[key] !== record[key]) ||
         ['TeamId', 'ReplacementForDriverId'].some((key) => Number(old[key] || 0) !== Number(record[key] || 0));
     });
     if (planChanged && existingEntries.some((entry) => entry.attendanceStatus || entry.includeInResults)) {
@@ -1022,7 +1024,7 @@ if (
             Number(existing.TeamId || 0) === Number(record.TeamId || 0) &&
             Number(existing.ReplacementForDriverId || 0) ===
               Number(record.ReplacementForDriverId || 0) &&
-            existing.status === record.status;
+            existing.status === record.status && existing.vacantSeat === record.vacantSeat;
 
           await existing.update(
             {

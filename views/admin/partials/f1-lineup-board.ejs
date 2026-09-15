@@ -250,6 +250,13 @@
 
   <!-- ================================================= -->
   <!-- STAMMFAHRER -->
+  <% const freeSeats = teamCards.flatMap(card => card.vacantSlots || []); %>
+  <% if (freeSeats.length) { %><section class="vacant-cockpit-grid"><h3>Freie Cockpits besetzen</h3>
+    <% freeSeats.forEach(slot => { %><label><span><% if (slot.team.logoPath) { %><img src="<%= slot.team.logoPath %>" alt=""><% } %><%= slot.team.name %> · Cockpit <%= slot.slot %></span>
+      <select name="vacant[<%= slot.key %>]"><option value="">Cockpit frei lassen</option>
+        <% reserveRows.forEach(row => { %><option value="<%= row.driver.id %>" <%= Number(slot.entry?.DriverId) === Number(row.driver.id) ? 'selected' : '' %>><%= row.driver.name %></option><% }) %>
+      </select></label><% }) %>
+  </section><% } %>
   <!-- ================================================= -->
 
   <section

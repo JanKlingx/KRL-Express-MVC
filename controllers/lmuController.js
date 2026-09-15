@@ -2,10 +2,10 @@ const { League, Driver, TeamRoster, TeamRosterDriver, Season, GrandPrixResult, G
 const { buildSeasonData } = require('../services/standings');
 const { sendCsv } = require('../services/csv');
 
-async function loadData(requestedSeasonId) {
-  const league = await League.findOne({ where: { slug: 'lmu', type: 'lmu' } });
+async function loadData(requestedSeasonId, slug = 'lmu') {
+  const league = await League.findOne({ where: { slug, type: 'lmu' } });
   if (!league) return null;
-  const seasons = await Season.findAll({ where: { leagueType: 'lmu', scopeSlug: 'lmu' }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
+  const seasons = await Season.findAll({ where: { leagueType: 'lmu', scopeSlug: slug }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const [rosters, historicalDrivers, gpResults, activeCalendar] = await Promise.all([
     TeamRoster.findAll({
@@ -33,18 +33,18 @@ async function loadData(requestedSeasonId) {
   const calendar = activeCalendar.length ? activeCalendar : gpResults
     .filter((race) => race.raceDate)
     .map((race) => ({ id: `result-${race.id}`, title: race.title, circuit: race.circuit, startsAt: new Date(`${race.raceDate}T12:00:00Z`) }));
-  const leagueForSeason = { ...league.toJSON(), currentSeason: selectedSeason?.name || league.currentSeason, accentColor: selectedSeason?.accentColor || league.accentColor };
+  const leagueForSeason = { ...league.toJSON(), currentSeason: selectedSeason?.name || league.currentSeason, accentColor: league.accentColor, seasonAccentColor: selectedSeason?.accentColor || league.accentColor };
   return { league: leagueForSeason, seasons, selectedSeason, teamRosters, teams, drivers, gpResults, calendar, ...buildSeasonData(leagueForSeason, gpResults, drivers) };
 }
 
 exports.show = async (req, res) => {
-  const data = await loadData(req.query.season);
+  const data = await loadData(req.query.season, req.params.slug);
   if (!data) return res.status(404).render('errors/404', { title: 'LMU-Liga nicht gefunden' });
   res.render('lmu', { title: data.league.name, ...data });
 };
 
 exports.downloadStandings = async (req, res) => {
-  const data = await loadData(req.query.season);
+  const data = await loadData(req.query.season, req.params.slug);
   if (!data) return res.status(404).end();
   const rows = [['Position', 'Fahrer', 'Team', 'Punkte', 'Siege']];
   data.driverStandings.forEach((row) => rows.push([row.position, row.driver.lmuDisplayName || row.driver.name, row.driver.team.name, row.points, row.wins]));
@@ -52,7 +52,7 @@ exports.downloadStandings = async (req, res) => {
 };
 
 exports.downloadResults = async (req, res) => {
-  const data = await loadData(req.query.season);
+  const data = await loadData(req.query.season, req.params.slug);
   if (!data) return res.status(404).end();
   const rows = [['Rennen', 'Platz', 'Status', 'Fahrer', 'Team', 'Punkte']];
   data.gpResults.forEach((race) => race.entries.forEach((entry) => rows.push([race.title, entry.position || '', entry.status || '', entry.driverName, entry.teamName || '', Number(entry.points)])));

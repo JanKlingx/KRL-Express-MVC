@@ -70,6 +70,7 @@ function buildPublicWeekends({ races = [], entries = [], teams = [], stints = []
         groupFor({ ...entry, SeasonTeamId: entry.SeasonTeamId || period?.SeasonTeamId }).regulars.push(publicDriver(entry));
       });
       reserves.forEach((entry) => {
+        if (entry.vacantSeat) { groupFor(entry).reserves.push({ ...publicDriver(entry), replacesName: 'Freies Cockpit' }); return; }
         let root = entry; const seen = new Set();
         while (root.ReplacementForDriverId && !seen.has(Number(root.DriverId))) {
           seen.add(Number(root.DriverId));

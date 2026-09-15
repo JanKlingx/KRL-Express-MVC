@@ -1,0 +1,3 @@
+<%- include('partials/header',{title}) %>
+<div class="league-page" style="--accent:<%= league.accentColor %>"><section class="league-hero"><div class="container"><% if(league.logoPath){ %><img class="league-hero-logo" src="<%= league.logoPath %>" alt=""><% } %><span class="eyebrow"><%= league.currentSeason %></span><h1><%= league.name %></h1><p><%= league.description %></p><div class="facts"><span><%= league.raceDay %></span><span><%= league.raceTime %></span></div></div></section></div>
+<%- include('partials/footer') %>

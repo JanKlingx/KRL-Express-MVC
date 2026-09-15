@@ -119,6 +119,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(require('./services/asyncHandler')(require('./services/navigation').locals));
+
 app.use('/', publicRoutes);
 app.use('/admin', authRoutes);
 app.use('/admin', adminRoutes);

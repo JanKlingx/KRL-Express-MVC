@@ -2,10 +2,10 @@ const { League, Season, ParticipatingLeague, GrandPrixResult, RaceEvent } = requ
 const { buildWdlStandings } = require('../services/championship');
 const { sendCsv } = require('../services/csv');
 
-async function loadData(requestedSeasonId) {
-  const pageLeague = await League.findOne({ where: { slug: 'wettkampf', type: 'competition' } });
+async function loadData(requestedSeasonId, slug = 'wettkampf') {
+  const pageLeague = await League.findOne({ where: { slug, type: 'competition' } });
   if (!pageLeague) return null;
-  const seasons = await Season.findAll({ where: { leagueType: 'wdl', scopeSlug: 'wettkampf' }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
+  const seasons = await Season.findAll({ where: { leagueType: 'wdl', scopeSlug: slug }, include: [{ association: 'category' }], order: [['status', 'ASC'], ['sortOrder', 'DESC'], ['id', 'DESC']] });
   const selectedSeason = seasons.find((season) => season.id === Number(requestedSeasonId)) || seasons.find((season) => season.status === 'active') || seasons[0] || null;
   const leagueWhere = selectedSeason?.status === 'historical' ? {} : { isActive: true };
   const leagues = await ParticipatingLeague.findAll({
@@ -31,18 +31,18 @@ async function loadData(requestedSeasonId) {
   const calendar = publishedCalendar.length ? publishedCalendar : races
     .filter((race) => race.raceDate)
     .map((race) => ({ id: `result-${race.id}`, title: race.title, circuit: race.circuit, startsAt: new Date(`${race.raceDate}T12:00:00Z`) }));
-  const pageLeagueForSeason = { ...pageLeague.toJSON(), currentSeason: selectedSeason?.name || pageLeague.currentSeason, accentColor: selectedSeason?.accentColor || pageLeague.accentColor };
+  const pageLeagueForSeason = { ...pageLeague.toJSON(), currentSeason: selectedSeason?.name || pageLeague.currentSeason, accentColor: pageLeague.accentColor, seasonAccentColor: selectedSeason?.accentColor || pageLeague.accentColor };
   return { pageLeague: pageLeagueForSeason, seasons, selectedSeason, leagues, races, calendar, standings: buildWdlStandings(races) };
 }
 
 exports.show = async (req, res) => {
-  const data = await loadData(req.query.season);
+  const data = await loadData(req.query.season, req.params.slug);
   if (!data) return res.status(404).render('errors/404', { title: 'WDL-Seite nicht gefunden' });
   res.render('competition', { title: 'Wettkampf der Ligen', ...data });
 };
 
 exports.downloadStandings = async (req, res) => {
-  const data = await loadData(req.query.season);
+  const data = await loadData(req.query.season, req.params.slug);
   if (!data) return res.status(404).end();
   const rows = [['Position', 'Liga', 'Punkte', 'Siege']];
   data.standings.forEach((row) => rows.push([row.position, row.league.name, row.points, row.wins]));
@@ -50,7 +50,7 @@ exports.downloadStandings = async (req, res) => {
 };
 
 exports.downloadResults = async (req, res) => {
-  const data = await loadData(req.query.season);
+  const data = await loadData(req.query.season, req.params.slug);
   if (!data) return res.status(404).end();
   const rows = [['Rennen', 'Liga', 'Fahrer 1', 'Platz 1', 'Fahrer 2', 'Platz 2', 'Punkte']];
   data.races.forEach((race) => race.wdlEntries.forEach((entry) => rows.push([

@@ -165,9 +165,16 @@ test("Admin-Strafkartei rendert gemeinsame Ersatz- und Ehemaligen-Spalten", asyn
   assert.match(html, /Testfahrer/);
 });
 
-test("Navigation schließt die F1-Gruppe vor den übrigen Hauptlinks", () => {
-  const header = read("views/partials/header.ejs");
-  assert.match(header, /<\/div>\s*<\/div>\s*<a href="\/lmu">LMU Liga<\/a>/);
+test("Navigation trennt frei benannte Gruppen von Hauptlinks", async () => {
+  const html = await ejs.renderFile(path.join(root, "views/partials/header.ejs"), {
+    ...layout, title: 'Navigation', navigationItems: [
+      {label:'Rennserien',children:[{label:'Montag',url:'/ligen/montag'}]},
+      {label:'Community',url:'/#team'}
+    ]
+  });
+  const {JSDOM}=require('jsdom');const document=new JSDOM(html).window.document;
+  assert.equal(document.querySelector('.nav-group .dropdown a').textContent,'Montag');
+  assert.equal(document.querySelector('a[href="/#team"]').closest('.nav-group'),null);
 });
 
 test("bestehende Saisons werden sicher verknüpft und nicht neu aufgebaut", () => {

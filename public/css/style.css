@@ -12357,3 +12357,26 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
   .season-sheet-table .country-code { font-size: 7px; }
   .season-sheet-table td.sheet-total, .season-sheet-table td.sheet-stat { font-size: 8px; }
 }
+
+/* League identity stays stable; season colors accent the content. */
+.league-page > .league-hero { border-bottom: 2px solid var(--accent); background: linear-gradient(120deg,color-mix(in srgb,var(--accent) 14%,#0b1215),#0b1215); }
+.league-page > .league-hero h1 span,.league-page > .league-hero .eyebrow { color:var(--accent); }
+.league-page > .league-section-nav { border-color:var(--accent); }
+.league-page > .league-section-nav a { border-color:color-mix(in srgb,var(--accent) 55%,transparent); }
+.league-page > .league-section-nav a:hover,.league-page > .league-section-nav a:focus-visible { background:var(--accent);color:#102023; }
+.league-page > .section { --accent:var(--season-accent); }
+.vacant-cockpit-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:1rem;margin:1rem 0;width:100%; }
+.vacant-cockpit-grid h3 {grid-column:1/-1;margin:0;}
+.vacant-cockpit-grid label {display:grid;gap:.65rem;padding:1rem;border:1px dashed #648087;border-radius:12px;background:#142126;min-width:0;}
+.vacant-cockpit-grid select {width:100%;min-width:0;}
+.navigation-editor {width:min(900px,94vw);max-height:88vh;overflow:auto;padding:1.5rem;border:1px solid #547279;border-radius:18px;background:#101b20;color:#edf4f5;}
+.navigation-editor::backdrop {background:#000a;}
+.navigation-editor-tools {display:flex;flex-wrap:wrap;gap:.8rem;align-items:end;margin:1rem 0;}
+.navigation-editor-card {display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.75rem;border:1px solid #476069;border-radius:10px;margin:.6rem 0;background:#17282e;}
+.navigation-editor-card input {flex:1;min-width:120px;}
+.navigation-editor button,.navigation-editor select,.navigation-editor input {padding:.65rem;border:1px solid #6b848a;border-radius:7px;background:#22373f;color:#fff;font:inherit;}
+.navigation-editor button {cursor:pointer;}
+.navigation-editor button:disabled {opacity:.3;cursor:default;}
+.navigation-editor-children {flex-basis:100%;padding:.7rem 0 .7rem 1rem;min-height:3rem;border-left:2px solid #80b6bf;}
+.navigation-editor form {display:flex;justify-content:flex-end;}
+.vacant-cockpit-grid label img {width:40px;height:28px;object-fit:contain;vertical-align:middle;margin-right:.5rem;}

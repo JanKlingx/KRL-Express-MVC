@@ -867,6 +867,8 @@ async function ensureSchema() {
     { type: DataTypes.BOOLEAN, allowNull: true },
   );
 
+  await addMissingColumn('f1_race_lineup_entries', lineupTable, 'vacant_seat', { type: DataTypes.STRING(64), allowNull: true });
+  await addMissingColumn('f1_race_lineup_entries', lineupTable, 'season_team_id', { type: DataTypes.INTEGER, allowNull: true });
   const standardPoints = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
   for (let index = 0; index < standardPoints.length; index += 1) {
     await PointsRule.findOrCreate({
