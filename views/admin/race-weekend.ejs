@@ -772,7 +772,7 @@
                     <% if(regular.vacantSeat) { %>
                       <div class="f1-attendance-person"><label>Anwesenheit
                       <select name="vacantAttendance[d<%= regular.DriverId %>]" required data-attendance-status><option value="">Bitte auswählen</option>
-                      <% [['anwesend','Anwesend'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['abgemeldet','Abgemeldet'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet']].forEach(([value,label])=> { %><option value="<%= value %>" <%= regular.attendanceStatus===value?'selected':'' %>><%= label %></option><% }); %>
+                      <% [['anwesend','Anwesend'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['abgemeldet','Abgemeldet'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet']].forEach(([value,label])=> { %><option value="<%= value %>" <%= (regular.attendanceStatus || 'anwesend')===value?'selected':'' %>><%= label %></option><% }); %>
                       </select></label></div>
                     <% } else { %>
 
