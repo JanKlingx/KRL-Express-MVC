@@ -390,6 +390,8 @@ async function ensureSchema() {
     "image_path",
     { type: DataTypes.STRING, allowNull: true },
   );
+  await addMissingColumn("krl_team_assignments", krlAssignmentTable, "ea_name", {type:DataTypes.STRING,allowNull:true});
+  await addMissingColumn("krl_team_assignments", krlAssignmentTable, "steam_friend_code", {type:DataTypes.STRING,allowNull:true});
   await addMissingColumn("krl_team_assignments", krlAssignmentTable, "description", { type: DataTypes.TEXT, allowNull: true });
   const krlTeamTable = await queryInterface.describeTable("krl_teams");
   await addMissingColumn("krl_teams", krlTeamTable, "accent_color", {

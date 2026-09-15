@@ -250,13 +250,6 @@
 
   <!-- ================================================= -->
   <!-- STAMMFAHRER -->
-  <% const freeSeats = teamCards.flatMap(card => card.vacantSlots || []); %>
-  <% if (freeSeats.length) { %><section class="vacant-cockpit-grid"><h3>Freie Cockpits besetzen</h3>
-    <% freeSeats.forEach(slot => { %><label><span><% if (slot.team.logoPath) { %><img src="<%= slot.team.logoPath %>" alt=""><% } %><%= slot.team.name %> · Cockpit <%= slot.slot %></span>
-      <select name="vacant[<%= slot.key %>]"><option value="">Cockpit frei lassen</option>
-        <% reserveRows.forEach(row => { %><option value="<%= row.driver.id %>" <%= Number(slot.entry?.DriverId) === Number(row.driver.id) ? 'selected' : '' %>><%= row.driver.name %></option><% }) %>
-      </select></label><% }) %>
-  </section><% } %>
   <!-- ================================================= -->
 
   <section
@@ -580,7 +573,17 @@
             </div>
 
           <% }) %>
-
+          <% (card.vacantSlots || []).forEach(slot => { %>
+            <div class="f1-lineup-driver is-vacant" data-regular-row data-team-name="<%= card.team.name %>">
+              <div class="f1-lineup-driver__team-mobile"><% if(card.team.logoPath) { %><img src="<%= card.team.logoPath %>" alt="<%= card.team.name %>"><% } %></div>
+              <div class="f1-lineup-driver__name"><strong>COCKPIT FREI</strong><small>Kein Stammfahrer zugeordnet</small></div>
+              <div class="f1-lineup-driver__status"><span class="f1-lineup-chip">Frei</span></div>
+              <div class="f1-lineup-driver__replacement"><select name="vacant[<%= slot.key %>]" data-replacement-select data-vacant-select data-current-replacement="<%= slot.entry?.DriverId || '' %>" aria-label="Ersatzfahrer für freies Cockpit bei <%= card.team.name %>">
+                <option value="">Cockpit frei lassen</option>
+                <% reserveRows.filter(row => (row.entry || row.isCarriedOver) && ['anwesend','auf_abruf'].includes(row.status)).forEach(row => { %><option value="<%= row.driver.id %>" <%= Number(slot.entry?.DriverId) === Number(row.driver.id) ? 'selected' : '' %>><%= row.driver.name %></option><% }); %>
+              </select><small>Nur angemeldete Ersatzfahrer aus dem Pool oben.</small></div>
+            </div>
+          <% }); %>
         </div>
 
       </article>

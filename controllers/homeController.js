@@ -16,6 +16,7 @@ exports.index = async (req, res) => {
       order: [['startsAt', 'ASC']]
     })
   ]);
+  const community = await require('../controllers/communityController').load(req);
   const nextRaceView = nextRace && {
     ...nextRace.toJSON(),
     iso: nextRace.startsAt.toISOString(),
@@ -23,7 +24,7 @@ exports.index = async (req, res) => {
     time: new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(nextRace.startsAt)
   };
   const teamDrivers = teamEditing ? await Driver.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC'], ['id', 'ASC']] }) : [];
-  res.render('home', { title: 'Katzes Racing League', statistics, krlTeams, krlIcons, leagues, teamEditing, teamDrivers, teamMemberDraft: req.session?.teamMemberDraft || null, teamGroupDraft: req.session?.teamGroupDraft || null, nextRace: nextRaceView });
+  res.render('home', { title: 'Katzes Racing League', ...community, statistics, krlTeams, krlIcons, leagues, teamEditing, teamDrivers, teamMemberDraft: req.session?.teamMemberDraft || null, teamGroupDraft: req.session?.teamGroupDraft || null, nextRace: nextRaceView });
 };
 
 exports.endurance = (req, res) => res.render('placeholder', {

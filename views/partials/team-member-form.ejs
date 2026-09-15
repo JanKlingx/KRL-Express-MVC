@@ -3,6 +3,8 @@
     <label>Mitglied suchen<input type="search" data-member-search placeholder="Name eingeben …" autocomplete="off"></label>
     <label>Person auswählen<select name="DriverId" required data-member-select><option value="">Bitte auswählen …</option><% candidates.forEach((driver) => { %><option value="<%= driver.id %>" <%= Number(memberEntry.DriverId) === Number(driver.id) ? 'selected' : '' %>><%= driver.name %> · #<%= driver.id %></option><% }) %></select></label>
   <% } %>
+  <label>EA-Name<input name="eaName" maxlength="100" value="<%= memberEntry.eaName || '' %>" placeholder="Optional"></label>
+  <label>Steam-Freundescode<input name="steamFriendCode" maxlength="20" pattern="[0-9]{1,20}" inputmode="numeric" value="<%= memberEntry.steamFriendCode || '' %>" placeholder="Optional"></label>
   <label>Funktion<input name="roleName" value="<%= memberEntry.roleName || '' %>" maxlength="255" placeholder="z. B. Ligaleitung" required></label>
   <label>Beschreibung<textarea name="description" maxlength="3000" rows="3" placeholder="Aufgaben oder kurze Vorstellung"><%= memberEntry.description || '' %></textarea></label>
   <label class="team-image-drop" data-image-drop>Bild hier ablegen oder auswählen<input type="file" name="image" accept="image/png,image/jpeg,image/webp" data-member-image><small>PNG, JPG oder WebP · maximal 10 MB</small><img data-image-preview alt="Bildvorschau" hidden></label>

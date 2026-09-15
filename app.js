@@ -36,12 +36,12 @@ if (!sessionSecret) {
 
 const contentSecurityDirectives = {
   defaultSrc: ["'self'"],
-  scriptSrc: ["'self'"],
+  scriptSrc: ["'self'", "https://www.tiktok.com"],
   styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
   imgSrc: ["'self'", 'data:', 'blob:'],
-  connectSrc: ["'self'"],
-  frameSrc: ["'self'"],
+  connectSrc: ["'self'", "https://www.tiktok.com"],
+  frameSrc: ["'self'", "https://www.tiktok.com", "https://www.instagram.com", "https://discord.com"],
   objectSrc: ["'none'"],
   baseUri: ["'self'"],
   frameAncestors: ["'none'"],

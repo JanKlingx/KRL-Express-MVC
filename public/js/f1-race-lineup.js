@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const options = reserveRows
         .filter((row) => row.dataset.reserveSelected !== 'false')
         .map(reserveState)
-        .filter((reserve) => allowedReserveStatuses.has(reserve.status) || reserve.id === previous)
+        .filter((reserve) => select.hasAttribute('data-vacant-select') ? ['anwesend','auf_abruf'].includes(reserve.status) : allowedReserveStatuses.has(reserve.status) || reserve.id === previous)
         .filter((reserve) => !used.has(reserve.id) || reserve.id === previous)
         .sort((left, right) => {
           const leftRank = left.status === 'anwesend' ? 0 : 1;
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return leftRank - rightRank || left.name.localeCompare(right.name, 'de');
         });
 
-      select.replaceChildren(new Option('Kein Ersatz', ''));
+      select.replaceChildren(new Option(select.hasAttribute('data-vacant-select') ? 'Cockpit frei lassen' : 'Kein Ersatz', ''));
       options.forEach((reserve) => {
         const statusLabel = reserve.status === 'auf_abruf' ? 'AUF ABRUF' : reserve.status === 'anwesend' ? 'ANWESEND' : 'UNSICHER';
         select.add(new Option(`${reserve.name} · ${statusLabel}`, reserve.id, reserve.id === previous, reserve.id === previous));

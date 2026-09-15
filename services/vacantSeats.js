@@ -14,7 +14,7 @@ function applyVacantPlan(records, input, slots) {
     const record = records.find(row => Number(row.DriverId) === Number(rawId) && row.roleType === 'reserve');
     if (!slot || !record || record.ReplacementForDriverId || used.has(Number(rawId))) throw new Error('Ein Ersatzfahrer darf nur einem tatsächlich freien Cockpit zugeordnet werden.');
     if (!slot.team.id) throw new Error(`${slot.team.name}: Bitte das Saisonauto zuerst einem Team im Teamstamm zuordnen.`);
-    if (!['anwesend', 'auf_abruf', 'unsicher'].includes(record.status)) throw new Error('Für ein freies Cockpit bitte einen anwesenden, unsicheren oder auf Abruf verfügbaren Ersatzfahrer auswählen.');
+    if (!['anwesend', 'auf_abruf'].includes(record.status)) throw new Error('Für ein freies Cockpit bitte einen angemeldeten oder auf Abruf verfügbaren Ersatzfahrer auswählen.');
     used.add(Number(rawId)); record.vacantSeat = key; record.SeasonTeamId = slot.team.seasonTeamId || null; record.TeamId = slot.team.id;
   }
 }

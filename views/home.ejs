@@ -10,6 +10,8 @@
   </div>
 </section>
 
+<nav class="container home-shortcuts" aria-label="Startseiten-Bereiche"><a href="#news">News</a><a href="#ligen">Ligen</a><a href="/krl-statistik">F1-Statistik</a><a href="/anleitungen">Anleitungen</a><a href="#team">Unser Team</a><a href="#social">Social Media</a></nav>
+<%- include('partials/home-community') %>
 <section class="section container">
   <div class="section-heading"><span>MEHR ALS NUR RENNEN</span><h2>DEINE RACING-COMMUNITY</h2></div>
   <div class="feature-grid">
@@ -39,4 +41,5 @@
 <%- include('partials/home-team') %>
 <% if (krlIcons.length) { %><section class="section section-dark icon-preview-section"><div class="container"><div class="section-heading"><span>AUSGEZEICHNET</span><h2>KRL ICONS</h2><a class="download-link" href="/krl-icons">Alle KRL Icons ansehen →</a></div><div class="icon-preview-grid"><% krlIcons.slice(0, 4).forEach((icon, index) => { const appointed = icon.appointedAt ? new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric', timeZone: 'Europe/Berlin' }).format(new Date(`${icon.appointedAt}T12:00:00Z`)) : null; %><article class="icon-preview-card"><span>KRL ICON · <%= String(index + 1).padStart(2, '0') %></span><strong><%= icon.driver.name %></strong><p><%= icon.text %></p><small><%= appointed ? `Ernannt ${appointed}` : 'Ernennung offen' %></small><a href="/krl-icons">Geschichte lesen →</a></article><% }) %></div></div></section><% } %>
 <section class="section cta"><div class="container"><span>BEREIT FÜR DIE STARTAUFSTELLUNG?</span><h2>WERDE TEIL DER KRL</h2><p>Besuche unseren Discord und finde die passende Liga für dich.</p><a class="button" href="https://discord.com" target="_blank" rel="noopener">Discord öffnen</a></div></section>
+<script src="/js/community.js" defer></script>
 <%- include('partials/footer') %>

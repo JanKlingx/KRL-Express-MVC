@@ -36,6 +36,7 @@ const candidates = typeof teamDrivers !== 'undefined' ? teamDrivers : [];
             <div class="avatar"><% if (assignment.imagePath) { %><img src="<%= assignment.imagePath %>" alt="<%= member.name %>"><% } else { %><%= member.name.charAt(0) %><% } %></div>
             <strong><%= member.name %></strong><span><%= assignment.roleName %></span>
             <% if (assignment.description) { %><p class="team-member-description"><%= assignment.description %></p><% } %>
+            <% [['EA',assignment.eaName],['Steam',assignment.steamFriendCode]].forEach(([label,value])=> { if(value) { %><button type="button" class="profile-copy" data-copy="<%= value %>" aria-label="<%= label %> von <%= member.name %> kopieren"><span><%= label %></span> <%= value %> <span aria-hidden="true">⧉</span></button><% } }); %>
             <% if (editing) { %>
               <details class="team-member-editor" <%= draft ? 'open' : '' %>><summary aria-label="<%= member.name %> bearbeiten">✎ Bearbeiten</summary><%- include('team-member-form', { groupId: team.id, memberEntry: draft ? { ...draft, imagePath: assignment.imagePath } : assignment, candidates }) %></details>
               <form method="post" action="/admin/team-groups/<%= team.id %>/members/<%= assignment.id %>/delete" data-confirm="Diese Person aus dieser Gruppe entfernen? Das Fahrerprofil bleibt erhalten."><button class="button button-ghost button-small" type="submit" aria-label="<%= member.name %> aus Gruppe entfernen">🗑 Entfernen</button></form>
