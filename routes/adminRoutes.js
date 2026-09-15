@@ -24,6 +24,7 @@ const pdfUpload = require("../middleware/pdfUpload");
 
 const router = express.Router();
 router.use(requireAdmin);
+router.post('/navigation', asyncHandler(require('../services/navigation').save));
 const teamGroupController = require('../controllers/teamGroupController');
 router.post('/team-groups', asyncHandler(teamGroupController.save));
 router.post('/team-groups/reorder', asyncHandler(teamGroupController.reorder));

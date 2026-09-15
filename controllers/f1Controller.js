@@ -613,10 +613,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
       selectedSeason?.name ||
       league.currentSeason,
 
-    accentColor:
-      selectedSeason
-        ?.accentColor ||
-      league.accentColor,
+    accentColor: league.accentColor, seasonAccentColor: selectedSeason?.accentColor || league.accentColor,
   };
 
   const plainLineups =

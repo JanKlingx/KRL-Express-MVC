@@ -16,6 +16,14 @@ const f1ContentController = require("../controllers/f1ContentController");
 
 
 const router = express.Router();
+router.get('/ligen/:slug', asyncHandler(async (req, res) => {
+ const league = await require('../models').League.findOne({where:{slug:req.params.slug}});
+ if (!league) return res.status(404).render('errors/404',{title:'Liga nicht gefunden'});
+ if(league.type === 'f1') return f1Controller.show(req,res);
+ if(league.type === 'lmu') return lmuController.show(req,res);
+ if(league.type === 'competition') return competitionController.show(req,res);
+ return res.render('league-generic',{title:league.name,league});
+}));
 router.get("/krl-statistik", asyncHandler(require("../controllers/statisticsController").show));
 
 
@@ -32,22 +40,22 @@ router.get(
  */
 
 router.get(
-  "/f1/:slug(freitag|samstag|sonntag)/download/fahrer-wm.csv",
+  "/f1/:slug/download/fahrer-wm.csv",
   asyncHandler(f1Controller.downloadDriverStandings),
 );
 
 router.get(
-  "/f1/:slug(freitag|samstag|sonntag)/download/team-wm.csv",
+  "/f1/:slug/download/team-wm.csv",
   asyncHandler(f1Controller.downloadTeamStandings),
 );
 
 router.get(
-  "/f1/:slug(freitag|samstag|sonntag)/download/gp-results.csv",
+  "/f1/:slug/download/gp-results.csv",
   asyncHandler(f1Controller.downloadGpResults),
 );
 
 router.get(
-  "/f1/:slug(freitag|samstag|sonntag)",
+  "/f1/:slug",
   asyncHandler(f1Controller.show),
 );
 

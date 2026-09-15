@@ -1,0 +1,17 @@
+<% const menuItems = typeof navigationItems === 'undefined' ? [{url:'/',label:'Start'}] : navigationItems; %>
+<% menuItems.forEach(item=> { %>
+ <% if(item.children) { %><div class="nav-group"><button type="button" aria-expanded="false"><%= item.label %> ▾</button><div class="dropdown"><% item.children.forEach(child=> { %><a href="<%= child.url %>" class="<%= navPath === child.url ? 'active' : '' %>"><%= child.label %></a><% }); %></div></div>
+ <% } else { %><a href="<%= item.url %>" class="<%= navPath === item.url ? 'active' : '' %>"><%= item.label %></a><% } %>
+<% }); %>
+<% if(signedIn && (typeof adminRole === 'undefined' || !adminRole || adminRole === 'admin')) { %>
+<button type="button" data-navigation-open aria-label="Navigation bearbeiten" title="Navigation bearbeiten">✎</button>
+<dialog class="navigation-editor" data-navigation-editor>
+ <button type="button" class="button button-small" data-navigation-close aria-label="Bearbeitung schließen">Schließen</button>
+ <h2>Navigation gestalten</h2><p>Seiten hinzufügen, in eine Gruppe ziehen und mit den Pfeilen oder per Ziehen sortieren. Gruppennamen sind frei wählbar.</p>
+ <input type="hidden" data-navigation-state value="<%= JSON.stringify(menuItems) %>">
+ <input type="hidden" data-navigation-pages value="<%= JSON.stringify(typeof navigationPages === 'undefined' ? [] : navigationPages) %>">
+ <input type="hidden" data-navigation-version value="<%= typeof navigationVersion === 'undefined' ? '' : navigationVersion %>">
+ <div class="navigation-editor-tools"><label>Seite <select data-navigation-page></select></label><button type="button" data-navigation-add>Seite hinzufügen</button><button type="button" data-navigation-group>+ Gruppe</button><a href="/admin/leagues/new">Neue Ligenseite</a></div>
+ <div data-navigation-list></div><p role="status" data-navigation-message></p><button type="button" class="button" data-navigation-save>Navigation speichern</button>
+</dialog><script src="/js/navigation-editor.js" defer></script>
+<% } %>

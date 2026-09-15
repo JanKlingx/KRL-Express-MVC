@@ -685,6 +685,13 @@
               <div class="f1-attendance__teams">
 
 
+                <% const vacantEntries = entries.filter(entry => entry.vacantSeat); %>
+                <% if (vacantEntries.length) { %><section class="vacant-cockpit-grid"><h3>Ersatzfahrer in freien Cockpits</h3>
+                  <% vacantEntries.forEach(entry => { %><label><span><%= entry.driver?.name || 'Ersatzfahrer' %> · Freies Cockpit</span>
+                    <select name="vacantAttendance[d<%= entry.DriverId %>]" required><option value="">Anwesenheit auswählen</option>
+                      <% [['anwesend','Anwesend'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['abgemeldet','Abgemeldet'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet']].forEach(([value,label]) => { %><option value="<%= value %>" <%= entry.attendanceStatus === value ? 'selected' : '' %>><%= label %></option><% }) %>
+                    </select></label><% }) %>
+                </section><% } %>
                 <% attendanceRows.forEach(({
                   entry: regular,
                   displayTeam,

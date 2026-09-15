@@ -1,16 +1,20 @@
 function weekendProgress(entries = []) {
   const regulars = entries.filter((entry) => entry.roleType === 'regular');
-  const relevant = entries.filter((entry) => entry.roleType === 'regular' || entry.ReplacementForDriverId);
-  const lineupComplete = regulars.length > 0;
+  const relevant = entries.filter((entry) => entry.roleType === 'regular' || entry.ReplacementForDriverId || entry.vacantSeat);
+  const lineupComplete = regulars.length > 0 || entries.some(entry => entry.vacantSeat);
   const attendanceComplete = lineupComplete && relevant.every((entry) => {
     if (entry.roleType === 'regular' && entry.status === 'rennsperre') return !entry.includeInResults;
     if (!['anwesend', 'zu_spaet_vorbesprechung', 'abgemeldet', 'unabgemeldet', 'zu_spaet_abgemeldet', 'rueckmeldung_unsicher', 'fehlende_rueckmeldung_unsicher'].includes(entry.attendanceStatus)) return false;
-    if (entry.status === 'unsicher' && (entry.uncertainPresent == null || entry.respondedInTime == null)) return false;
+    if (!entry.vacantSeat && entry.status === 'unsicher' && (entry.uncertainPresent == null || entry.respondedInTime == null)) return false;
     const starts = ['anwesend', 'zu_spaet_vorbesprechung'].includes(entry.attendanceStatus);
     return starts === Boolean(entry.includeInResults);
   });
   const occupied = new Set();
   const validSeats = entries.filter((entry) => entry.includeInResults).every((entry) => {
+    if (entry.vacantSeat) {
+      if (entry.roleType !== 'reserve' || entry.ReplacementForDriverId || !entry.TeamId || (!entry.SeasonTeamId && !entry.vacantSeat.startsWith(`team-${entry.TeamId}:`)) || occupied.has(entry.vacantSeat)) return false;
+      occupied.add(entry.vacantSeat); return true;
+    }
     const seat = Number(entry.ReplacementForDriverId || entry.DriverId);
     const root = regulars.find((row) => Number(row.DriverId) === seat);
     if (!root || root.status === 'rennsperre' || occupied.has(seat)) return false;
@@ -36,7 +40,7 @@ async function resetWeekendStep(race, step, transaction) {
   }
 }
 function lineupFingerprint(entries) {
-  return JSON.stringify(entries.map((entry) => [Number(entry.DriverId), entry.roleType, entry.status, Number(entry.TeamId) || null, Number(entry.ReplacementForDriverId) || null, entry.attendanceStatus ?? null, Boolean(entry.includeInResults), entry.uncertainPresent ?? null, entry.respondedInTime ?? null]).sort((a, b) => a[0] - b[0]));
+  return JSON.stringify(entries.map((entry) => [Number(entry.DriverId), entry.roleType, entry.status, Number(entry.TeamId) || null, Number(entry.ReplacementForDriverId) || null, entry.attendanceStatus ?? null, Boolean(entry.includeInResults), entry.uncertainPresent ?? null, entry.respondedInTime ?? null, entry.vacantSeat || null, entry.SeasonTeamId || null]).sort((a, b) => a[0] - b[0]));
 }
 async function lockLineup(race, entries, transaction) {
   const { GrandPrixResult, F1RaceLineupEntry } = require('../models');

@@ -1,6 +1,8 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
+const NavigationLayout = sequelize.define("NavigationLayout", { content: { type: DataTypes.TEXT, allowNull: false } });
+
 const commonSort = {
   sortOrder: {
     type: DataTypes.INTEGER,
@@ -1057,6 +1059,8 @@ const F1RaceLineupEntry = sequelize.define(
       allowNull: false,
     },
 
+    vacantSeat: { type: DataTypes.STRING(64), allowNull: true },
+    SeasonTeamId: { type: DataTypes.INTEGER, allowNull: true },
     attendanceStatus: DataTypes.STRING,
 
     includeInResults: {
@@ -2701,6 +2705,7 @@ Driver.belongsTo(Platform, { as: "platformRecord", foreignKey: "PlatformId", onD
 Platform.hasMany(Driver, { as: "drivers", foreignKey: "PlatformId", onDelete: "RESTRICT" });
 
 module.exports = {
+  NavigationLayout,
   Platform,
   sequelize,
 

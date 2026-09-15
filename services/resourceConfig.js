@@ -1091,7 +1091,7 @@ module.exports = {
     title: "Ligen-Seiten",
     group: "Frontend",
     description:
-      "Name, URL, Ligatyp und Darstellung der öffentlichen Ligenseiten pflegen.",
+      "Name, URL und Seitenvorlage pflegen. Gruppen und Seitenreihenfolge direkt am Stift in der Hauptnavigation bearbeiten.",
     model: models.League,
     upload: { field: "logoPath", label: "Liga-Logo" },
     fields: [
@@ -1101,7 +1101,7 @@ module.exports = {
       }),
       select(
         "type",
-        "Ligatyp",
+        "Seitenvorlage / Wertungsart",
         [
           ["f1", "Formel 1"],
           ["lmu", "Le Mans Ultimate"],
@@ -1117,7 +1117,6 @@ module.exports = {
       text("raceTime", "Startzeit", false, { placeholder: "20:00 Uhr" }),
       textarea("description", "Beschreibung"),
       field("accentColor", "Akzentfarbe", "color", false),
-      number("sortOrder", "Reihenfolge", false, { min: 0 }),
     ],
   },
   countries: {

@@ -722,7 +722,7 @@ async function loadF1Data(
            */
           if (
             entry.roleType !==
-            "reserve"
+            "reserve" || entry.vacantSeat
           ) {
             return false;
           }
@@ -1211,8 +1211,16 @@ exports.saveAttendance =
       {};
 
 
+    if (entries.some(entry => entry.vacantSeat)) {
+      const planning = await require('./f1RaceLineupController').loadPlanningRows(race.league, race);
+      const slots = require('../services/vacantSeats').vacantSlots(planning.teamCards);
+      if (entries.some(entry => entry.vacantSeat && !slots.some(slot => slot.key === entry.vacantSeat && Number(slot.team.id) === Number(entry.TeamId)))) {
+        throw new Error('Ein freies Cockpit wurde zwischenzeitlich verändert. Bitte die Aufstellung neu speichern.');
+      }
+    }
     const previousAttendance = lineupFingerprint(entries);
     async function finishAttendance(transaction) {
+      await require('../services/vacantSeats').saveVacantAttendance(entries, req.body.vacantAttendance, transaction);
       if (!weekendProgress(entries).validSeats) throw new Error('Ein Cockpit darf nur einen bestätigten Starter haben. Bitte die Zuordnung korrigieren.');
       if (lineupFingerprint(entries) !== previousAttendance) await resetWeekendStep(race, 3, transaction);
     }
@@ -1396,7 +1404,7 @@ exports.saveAttendance =
             entries.filter(
               (entry) =>
                 entry.roleType ===
-                "reserve",
+                "reserve" && !entry.vacantSeat,
             );
 
 
@@ -1801,6 +1809,7 @@ exports.saveAttendance =
 
 
             while (reserve) {
+              if (reserve.vacantSeat) throw new Error("Dieser Fahrer ist bereits einem freien Cockpit zugeordnet.");
 
               ensureReserveAvailable(
                 reserve,
