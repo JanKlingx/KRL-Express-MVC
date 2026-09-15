@@ -1,6 +1,8 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
 
+const NewsPost = sequelize.define('NewsPost', { title: {type:DataTypes.STRING,allowNull:false}, body: {type:DataTypes.TEXT,allowNull:false}, isPublished: {type:DataTypes.BOOLEAN,defaultValue:false}, publishedAt: DataTypes.DATE });
+const CommunitySetting = sequelize.define('CommunitySetting', { instagramPost: DataTypes.STRING, discordServerId: DataTypes.STRING });
 const NavigationLayout = sequelize.define("NavigationLayout", { content: { type: DataTypes.TEXT, allowNull: false } });
 
 const commonSort = {
@@ -1282,6 +1284,8 @@ const KrlTeam = sequelize.define("KrlTeam", {
 });
 
 const KrlTeamAssignment = sequelize.define("KrlTeamAssignment", {
+  eaName: DataTypes.STRING,
+  steamFriendCode: DataTypes.STRING,
   roleName: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -2706,6 +2710,7 @@ Platform.hasMany(Driver, { as: "drivers", foreignKey: "PlatformId", onDelete: "R
 
 module.exports = {
   NavigationLayout,
+  NewsPost, CommunitySetting,
   Platform,
   sequelize,
 

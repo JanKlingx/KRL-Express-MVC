@@ -27,8 +27,8 @@ test('Statistik-Suche, Vergleichslimit, Filter, beste Saison und Reset funktioni
   dom.window.eval(fs.readFileSync(path.join(root, 'public/js/career-statistics.js'), 'utf8'));
   const d = dom.window.document; const get = key => d.querySelector(`[data-career-${key}]`);
   assert.equal(d.querySelectorAll('.career-driver').length, 4); assert.match(d.querySelector('.career-best').textContent, /Saison 11/);
-  for (let i = 0; i < 3; i++) d.querySelectorAll('.career-driver button')[i].click();
-  assert.equal(d.querySelectorAll('.career-driver button')[3].disabled, true); assert.equal(get('comparison').querySelectorAll('thead th').length, 4);
+  for (let i = 0; i < 3; i++) d.querySelectorAll('.career-driver button[aria-pressed]')[i].click();
+  assert.equal(d.querySelectorAll('.career-driver button[aria-pressed]')[3].disabled, true); assert.equal(get('comparison').querySelectorAll('thead th').length, 4);
   get('search').value = 'Fahrer 2'; get('search').dispatchEvent(new dom.window.Event('input')); assert.equal(d.querySelectorAll('.career-driver').length, 1);
   get('season').value = 'Saison 10'; get('season').dispatchEvent(new dom.window.Event('change')); assert.doesNotMatch(get('comparison').textContent, /65/);
   get('reset').click(); assert.equal(d.querySelectorAll('.career-driver').length, 4); assert.equal(get('comparison').querySelector('table'), null);

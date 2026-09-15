@@ -16,6 +16,7 @@ const f1ContentController = require("../controllers/f1ContentController");
 
 
 const router = express.Router();
+router.get('/anleitungen', (req,res)=>res.render('guides',{title:'Anleitungen'}));
 router.get('/ligen/:slug', asyncHandler(async (req, res) => {
  const league = await require('../models').League.findOne({where:{slug:req.params.slug}});
  if (!league) return res.status(404).render('errors/404',{title:'Liga nicht gefunden'});

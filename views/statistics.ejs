@@ -3,13 +3,14 @@
   <header class="career-hero"><span class="career-eyebrow">KRL · DIE ZAHLEN HINTER DEN RENNEN</span><h1>Jede Runde.<br>Deine Geschichte.</h1><p>Entdecke Fahrerkarrieren, vergleiche Erfolge und finde die stärksten Saisons.</p></header>
   <div class="career-toolbar">
     <label>Fahrer suchen<input type="search" data-career-search placeholder="Name eingeben …" autocomplete="off"></label>
-    <label>Disziplin<select data-career-discipline><option value="all">F1 & LMU</option><option value="f1">Formel 1</option><option value="lmu">LMU</option></select></label>
+    <input type="hidden" data-career-discipline value="f1">
     <label>Liga<select data-career-league><option value="all">Alle Ligen</option></select></label>
     <label>Saison<select data-career-season><option value="all">Alle Saisons</option></select></label>
-    <label>Sortieren nach<select data-career-metric><option value="points">Punkte</option><option value="wins">Siege</option><option value="poles">Polepositions</option><option value="fastestLaps">Schnellste Runden</option><option value="driverOfTheDays">Driver of the Day</option><option value="starts">Starts</option><option value="winRate">Siegesquote</option></select></label>
+    <label>Sortieren nach<select data-career-metric><option value="points">Punkte</option><option value="wins">Siege</option><option value="podium2">2. Plätze</option><option value="podium3">3. Plätze</option><option value="poles">Polepositions</option><option value="fastestLaps">Schnellste Runden</option><option value="driverOfTheDays">Driver of the Day</option><option value="starts">Starts</option><option value="winRate">Siegesquote</option></select></label>
     <button type="button" class="button button-ghost" data-career-reset>Zurücksetzen</button>
   </div>
-  <p class="career-note">Gespeicherte F1- und LMU-Ergebnisse · Punkte inklusive Sprint; Starts, Siege und Auszeichnungen aus Hauptrennen. Testtage sind ausgeschlossen. Bildarchive ohne Ergebnisdaten und Ergebnisse ohne Fahrerzuordnung zählen nicht mit.</p>
+  <p class="career-note">Gespeicherte Formel-1-Ergebnisse · Punkte inklusive Sprint; Starts, Siege und Auszeichnungen aus Hauptrennen. Testtage sind ausgeschlossen. Bildarchive ohne Ergebnisdaten und Ergebnisse ohne Fahrerzuordnung zählen nicht mit.</p>
+  <section class="career-profile" data-career-profile aria-label="Fahrerprofil" hidden></section>
   <div class="career-summary" data-career-summary></div>
   <section class="career-comparison" aria-label="Fahrervergleich"><div class="career-section-heading"><h2>Direkter Vergleich</h2><button type="button" class="button button-ghost button-small" data-career-clear>Auswahl leeren</button></div><p>Wähle bis zu drei Fahrer. Filter gelten auch für den Vergleich und die beste Saison.</p><div data-career-comparison></div></section>
   <div class="career-section-heading"><h2>Das Fahrerfeld</h2><span role="status" aria-live="polite" data-career-count></span></div>
@@ -17,5 +18,6 @@
   <noscript><p>Bitte JavaScript aktivieren, um Fahrer zu suchen und zu vergleichen.</p></noscript>
 </section>
 <script id="career-data" type="application/json"><%- JSON.stringify(statistics).replace(/</g, '\\u003c') %></script>
+<script id="career-scopes" type="application/json"><%- JSON.stringify(typeof scopeCatalog === 'undefined' ? [] : scopeCatalog).replace(/</g, '\\u003c') %></script>
 <script src="/js/career-statistics.js" defer></script>
 <%- include('partials/footer') %>

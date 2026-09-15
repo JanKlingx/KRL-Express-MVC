@@ -6,7 +6,7 @@ function buildCareerStatistics(drivers, entries) {
   const grouped = new Map();
   for (const entry of entries) {
     const race = entry.grandPrixResult;
-    if (!race || !byDriver.has(Number(entry.DriverId)) || !['f1', 'lmu'].includes(race.discipline)) continue;
+    if (!race || !byDriver.has(Number(entry.DriverId)) || race.discipline !== 'f1') continue;
     if (race.isTestDay || race.calendarEvent?.isTestDay || /^testtag\b/i.test(race.title || '')) continue;
     const seasonKey = `${race.discipline}:${race.LeagueId || 0}:${race.SeasonId || race.season}`;
     const key = `${entry.DriverId}:${seasonKey}`;

@@ -1,0 +1,5 @@
+<form method="post" action="/admin/news<%= post.id ? '/' + post.id : '' %>" class="news-form">
+<label>Titel<input name="title" maxlength="180" required value="<%= post.title || '' %>"></label>
+<label>News-Text<textarea name="body" rows="7" maxlength="20000" required><%= post.body || '' %></textarea></label>
+<label><input type="checkbox" name="isPublished" <%= post.isPublished ? 'checked' : '' %>> Öffentlich anzeigen</label>
+<button class="button button-small">Speichern</button></form>

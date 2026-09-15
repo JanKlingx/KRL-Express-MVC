@@ -615,7 +615,8 @@ exports.save = async (req, res) => {
       where: { GrandPrixResultId: race.id, roleType: 'reserve' }
     });
     for (const driverId of Object.values(req.body.vacant || {}).filter(Boolean)) {
-      if (!reserveInput[`d${driverId}`] && !reserveInput[String(driverId)]) reserveInput[`d${driverId}`] = { status: 'anwesend' };
+      const selected = reserveInput[`d${driverId}`] || reserveInput[String(driverId)];
+      if (!selected || !['anwesend','auf_abruf'].includes(selected.status)) throw new Error('Bitte den Ersatzfahrer zuerst oben anmelden und dann dem freien Cockpit zuordnen.');
     }
     const reserves = selectWeekendReserves(candidates, persistedReserves, reserveInput, historical);
     const regularRows = teamCards.flatMap((card) => card.rows);

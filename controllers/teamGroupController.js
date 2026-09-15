@@ -55,6 +55,9 @@ exports.saveMember = async (req, res) => {
   const { saveImage, deleteUpload } = require('../services/imageStorage');
   let uploadedPath;
   try {
+    const eaName = String(req.body.eaName || '').trim();
+    const steamFriendCode = String(req.body.steamFriendCode || '').trim();
+    if(eaName.length > 100 || (steamFriendCode && !/^\d{1,20}$/.test(steamFriendCode))) throw new Error('EA-Name maximal 100 Zeichen; Steam-Freundescode bitte nur als Zahl eingeben.');
     const roleName = String(req.body.roleName || '').trim();
     const description = String(req.body.description || '').trim();
     if (!roleName || roleName.length > 255 || description.length > 3000) throw new Error('Bitte Funktion (maximal 255 Zeichen) und Beschreibung (maximal 3000 Zeichen) prüfen.');
@@ -67,7 +70,7 @@ exports.saveMember = async (req, res) => {
       if (!await Driver.findByPk(DriverId, { transaction })) throw new Error('Bitte ein vorhandenes Mitglied auswählen.');
       if (!member && await KrlTeamAssignment.findOne({ where: { KrlTeamId: group.id, DriverId }, transaction })) throw new Error('Diese Person ist bereits in der Gruppe. Bitte den bestehenden Eintrag bearbeiten.');
       if (req.file) uploadedPath = await saveImage(req.file);
-      const values = { roleName, description, ...(uploadedPath ? { imagePath: uploadedPath } : req.body.removeImage === 'on' ? { imagePath: null } : {}) };
+      const values = { roleName, description, eaName, steamFriendCode, ...(uploadedPath ? { imagePath: uploadedPath } : req.body.removeImage === 'on' ? { imagePath: null } : {}) };
       if (member) await member.update(values, { transaction });
       else await KrlTeamAssignment.create({ ...values, DriverId, KrlTeamId: group.id }, { transaction });
     });
@@ -75,7 +78,7 @@ exports.saveMember = async (req, res) => {
     req.session.flash = { type: 'success', message: 'Mitglied gespeichert.' };
   } catch (error) {
     if (uploadedPath) await deleteUpload(uploadedPath);
-    req.session.teamMemberDraft = { groupId: req.params.id, id: req.params.memberId || '', DriverId: Number(req.body.DriverId) || '', roleName: String(req.body.roleName || '').slice(0, 255), description: String(req.body.description || '').slice(0, 3000) };
+    req.session.teamMemberDraft = { groupId: req.params.id, id: req.params.memberId || '', eaName:String(req.body.eaName || '').slice(0,100), steamFriendCode:String(req.body.steamFriendCode || '').slice(0,20), DriverId: Number(req.body.DriverId) || '', roleName: String(req.body.roleName || '').slice(0, 255), description: String(req.body.description || '').slice(0, 3000) };
     req.session.flash = { type: 'error', message: error.message + (req.file ? ' Bitte das Bild erneut auswählen.' : '') };
   }
   res.redirect('/?editTeam=1#team');
