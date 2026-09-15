@@ -347,6 +347,7 @@ exports.save = async (req, res) => {
       ? `${oldDriver.name} gibt das Cockpit nach R${endingRound} ab.${staysReserve ? ' Der zentrale Rang „F1 Ersatz“ wurde gesetzt.' : (oldDriver.roleFormerF1 ? ' Der Rang „Ehemaliger Formel-1-Fahrer“ wurde gesetzt.' : ' Weitere Stammfahrer-Ränge bleiben aktiv.')}`
       : `${newDriver.name} besetzt den freien Stammplatz von ${team.name} ab R${req.body.effectiveRound} und erhält den passenden Stammfahrer-Rang.`;
     req.session.flash = { type: 'success', message: `${message} Vergangene Ergebnisse und Punkte blieben unverändert.` };
+    return res.redirect(`/f1/${encodeURIComponent(league.slug)}?season=${season.id}`);
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
   }

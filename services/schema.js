@@ -34,6 +34,9 @@ async function addMissingIndex(table, name, fields, options = {}) {
 
 async function ensureSchema() {
   const queryInterface = sequelize.getQueryInterface();
+  const settingsTable = await queryInterface.describeTable('community_settings');
+  await addMissingColumn('community_settings', settingsTable, 'logo_path', {type:DataTypes.STRING,allowNull:true});
+  await require('../models').Guide.findOrCreate({where:{slug:'teamspeak-whisper'},defaults:require('../data/teamspeak-guide.json')});
   const knownTables = (await queryInterface.showAllTables()).map((table) =>
     String(
       typeof table === "string" ? table : table.tableName || table.name,

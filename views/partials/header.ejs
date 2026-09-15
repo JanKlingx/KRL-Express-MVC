@@ -15,13 +15,15 @@
   <a class="skip-link" href="#main">Zum Inhalt springen</a>
   <header class="site-header">
     <div class="container nav-wrap">
-      <a class="brand" href="/" aria-label="KRL Startseite"><span class="brand-mark">K</span><span>KATZES<br>RACING LEAGUE</span></a>
+      <a class="brand" href="/" aria-label="KRL Startseite"><% if(typeof siteBranding!=='undefined'&&siteBranding.logoPath){ %><img class="brand-logo" src="<%= siteBranding.logoPath %>" alt="KRL"><% }else{ %><span class="brand-mark">K</span><% } %><span>KATZES<br>RACING LEAGUE</span></a>
+      <% if(signedIn&&(typeof adminRole==='undefined'||!adminRole||adminRole==='admin')){ %><details class="brand-editor"><summary aria-label="Logo bearbeiten" title="Logo bearbeiten">✎</summary><form action="/admin/branding" method="post" enctype="multipart/form-data"><label>Logo hochladen<input type="file" name="image" accept="image/png,image/jpeg,image/webp" required></label><button class="button button-small">Logo speichern</button></form></details><% } %>
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Navigation öffnen">☰</button>
       <nav id="main-nav" class="main-nav" aria-label="Hauptnavigation">
         <%- include('navigation', {navPath, signedIn}) %>
         <a class="login-link" href="<%= signedIn ? '/admin' : '/admin/login' %>"><%= signedIn ? 'Admin & WDL' : 'Login' %></a>
-        <a class="button button-small" href="https://discord.com" target="_blank" rel="noopener">Jetzt beitreten</a>
+
       </nav>
+      <a class="button button-small nav-join" href="https://discord.com" target="_blank" rel="noopener">Jetzt beitreten</a>
     </div>
   </header>
   <main id="main">

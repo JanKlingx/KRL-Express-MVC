@@ -1,6 +1,6 @@
-const { NavigationLayout, League, sequelize } = require('../models');
+const { NavigationLayout, League, CommunitySetting, sequelize } = require('../models');
 const fixedPages = [
- ['/', 'Start'], ['/anleitungen','Anleitungen'], ['/#news','News'], ['/#social','Social Media'], ['/formel-1/strafkartei', 'Strafkartei'], ['/formel-1/regelwerk', 'Regelwerk'],
+  ['/anleitungen','Anleitungen'], ['/#news','News'], ['/#social','Social Media'], ['/formel-1/strafkartei', 'Strafkartei'], ['/formel-1/regelwerk', 'Regelwerk'],
  ['/formel-1/race-director-notes', 'Race-Director Notes'], ['/krl-statistik', 'KRL-Statistik'],
  ['/krl-icons', 'KRL Icons'], ['/#team', 'Unser Team']
 ].map(([url,label])=>({url,label}));
@@ -10,7 +10,7 @@ function catalog(leagues) {
 function defaults(pages) {
  const f1=pages.filter(page=>page.type==='f1'||page.url.startsWith('/formel-1/'));
  const rest=pages.filter(page=>!f1.includes(page)&&page.url!=='/');
- return [{label:'Start',url:'/'},...(f1.length?[{label:'F1 Liga',children:f1.map(({label,url})=>({label,url}))}]:[]),...rest.map(({label,url})=>({label,url}))];
+ return [...(f1.length?[{label:'F1 Liga',children:f1.map(({label,url})=>({label,url}))}]:[]),...rest.map(({label,url})=>({label,url}))];
 }
 function validate(input,pages) {
  if(!Array.isArray(input)||input.length>50) throw new Error('Bitte höchstens 50 Navigationseinträge verwenden.');
@@ -28,7 +28,7 @@ exports.locals=async(req,res,next)=>{
  const pages=catalog(leagues);let items=layout?JSON.parse(layout.content):defaults(pages);
  // Deleted pages disappear without breaking the rest of the menu.
  const urls=new Set(pages.map(p=>p.url));items=items.map(item=>item.children?{...item,children:item.children.filter(child=>urls.has(child.url))}:item).filter(item=>item.children?item.children.length:urls.has(item.url));
- res.locals.navigationItems=items;res.locals.navigationPages=pages;res.locals.navigationVersion=layout?.content||'';next();
+ res.locals.siteBranding=await CommunitySetting.findByPk(1)||{};res.locals.navigationItems=items;res.locals.navigationPages=pages;res.locals.navigationVersion=layout?.content||'';next();
 };
 exports.save=async(req,res)=>{
  try {

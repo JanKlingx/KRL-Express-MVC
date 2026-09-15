@@ -653,7 +653,7 @@
 
                 <span>
                   <strong>
-                    <%= attendanceRows.length %>
+                    <%= attendanceRows.length + entries.filter(entry=>entry.vacantSeat).length %>
                   </strong>
                   Cockpits
                 </span>
@@ -685,14 +685,8 @@
               <div class="f1-attendance__teams">
 
 
-                <% const vacantEntries = entries.filter(entry => entry.vacantSeat); %>
-                <% if (vacantEntries.length) { %><section class="vacant-cockpit-grid"><h3>Ersatzfahrer in freien Cockpits</h3>
-                  <% vacantEntries.forEach(entry => { %><label><span><%= entry.driver?.name || 'Ersatzfahrer' %> · Freies Cockpit</span>
-                    <select name="vacantAttendance[d<%= entry.DriverId %>]" required><option value="">Anwesenheit auswählen</option>
-                      <% [['anwesend','Anwesend'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['abgemeldet','Abgemeldet'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet']].forEach(([value,label]) => { %><option value="<%= value %>" <%= entry.attendanceStatus === value ? 'selected' : '' %>><%= label %></option><% }) %>
-                    </select></label><% }) %>
-                </section><% } %>
-                <% attendanceRows.forEach(({
+                <% const attendanceDisplayRows = [...attendanceRows, ...entries.filter(entry=>entry.vacantSeat).map(entry=>({entry,displayTeam:matrixTeamCards.find(card=>entry.SeasonTeamId ? Number(card.team.seasonTeamId)===Number(entry.SeasonTeamId) : Number(card.team.id)===Number(entry.TeamId))?.team,plannedReplacement:null}))].sort((a,b)=>String(a.displayTeam?.name||'').localeCompare(String(b.displayTeam?.name||''),'de')); %>
+                <% attendanceDisplayRows.forEach(({
                   entry: regular,
                   displayTeam,
                   plannedReplacement
@@ -775,6 +769,13 @@
                       </span>
 
                     </header>
+                    <% if(regular.vacantSeat) { %>
+                      <div class="f1-attendance-person"><label>Anwesenheit
+                      <select name="vacantAttendance[d<%= regular.DriverId %>]" required data-attendance-status><option value="">Bitte auswählen</option>
+                      <% [['anwesend','Anwesend'],['zu_spaet_vorbesprechung','Zu spät Vorbesprechung'],['abgemeldet','Abgemeldet'],['unabgemeldet','Unabgemeldet'],['zu_spaet_abgemeldet','Zu spät abgemeldet']].forEach(([value,label])=> { %><option value="<%= value %>" <%= regular.attendanceStatus===value?'selected':'' %>><%= label %></option><% }); %>
+                      </select></label></div>
+                    <% } else { %>
+
 
 
                     <!-- ===================================== -->
@@ -1688,6 +1689,7 @@
 
                     <% } %>
 
+                    <% } %>
                   </article>
 
                 <% }) %>

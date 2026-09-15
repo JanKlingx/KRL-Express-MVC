@@ -24,5 +24,5 @@ test('Vacant cockpits sit inside their team and offer only registered available 
  const select=dom.window.document.querySelector('[data-vacant-select]');assert.ok(select.closest('.f1-lineup-team'));assert.deepEqual([...select.options].map(o=>o.value),['','1']);dom.window.close();
 });
 test('Whisper guide is native HTML and includes all source screenshots',async()=>{
- const html=await render('guides.ejs',{title:'Anleitungen'});const d=new JSDOM(html).window.document;assert.equal(d.querySelectorAll('.guide-step img').length,6);assert.equal(d.querySelector('iframe'),null);assert.match(d.body.textContent,/gedrückt/);assert.match(d.body.textContent,/Rennleitung/);
+ const guide={slug:'teamspeak-whisper',...require('../data/teamspeak-guide.json')};const html=await render('guide.ejs',{title:guide.title,guide,draft:null,guideHtml:require('../services/richContent').renderRichContent(guide.body)});const d=new JSDOM(html).window.document;assert.equal(d.querySelectorAll('.guide-step img').length,6);assert.equal(d.querySelector('iframe'),null);assert.match(d.body.textContent,/gedrückt/);assert.match(d.body.textContent,/Rennleitung/);
 });
