@@ -16,7 +16,7 @@
   <header class="site-header">
     <div class="container nav-wrap">
       <a class="brand" href="/" aria-label="KRL Startseite"><% if(typeof siteBranding!=='undefined'&&siteBranding.logoPath){ %><img class="brand-logo" src="<%= siteBranding.logoPath %>" alt="KRL"><% }else{ %><span class="brand-mark">K</span><% } %><span>KATZES<br>RACING LEAGUE</span></a>
-      <% if(signedIn&&(typeof adminRole==='undefined'||!adminRole||adminRole==='admin')){ %><details class="brand-editor"><summary aria-label="Logo bearbeiten" title="Logo bearbeiten">✎</summary><form action="/admin/branding" method="post" enctype="multipart/form-data"><label>Logo hochladen<input type="file" name="image" accept="image/png,image/jpeg,image/webp" required></label><button class="button button-small">Logo speichern</button></form></details><% } %>
+      <% if(signedIn&&(typeof adminRole==='undefined'||!adminRole||adminRole==='admin')){ %><details class="brand-editor"><summary aria-label="Logo bearbeiten" title="Logo bearbeiten">✎</summary><form action="/admin/branding" method="post" enctype="multipart/form-data"><label class="brand-upload">Logo hier ablegen oder auswählen<input type="file" name="image" accept="image/png,image/jpeg,image/webp" required><small>PNG, JPG oder WebP · bis 10 MB</small></label><button class="button button-small">Logo speichern</button></form></details><% } %>
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav" aria-label="Navigation öffnen">☰</button>
       <nav id="main-nav" class="main-nav" aria-label="Hauptnavigation">
         <%- include('navigation', {navPath, signedIn}) %>

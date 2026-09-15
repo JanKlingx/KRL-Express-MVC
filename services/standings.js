@@ -428,14 +428,14 @@ function buildSeasonData(
     ) || null;
   }
 
-  function recognizedReserveResult(driver, race) {
+  function recognizedReserveStint(driver, race) {
     const main = mainRaceForSprint(race);
-    if (!main) return false;
+    if (!main) return null;
     const entry = actualEntryFor(driver, race);
     const mainEntry = actualEntryFor(driver, main);
-    if (!entry || !mainEntry) return false;
-    return stintsFor(driver.id, "regular").some((stint) => {
-      if (Number(main.sortOrder) >= Number(stint.fromRound)) return false;
+    if (!entry || !mainEntry) return null;
+    return stintsFor(driver.id, "regular").find((stint) => {
+      if (Number(main.sortOrder) >= Number(stint.fromRound)) return null;
       const team = plain(stint.seasonTeam);
       const sameTeam = team?.sourceType === 'current'
         ? Number(mainEntry.TeamId) === Number(team.sourceId) && Number(entry.TeamId) === Number(team.sourceId)
@@ -449,6 +449,8 @@ function buildSeasonData(
       );
     });
   }
+
+  function recognizedReserveResult(driver, race) { return Boolean(recognizedReserveStint(driver, race)); }
 
   function regularScoringApplies(driver, race) {
     const periods = stintsFor(driver.id, "regular");
@@ -1086,6 +1088,7 @@ function buildSeasonData(
               entry,
             );
 
+          const recognizedStint = recognizedReserveStint({ id: driverId }, race);
           const isReserve =
             concreteLineupEntry
               ?.roleType ===
@@ -1105,12 +1108,13 @@ function buildSeasonData(
 
           if (
             isReserve &&
-            !reservePointsForConstructors
+            !reservePointsForConstructors && !recognizedStint
           ) {
             return;
           }
 
           let teamName =
+            plain(recognizedStint?.seasonTeam)?.name ||
             entry.teamName ||
             regularDriverTeamMap.get(
               driverId,

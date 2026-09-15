@@ -707,39 +707,6 @@ if (
                 </strong>
 
 
-                <!-- NEUER STAMMFAHRER -->
-
-                <%
-                if (
-                  !driver.isFormerDriver &&
-                  driver.regularFromRound > 1
-                ) {
-                %>
-
-                  <small>
-                    ab R<%= driver.regularFromRound %>
-                  </small>
-
-                <% } %>
-
-
-                <!-- BEFÖRDERTER ERSATZFAHRER -->
-
-                <%
-                if (
-                  mode === 'reserve' &&
-                  driver.promotedToRegular
-                ) {
-                %>
-
-                  <small>
-                    ab R<%= driver.promotedFromRound %>
-                    Stammfahrer
-                  </small>
-
-                <% } %>
-
-
               </td>
 
 
