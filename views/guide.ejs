@@ -1,0 +1,4 @@
+<%- include('partials/header',{title}) %>
+<section class="container guide-page"><header class="career-hero"><a href="/anleitungen">← Alle Anleitungen</a><h1><%= guide.title %></h1></header>
+<% if(typeof isAdmin!=='undefined'&&isAdmin&&(!adminRole||adminRole==='admin')){ %><details class="community-editor" <%= draft?'open':'' %>><summary>✎ Anleitung bearbeiten</summary><form method="post" enctype="multipart/form-data" class="news-form" action="/admin/guides/<%= guide.slug %>"><label>Titel<input name="title" maxlength="180" required value="<%= draft?.title || guide.title %>"></label><%- include('partials/content-editor',{content:draft?.body ?? guide.body,maxLength:50000}) %><button class="button">Anleitung speichern</button></form></details><% } %>
+<article class="guide-step rich-content"><%- guideHtml %></article></section><script src="/js/content-editor.js" defer></script><%- include('partials/footer') %>

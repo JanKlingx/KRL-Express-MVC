@@ -260,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const tabs = document.createElement('div');
   tabs.className = 'result-control-tabs';
+  tabs.hidden = !config.hasSprint;
   const mainBoard = createRaceBoard('main');
   mount.append(tabs, mainBoard);
   const boards = [mainBoard];

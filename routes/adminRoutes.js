@@ -24,8 +24,10 @@ const pdfUpload = require("../middleware/pdfUpload");
 
 const router = express.Router();
 router.use(requireAdmin);
-router.post('/news', asyncHandler(require('../controllers/communityController').saveNews));
-router.post('/news/:id', asyncHandler(require('../controllers/communityController').saveNews));
+router.post('/branding', upload.single('image'), asyncHandler(require('../controllers/communityController').saveBranding));
+router.post('/guides/:slug', upload.single('image'), asyncHandler(require('../controllers/guideController').save));
+router.post('/news', upload.single('image'), asyncHandler(require('../controllers/communityController').saveNews));
+router.post('/news/:id', upload.single('image'), asyncHandler(require('../controllers/communityController').saveNews));
 router.post('/news/:id/delete', asyncHandler(require('../controllers/communityController').deleteNews));
 router.post('/community-settings', asyncHandler(require('../controllers/communityController').saveSettings));
 router.post('/navigation', asyncHandler(require('../services/navigation').save));
