@@ -12540,3 +12540,26 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 
 [data-result-control-mount] .result-driver-search > button {width:auto;min-width:8rem;}
 [data-result-control-mount] .result-driver-search :is(input,select,button):focus-visible {outline:3px solid #80d9dc!important;outline-offset:3px;}
+
+/* Statistics use one responsive grid for controls, metrics and team totals. */
+.career-statistics, .career-statistics * {box-sizing:border-box;}
+.career-statistics :is(.career-toolbar,.career-summary,.career-metrics,.career-profile,.career-driver,.career-comparison) {min-width:0;max-width:100%;}
+.career-statistics .career-toolbar {grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));}
+.career-statistics .career-toolbar :is(input,select,button) {height:auto;min-height:46px;max-width:100%;font:inherit;}
+.career-statistics .career-summary {grid-template-columns:repeat(4,minmax(0,1fr));}
+.career-statistics .career-summary-team {grid-template-columns:repeat(3,minmax(0,1fr));}
+.career-statistics .career-summary > div {min-width:0;overflow-wrap:anywhere;}
+.career-statistics .career-metrics {grid-template-columns:repeat(auto-fit,minmax(min(100%,110px),1fr));align-items:stretch;gap:.8rem;}
+.career-statistics .career-metrics > div {position:relative;display:flex;flex-direction:column;justify-content:flex-end;min-width:0;padding:1rem .8rem;background:#192c34;border:1px solid #344b55;border-radius:12px;}
+.career-statistics .career-award {width:32px;height:32px;margin-bottom:.55rem;align-self:flex-start;}
+.career-statistics .career-metrics dt {font:500 .78rem/1.4 Inter,sans-serif;overflow-wrap:anywhere;}
+.career-statistics .career-metrics dd {font-size:clamp(1.2rem,2vw,1.9rem);line-height:1.25;overflow-wrap:anywhere;}
+.career-statistics .career-profile h2 {font-size:clamp(1.7rem,4vw,3rem);overflow-wrap:anywhere;}
+.career-statistics .career-profile .career-metrics dd {font-size:clamp(1.4rem,3vw,2.4rem);}
+.career-statistics .career-section-heading h3 {flex:1 1 100%;margin:0;overflow-wrap:anywhere;}
+.career-statistics .career-section-heading .button {white-space:normal;}
+.career-statistics .career-comparison .table-wrap {min-width:0;width:100%;overflow-x:auto;}
+.career-statistics .career-comparison table {min-width:0;}
+.season-sheet-table .sheet-driver .standing-profile-link {font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;}
+@media(max-width:680px){.career-statistics .career-summary,.career-statistics .career-summary-team{grid-template-columns:repeat(2,minmax(0,1fr));}.career-statistics .career-summary > div{padding:1rem;}.career-statistics .career-driver{padding:1rem;}}
+@media(max-width:380px){.career-statistics .career-summary,.career-statistics .career-summary-team{grid-template-columns:minmax(0,1fr);}}

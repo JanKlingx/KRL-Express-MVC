@@ -255,7 +255,9 @@ router.post("/race-weekend/f1/:raceId/reserves/:driverId/remove", asyncHandler(r
 const historicalImportController = require('../controllers/historicalImportController');
 router.get('/historical-import', asyncHandler(historicalImportController.show));
 router.get('/historical-import/template.csv', asyncHandler(historicalImportController.template));
-router.post('/historical-import/preview', asyncHandler(historicalImportController.preview));
+const historicalUpload = require('multer')({storage:require('multer').memoryStorage(),limits:{fileSize:2*1024*1024,files:1,fields:8,fieldSize:600000}}).single('seasonFile');
+router.get('/historical-import/template.xlsx', asyncHandler(historicalImportController.workbook));
+router.post('/historical-import/preview', (req,res,next)=>historicalUpload(req,res,error=>{if(error)req.importError='Die Datei konnte nicht geladen werden. Maximal 2 MB und eine Datei sind erlaubt.';next();}), asyncHandler(historicalImportController.preview));
 router.post('/historical-import/confirm', asyncHandler(historicalImportController.confirm));
 router.get("/race-editor", asyncHandler(raceEditorController.show));
 router.get(
