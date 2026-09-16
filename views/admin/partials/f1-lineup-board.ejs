@@ -196,7 +196,7 @@
                   title="Bearbeiten"
                   aria-hidden="true"
                 >
-              
+
                 </span>
 
               </div>
@@ -341,7 +341,7 @@
                 </strong>
 
                 <small>
-                  <% if (row.isBanned) { %>Rennsperre · kein Ersatz zulässig<% } else { %><%- include('../../partials/platform-badge', { driver: row.driver }) %><% } %>
+                  <% if (row.isBanned) { %>Rennsperre · Ersatz möglich<% } else { %><%- include('../../partials/platform-badge', { driver: row.driver }) %><% } %>
                 </small>
 
               </div>
@@ -407,7 +407,7 @@
                         title="Bearbeiten"
                         aria-hidden="true"
                       >
-                
+
                       </span>
 
                     <% } %>
@@ -438,11 +438,11 @@
                 class="f1-lineup-driver__replacement"
                 data-replacement-field
                 <%= (
-                  row.isBanned ||
+
                   ![
                     'abgemeldet',
                     'unsicher',
-                    'zu_spaet_abgemeldet'
+                    'zu_spaet_abgemeldet', 'rennsperre'
                   ].includes(row.status)
                 )
                   ? 'hidden'
@@ -459,11 +459,11 @@
 
                     <%= (
                       lockedReplacement ||
-                      row.isBanned ||
+
                       ![
                         'abgemeldet',
                         'unsicher',
-                        'zu_spaet_abgemeldet'
+                        'zu_spaet_abgemeldet', 'rennsperre'
                       ].includes(row.status)
                     )
                       ? 'disabled'
@@ -546,7 +546,7 @@
                       title="Bearbeiten"
                       aria-hidden="true"
                     >
-            
+
                     </span>
 
                   <% } %>

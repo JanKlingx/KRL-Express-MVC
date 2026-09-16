@@ -252,6 +252,11 @@ router.post("/race-weekend/f1/:raceId/reset-attendance", asyncHandler(raceWeeken
 router.post("/race-weekend/f1/:raceId/reset-results", asyncHandler(raceWeekendController.resetResults));
 router.post("/race-weekend/f1/:raceId/reopen-lineup", asyncHandler(raceWeekendController.reopenLineup));
 router.post("/race-weekend/f1/:raceId/reserves/:driverId/remove", asyncHandler(raceWeekendController.removeReserve));
+const historicalImportController = require('../controllers/historicalImportController');
+router.get('/historical-import', asyncHandler(historicalImportController.show));
+router.get('/historical-import/template.csv', asyncHandler(historicalImportController.template));
+router.post('/historical-import/preview', asyncHandler(historicalImportController.preview));
+router.post('/historical-import/confirm', asyncHandler(historicalImportController.confirm));
 router.get("/race-editor", asyncHandler(raceEditorController.show));
 router.get(
   "/current-season-progress",

@@ -124,7 +124,7 @@
     <a class="button button-small button-ghost" href="#f1-standings-history">WM-Tabelle</a>
     <a class="button button-small button-ghost" href="#season-history">Saisonverlauf</a>
     <a class="button button-small button-ghost" href="#f1-calendar">Rennkalender</a>
-    <a class="button button-small button-ghost" href="#f1-lineup">Fahrereinteilung</a>
+    <% if (selectedSeason?.status !== "historical") { %><a class="button button-small button-ghost" href="#f1-lineup">Fahrereinteilung</a><% } %>
     <a class="button button-small button-ghost" href="#f1-gp-results">GP-Ergebnisse</a>
     <a class="button button-small button-ghost" href="#rennstatistik">Rennstatistik</a>
   </nav>
@@ -283,7 +283,7 @@
   <!-- KALENDER -->
   <!-- ================================================= -->
 
-  <%- include('partials/public-weekend-lineup') %>
+  <% if (selectedSeason?.status !== 'historical') { %><%- include('partials/public-weekend-lineup') %><% } %>
 
   <section class="section container" id="f1-calendar">
 
@@ -623,9 +623,7 @@
                             </div>
 
 
-                            <div class="standing-wide-name">
-                              <%= row.name %>
-                            </div>
+                            <div class="standing-wide-name"><a class="standing-profile-link" href="/krl-statistik?driver=<%= row.id %>"><%= row.name %></a></div>
 
 
                             <div class="standing-wide-points">
@@ -696,9 +694,7 @@
                             </div>
 
 
-                            <div class="standing-wide-name">
-                              <%= row.name %>
-                            </div>
+                            <div class="standing-wide-name"><a class="standing-profile-link" href="/krl-statistik?driver=<%= row.id %>"><%= row.name %></a></div>
 
 
                             <div class="standing-wide-points">
@@ -797,9 +793,7 @@
                             </div>
 
 
-                            <div class="standing-wide-name">
-                              <%= row.name %>
-                            </div>
+                            <div class="standing-wide-name"><a class="standing-profile-link" href="/krl-statistik/team?league=<%= encodeURIComponent(league.slug) %>&amp;season=<%= selectedSeason?.id || "" %>&amp;team=<%= encodeURIComponent(row.name) %>"><%= row.name %></a></div>
 
 
                             <div class="standing-wide-points">
@@ -864,9 +858,7 @@
                             </div>
 
 
-                            <div class="standing-wide-name">
-                              <%= row.name %>
-                            </div>
+                            <div class="standing-wide-name"><a class="standing-profile-link" href="/krl-statistik/team?league=<%= encodeURIComponent(league.slug) %>&amp;season=<%= selectedSeason?.id || "" %>&amp;team=<%= encodeURIComponent(row.name) %>"><%= row.name %></a></div>
 
 
                             <div class="standing-wide-points">

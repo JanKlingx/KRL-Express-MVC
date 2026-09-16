@@ -350,9 +350,7 @@ async function loadPlanningRows(league, race) {
 
         isBanned: bannedDriverIds.has(driverId),
 
-        replacementDriverId: bannedDriverIds.has(driverId)
-          ? null
-          : Number(reserveByRegular.get(driverId)?.DriverId || 0) || null,
+        replacementDriverId: Number(reserveByRegular.get(driverId)?.DriverId || 0) || null,
 
         replacementEntry: reserveByRegular.get(driverId) || null,
       };
@@ -717,56 +715,8 @@ exports.save = async (req, res) => {
 
       const replacementId = Number(input.ReplacementDriverId || 0) || null;
 
-      /*
-       * Nur ABGEMELDET / UNSICHER
-       * dürfen einen Ersatz haben.
-       */
-
-      if (
-        replacementId &&
-        !["abgemeldet", "unsicher", "zu_spaet_abgemeldet"].includes(
-          regularStatus,
-        )
-      ) {
-        throw new Error(
-          `${row.driver.name}: Ersatzfahrer sind nur bei „Abgemeldet“, „Zu spät abgemeldet“ oder „Unsicher“ zulässig.`,
-        );
-      }
-
-      if (
-  replacementId &&
-  ![
-    "abgemeldet",
-    "unsicher",
-    "zu_spaet_abgemeldet",
-  ].includes(regularStatus)
-) {
-  throw new Error(
-    `${row.driver.name}: Ersatzfahrer sind nur bei „Abgemeldet“, „Zu spät abgemeldet“ oder „Unsicher“ zulässig.`,
-  );
-}
-
-/*
- * Rennsperre niemals ersetzen.
- */
-
-if (
-  regularStatus === "rennsperre" &&
-  replacementId
-) {
-  throw new Error(
-    `${row.driver.name} hat für dieses Rennen eine Rennsperre und darf nicht ersetzt werden.`,
-  );
-}
-
-      /*
-       * Rennsperre niemals ersetzen.
-       */
-
-      if (regularStatus === "rennsperre" && replacementId) {
-        throw new Error(
-          `${row.driver.name} hat für dieses Rennen eine Rennsperre und darf nicht ersetzt werden.`,
-        );
+      if (replacementId && !["abgemeldet", "unsicher", "zu_spaet_abgemeldet", "rennsperre"].includes(regularStatus)) {
+        throw new Error(`${row.driver.name}: Ersatz ist bei Abmeldung, Unsicherheit oder Rennsperre möglich.`);
       }
 
       if (!replacementId) {

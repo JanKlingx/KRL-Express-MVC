@@ -722,7 +722,7 @@
                   const showReplacement =
                     [
                       'abgemeldet',
-                      'zu_spaet_abgemeldet'
+                      'zu_spaet_abgemeldet', 'rennsperre'
                     ].includes(
                       regular.status
                     ) ||
@@ -802,12 +802,12 @@
 
                         <small>
                           Fahrer startet nicht.
-                          Für eine Rennsperre wird kein Ersatzfahrer eingeteilt.
+                          Ein angemeldeter Ersatzfahrer kann das Cockpit übernehmen.
                         </small>
 
                       </div>
 
-                    <% } else { %>
+                    <% } %>
 
 
                       <!-- =================================== -->
@@ -1621,7 +1621,7 @@
                       <% } else if (
                         [
                           'abgemeldet',
-                          'zu_spaet_abgemeldet'
+                          'zu_spaet_abgemeldet', 'rennsperre'
                         ].includes(
                           regular.status
                         )
@@ -1686,8 +1686,6 @@
 
                       <% } %>
 
-
-                    <% } %>
 
                     <% } %>
                   </article>

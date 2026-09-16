@@ -4,7 +4,7 @@
   const drivers = JSON.parse(document.getElementById('career-data').textContent);
   const get = name => root.querySelector(`[data-career-${name}]`);
   const selected = new Set();
-  let focused = null;
+  let focused = Number(new URLSearchParams(window.location.search).get('driver')) || null;
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const scopes = JSON.parse(document.getElementById('career-scopes')?.textContent || '[]');
   const labels = { points: 'Punkte', starts: 'Starts', wins: 'Siege', podium2: '2. Plätze', podium3: '3. Plätze', poles: 'Polepositions', fastestLaps: 'Schnellste Runden', driverOfTheDays: 'Driver of the Day', winRate: 'Siegesquote' };

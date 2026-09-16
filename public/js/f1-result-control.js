@@ -49,15 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             label.append(field); hit.append(label);
           });
         }
-        const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Zur Kachel';
-        button.addEventListener('click', () => {
-          const board = [...mount.querySelectorAll('[data-result-board]')].find(item => !item.hidden);
-          const card = board ? [...board.querySelectorAll('[data-driver-id]')].find(item => item.dataset.driverId === row.dataset.resultDriver) : row;
-          if (!card) return;
-          mount.querySelectorAll('.is-search-match').forEach(item => item.classList.remove('is-search-match'));
-          card.classList.add('is-search-match'); card.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
-          if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '-1'); card.focus({ preventScroll: true });
-        }); hit.append(button); matches.append(hit);
+        matches.append(hit);
       });
       if (focused) { const field = [...matches.querySelectorAll('select')].find(node => focused.driver ? node.dataset.searchPosition === focused.driver : node.dataset.searchStatus === focused.status); field?.focus({ preventScroll: true }); }
     };

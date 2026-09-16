@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const allowedReserveStatuses = new Set(['anwesend', 'unsicher', 'auf_abruf']);
-  const replacementStatuses = new Set(['abgemeldet', 'unsicher', 'zu_spaet_abgemeldet']);
+  const replacementStatuses = new Set(['abgemeldet', 'unsicher', 'zu_spaet_abgemeldet', 'rennsperre']);
 
   document.querySelectorAll('[data-f1-lineup-matrix]').forEach((form) => {
     const reserveRows = [...form.querySelectorAll('[data-reserve-row]')];

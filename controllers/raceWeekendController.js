@@ -2154,7 +2154,7 @@ exports.saveAttendance =
              * =================================================
              *
              * Fahrer startet nicht.
-             * Kein Ersatz.
+             * Ersatz ist möglich.
              */
 
             if (
@@ -2176,6 +2176,12 @@ exports.saveAttendance =
               );
 
 
+              if (planned) {
+                await resolveReserve(planned, regular, false);
+              } else {
+                const replacementId = requestedReplacement(regular);
+                if (replacementId) await resolveReserve(reserveByDriver.get(replacementId), regular, true);
+              }
               continue;
             }
 

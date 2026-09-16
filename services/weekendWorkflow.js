@@ -17,7 +17,7 @@ function weekendProgress(entries = []) {
     }
     const seat = Number(entry.ReplacementForDriverId || entry.DriverId);
     const root = regulars.find((row) => Number(row.DriverId) === seat);
-    if (!root || root.status === 'rennsperre' || occupied.has(seat)) return false;
+    if (!root || (root.status === 'rennsperre' && entry.roleType !== 'reserve') || occupied.has(seat)) return false;
     occupied.add(seat); return true;
   });
   return { lineupComplete, attendanceComplete: attendanceComplete && validSeats, validSeats };
