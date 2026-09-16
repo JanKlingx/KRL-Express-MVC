@@ -51,7 +51,7 @@ test('Sprint ignoriert auch manipulierte Auszeichnungen, Hauptrennen speichert a
   assert.deepEqual(submittedRaceAwards({ raceType: 'main', pointsMode: 'database' }, submitted, 'sprint'), disabled);
   assert.deepEqual(submittedRaceAwards({ raceType: 'main', pointsMode: 'database' }, submitted), { fastestLap: true, polePosition: true, driverOfTheDay: true });
 });
-test('Fahrersuche springt im aktiven Sprint zum Fahrer und verändert keine Platzierungen', t => {
+test('Fahrersuche zeigt editierbare Sprint-Treffer ohne Sprungbutton und ohne automatische Umplatzierung', t => {
   const rows = [1, 2].map(id => `<div data-result-driver="${id}" data-driver-name="Fahrer ${id}"><input data-result-position="main" value="${id}"><input data-result-position="sprint" value="${id}"><input type="checkbox" data-result-pole="main"><input type="checkbox" data-result-fastest="main"><input type="checkbox" data-result-dotd="main"><select data-result-status><option value=""></option></select></div>`).join('');
   const config = { hasSprint: true, pointsMode: 'database', main: [], sprint: [], fastestLapEnabled: false };
   const dom = new JSDOM(`<form data-result-race-control><div data-result-control-mount></div><script data-result-control-points type="application/json">${JSON.stringify(config)}</script><div class="lineup-team-grid">${rows}</div></form>`, { runScripts: 'outside-only' }); t.after(() => dom.window.close());
@@ -62,8 +62,8 @@ test('Fahrersuche springt im aktiven Sprint zum Fahrer und verändert keine Plat
   assert.equal(d.querySelectorAll('[data-result-board="sprint"] [data-bonus]').length, 0);
   const tabs = d.querySelectorAll('.result-control-tabs button'); tabs[1].click(); assert.equal(tabs[1].getAttribute('aria-pressed'), 'true');
   const search = d.querySelector('[data-result-search]'); search.value = 'Fahrer 2'; search.dispatchEvent(new dom.window.Event('input'));
-  d.querySelector('[data-result-search-matches] button').click();
-  assert.equal(d.querySelector('[data-result-board="sprint"] .is-search-match').dataset.driverId, '2');
+  assert.equal(d.querySelector('.result-search-hit button'), null);
+  assert.ok(d.querySelector('.result-search-hit select'));
   assert.deepEqual([...d.querySelectorAll('[data-result-position="sprint"]')].map(input => input.value), ['1', '2']);
 });
 test('GP und Saisonverlauf zeigen die Auszeichnungen mit Legende nur beim Hauptrennen', async () => {

@@ -1,0 +1,8 @@
+<%- include('partials/header', { title }) %>
+<section class="container career-statistics">
+  <header class="career-hero"><span class="career-eyebrow">FORMEL 1 · TEAMSTATISTIK</span><h1><%= team.name %></h1><p><%= league.name %> · <%= season?.name || league.currentSeason %></p><a class="button button-ghost" href="/f1/<%= league.slug %>?season=<%= season?.id || '' %>#f1-standings-history">Zur Liga</a></header>
+  <div class="career-summary"><article><h2><%= team.points %></h2><p>Konstrukteurspunkte</p></article><article><h2><%= team.wins || 0 %></h2><p>Siege</p></article><article><h2><%= rounds.length %></h2><p>Gewertete Rennwochenenden</p></article></div>
+  <p class="career-note">Es gelten die Team-WM-Regeln dieser Saison, einschließlich anerkannter Punkte vor einer Cockpitübernahme.</p>
+  <section class="career-comparison"><h2>Die Saison im Verlauf</h2><div class="table-wrap"><table><thead><tr><th>Rennen</th><th>Platz</th><th>Gesamtpunkte</th><th>Siege</th></tr></thead><tbody><% rounds.forEach(row => { %><tr><td>R<%= row.round %> · <%= row.title %></td><td><%= row.standing.position %></td><td><%= row.standing.points %></td><td><%= row.standing.wins || 0 %></td></tr><% }); %></tbody></table></div><% if (!rounds.length) { %><p>Noch keine Ergebnisse gespeichert.</p><% } %></section>
+</section>
+<%- include('partials/footer') %>

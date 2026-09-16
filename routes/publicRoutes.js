@@ -26,6 +26,7 @@ router.get('/ligen/:slug', asyncHandler(async (req, res) => {
  if(league.type === 'competition') return competitionController.show(req,res);
  return res.render('league-generic',{title:league.name,league});
 }));
+router.get("/krl-statistik/team", asyncHandler(require("../controllers/statisticsController").team));
 router.get("/krl-statistik", asyncHandler(require("../controllers/statisticsController").show));
 
 

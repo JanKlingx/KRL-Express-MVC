@@ -91,6 +91,8 @@
     /*
      * Zukünftiges Rennen
      */
+    if (statusOf(result) === 'S') return { text: 'S', kind: 'suspended', title: 'Rennsperre' };
+
     if (!race?.isCompleted) {
       return {
         text: '–',
@@ -700,11 +702,7 @@ if (
               >
 
 
-                <strong
-                  title="<%= driver.name %>"
-                >
-                  <%= driver.name %>
-                </strong>
+                <a class="standing-profile-link" href="/krl-statistik?driver=<%= driver.id %>"><%= driver.name %></a>
 
 
               </td>

@@ -55,6 +55,7 @@ const statuses = [
   "DNQ",
   "DSQ",
   "DNA",
+  "S",
 ];
 
 

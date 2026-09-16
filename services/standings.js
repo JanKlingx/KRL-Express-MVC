@@ -496,6 +496,12 @@ function buildSeasonData(
             };
           }
 
+          const historicalResult = (race.isHistorical || seasonValue?.status === 'historical')
+            ? (race.entries || []).map(plain).find(entry => Number(entry.DriverId) === Number(driver.id)) : null;
+          const suspended = historicalResult ? String(historicalResult.status || '').toUpperCase() === 'S' :
+            lineups.some(entry => Number(entry.GrandPrixResultId) === Number(lineupRace?.id) && Number(entry.DriverId) === Number(driver.id) && entry.roleType === 'regular' && entry.status === 'rennsperre');
+          if (suspended) return { value: 'S', status: 'S', points: 0, cumulative, position: null, fastestLap: false };
+
           const wasReplaced =
             lineupRace &&
             replacedRegularsByRace
@@ -819,9 +825,7 @@ function buildSeasonData(
               ?.roleType ===
               "reserve" &&
 
-            lineupEntry
-              ?.includeInResults ===
-              true;
+            (lineupEntry?.includeInResults === true || race.isHistorical || seasonValue?.status === 'historical');
 
           if (!usedHere) {
             return {
@@ -1417,6 +1421,7 @@ function buildSeasonData(
       );
 
     return rankedDrivers
+      .filter(driver => number(driver.regularFromRound || 1) <= number(targetWeekend.round))
       .map(
         (driver) => {
           const includedRaces = races.filter((race) =>
@@ -1431,6 +1436,7 @@ function buildSeasonData(
           ).length;
 
           return {
+            id: driver.id,
             name:
               driver.name,
 
