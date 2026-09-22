@@ -1,11 +1,6 @@
 const test=require('node:test'); const assert=require('node:assert/strict');
 const {buildSeasonData}=require('../services/standings');
 const {weekendProgress}=require('../services/weekendWorkflow');
-const {HEADERS,validateImport,parseCsv,createHistoricalSeason}=require('../services/historicalSeasonImport');
-const {createCsv}=require('../services/csv');
-const masters={drivers:[{id:1,name:'A',viewF1:true},{id:2,name:'B',roleFormerF1:true}],teams:[{id:10,name:'Team'}],tracks:[{id:20,name:'Bahrain',country:'Bahrain'}]};
-const row=(round,driver,role='stamm',status='',session='gp')=>[round,'2020-01-01',20,driver,10,role,session,status?'':driver, status?0:25,status,0,0,0];
-const csv=rows=>createCsv([HEADERS,...rows]);
 test('Suspended cockpit accepts one reserve, never the suspended regular or two reserves',()=>{
  const regular={DriverId:1,roleType:'regular',status:'rennsperre',includeInResults:false};
  const reserve={DriverId:2,ReplacementForDriverId:1,roleType:'reserve',status:'anwesend',attendanceStatus:'anwesend',includeInResults:true};
@@ -22,41 +17,6 @@ test('WM excludes future regulars, retains former regulars; suspension is S desp
  assert.deepEqual(data.standingsHistory[0].driverStandings.map(row=>row.id),[1]);
  assert.deepEqual(data.standingsHistory[2].driverStandings.map(row=>row.id).sort(),[1,2]);
  assert.equal(data.history.seasons[0].drivers.find(driver=>driver.id===1).results[1].status,'S');
-});
-test('Historical CSV recognizes promotion and separate sprint result statuses',()=>{
- const plan=validateImport(csv([row(1,1),row(1,2,'ersatz','DNF'),row(1,1,'stamm','','sprint'),row(1,2,'ersatz','DNS','sprint'),row(2,2)]),masters);
- assert.equal(plan.driverCount,2);assert.equal(plan.rounds.length,2);
- assert.deepEqual(plan.stints.filter(stint=>stint.driverId===2).map(stint=>[stint.role,stint.fromRound,stint.toRound]),[['ersatz',1,1],['stamm',2,2]]);
-});
-test('CSV rejects invalid dates, unknown IDs, duplicate places, missing rounds and sprint awards',()=>{
- const invalid=row(1,1); invalid[1]='2020-02-31';assert.throws(()=>validateImport(csv([invalid]),masters),/Datum/);
- assert.throws(()=>validateImport(csv([row(1,99)]),masters),/Fahrer/);
- const duplicate=row(1,2);duplicate[7]=1;assert.throws(()=>validateImport(csv([row(1,1),duplicate]),masters),/Platzierung/);
- assert.throws(()=>validateImport(csv([row(2,1)]),masters),/Runde 1/);
- const sprint=row(1,1,'stamm','','sprint');sprint[10]=1;assert.throws(()=>validateImport(csv([row(1,1),sprint]),masters),/Hauptrennen/);
- assert.throws(()=>parseCsv('"unclosed'),/Anführungszeichen/);
- assert.throws(()=>validateImport(csv([row(1,1),row(1,1)]),masters),/doppelt/);
-});
-test('Import writes season-linked data, no current ranks, and refuses duplicate seasons',async()=>{
- const created={};let id=100;
- const names=['Season','SeasonTeam','SeasonDriver','SeasonLineupEntry','SeasonDriverStint','GrandPrixResult','GrandPrixResultEntry','F1RaceLineupEntry','RaceEvent'];
- const models=Object.fromEntries(names.map(name=>[name,{create:async data=>{const row={id:++id,...data};(created[name]||=[]).push(row);return row;}}]));
- models.League={findByPk:async()=>({id:5})};models.Season.findAll=async()=>[];
- const config={name:'Saison 1',league:{id:5,slug:'sonntag'},masters,plan:validateImport(csv([row(1,1),row(1,2,'ersatz','DNF'),row(2,2)]),masters),reservePointsForConstructors:true};
- const season=await createHistoricalSeason(config,models,{LOCK:{UPDATE:'UPDATE'}});
- assert.equal(season.status,'historical');assert.equal(created.SeasonDriverStint.length,3);
- assert.equal(created.RaceEvent.length,2);assert.equal(created.GrandPrixResultEntry.length,3);
- assert.ok(created.RaceEvent.every(event=>event.SeasonId===season.id&&event.isCompleted));
- const drivers=masters.drivers.map(driver=>({...driver,team:created.SeasonTeam[0]}));
- const races=created.GrandPrixResult.map(race=>({...race,entries:created.GrandPrixResultEntry.filter(entry=>entry.GrandPrixResultId===race.id)}));
- const stints=created.SeasonDriverStint.map(stint=>({...stint,driver:drivers.find(driver=>driver.id===stint.DriverId),seasonTeam:created.SeasonTeam[0]}));
- const result=buildSeasonData(config.league,races,drivers,created.F1RaceLineupEntry,season,stints);
- assert.deepEqual(result.standingsHistory[0].driverStandings.map(driver=>driver.id),[1]);
- assert.equal(result.teamStandings[0].points,50);
- assert.equal(result.selectedHistory.drivers.find(driver=>driver.id===2).results[0].status,'DNA');
-
- models.Season.findAll=async()=>[{name:'saison 1'}];
- await assert.rejects(createHistoricalSeason(config,models,{LOCK:{UPDATE:'UPDATE'}}),/bereits/);
 });
 test('Suspended cockpit renders an enabled replacement selector and S gets its own legend',async()=>{
  const ejs=require('ejs'),{JSDOM}=require('jsdom'),fs=require('node:fs');

@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
   panels.forEach((panel) => {
     const step = Number(panel.dataset.setupStep);
     const actions = document.createElement('div'); actions.className = 'form-actions setup-step-navigation';
-    if (step > 1) { const back = document.createElement('button'); back.type = 'button'; back.className = 'button button-ghost'; back.textContent = '← Zurück'; back.addEventListener('click', () => show(step - 1)); actions.append(back); }
-    if (step < available) { const next = document.createElement('button'); next.type = 'button'; next.className = 'button'; next.textContent = 'Weiter →'; next.addEventListener('click', () => show(step + 1)); actions.append(next); }
+    if (step > 1) { const back = document.createElement('button'); back.type = 'button'; back.className = 'button button-ghost'; back.textContent = '← Zurück'; back.addEventListener('click', () => show([...panels].reverse().find(p => Number(p.dataset.setupStep) < step)?.dataset.setupStep * 1)); actions.append(back); }
+    if (step < available) { const next = document.createElement('button'); next.type = 'button'; next.className = 'button'; next.textContent = 'Weiter →'; next.addEventListener('click', () => show(panels.find(p => Number(p.dataset.setupStep) > step)?.dataset.setupStep * 1)); actions.append(next); }
     panel.querySelector('.setup-panel-content')?.append(actions);
   });
   const search = shell.querySelector('[data-driver-search]');
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   shell.querySelectorAll('[data-selection-count]').forEach((counter) => {
     const name = counter.dataset.selectionCount;
     const choices = [...counter.closest('form').querySelectorAll(`input[name="${name}"]`)];
-    const refresh = () => { counter.textContent = `${choices.filter((input) => input.checked).length} ${name === 'driverIds' ? 'Stammfahrer' : 'Teams'} ausgewählt`; };
+    const refresh = () => { counter.textContent = `${choices.filter((input) => input.checked).length} ${counter.dataset.selectionLabel || (name === 'driverIds' ? 'Stammfahrer' : 'Teams')} ausgewählt`; };
     choices.forEach((input) => input.addEventListener('change', refresh));
     refresh();
   });

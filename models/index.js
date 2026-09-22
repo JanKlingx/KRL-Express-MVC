@@ -473,6 +473,7 @@ const F1Game = sequelize.define("F1Game", {
 });
 
 const Season = sequelize.define("Season", {
+  historicalGrid: {type:DataTypes.JSON,allowNull:true},
   name: {
     type: DataTypes.STRING,
     allowNull: false,

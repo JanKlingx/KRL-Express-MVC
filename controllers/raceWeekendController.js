@@ -2734,6 +2734,7 @@ async function loadResetRace(
   }
 
 
+  if (race.seasonRecord?.status !== 'active') throw new Error('Historische Saisons werden direkt auf der Ligenseite bearbeitet.');
   return race;
 }
 

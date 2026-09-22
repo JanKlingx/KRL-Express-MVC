@@ -1,0 +1,34 @@
+(() => {
+  const root=document.querySelector('[data-historical-editor]');if(!root)return;
+  const data=JSON.parse(document.getElementById('historical-editor-data').textContent),grid=data.grid;
+  const get=name=>root.querySelector(`[data-historical-${name}]`),el=(tag,text)=>{const node=document.createElement(tag);if(text!=null)node.textContent=text;return node;};
+  root.addEventListener('toggle',()=>{const view=document.querySelector('[data-historical-readonly]');if(view)view.hidden=root.open;root.querySelector('summary').textContent=root.open?'Bearbeitung schließen':'Saisonverlauf & Aufstellung bearbeiten';});
+  document.querySelectorAll('[data-historical-open]').forEach(button=>button.addEventListener('click',()=>{root.open=true;root.scrollIntoView({behavior:'smooth',block:'start'});}));
+  let dirty=false,editing=null,busy=false;const dialog=get('dialog'),form=dialog.querySelector('form');
+  const mark=()=>{dirty=true;get('message').textContent='Ungespeicherte Änderungen. Speichere, um alle Wertungen zu aktualisieren.';};
+  const name=id=>data.drivers.find(driver=>Number(driver.id)===Number(id))?.name||'Fahrer';
+  function teamOptions(select,value){select.replaceChildren(new Option('Team auswählen',''));data.teams.forEach(team=>select.add(new Option(team.name,team.id)));select.value=value||'';}
+  const rounds=[...new Set(data.races.map(race=>Number(race.sortOrder)))].sort((a,b)=>a-b);
+  rounds.forEach(round=>{const race=data.races.find(race=>Number(race.sortOrder)===round);get('round').add(new Option(`R${round} · ${race.title}`,round));});
+  function render(){
+    const role=get('role').value,round=Number(get('round').value),races=data.races.filter(race=>Number(race.sortOrder)===round).sort((a,b)=>(a.raceType==='sprint'?-1:1)-(b.raceType==='sprint'?-1:1));
+    const head=el('tr');['Fahrer','Team im Line-up',...races.map(r=>r.raceType==='sprint'?'Sprint':'Grand Prix'),'Zeile'].forEach(label=>head.append(el('th',label)));get('head').replaceChildren(head);
+    get('rows').replaceChildren();const query=get('search').value.trim().toLocaleLowerCase('de');
+    grid.rows.filter(row=>row.role===role&&name(row.driverId).toLocaleLowerCase('de').includes(query)).forEach(row=>{
+      const tr=el('tr');tr.append(el('td',name(row.driverId)));const teamCell=el('td'),select=el('select');teamOptions(select,row.teamId);select.setAttribute('aria-label',`${name(row.driverId)}: Team im Line-up`);select.addEventListener('change',()=>{row.teamId=Number(select.value)||null;mark();});teamCell.append(select);tr.append(teamCell);
+      races.forEach(race=>{const td=el('td'),cell=row.cells[race.id],button=el('button',cell?`${cell.status||`P${cell.position}`} ${[cell.polePosition?'Pole':'',cell.fastestLap?'FL':'',cell.driverOfTheDay?'DotD':''].filter(Boolean).join(' · ')}`:'+ Ergebnis');button.type='button';button.className='historical-result-button';button.setAttribute('aria-label',`${name(row.driverId)}, R${round}, ${race.raceType==='sprint'?'Sprint':'GP'} bearbeiten`);button.addEventListener('click',()=>openCell(row,race));td.append(button);tr.append(td);});
+      const td=el('td'),remove=el('button','Entfernen');remove.type='button';remove.className='button button-ghost button-small';remove.addEventListener('click',()=>{if(Object.keys(row.cells).length&&!confirm(`${name(row.driverId)} aus dieser Wertung entfernen? Die Ergebnisse dieser Zeile werden beim Speichern gelöscht.`))return;grid.rows.splice(grid.rows.indexOf(row),1);mark();render();});td.append(remove);tr.append(td);get('rows').append(tr);
+    });
+    const add=get('add');add.replaceChildren(new Option('Fahrer auswählen',''));data.drivers.filter(driver=>!grid.rows.some(row=>row.role===role&&row.driverId===Number(driver.id))).forEach(driver=>add.add(new Option(driver.name,driver.id)));
+    get('add-button').disabled=add.options.length<2;
+  }
+  function updateStatus(){const inactive=['DSQ','DNS','DNA','S'].includes(form.elements.status.value);form.elements.position.disabled=inactive;if(inactive)form.elements.position.value='';get('awards').hidden=editing?.race.raceType==='sprint'||inactive;if(get('awards').hidden)for(const field of ['fastestLap','polePosition','driverOfTheDay'])form.elements[field].checked=false;}
+  function openCell(row,race){editing={row,race};const cell=row.cells[race.id]||{};get('title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}`;form.elements.status.value=cell.status||'';form.elements.position.value=cell.position||'';teamOptions(form.elements.teamId,cell.teamId||row.teamId);for(const field of ['fastestLap','polePosition','driverOfTheDay'])form.elements[field].checked=Boolean(cell[field]);get('cell-error').textContent='';updateStatus();dialog.showModal();}
+  form.elements.status.addEventListener('change',updateStatus);
+  form.addEventListener('submit',event=>{event.preventDefault();const status=form.elements.status.value,position=Number(form.elements.position.value)||null,teamId=Number(form.elements.teamId.value)||null;if(!status&&!position){get('cell-error').textContent='Bitte einen Platz oder einen Status wählen. Zum Entfernen „Zelle leeren“ nutzen.';return;}if((position||['DNF','DSQ'].includes(status))&&!teamId){get('cell-error').textContent='Bitte das Team dieses Rennens auswählen.';return;}const cell={status,position,teamId};for(const field of ['fastestLap','polePosition','driverOfTheDay'])cell[field]=form.elements[field].checked;editing.row.cells[editing.race.id]=cell;mark();dialog.close();render();});
+  get('clear').addEventListener('click',()=>{delete editing.row.cells[editing.race.id];mark();dialog.close();render();});get('cancel').addEventListener('click',()=>dialog.close());
+  ['role','round','search'].forEach(field=>get(field).addEventListener(field==='search'?'input':'change',render));
+  get('add-button').addEventListener('click',()=>{const driverId=Number(get('add').value);if(!driverId)return;grid.rows.push({driverId,role:get('role').value,teamId:null,cells:{}});mark();render();});
+  get('save').addEventListener('click',async()=>{if(busy)return;busy=true;get('save').disabled=true;get('message').textContent='Ergebnisse werden gespeichert und Punkte berechnet …';try{const response=await fetch(`/admin/historical-grid/${data.seasonId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid,revision:data.revision})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Speichern fehlgeschlagen.');dirty=false;location.assign(result.url);}catch(error){get('message').textContent=error.message+' Deine Eingaben bleiben in der Tabelle erhalten.';}finally{busy=false;get('save').disabled=false;}});
+  window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});render();
+})();

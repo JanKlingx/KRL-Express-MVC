@@ -268,8 +268,8 @@ async function loadData(query = {}) {
   // The setup selection contains regular seats only; legacy reserves stay in their history.
   const regularIds = new Set((structure.lineup || []).filter((row) => row.roleType === 'regular').map((row) => Number(row.DriverId)));
   const reserveOnlyIds = new Set((structure.lineup || []).filter((row) => row.roleType === 'reserve' && !regularIds.has(Number(row.DriverId))).map((row) => Number(row.DriverId)));
-  structure.allDrivers = structure.allDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
-  structure.unassignedDrivers = structure.unassignedDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
+  if (selectedSeason?.status !== "historical") structure.allDrivers = structure.allDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
+  if (selectedSeason?.status !== "historical") structure.unassignedDrivers = structure.unassignedDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
   const lineupProtected = await seasonLineupIsProtected(selectedSeason);
 
   return {
@@ -309,7 +309,7 @@ async function loadData(query = {}) {
       selectedSeason.PointsSchemeId &&
       structure.allDrivers.length &&
       structure.teams.length &&
-      structure.teams.some((team) => team.drivers.length),
+      (selectedSeason.status === "historical" || structure.teams.some((team) => team.drivers.length)),
     ),
   };
 }
@@ -749,7 +749,7 @@ exports.assignDrivers = async (req, res) => {
           .map(Number)
           .filter(Number.isInteger),
       ),
-    ].slice(0, 40);
+    ].slice(0, season.status === "historical" ? 200 : 40);
     if (!ids.length)
       throw new Error("Bitte mindestens einen Fahrer auswählen.");
     const validDrivers = await Driver.findAll({
@@ -856,6 +856,7 @@ exports.assignLineup = async (req, res) => {
       throw new Error("Saison oder Liga wurde nicht gefunden.");
     }
 
+    if (season.status === "historical") throw new Error("Historische Aufstellungen werden direkt auf der Ligenseite bearbeitet.");
     if (await seasonLineupIsProtected(season)) {
       throw new Error(
         "Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.",
@@ -1001,7 +1002,7 @@ exports.assignLineup = async (req, res) => {
 
       await SeasonLineupEntry.bulkCreate(assignments, { transaction });
       await SeasonDriverStint.destroy({ where: { SeasonId: season.id }, transaction });
-      await seedSeasonDriverStints(season.id, transaction);
+      if (season.status !== "historical") await seedSeasonDriverStints(season.id, transaction);
     });
 
     /*
@@ -1084,7 +1085,7 @@ exports.finish = async (req, res) => {
       }),
     ]);
 
-    if (!calendar || !season.PointsSchemeId || !drivers || !teams || lineup !== drivers) {
+    if (!calendar || !season.PointsSchemeId || !drivers || !teams || (season.status !== "historical" && lineup !== drivers)) {
       throw new Error(
         "Der Assistent ist noch nicht vollständig. Bitte alle acht Schritte abschließen.",
       );
@@ -1094,7 +1095,7 @@ exports.finish = async (req, res) => {
      * Saison veröffentlichen
      */
     await sequelize.transaction(async (transaction) => {
-      await seedSeasonDriverStints(season.id, transaction);
+      if (season.status !== "historical") await seedSeasonDriverStints(season.id, transaction);
       await season.update({
         isPublished: true,
       }, { transaction });
@@ -1118,7 +1119,7 @@ exports.finish = async (req, res) => {
     /*
      * Zurück aufs Admin-Dashboard
      */
-    return res.redirect("/admin");
+    return res.redirect(season.status === "historical" ? `/f1/${league.slug}?season=${season.id}#season-history` : "/admin");
   } catch (error) {
     req.session.flash = {
       type: "error",
