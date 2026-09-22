@@ -882,16 +882,23 @@ async function loadLeagueData(slug, requestedSeasonId) {
         };
       });
 
+  const historicalEditor = selectedSeason?.status === 'historical'
+    ? await require('./historicalGridController').loadGridData(selectedSeason, gpResults) : null;
+  const historicalLineups = historicalEditor ? require('../services/historicalGrid').lineupsForGrid(historicalEditor.grid, historicalEditor.races) : raceLineupEntries;
   const standingsData =
     buildSeasonData(
       leagueForSeason,
       gpResults,
       drivers,
-      raceLineupEntries,
+      historicalLineups,
       selectedSeason,
       seasonStructure.stints,
     );
 
+  if (historicalEditor) {
+    require('../services/historicalGrid').standingsForGrid(standingsData, historicalEditor.grid, historicalEditor.races, historicalEditor.drivers, historicalEditor.teams, selectedSeason);
+    for (const team of teams) team.drivers = historicalEditor.grid.rows.filter(row => row.role === 'regular' && (Number(row.teamId) === Number(team.id) || historicalEditor.teams.find(candidate => Number(candidate.id) === Number(row.teamId))?.name === team.name)).map(row => historicalEditor.drivers.find(driver => Number(driver.id) === row.driverId)).filter(Boolean);
+  }
   if (
     standingsData
       .selectedHistory
@@ -968,8 +975,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
             historyRace.circuit ||
             null;
 
-          historyRace.isCompleted =
-            completed;
+          historyRace.isCompleted = historicalEditor ? historicalEditor.races.some(race => Number(race.sortOrder) === round && race.entries?.length) : completed;
         },
       );
   }
@@ -1413,6 +1419,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
     selectedSeason,
 
     publicPenaltyLedger,
+    historicalEditor,
     publicWeekends: buildPublicWeekends({ races: gpResults, entries: raceLineupEntries, teams, stints: seasonStructure.stints, calendar: activeCalendar }),
 
     ...standingsData,

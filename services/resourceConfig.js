@@ -1773,7 +1773,7 @@ module.exports = {
     prepareValues: prepareF1Round,
     afterSave: syncF1CalendarRound,
     beforeRemove: removeF1CalendarRound,
-    nextHref: "/admin/race-editor",
+    nextHref: "/admin/season-setup",
     nextLabel: "Danach Saisonverlauf pflegen",
     cardView: "calendar-f1",
     hidden: true,
@@ -2040,7 +2040,7 @@ module.exports = {
     getListWhere: listWhereForLeagueType("f1"),
     afterSave: syncCalendarGrandPrix,
     beforeRemove: removeCalendarGrandPrix,
-    nextHref: "/admin/race-editor",
+    nextHref: "/admin/season-setup",
     nextLabel: "Danach Saisonverlauf tabellarisch eingeben",
     hidden: true,
     fields: [

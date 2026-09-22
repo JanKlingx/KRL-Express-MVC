@@ -52,6 +52,7 @@
     race
   ) => {
 
+    if (result?.unfilled) return {text:'–',kind:'future',title:'Noch nicht eingetragen'};
     /*
      * Ersatzfahrer außerhalb seines
      * Reserve-Stints:

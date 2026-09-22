@@ -208,6 +208,7 @@
         <h2>
           TEAMS & FAHRER
         </h2>
+        <% if (isAdmin && selectedSeason?.status === 'historical') { %><button class="button button-ghost button-small" type="button" data-historical-open>Aufstellung bearbeiten</button><% } %>
 
       </div>
 
@@ -1135,6 +1136,8 @@
       </div>
 
 
+      <% if (isAdmin && typeof historicalEditor !== 'undefined' && historicalEditor) { %><%- include('partials/historical-grid-editor', {historicalEditor,selectedSeason}) %><% } %>
+      <div data-historical-readonly>
       <%- include(
         'partials/season-history',
         {
@@ -1144,6 +1147,7 @@
           selectedSeason
         }
       ) %>
+      </div>
 
     </div>
 

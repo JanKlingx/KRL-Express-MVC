@@ -252,14 +252,13 @@ router.post("/race-weekend/f1/:raceId/reset-attendance", asyncHandler(raceWeeken
 router.post("/race-weekend/f1/:raceId/reset-results", asyncHandler(raceWeekendController.resetResults));
 router.post("/race-weekend/f1/:raceId/reopen-lineup", asyncHandler(raceWeekendController.reopenLineup));
 router.post("/race-weekend/f1/:raceId/reserves/:driverId/remove", asyncHandler(raceWeekendController.removeReserve));
-const historicalImportController = require('../controllers/historicalImportController');
-router.get('/historical-import', asyncHandler(historicalImportController.show));
-router.get('/historical-import/template.csv', asyncHandler(historicalImportController.template));
-const historicalUpload = require('multer')({storage:require('multer').memoryStorage(),limits:{fileSize:2*1024*1024,files:1,fields:8,fieldSize:600000}}).single('seasonFile');
-router.get('/historical-import/template.xlsx', asyncHandler(historicalImportController.workbook));
-router.post('/historical-import/preview', (req,res,next)=>historicalUpload(req,res,error=>{if(error)req.importError='Die Datei konnte nicht geladen werden. Maximal 2 MB und eine Datei sind erlaubt.';next();}), asyncHandler(historicalImportController.preview));
-router.post('/historical-import/confirm', asyncHandler(historicalImportController.confirm));
-router.get("/race-editor", asyncHandler(raceEditorController.show));
+router.post('/historical-grid/:seasonId', asyncHandler(require('../controllers/historicalGridController').save));
+router.get('/race-editor', (req,res)=>res.redirect('/admin/season-setup'));
+router.use('/race-editor/:raceId', asyncHandler(async(req,res,next)=>{
+  const race=await require('../models').GrandPrixResult.findByPk(req.params.raceId,{include:[{association:'seasonRecord'}]});
+  if(race?.isHistorical || race?.seasonRecord?.status === 'historical')return res.status(409).send('Historische Ergebnisse bitte direkt auf der Ligenseite bearbeiten.');
+  next();
+}));
 router.get(
   "/current-season-progress",
   asyncHandler(raceEditorController.showCurrent),

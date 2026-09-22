@@ -1,6 +1,7 @@
 <%- include('../partials/header', { title }) %>
 
 <%
+  const historicalSetup = selectedSeason?.status === 'historical';
   const setupWizard = typeof wizard === 'undefined' ? { current: 1, available: 8 } : wizard;
   const setupStructure =
     typeof structure === 'undefined'
@@ -97,7 +98,7 @@ const setupDriverRankFilter =
         </h1>
 
         <p class="admin-intro">
-          Alle acht Schritte greifen auf Stammdaten zurück.
+          <%= historicalSetup ? 'Sieben' : 'Acht' %> Schritte greifen auf Stammdaten zurück.
           Die Saison wird erst im letzten Schritt veröffentlicht.
         </p>
       </div>
@@ -166,19 +167,19 @@ const setupDriverRankFilter =
         <strong>Teams</strong>
       </a>
 
-      <a
+      <% if (!historicalSetup) { %><a
         href="#setup-lineup" data-step-link="7" aria-disabled="<%= setupWizard.available < 7 %>"
         class="<%= setupStructure.teams.some((team) => (team.drivers || []).length) ? 'is-complete' : '' %>"
       >
         <span>7</span>
         <strong>Line-up</strong>
-      </a>
+      </a><% } %>
 
       <a
         href="#setup-finish" data-step-link="8" aria-disabled="<%= setupWizard.available < 8 %>"
         class="<%= setupFinishReady ? 'is-complete' : '' %>"
       >
-        <span>8</span>
+        <span><%= historicalSetup ? 7 : 8 %></span>
         <strong>Abschluss</strong>
       </a>
 
@@ -663,8 +664,8 @@ const setupDriverRankFilter =
 
       <!-- FILTER -->
 
-<div class="setup-selection-toolbar"><label class="setup-driver-search">Stammfahrer suchen<input type="search" data-driver-search placeholder="Name oder Alias …"></label><output class="setup-selection-count" data-selection-count="driverIds" aria-live="polite"><%= selectedDriverIds.size %> Stammfahrer ausgewählt</output></div>
-<p>Für eine aktuelle Saison Fahrer aus dem F1-Ersatzfahrerpool auswählen. Beim Abschluss erhalten sie den Stammrang dieser Liga und verlieren den Ersatzrang. Einsätze als Ersatzfahrer anderer Ligen werden im Rennwochenende erfasst.</p>
+<div class="setup-selection-toolbar"><label class="setup-driver-search"><%= historicalSetup ? 'Fahrer suchen' : 'Stammfahrer suchen' %><input type="search" data-driver-search placeholder="Name oder Alias …"></label><output class="setup-selection-count" data-selection-count="driverIds" data-selection-label="<%= historicalSetup ? 'Fahrer' : 'Stammfahrer' %>" aria-live="polite"><%= selectedDriverIds.size %> Stammfahrer ausgewählt</output></div>
+<% if (!historicalSetup) { %><p>Für eine aktuelle Saison Fahrer aus dem F1-Ersatzfahrerpool auswählen. Beim Abschluss erhalten sie den Stammrang dieser Liga und verlieren den Ersatzrang. Einsätze als Ersatzfahrer anderer Ligen werden im Rennwochenende erfasst.</p><% } else { %><p>Wähle alle Teilnehmer dieser historischen Saison aus, auch reine Ersatzfahrer. Eine feste Aufstellung ist hier nicht erforderlich.</p><% } %>
 <p><%= selectedSeason.status === 'historical' ? `Die Zuordnung gilt nur für ${selectedSeason.name}; aktuelle Ränge bleiben unverändert.` : 'Aktuelle Stammränge werden beim Abschluss automatisch aus den besetzten Cockpits vergeben.' %></p>
 <div class="setup-driver-grid">
 <% setupEligibleDrivers.forEach((driver) => { const roles = []; const driverMatchesFilter = true;
@@ -870,7 +871,7 @@ const setupDriverRankFilter =
       <!-- 07 LINE-UP -->
       <!-- ================================================= -->
 
-      <section
+      <% if (!historicalSetup) { %><section
         id="setup-lineup" data-setup-step="7" <%= setupWizard.current !== 7 ? 'hidden' : '' %>
         class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
             >
@@ -1052,7 +1053,7 @@ const setupDriverRankFilter =
 
         </div>
 
-      </section>
+      </section><% } %>
 
 
       <!-- ================================================= -->
@@ -1069,7 +1070,7 @@ const setupDriverRankFilter =
 >
 
   <div class="setup-panel-number">
-    08
+    <%= historicalSetup ? '07' : '08' %>
   </div>
 
   <div class="setup-panel-content">
@@ -1155,7 +1156,7 @@ const setupDriverRankFilter =
     <!-- LINE-UP KONTROLLE -->
     <!-- =============================== -->
 
-    <div class="setup-finish-lineup">
+    <% if (!historicalSetup) { %><div class="setup-finish-lineup">
 
       <div class="setup-finish-section-heading">
 
@@ -1244,7 +1245,7 @@ const setupDriverRankFilter =
 
       </div>
 
-    </div>
+    </div><% } else { %><p>Alle ausgewählten Fahrer werden in beiden Wertungen vorbereitet. Auf der Ligenseite kannst du Zeilen entfernen, Teams zuordnen und Ergebnisse eintragen.</p><% } %>
 
 
     <!-- =============================== -->
@@ -1262,7 +1263,7 @@ const setupDriverRankFilter =
           </strong>
 
           <p>
-            Kalender, Punktesystem, Fahrer, Teams und Line-up
+            Kalender, Punktesystem, Fahrer und Teams <%= historicalSetup ? '' : 'sowie Line-up' %>
             sind vorhanden.
           </p>
 
