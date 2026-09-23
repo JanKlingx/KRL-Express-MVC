@@ -9,7 +9,7 @@ function initialGrid(drivers,teams,races=[],lineups=[]) {
     const row=rows.find(row=>row.driverId===Number(entry.DriverId)&&row.role===role);if(!row)continue;
     const team=teams.find(team=>team.name===entry.teamName||team.sourceType==='current'&&Number(team.sourceId)===Number(entry.TeamId));
     row.teamId ||= team?.id||null;
-    row.cells[race.id]={needsPosition:Boolean(Number(entry.points)&&!entry.position),position:entry.position||null,status:entry.status||'',teamId:team?.id||null,fastestLap:Boolean(entry.fastestLap),polePosition:Boolean(entry.polePosition),driverOfTheDay:Boolean(entry.driverOfTheDay)};
+    row.cells[race.id]={points:Number(entry.points || 0),position:entry.position||null,status:entry.status||'',teamId:team?.id||null,fastestLap:Boolean(entry.fastestLap),polePosition:Boolean(entry.polePosition),driverOfTheDay:Boolean(entry.driverOfTheDay)};
   }
   return {rows};
 }
@@ -17,34 +17,48 @@ function validateGrid(value,drivers,teams,races) {
   if(!value||!Array.isArray(value.rows)||value.rows.length>400)throw new Error('Die Tabelle ist ungültig oder zu groß.');
   const driverIds=new Set(drivers.map(row=>Number(row.id))),teamIds=new Set(teams.map(row=>Number(row.id))),raceMap=new Map(races.map(row=>[String(row.id),row]));
   const rowKeys=new Set(),places=new Set(),starts=new Set(),awards=new Set();
-  return {rows:value.rows.map(row=>{
+  const lineup = value.lineup === undefined ? value.rows.filter(row => row.role === 'regular' && row.teamId).map(row => ({driverId:row.driverId,teamId:row.teamId})) : value.lineup;
+  if (!Array.isArray(lineup) || lineup.length > drivers.length) throw new Error('Die obere Aufstellung ist ungültig.');
+  const assigned = new Set();
+  const finalLineup = lineup.map(row => {
+    const driverId=Number(row.driverId),teamId=Number(row.teamId);
+    if (!driverIds.has(driverId) || !teamIds.has(teamId) || assigned.has(driverId)) throw new Error('In der oberen Aufstellung jeden Fahrer höchstens einem Saisonteam zuordnen.');
+    assigned.add(driverId); return {driverId,teamId};
+  });
+  return {lineup:finalLineup,rows:value.rows.map(row=>{
     const driverId=Number(row.driverId),role=row.role,teamId=Number(row.teamId)||null;
     if(!driverIds.has(driverId)||!['regular','reserve'].includes(role)||rowKeys.has(key({driverId,role})))throw new Error('Fahrer oder Wertungszeile ist ungültig oder doppelt.');
     rowKeys.add(key({driverId,role}));if(teamId&&!teamIds.has(teamId))throw new Error('Bitte ein Team dieser Saison wählen.');
+    const retiredFromRound = Number(row.retiredFromRound) || null;
+    const lastRound = Math.max(0, ...races.map(race => Number(race.sortOrder)));
+    if (retiredFromRound !== null && (!Number.isInteger(retiredFromRound) || retiredFromRound < 1 || retiredFromRound > lastRound + 1)) throw new Error('Bitte eine gültige Runde für die Cockpitabgabe wählen.');
     const cells={};
     for(const [id,input] of Object.entries(row.cells||{})) {
       const race=raceMap.get(id);if(!race)throw new Error('Ein Rennen gehört nicht zu dieser Saison. Bitte neu laden.');
       const name=drivers.find(driver=>Number(driver.id)===driverId)?.name;
       const fail=message=>{throw new Error(`${name} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: ${message}`);};
       const status=String(input.status||'').toUpperCase(),position=input.position==null||input.position===''?null:Number(input.position),assignedTeam=Number(input.teamId)||teamId;
+      const points = input.points === null || input.points === undefined || input.points === '' ? null : Number(input.points);
+      if (points !== null && (!Number.isFinite(points) || points < 0 || points > 9999 || Math.abs(points * 100 - Math.round(points * 100)) > 0.000001)) fail('Punkte müssen zwischen 0 und 9999 liegen (höchstens zwei Nachkommastellen).');
+      if (['DNS','DNA','DSQ','S'].includes(status) && points) fail('Dieser Status darf keine Punkte erhalten.');
       if(!['','DNF','DSQ','DNS','DNA','S'].includes(status))fail('Unbekannter Status.');
       if(position!==null&&(!Number.isInteger(position)||position<1||position>100))fail('Platz muss zwischen 1 und 100 liegen.');
-      if(input.needsPosition&&!position&&!['DNA','DNS','DSQ','S'].includes(status))fail('Zu den vorhandenen Punkten fehlt eine Platzierung. Bitte diese Zelle vervollständigen.');
-      if(!status&&!position)continue;
+      if(input.needsPosition&&points===null&&!position&&!['DNA','DNS','DSQ','S'].includes(status))fail('Zu den vorhandenen Punkten fehlt eine Platzierung. Bitte diese Zelle vervollständigen.');
+      if(!status&&!position&&points===null)continue;
       if(['DSQ','DNS','DNA','S'].includes(status)&&position)fail('Dieser Status darf keine Platzierung haben.');
-      const startsHere=Boolean(position||['DNF','DSQ'].includes(status));
+      const startsHere=Boolean(position||points!==null&&!['DNA','DNS','S'].includes(status)||['DNF','DSQ'].includes(status));
       if(startsHere&&!teamIds.has(assignedTeam))fail('Bitte das Team für dieses Ergebnis wählen.');
       if(assignedTeam&&!teamIds.has(assignedTeam))fail('Das gewählte Team gehört nicht zur Saison.');
       if(startsHere){const token=`${id}:${driverId}`;if(starts.has(token))fail('Ein Fahrer darf im selben Rennen nur in einer Wertung starten.');starts.add(token);}
       if(position){const token=`${id}:${position}`;if(places.has(token))fail(`Platz ${position} ist bereits vergeben.`);places.add(token);}
-      const cell={position,status,teamId:assignedTeam||null};
+      const cell={position,status,points,teamId:assignedTeam||null};
       for(const award of ['fastestLap','polePosition','driverOfTheDay']) {
         cell[award]=input[award]===true;
-        if(cell[award]){if(race.raceType==='sprint'||!position||status==='DSQ')fail('Auszeichnungen benötigen eine GP-Platzierung.');const token=`${id}:${award}`;if(awards.has(token))fail('Diese Auszeichnung ist bereits vergeben.');awards.add(token);}
+        if(cell[award]){if(race.raceType==='sprint'||!position&&points===null||['DSQ','DNS','DNA','S'].includes(status))fail('Auszeichnungen sind nur für einen gestarteten Fahrer im Hauptrennen möglich.');const token=`${id}:${award}`;if(awards.has(token))fail('Diese Auszeichnung ist bereits vergeben.');awards.add(token);}
       }
       cells[id]=cell;
     }
-    return {driverId,role,teamId,cells};
+    return {driverId,role,teamId,retiredFromRound,cells};
   })};
 }
 // All downstream sporting statistics read these normal GrandPrixResultEntry records.
@@ -53,13 +67,13 @@ async function projectGrid(grid,races,drivers,teams,pointsForPosition,season) {
   for(const race of races) {
     const choices=new Map();
     for(const row of grid.rows){const cell=row.cells[race.id];if(!cell||cell.status==='DNA')continue;
-      const previous=choices.get(row.driverId),active=Boolean(cell.position||['DNF','DSQ'].includes(cell.status));
+      const previous=choices.get(row.driverId),active=Boolean(cell.position||cell.points!=null&&!['DNA','DNS','S'].includes(cell.status)||['DNF','DSQ'].includes(cell.status));
       if(!previous||active||!previous.active&&row.role==='regular')choices.set(row.driverId,{row,cell,active});
     }
     for(const {row,cell} of choices.values()) {
       const team=teams.find(team=>Number(team.id)===cell.teamId),driver=drivers.find(driver=>Number(driver.id)===row.driverId);
       entries.push({GrandPrixResultId:race.id,DriverId:row.driverId,TeamId:team?.baseTeamId||null,driverName:driver.name,teamName:team?.name||null,position:cell.position,status:cell.status,fastestLap:cell.fastestLap,polePosition:cell.polePosition,driverOfTheDay:cell.driverOfTheDay,
-        points:cell.position?await pointsForPosition(cell.position,{...plain(race),PointsSchemeId:season.PointsSchemeId,fastestLap:cell.fastestLap,polePosition:cell.polePosition}):0,role:row.role});
+        points:cell.points!=null?cell.points:cell.position?await pointsForPosition(cell.position,{...plain(race),PointsSchemeId:season.PointsSchemeId,fastestLap:cell.fastestLap,polePosition:cell.polePosition}):0,role:row.role});
     }
   }
   return entries;
@@ -67,15 +81,16 @@ async function projectGrid(grid,races,drivers,teams,pointsForPosition,season) {
 function standingsForGrid(base,grid,races,drivers,teams,season={}) {
   const raceById=new Map(races.map(race=>[String(race.id),race]));
   const getResult=(row,race)=>{
-    const cell=row.cells[race?.id];if(!cell)return {value:'–',points:0,unfilled:true};
+    const retired=Boolean(row.retiredFromRound && Number(race?.sortOrder)>=row.retiredFromRound);
+    const cell=row.cells[race?.id];if(!cell)return {retired,value:'–',points:0,unfilled:true};
     const entry=(race.entries||[]).find(entry=>Number(entry.DriverId)===row.driverId);
-    const points=cell.position||cell.needsPosition?Number(entry?.points||0):0;
-    return {...cell,points,value:cell.status||String(points),teamName:teams.find(team=>Number(team.id)===cell.teamId)?.name||''};
+    const points=['DNA','DNS','DSQ','S'].includes(cell.status)?0:Number(entry?.points||0);
+    return {...cell,manualPoints:cell.points!=null,retired,points,value:cell.status||String(points),teamName:teams.find(team=>Number(team.id)===cell.teamId)?.name||''};
   };
   const rank=(role,round=Infinity)=>grid.rows.filter(row=>row.role===role).map(row=>{
     const sessions=[...raceById.values()].filter(race=>Number(race.sortOrder)<=round).map(race=>({race,result:getResult(row,race)}));
     const team=teams.find(team=>Number(team.id)===row.teamId);
-    return {id:row.driverId,name:drivers.find(driver=>Number(driver.id)===row.driverId)?.name||'',team:team?.name||'',teamLogoPath:team?.logoPath||'',total:sessions.reduce((n,s)=>n+s.result.points,0),wins:sessions.filter(s=>s.race.raceType!=='sprint'&&s.result.position===1).length,dns:sessions.filter(s=>s.result.status==='DNS').length,starts:sessions.filter(s=>s.race.raceType!=='sprint'&&(s.result.position||['DNF','DSQ'].includes(s.result.status))).length,
+    return {id:row.driverId,isFormerDriver:Boolean(row.retiredFromRound),name:drivers.find(driver=>Number(driver.id)===row.driverId)?.name||'',team:team?.name||'',teamLogoPath:team?.logoPath||'',total:sessions.reduce((n,s)=>n+s.result.points,0),wins:sessions.filter(s=>s.race.raceType!=='sprint'&&s.result.position===1).length,dns:sessions.filter(s=>s.result.status==='DNS').length,starts:sessions.filter(s=>s.race.raceType!=='sprint'&&(s.result.position||s.result.points!=null&&!s.result.unfilled&&!['DNA','DNS','S'].includes(s.result.status)||['DNF','DSQ'].includes(s.result.status))).length,
       results:(base.selectedHistory?.races||[]).map(weekend=>{const weekendRaces=races.filter(race=>Number(race.sortOrder)===Number(weekend.round));const main=getResult(row,weekendRaces.find(r=>r.raceType!=='sprint'));const sprint=weekendRaces.some(r=>r.raceType==='sprint')?getResult(row,weekendRaces.find(r=>r.raceType==='sprint')):null;return {...main,main,sprint,hasSprint:Boolean(sprint),points:main.points+(sprint?.points||0)};})};
   }).sort((a,b)=>b.total-a.total||b.wins-a.wins||b.dns-a.dns||a.name.localeCompare(b.name,'de')).map((row,index,array)=>({...row,position:index+1,points:row.total,average:row.starts?row.total/row.starts:0,gap:index?`+${array[0].total-row.total}`:'Leader'}));
   const roles=new Map(lineupsForGrid(grid,races).map(entry=>[`${entry.GrandPrixResultId}:${entry.DriverId}`,entry.roleType]));
@@ -106,7 +121,7 @@ module.exports={initialGrid,validateGrid,projectGrid,standingsForGrid,revision};
 function lineupsForGrid(grid,races) {
   return races.flatMap(race=>(race.entries||[]).map(entry=>{
     const candidates=grid.rows.filter(row=>row.driverId===Number(entry.DriverId)&&row.cells[race.id]);
-    const row=candidates.find(row=>row.cells[race.id].position||['DNF','DSQ'].includes(row.cells[race.id].status))||candidates.find(row=>row.role==='regular')||candidates[0];
+    const row=candidates.find(row=>row.cells[race.id].position||row.cells[race.id].points!=null&&!['DNA','DNS','S'].includes(row.cells[race.id].status)||['DNF','DSQ'].includes(row.cells[race.id].status))||candidates.find(row=>row.role==='regular')||candidates[0];
     return {GrandPrixResultId:race.id,DriverId:entry.DriverId,TeamId:entry.TeamId,roleType:row?.role||'regular',includeInResults:true};
   }));
 }

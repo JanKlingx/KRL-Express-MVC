@@ -26,6 +26,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const query = search.value.trim().toLocaleLowerCase('de-DE');
     shell.querySelectorAll('.setup-driver-card').forEach((card) => { card.hidden = !card.textContent.toLocaleLowerCase('de-DE').includes(query); });
   });
+  const teamSearch = shell.querySelector('[data-team-search]');
+  teamSearch?.addEventListener('input', () => {
+    const query = teamSearch.value.trim().toLocaleLowerCase('de-DE');
+    const cards = [...shell.querySelectorAll('.team-choice-card')];
+    cards.forEach(card => { card.hidden = !card.textContent.toLocaleLowerCase('de-DE').includes(query); });
+    shell.querySelector('[data-team-search-empty]').hidden = cards.some(card => !card.hidden);
+  });
   shell.querySelectorAll('[data-selection-count]').forEach((counter) => {
     const name = counter.dataset.selectionCount;
     const choices = [...counter.closest('form').querySelectorAll(`input[name="${name}"]`)];

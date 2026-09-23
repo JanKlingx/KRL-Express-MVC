@@ -43,12 +43,19 @@
     const input = dropzone.querySelector('input[type="file"]');
     const name = dropzone.querySelector('[data-upload-name]');
     const preview = dropzone.querySelector('[data-upload-local-preview]');
+    let previewRequest = 0;
     const showFile = () => {
+      const request = ++previewRequest;
       const file = input.files?.[0];
+      input.setCustomValidity('');
+      if (file && (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024)) {
+        input.setCustomValidity('Bitte PNG, JPG oder WebP mit höchstens 10 MB auswählen.');
+        name.textContent = input.validationMessage; preview.hidden = true; input.reportValidity(); return;
+      }
       name.textContent = file ? `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB` : 'oder zum Auswählen klicken';
       if (!file || !file.type.startsWith('image/')) { preview.hidden = true; return; }
       const reader = new FileReader();
-      reader.addEventListener('load', () => { preview.src = reader.result; preview.hidden = false; });
+      reader.addEventListener('load', () => { if (request !== previewRequest) return; preview.src = reader.result; preview.hidden = false; });
       reader.readAsDataURL(file);
     };
     ['dragenter', 'dragover'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {

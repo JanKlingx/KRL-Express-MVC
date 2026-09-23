@@ -32,7 +32,7 @@ function summarizeDriverEntries(entries) {
     if (entry.driverOfTheDay) stats.driverOfTheDays += 1;
     const position = Number(entry.position || 0);
     const status = String(entry.status || '').toUpperCase();
-    if (position || ['DNF', 'DSQ'].includes(status)) stats.starts += 1;
+    if (position || ['DNF', 'DSQ'].includes(status) || race.isHistorical && !status) stats.starts += 1;
     if (position === 1) { stats.wins += 1; stats.podium1 += 1; }
     if (position === 2) stats.podium2 += 1;
     if (position === 3) stats.podium3 += 1;

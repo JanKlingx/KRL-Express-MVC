@@ -15,12 +15,8 @@ const { F1RaceLineupEntry } = models;
 
 const layout = { currentPath: '/admin', isAdmin: true, flash: null };
 
-test('Fahrerpflege nutzt feste Nationalitäten und Rangfilter', () => {
-  const nationality = resourceConfig.drivers.fields.find((field) => field.name === 'nationality');
-  assert.equal(nationality.type, 'select');
-  assert.deepEqual(nationality.choices.find(([value]) => value === 'DE'), ['DE', 'Deutschland (DE)']);
-  assert.deepEqual(nationality.choices.find(([value]) => value === 'CH'), ['CH', 'Schweiz (CH)']);
-  assert.deepEqual(nationality.choices.find(([value]) => value === 'AU'), ['AU', 'Australien (AU)']);
+test('Fahrerpflege verzichtet auf Nationalität und Gamertag und behält Rangfilter', () => {
+  assert.equal(resourceConfig.drivers.fields.some(field => ['nationality','gamerTag'].includes(field.name)), false);
   assert.equal(resourceConfig.drivers.groupByRanks, true);
   assert.equal(resourceConfig.drivers.rankFilters.some((rank) => rank.value === 'f1-friday'), true);
   assert.equal(resourceConfig.drivers.rankFilters.some((rank) => rank.value === 'f1-saturday'), true);

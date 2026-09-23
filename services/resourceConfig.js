@@ -1391,7 +1391,7 @@ module.exports = {
     description:
       "Zentrale Fahrer-Stammdaten. Gleiche Namen sind nach einer Warnung zulässig, weil die Fahrer-ID die Personen eindeutig trennt.",
     model: models.Driver,
-    listFields: ["name", "aliasesText", "platform", "nationality"],
+    listFields: ["name", "aliasesText", "platform"],
     prepareValues: prepareDriver,
     prepareEntry: prepareDriverForForm,
     afterSave: syncF1Driver,
@@ -1405,7 +1405,6 @@ module.exports = {
         help: "Nur aktivieren, wenn wirklich eine zweite Person mit demselben Namen angelegt wird.",
       }),
       aliasesField(),
-      text("gamerTag", "GamerTag"),
       relation("PlatformId", "Plattform", models.Platform, (row) => row.name, true),
       number("racesF1", "Gefahrene Rennen F1", false, {
         min: 0,
@@ -1438,7 +1437,6 @@ module.exports = {
         (row) => `${row.manufacturer} · ${row.name}`,
         false,
       ),
-      nationalityField(),
       ...[["polesF1", "Polepositions F1"], ["fastestLapsF1", "Schnellste Runden F1"], ["driverOfTheDaysF1", "Driver of the Day F1"]].map(([key, label]) => number(key, label, false, { readonly: true, persist: false, visibleWhen: hasF1Rank })),
       number("pointsF1", "F1-Punkte", false, {
         readonly: true,

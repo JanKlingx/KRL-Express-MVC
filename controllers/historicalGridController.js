@@ -15,7 +15,14 @@ async function loadGridData(season,raceValues=null) {
   const extra=extraIds.length?await models.Driver.findAll({where:{id:{[Op.in]:extraIds}}}):[];
   const drivers=[...new Map([...members.map(member=>member.driver),...extra].filter(Boolean).map(driver=>[Number(driver.id),driver.toJSON()])).values()];
   const legacyLineups=season.historicalGrid?[]:await models.F1RaceLineupEntry.findAll({where:{GrandPrixResultId:{[Op.in]:races.map(race=>race.id)}}});
-  const grid=season.historicalGrid||gridService.initialGrid(drivers,teams,races,legacyLineups);
+  const grid=season.historicalGrid?JSON.parse(JSON.stringify(season.historicalGrid)):gridService.initialGrid(drivers,teams,races,legacyLineups);
+  for (const row of grid.rows) for (const [raceId,cell] of Object.entries(row.cells || {})) {
+    if (cell.needsPosition) {
+      const entry = races.find(race => Number(race.id) === Number(raceId))?.entries?.find(entry => Number(entry.DriverId) === Number(row.driverId));
+      if (entry) { cell.points = Number(entry.points || 0); delete cell.needsPosition; }
+    }
+  }
+  if (!Array.isArray(grid.lineup)) grid.lineup = grid.rows.filter(row => row.role === 'regular' && row.teamId).map(row => ({driverId: row.driverId, teamId: row.teamId}));
   return {grid,drivers,teams,races,revision:gridService.revision(season)};
 }
 exports.loadGridData=loadGridData;
