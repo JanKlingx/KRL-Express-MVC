@@ -213,6 +213,7 @@ exports.update = async (req, res, next) => {
   const entry = await config.model.findByPk(req.params.id);
   if (!entry) return next();
   let newPath;
+  let imageCommitted = false;
   try {
     const values = readValues(config.fields, req.body);
     if (config.prepareValues) await config.prepareValues(values, req.body, entry);
@@ -222,12 +223,13 @@ exports.update = async (req, res, next) => {
     }
     const oldPath = config.upload ? entry[config.upload.field] : null;
     await entry.update(values);
+    imageCommitted = true;
     if (config.afterSave) await config.afterSave(entry, req.body);
     if (newPath && oldPath) await deleteUpload(oldPath);
     req.session.flash = { type: 'success', message: 'Änderungen wurden gespeichert.' };
     res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
-    if (newPath) await deleteUpload(newPath);
+    if (newPath && !imageCommitted) await deleteUpload(newPath);
     return renderForm(req, res, config, { ...entry.toJSON(), ...req.body }, error, 400);
   }
 };

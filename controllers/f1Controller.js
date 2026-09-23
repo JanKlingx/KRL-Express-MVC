@@ -897,7 +897,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
   if (historicalEditor) {
     require('../services/historicalGrid').standingsForGrid(standingsData, historicalEditor.grid, historicalEditor.races, historicalEditor.drivers, historicalEditor.teams, selectedSeason);
-    for (const team of teams) team.drivers = historicalEditor.grid.rows.filter(row => row.role === 'regular' && (Number(row.teamId) === Number(team.id) || historicalEditor.teams.find(candidate => Number(candidate.id) === Number(row.teamId))?.name === team.name)).map(row => historicalEditor.drivers.find(driver => Number(driver.id) === row.driverId)).filter(Boolean);
+    for (const team of teams) team.drivers = (historicalEditor.grid.lineup || []).filter(row => (Number(row.teamId) === Number(team.id) || historicalEditor.teams.find(candidate => Number(candidate.id) === Number(row.teamId))?.name === team.name)).map(row => historicalEditor.drivers.find(driver => Number(driver.id) === row.driverId)).filter(Boolean);
   }
   if (
     standingsData

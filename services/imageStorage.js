@@ -24,6 +24,8 @@ async function saveImage(file) {
 
 async function deleteUpload(imagePath) {
   if (!imagePath || !imagePath.startsWith('/uploads/')) return;
+  const { SeasonTeam } = require('../models');
+  if (await SeasonTeam.count({where:{logoPath:imagePath}})) return;
   const filename = path.basename(imagePath);
   if (!/^[0-9a-f-]+\.(?:png|jpe?g|webp)$/i.test(filename)) return;
   await fs.unlink(path.join(uploadDirectory, filename)).catch((error) => {

@@ -47,7 +47,7 @@
           <span class="upload-dropzone" data-upload-dropzone><input type="file" name="image" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" <%= !entry?.id && config.upload.required ? 'required' : '' %>><strong>Bild hierher ziehen</strong><span data-upload-name>oder zum Auswählen klicken</span><img data-upload-local-preview alt="Neue Bildvorschau" hidden></span>
           <small>Upload vom Gerät: PNG, JPG oder WebP, maximal 10 MB. Externe Bild-URLs sind nicht möglich.</small>
         </label>
-        <% if (entry && entry[config.upload.field]) { %><img class="upload-preview" src="<%= entry[config.upload.field] %>" alt="Aktuell gespeichertes Bild"><% } %>
+        <% if (entry && entry[config.upload.field]) { %><figure class="upload-current"><img class="upload-preview" src="<%= entry[config.upload.field] %>" alt="Aktuell gespeichertes Bild"><figcaption>Gespeichertes Bild – bleibt erhalten, bis du ein neues Bild speicherst.</figcaption></figure><% } %>
       <% } %>
 
       <div class="form-actions">

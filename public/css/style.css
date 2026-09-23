@@ -12602,3 +12602,29 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .driver-name-feedback { color: #f2d49b; line-height: 1.6; overflow-wrap: anywhere; }
 .driver-name-feedback:empty { display: none; }
 .driver-name-feedback a { color: var(--accent); text-decoration: underline; }
+
+/* Stable shared upload controls, including historical team logos. */
+.resource-form .upload-field, .resource-form .upload-current { grid-column: 1 / -1; min-width: 0; margin: 0; }
+.resource-form .upload-dropzone { display: flex; position: relative; flex-direction: column; align-items: center; width: 100%; min-width: 0; height: auto; padding: 1.2rem; box-sizing: border-box; overflow-wrap: anywhere; }
+.resource-form .upload-dropzone input[type="file"] { position: absolute; inset: 0; padding: 0; margin: 0; width: 100%; height: 100%; box-sizing: border-box; }
+.resource-form .upload-dropzone [data-upload-local-preview], .resource-form .upload-current img { display: block; position: static; max-width: 100%; width: auto; height: auto; max-height: 160px; object-fit: contain; }
+.resource-form .upload-dropzone [hidden] { display: none !important; }
+.resource-form .upload-current figcaption { color: var(--muted); margin-top: .5rem; font-size: .85rem; }
+.team-choice-card[hidden], [data-history-driver][hidden] { display: none !important; }
+.historical-inline-button { border: 1px solid #456069; border-radius: 5px; background: #17262c; color: #dceff1; cursor: pointer; min-width: 24px; padding: 3px; font: inherit; margin: 2px; }
+.historical-inline-button:hover, .historical-inline-button:focus-visible { border-color: var(--accent, #6ef2f2); outline: 2px solid var(--accent, #6ef2f2); outline-offset: 1px; }
+.sheet-result .historical-cell-button { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; width: calc(100% - 4px); min-height: 38px; height: auto; }
+.historical-cell-button[data-position="1"] { background: #cbbd85; color: #172026; }
+.historical-cell-button[data-position="2"] { background: #aeb9c0; color: #172026; }
+.historical-cell-button[data-position="3"] { background: #bd997d; color: #172026; }
+.historical-cell-button[data-status="DNA"] { background: #42484b; color: #c0c5c8; }
+.historical-cell-button[data-status="DNS"] { background: #455a6e; color: #edf4fa; }
+.historical-cell-button small { border-radius: 3px; font-size: 8px; padding: 1px 3px; }
+.historical-award-fastestLap { background: #937bbb; color: white; }
+.historical-award-polePosition { background: #9ccee2; color: #172026; }
+.historical-award-driverOfTheDay { background: #a1d3ba; color: #172026; }
+.sheet-result.is-historical-retired { background: #343b3f; }
+.sheet-result.is-historical-retired .historical-cell-button, .sheet-result.is-historical-retired .sheet-result-tile { background: #454b4f; color: #c8cdd0; border-color: #6c7378; }
+.historical-cell-dialog [data-historical-lineup-fields] { display: grid; gap: .75rem; }
+.historical-editor .historical-toolbar > details { flex: 1 1 240px; padding: .75rem; border: 1px solid #34464e; border-radius: 8px; }
+.historical-editor .historical-toolbar summary { cursor: pointer; }

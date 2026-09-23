@@ -727,7 +727,7 @@ const setupDriverRankFilter =
           >
 
 
-            <output class="setup-selection-count" data-selection-count="teamTokens" aria-live="polite"><%= selectedTeamTokens.size %> Teams ausgewählt</output>
+            <label class="setup-driver-search">Teams suchen<input type="search" data-team-search placeholder="Teamname eingeben …"></label><p data-team-search-empty hidden>Keine passenden Teams gefunden.</p><output class="setup-selection-count" data-selection-count="teamTokens" aria-live="polite"><%= selectedTeamTokens.size %> Teams ausgewählt</output>
             <!-- AKTUELLE TEAMS -->
 
             <div class="setup-team-source">

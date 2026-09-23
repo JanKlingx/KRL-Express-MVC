@@ -13,6 +13,7 @@
     Boolean(
       result &&
       (
+        result.manualPoints ||
         result.position ||
         result.status ||
         result.fastestLap ||
@@ -92,6 +93,8 @@
     /*
      * Zukünftiges Rennen
      */
+    if (statusOf(result) === 'DNA') return { text: 'DNA', kind: 'dna', title: 'Nicht teilgenommen' };
+    if (statusOf(result) === 'DNS') return { text: 'DNS', kind: 'dns', title: 'Nicht gestartet' };
     if (statusOf(result) === 'S') return { text: 'S', kind: 'suspended', title: 'Rennsperre' };
 
     if (!race?.isCompleted) {
@@ -438,6 +441,8 @@ if (
       mode
     ) => {
       const groups = raceColumns.length > 6 ? [raceColumns, ...Array.from({ length: Math.ceil(raceColumns.length / 6) }, (_, i) => raceColumns.slice(i * 6, (i + 1) * 6))] : [raceColumns];
+      const editable = isAdmin && activeSeason?.status === 'historical' && typeof historicalEditor !== 'undefined' && historicalEditor;
+      const sheetDrivers = editable ? [...drivers, ...historicalEditor.drivers.filter(d => !drivers.some(row => Number(row.id) === Number(d.id))).map(d => ({id:d.id,name:d.name,results:[],total:0,isPlaceholder:true}))] : drivers;
       groups.forEach((columns, groupIndex) => {
   %>
 
@@ -661,10 +666,10 @@ if (
         <tbody>
 
 
-          <% drivers.forEach((driver) => { %>
+          <% sheetDrivers.forEach((driver) => { %>
 
 
-            <tr
+            <tr <%= driver.isPlaceholder ? 'hidden' : '' %> data-history-driver="<%= driver.id %>" data-history-role="<%= mode %>"
               class="
                 <%= driver.isFormerDriver
                   ? 'is-former-driver'
@@ -760,7 +765,7 @@ if (
                 const view = resultLabel(result, mode, column);
                 const awards = { ...result, fastestLap: hasFastestLap(result) };
               %>
-                <td class="sheet-result" data-race-type="<%= column.type %>" data-round="<%= column.round %>">
+                <td class="sheet-result <%= result?.retired ? 'is-historical-retired' : '' %>" data-race-type="<%= column.type %>" data-round="<%= column.round %>">
                   <div class="sheet-result-tile <%= podiumClass(result) %> is-<%= view.kind %>" title="<%= view.title || `${column.title || ''} · ${column.type === 'sprint' ? 'Sprint' : 'Grand Prix'}` %>">
                     <b class="sheet-result-value"><%= view.text %></b>
                     <div class="sheet-result-awards"><%- include('race-awards', { result: awards, isMain: column.type === 'main' }) %></div>
@@ -902,7 +907,7 @@ if (
       (
         selectedHistory.reserveDrivers ||
         []
-      ).length
+      ).length || (isAdmin && activeSeason?.status === 'historical' && typeof historicalEditor !== 'undefined' && historicalEditor)
     ) {
     %>
 

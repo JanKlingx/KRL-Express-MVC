@@ -39,28 +39,52 @@ test('Duplicate starts, duplicate places, invalid team and sprint awards are rej
  assert.throws(()=>validateGrid(grid,drivers,teams,races),/einer Wertung/);
  delete grid.rows[1].cells[1];grid.rows[2].cells[1]=cell(1);assert.throws(()=>validateGrid(grid,drivers,teams,races),/bereits vergeben/);
  delete grid.rows[2].cells[1];grid.rows[0].cells[1].teamId=999;assert.throws(()=>validateGrid(grid,drivers,teams,races),/Team/);
- grid.rows[0].cells={3:{...cell(1),fastestLap:true}};assert.throws(()=>validateGrid(grid,drivers,teams,races),/GP-Platzierung/);
+ grid.rows[0].cells={3:{...cell(1),fastestLap:true}};assert.throws(()=>validateGrid(grid,drivers,teams,races),/Hauptrennen/);
 });
-test('Deleting one row leaves the opposite role intact; manual legacy points need explicit reconstruction',async()=>{
+test('Deleting one row leaves the opposite role intact; legacy points are preserved',async()=>{
  const grid=initialGrid(drivers,teams);grid.rows[0].cells[1]=cell(1);grid.rows[1].cells[2]=cell(2);
  grid.rows.splice(0,1);const entries=await projectGrid(validateGrid(grid,drivers,teams,races),races,drivers,teams,points,{});
  assert.equal(entries.length,1);assert.equal(entries[0].role,'reserve');assert.equal(entries[0].points,18);
- const old=initialGrid(drivers,teams,[{...races[0],entries:[{DriverId:1,teamName:'Team A',points:20}]}]);assert.throws(()=>validateGrid(old,drivers,teams,races),/Platzierung/);
+ const old=initialGrid(drivers,teams,[{...races[0],entries:[{DriverId:1,teamName:'Team A',points:20}]}]);assert.equal(validateGrid(old,drivers,teams,races).rows[0].cells[1].points,20);
 });
-test('Inline editor edits one cell and removes only the selected valuation row',async t=>{
+test('Public historical tables edit points, remove and restore rows, and keep final lineup independent',async t=>{
  const ejs=require('ejs'),fs=require('node:fs'),{JSDOM}=require('jsdom');
- const data={grid:initialGrid(drivers,teams,races),drivers,teams,races,revision:'test'};
- const html=await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason:{id:1}});
+ const data={grid:{...initialGrid(drivers,teams,races),lineup:[]},drivers,teams,races,revision:'test'};
+ const selectedSeason={id:1,status:'historical'};
+ const selectedHistory={name:'S1',races:[{round:1,isCompleted:true,title:'R1'},{round:2,isCompleted:true,title:'R2',hasSprint:true}],drivers:drivers.map(d=>({...d,results:[],total:0})),reserveDrivers:drivers.map(d=>({...d,results:[],total:0}))};
+ const html=await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{name:'S1'}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost/f1/sonntag?season=1'});t.after(()=>dom.window.close());
  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
  dom.window.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));const doc=dom.window.document;
- assert.equal(doc.querySelectorAll('[data-historical-rows] tr').length,2);
- doc.querySelector('.historical-result-button').click();const form=doc.querySelector('dialog form');form.elements.position.value='1';form.elements.teamId.value='10';form.elements.fastestLap.checked=true;form.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
- assert.match(doc.querySelector('.historical-result-button').textContent,/P1 FL/);
- const role=doc.querySelector('[data-historical-role]');role.value='reserve';role.dispatchEvent(new dom.window.Event('change'));
- assert.equal(doc.querySelector('.historical-result-button').textContent,'+ Ergebnis');
- doc.querySelector('[data-historical-rows] tr td:last-child button').click();assert.equal(doc.querySelectorAll('[data-historical-rows] tr').length,1);
- role.value='regular';role.dispatchEvent(new dom.window.Event('change'));assert.equal(doc.querySelectorAll('[data-historical-rows] tr').length,2);assert.match(doc.querySelector('.historical-result-button').textContent,/P1 FL/);
+ const regular=doc.querySelector('[data-history-driver="1"][data-history-role="regular"]');
+ regular.querySelector('.historical-cell-button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.points.value='26';form.elements.position.value='1';form.elements.teamId.value='10';form.elements.fastestLap.checked=true;form.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
+ assert.match(regular.querySelector('.historical-cell-button').textContent,/26FL/);
+ const reserve=doc.querySelector('[data-history-driver="1"][data-history-role="reserve"]');
+ [...reserve.querySelectorAll('.sheet-driver button')].find(b=>b.textContent==='−').click();assert.equal(reserve.hidden,true);assert.equal(regular.hidden,false);
+ const role=doc.querySelector('[data-historical-role]');role.value='reserve';role.dispatchEvent(new dom.window.Event('change'));doc.querySelector('[data-historical-add]').value='1';doc.querySelector('[data-historical-add-button]').click();assert.equal(reserve.hidden,false);
+ [...regular.querySelectorAll('.sheet-driver button')].find(b=>b.textContent==='✎').click();const rowForm=doc.querySelector('[data-historical-row-dialog] form');rowForm.elements.retiredFromRound.value='2';rowForm.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
+ assert.equal(regular.querySelector('[data-round="2"]').classList.contains('is-historical-retired'),true);
+ assert.equal(regular.querySelector('[data-round="1"]').classList.contains('is-historical-retired'),false);
+ let posted;dom.window.fetch=async(url,options)=>{posted=JSON.parse(options.body);return {ok:false,json:async()=>({error:'Retry'})};};doc.querySelector('[data-historical-save]').click();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(posted.grid.rows.find(r=>r.driverId===1&&r.role==='regular').cells[1].points,26);assert.deepEqual(posted.grid.lineup,[]);
+});
+test('Manual points reconcile driver and constructor totals; awards do not double-count bonuses',async()=>{
+ const grid={...initialGrid(drivers,teams),lineup:[{driverId:1,teamId:20}]};
+ grid.rows[0].teamId=10;grid.rows[0].retiredFromRound=2;
+ grid.rows[0].cells[1]={points:26,position:1,status:'',teamId:10,fastestLap:true,polePosition:true,driverOfTheDay:true};
+ grid.rows[0].cells[2]={status:'DNA'};
+ grid.rows[1].cells[2]={points:0,status:'',teamId:20};
+ grid.rows[2].cells[1]={points:18,status:'',teamId:10};
+ const valid=validateGrid(grid,drivers,teams,races);
+ const entries=await projectGrid(valid,races,drivers,teams,()=>{throw Error('Manual points should not be recalculated');},{});
+ assert.equal(entries.reduce((sum,e)=>sum+e.points,0),44);assert.equal(entries.find(e=>e.DriverId===1&&e.GrandPrixResultId===1).TeamId,100);
+ const projected=races.map(r=>({...r,entries:entries.filter(e=>e.GrandPrixResultId===r.id)}));
+ const standings=standingsForGrid(buildSeasonData({slug:'sonntag'},projected,drivers,lineupsForGrid(valid,projected),{status:'historical'}),valid,projected,drivers,teams);
+ assert.equal(standings.teamStandings[0].points,44);assert.equal(standings.selectedHistory.drivers[0].results[1].main.retired,true);
+ const career=require('../services/driverStats').summarizeDriverEntries(entries.filter(e=>e.DriverId===1).map(e=>({...e,grandPrixResult:{discipline:'f1',raceType:'main',isHistorical:true}}))).f1;
+ assert.equal(career.points,26);assert.equal(career.starts,2);assert.equal(career.wins,1);assert.equal(career.fastestLaps,1);assert.equal(career.poles,1);assert.equal(career.driverOfTheDays,1);
+ assert.throws(()=>validateGrid({...grid,lineup:[{driverId:1,teamId:999}]},drivers,teams,races),/Aufstellung/);
+ grid.rows[0].cells[1].status='DNS';assert.throws(()=>validateGrid(grid,drivers,teams,races),/keine Punkte/);
 });
 test('Saving rejects active seasons and stale revisions before deleting results',async t=>{
  const models=require('../models'),controller=require('../controllers/historicalGridController'),{revision}=require('../services/historicalGrid');
