@@ -139,15 +139,7 @@ async function prepareDriver(values, body, existingDriver) {
     if (!platform) throw new Error("Bitte eine Plattform aus den Stammdaten auswählen.");
     values.platform = platform.name;
   }
-  const duplicateName = await models.Driver.findOne({
-    where: {
-      id: { [Op.ne]: existingDriver?.id || 0 },
-      [Op.and]: models.sequelize.where(
-        models.sequelize.fn("LOWER", models.sequelize.col("name")),
-        values.name.toLocaleLowerCase("de-DE"),
-      ),
-    },
-  });
+  const duplicateName = await require('./driverName').findDuplicate(values.name, existingDriver?.id);
   if (duplicateName && body.confirmDuplicateName !== "on") {
     const warning = new Error(
       `Der Fahrername „${values.name}“ existiert bereits. Prüfe zuerst das vorhandene Profil oder bestätige, dass eine zweite Person mit demselben Namen angelegt werden soll.`,

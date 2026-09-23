@@ -12587,3 +12587,18 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 @media(max-width:650px){.historical-editor-body{padding:0 .65rem .8rem;}.historical-input-table :is(th,td){padding:.4rem;font-size:.8rem;}.historical-toolbar .button{width:100%;}.historical-input-table select{max-width:150px;}}
 
 .historical-editor [hidden] {display:none!important;}
+
+/* Game maintenance: the editor grows with the uploaded logo and wraps on narrow screens. */
+.f1-game-layout { grid-template-columns: minmax(0, 1fr); }
+.f1-game-editor { width: 100%; min-width: 0; border: 1px solid #2a3940; border-radius: 12px; background: #0b1215; }
+.f1-game-editor > summary { padding: 1rem; cursor: pointer; color: var(--accent); font-weight: 600; }
+.f1-game-editor .f1-game-form { position: static; display: grid; grid-template-columns: minmax(0, 1fr); border: 0; width: 100%; min-width: 0; box-sizing: border-box; }
+.f1-game-form > *, .f1-game-form .upload-dropzone { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.f1-game-form .upload-dropzone { width: 100%; height: auto; display: flex; flex-direction: column; gap: .75rem; padding: 1.25rem; overflow-wrap: anywhere; }
+.f1-game-form [data-upload-local-preview] { width: auto; max-width: 100%; height: auto; max-height: 160px; object-fit: contain; position: static; }
+.f1-game-form [hidden] { display: none !important; }
+.f1-game-form .form-actions { display: flex; flex-wrap: wrap; width: 100%; margin-top: .75rem; }
+.f1-game-form .button, .f1-game-actions .button { white-space: normal; overflow-wrap: anywhere; }
+.driver-name-feedback { color: #f2d49b; line-height: 1.6; overflow-wrap: anywhere; }
+.driver-name-feedback:empty { display: none; }
+.driver-name-feedback a { color: var(--accent); text-decoration: underline; }

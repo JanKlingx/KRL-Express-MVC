@@ -23,7 +23,7 @@ test("zentrale Kalenderstruktur erweitert Season und RaceEvent nullable", () => 
 test("Saisonmapping ist transaktional und aktualisiert statt blind zu duplizieren", () => {
   const setup = read("controllers/seasonSetupController.js");
   const service = read("services/f1Calendar.js");
-  assert.match(setup, /sequelize\.transaction\(async \(transaction\) =>\s*syncSeasonDates/);
+  assert.match(setup, /sequelize\.transaction\(async \(transaction\) =>\s*\{[\s\S]*?return syncSeasonDates/);
   assert.match(service, /F1CalendarRoundId: round\.id/);
   assert.match(service, /where: \{ SeasonId: season\.id, sortOrder: eventSortOrder\(round\), isTestDay: Boolean\(round\.isTestDay\)/);
   assert.doesNotMatch(service, /sprint\.destroy/);

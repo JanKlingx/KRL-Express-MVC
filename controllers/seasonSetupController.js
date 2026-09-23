@@ -229,7 +229,7 @@ async function loadData(query = {}) {
 
     F1Game.findAll({
       where: { isActive: true },
-      order: [["sortOrder", "ASC"], ["name", "ASC"]],
+      order: [["name", "ASC"]],
     }),
 
     F1Calendar.findAll({
@@ -411,16 +411,7 @@ exports.updateSeasonProfile = async (req, res) => {
     const accentColor = /^#[0-9a-f]{6}$/i.test(req.body.accentColor || "")
       ? req.body.accentColor
       : season.accentColor || league.accentColor;
-    const F1GameId = Number(req.body.F1GameId || 0) || null;
-    if (F1GameId && !(await F1Game.findByPk(F1GameId)))
-      throw new Error("Bitte ein gültiges F1-Spiel auswählen.");
-    await season.update({
-      PointsSchemeId: pointsScheme.id,
-      accentColor,
-      reservePointsForConstructors:
-        req.body.reservePointsForConstructors === "on",
-      F1GameId,
-    });
+    await season.update({ PointsSchemeId: pointsScheme.id, accentColor });
     req.session.flash = {
       type: "success",
       message: `Farbprofil und Punktesystem von ${season.name} wurden gespeichert.`,
@@ -610,9 +601,10 @@ exports.saveCentralCalendar = async (req, res) => {
     const calendarId = Number(season.F1CalendarId || 0);
     if (!calendarId) throw new Error("Bitte zuerst in Schritt 2 einen zentralen F1-Kalender auswählen.");
     const dates = require("../services/formRecords").dateRecords(req.body.dates);
-    const result = await sequelize.transaction(async (transaction) =>
-      syncSeasonDates({ season, league, calendarId, dates, transaction }),
-    );
+    const result = await sequelize.transaction(async (transaction) => {
+      if (season.status === 'historical') await season.update({ hideCalendarTime: req.body.hideCalendarTime === 'on' }, { transaction });
+      return syncSeasonDates({ season, league, calendarId, dates, transaction });
+    });
     delete req.session.seasonDateDraft;
     const warnings = [
       result.skippedCompleted ? `${result.skippedCompleted} abgeschlossene Rennen geschützt` : null,
@@ -625,7 +617,7 @@ exports.saveCentralCalendar = async (req, res) => {
   } catch (error) {
     if (season) {
       const dates = Object.fromEntries(Object.entries(require("../services/formRecords").dateRecords(req.body.dates)).filter(([key, value]) => /^\d+$/.test(key) && typeof value === "string").map(([key, value]) => [key, error.dateErrors?.[key] ? "" : value.slice(0, 10)]));
-      req.session.seasonDateDraft = { seasonId: season.id, calendarId: season.F1CalendarId, dates, errors: error.dateErrors || {} };
+      req.session.seasonDateDraft = { seasonId: season.id, calendarId: season.F1CalendarId, dates, hideCalendarTime: req.body.hideCalendarTime === 'on', errors: error.dateErrors || {} };
     }
     req.session.flash = { type: "error", message: error.message };
   }
@@ -1149,7 +1141,7 @@ exports.updateMetadata = async (req, res) => {
     const F1GameId = Number(req.body.F1GameId) || null;
     if (F1GameId && !await F1Game.findByPk(F1GameId)) throw new Error('Spiel nicht gefunden.');
     await sequelize.transaction(async (transaction) => {
-      await season.update({ name, accentColor: req.body.accentColor, F1GameId }, { transaction });
+      await season.update({ name, accentColor: req.body.accentColor, F1GameId, reservePointsForConstructors: req.body.reservePointsForConstructors === "on" }, { transaction });
       await GrandPrixResult.update({ season: name }, { where: { SeasonId: season.id }, transaction });
       if (season.status === 'active' && season.isPublished) await league.update({ currentSeason: name }, { transaction });
     });

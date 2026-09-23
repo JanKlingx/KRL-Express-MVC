@@ -34,6 +34,7 @@ async function addMissingIndex(table, name, fields, options = {}) {
 
 async function ensureSchema() {
   const historicalSeasonTable=await sequelize.getQueryInterface().describeTable("seasons");
+  await addMissingColumn("seasons",historicalSeasonTable,"hide_calendar_time",{type:DataTypes.BOOLEAN,allowNull:false,defaultValue:false});
   await addMissingColumn("seasons",historicalSeasonTable,"historical_grid",{type:DataTypes.JSON,allowNull:true});
   const queryInterface = sequelize.getQueryInterface();
   const settingsTable = await queryInterface.describeTable('community_settings');

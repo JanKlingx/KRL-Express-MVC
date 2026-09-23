@@ -1,3 +1,4 @@
+<% const dateOnly = typeof selectedSeason !== 'undefined' && selectedSeason?.status === 'historical' && selectedSeason.hideCalendarTime; %>
 <% const visibleCalendar = calendar.filter((race) => race.isPublished !== false || (typeof isAdmin !== 'undefined' && isAdmin)); %>
 <% if (visibleCalendar.length) { %>
 
@@ -149,18 +150,16 @@
                       weekday:
                         "long",
 
-                      hour:
-                        "2-digit",
+                      hour: dateOnly ? undefined : "2-digit",
 
-                      minute:
-                        "2-digit",
+                      minute: dateOnly ? undefined : "2-digit",
 
                       timeZone:
                         "Europe/Berlin",
                     }
                   ).format(
                     startsAt
-                  )} Uhr`
+                  )} ${dateOnly ? '' : 'Uhr'}`
                 : "TERMIN IM ADMIN PRÜFEN"
               %>
 
@@ -261,11 +260,9 @@
                       year:
                         "numeric",
 
-                      hour:
-                        "2-digit",
+                      hour: dateOnly ? undefined : "2-digit",
 
-                      minute:
-                        "2-digit",
+                      minute: dateOnly ? undefined : "2-digit",
 
                       timeZone:
                         "Europe/Berlin",
@@ -275,7 +272,7 @@
                   )
               %>
 
-              Uhr
+              <%= dateOnly ? '' : 'Uhr' %>
 
             </small>
 
