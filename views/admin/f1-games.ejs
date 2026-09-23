@@ -13,11 +13,11 @@
     <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
 
     <div class="f1-game-layout">
+      <details class="f1-game-editor" <%= form ? 'open' : '' %>><summary><%= form?.id ? 'F1-Spiel bearbeiten' : 'F1-Spiel anlegen' %></summary>
       <form class="setup-form f1-game-form" method="post" action="/admin/f1-games<%= form?.id ? `/${form.id}` : '' %>" enctype="multipart/form-data">
         <% if (form?.id) { %><input type="hidden" name="_method" value="PUT"><% } %>
         <span class="form-kicker"><%= form?.id ? 'SPIEL BEARBEITEN' : 'NEUES SPIEL' %></span>
         <label>Name *<input name="name" value="<%= form?.name || '' %>" required></label>
-        <label>Sortierung<input type="number" name="sortOrder" min="0" value="<%= form?.sortOrder ?? 0 %>"></label>
         <label class="checkbox-control"><input type="checkbox" name="isActive" <%= form?.id ? (form.isActive ? 'checked' : '') : 'checked' %>><span>Aktiv und im Saison-Assistenten auswählbar</span></label>
         <label class="upload-dropzone" data-upload-dropzone>
           <input type="file" name="image" accept="image/png,image/jpeg,image/webp">
@@ -30,6 +30,7 @@
           <% if (form?.id) { %><a class="button button-ghost" href="/admin/f1-games">Abbrechen</a><% } %>
         </div>
       </form>
+      </details>
 
       <div class="f1-game-grid">
         <% games.forEach((game) => { %>
@@ -38,7 +39,7 @@
               <% if (game.logoPath) { %><img src="<%= game.logoPath %>" alt="Logo <%= game.name %>"><% } else { %><span>F1</span><% } %>
             </div>
             <div>
-              <span><%= game.isActive ? 'AKTIV' : 'INAKTIV' %> · SORTIERUNG <%= game.sortOrder %></span>
+              <span><%= game.isActive ? 'AKTIV' : 'INAKTIV' %></span>
               <h2><%= game.name %></h2>
               <small><%= game.seasons?.length || 0 %> verknüpfte Saison(en)</small>
             </div>

@@ -24,6 +24,7 @@ const pdfUpload = require("../middleware/pdfUpload");
 
 const router = express.Router();
 router.use(requireAdmin);
+router.get('/drivers/check-name', asyncHandler(require('../services/driverName').check));
 router.post('/branding', upload.single('image'), asyncHandler(require('../controllers/communityController').saveBranding));
 router.post('/guides/:slug', upload.single('image'), asyncHandler(require('../controllers/guideController').save));
 router.post('/news', upload.single('image'), asyncHandler(require('../controllers/communityController').saveNews));

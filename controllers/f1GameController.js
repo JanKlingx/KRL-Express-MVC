@@ -5,15 +5,14 @@ const { saveImage, deleteUpload } = require('../services/imageStorage');
 function valuesFrom(body) {
   return {
     name: String(body.name || '').trim(),
-    isActive: body.isActive === 'on',
-    sortOrder: Number.isInteger(Number(body.sortOrder)) ? Number(body.sortOrder) : 0
+    isActive: body.isActive === 'on'
   };
 }
 
 async function renderPage(req, res, status = 200, form = null, error = null) {
   const games = await F1Game.findAll({
     include: [{ association: 'seasons', attributes: ['id', 'name', 'scopeSlug'], required: false }],
-    order: [['sortOrder', 'ASC'], ['name', 'ASC']]
+    order: [['name', 'ASC']]
   });
   return res.status(status).render('admin/f1-games', {
     title: 'F1-Spiele pflegen',

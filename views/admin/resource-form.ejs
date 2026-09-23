@@ -10,7 +10,7 @@
 
     <% if (resource === 'drivers' && entry?.id) { %><p class="form-hint">Stammränge werden über den Saison-Assistenten und <a href="/admin/season-driver-change">Fahrerwechsel</a> verwaltet. Neue Fahrer mit F1-Sicht starten als F1 Ersatz. Stammplätze werden im Saison-Assistenten oder über Fahrerwechsel vergeben. Ein Ausstieg wird über Fahrerwechsel erfasst.</p><% } %>
     <% if (resource === 'drivers' && entry?.f1SeasonRanks?.length) { %><details><summary>Stammplätze je Saison</summary><ul><% entry.f1SeasonRanks.forEach((rank) => { %><li><%= rank %></li><% }) %></ul></details><% } %>
-    <form <%= resource === "drivers" ? "data-driver-wizard" : "" %> class="resource-form" method="post" enctype="multipart/form-data" action="<%= adminBasePath %>/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
+    <form <%= resource === "drivers" ? "data-driver-wizard" : "" %> data-driver-id="<%= resource === 'drivers' ? (entry?.id || '') : '' %>" data-name-check-url="<%= adminBasePath %>/drivers/check-name" class="resource-form" method="post" enctype="multipart/form-data" action="<%= adminBasePath %>/<%= resource %><%= entry && entry.id ? `/${entry.id}?_method=PUT` : '' %>">
       <% if (resource === 'drivers') { const selectedViews = entry?.driverViews ? [].concat(entry.driverViews) : config.inferredViews(entry || {}); %>
         <input type="hidden" name="driverWizard" value="1">
         <fieldset data-driver-view-picker><legend>2 · Sichten auswählen</legend>

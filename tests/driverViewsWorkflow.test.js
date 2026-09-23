@@ -88,7 +88,9 @@ test('Fahrer-Wizard zeigt Name, Sichten, Ränge und nur ausgewählte Profilfelde
   try {
     assert.equal([...d.querySelectorAll('[data-driver-wizard] > fieldset')].filter(e => !e.hidden).length, 1);
     next(); assert.equal(d.querySelector('[data-driver-view-picker]').hidden, true);
+    dom.window.fetch = async () => ({ok:true,json:async()=>({duplicate:null})});
     d.querySelector('[name=name]').value = 'Testfahrer'; next();
+    await new Promise(resolve => setImmediate(resolve));
     assert.equal(d.querySelector('[data-driver-view-picker]').hidden, false);
     next(); assert.equal(d.querySelector('[data-view-error]').hidden, false);
     const f1 = d.querySelector('[name=driverViews][value=f1]'); f1.checked = true; f1.dispatchEvent(new dom.window.Event('change'));

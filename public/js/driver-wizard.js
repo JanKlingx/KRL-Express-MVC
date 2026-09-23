@@ -20,6 +20,31 @@ document.addEventListener('DOMContentLoaded', () => {
   back.type = next.type = 'button'; back.className = 'button button-ghost'; next.className = 'button';
   back.textContent = 'Zurück'; next.textContent = 'Weiter'; actions.prepend(back, next);
   let current = 0;
+  const nameFeedback = document.createElement('p');
+  nameFeedback.className = 'driver-name-feedback'; nameFeedback.setAttribute('role', 'status');
+  groups[0].append(nameFeedback);
+  let checking = false;
+  async function checkName() {
+    if (checking) return false;
+    checking = true; next.disabled = true; nameFeedback.textContent = 'Name wird geprüft …';
+    const name = form.elements.namedItem('name');
+    const checkedName = name.value;
+    try {
+      const query = new URLSearchParams({name: checkedName, excludeId: form.dataset.driverId || ''});
+      const response = await fetch(`${form.dataset.nameCheckUrl}?${query}`, {headers: {Accept: 'application/json'}});
+      if (!response.ok) throw new Error('Die Namensprüfung ist gerade nicht erreichbar. Bitte erneut versuchen.');
+      const result = await response.json();
+      if (name.value !== checkedName) { nameFeedback.textContent = 'Der Name wurde geändert. Bitte erneut auf Weiter klicken.'; return false; }
+      if (result.duplicate && !form.elements.namedItem('confirmDuplicateName').checked) {
+        nameFeedback.textContent = `„${result.duplicate.name}“ existiert bereits. Öffne das vorhandene Profil oder bestätige über den Haken, dass es sich um eine andere Person handelt. `;
+        const link = document.createElement('a'); link.href = `${form.dataset.nameCheckUrl.replace('/check-name', '')}/${result.duplicate.id}/edit`; link.textContent = 'Vorhandenes Profil öffnen'; link.target = '_blank'; link.rel = 'noopener'; nameFeedback.append(link);
+        return false;
+      }
+      nameFeedback.textContent = ''; return true;
+    } catch (error) { nameFeedback.textContent = error.message; return false; }
+    finally { checking = false; next.disabled = false; }
+  }
+  form.elements.namedItem('name').addEventListener('input', () => { form.elements.namedItem('confirmDuplicateName').checked = false; nameFeedback.textContent = ''; });
   function refresh() {
     const views = [...form.querySelectorAll('[name="driverViews"]:checked')].map((input) => input.value);
     labels.forEach((label) => {
@@ -33,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function hasRanks() { return [...groups[2].querySelectorAll('input')].some((input) => !input.disabled); }
   back.addEventListener('click', () => { current--; if (current === 2 && !hasRanks()) current--; refresh(); });
-  next.addEventListener('click', () => {
+  next.addEventListener('click', async () => {
     if (current === 0) form.elements.namedItem('name').value = form.elements.namedItem('name').value.trim();
     if (current === 1) {
       const missing = !form.querySelector('[name="driverViews"]:checked');
@@ -41,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (missing) return;
     }
     if (![...groups[current].querySelectorAll('input, select, textarea')].every((input) => input.disabled || input.reportValidity())) return;
+    if (current === 0 && !(await checkName())) return;
     current++; if (current === 2 && !hasRanks()) current++; refresh();
   });
   form.querySelectorAll('[name="driverViews"]').forEach((input) => input.addEventListener('change', refresh));

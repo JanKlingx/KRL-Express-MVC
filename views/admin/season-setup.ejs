@@ -295,6 +295,7 @@ const setupDriverRankFilter =
                 <label>Saisonname<input name="name" value="<%= selectedSeason.name %>" maxlength="255" required></label>
                 <label>Farbe<input type="color" name="accentColor" value="<%= selectedSeason.accentColor || selectedLeague.accentColor %>" required></label>
                 <label>F1-Spiel<select name="F1GameId"><option value="">Kein Spiel</option><% setupF1Games.forEach((game) => { %><option value="<%= game.id %>" <%= Number(selectedSeason.F1GameId) === Number(game.id) ? 'selected' : '' %>><%= game.name %></option><% }) %></select></label>
+                <label class="checkbox-control setup-option-card"><input type="checkbox" name="reservePointsForConstructors" <%= selectedSeason.reservePointsForConstructors !== false ? 'checked' : '' %>><span>Ersatzfahrer-Punkte in Team-WM berücksichtigen</span></label>
                 <button class="button">Änderungen speichern</button>
                 <a href="/admin/season-setup?league=<%= selectedLeague.id %>&step=2">Neue Saison anlegen</a>
                 <a href="/admin/season-manager?league=<%= selectedLeague.id %>">Saisonstatus bearbeiten</a>
@@ -490,13 +491,14 @@ const setupDriverRankFilter =
               <div>
                 <span>AKTUELLER ZENTRALER F1-RENNKALENDER</span>
                 <strong><%= setupSelectedCentralCalendar.name %></strong>
-                <small><%= setupSelectedCentralCalendar.rounds?.length || 0 %> Runden · Zeit aus <%= selectedLeague.name %>: <%= defaultTime %></small>
+                <small><%= setupSelectedCentralCalendar.rounds?.length || 0 %> Runden<% if (!historicalSetup || !selectedSeason.hideCalendarTime) { %> · Zeit aus <%= selectedLeague.name %>: <%= defaultTime %><% } %></small>
               </div>
               <a class="button button-ghost button-small" href="/admin/f1-calendars?calendar=<%= setupSelectedCentralCalendar.id %>">Zentralen Kalender öffnen</a>
             </div>
 
             <% const eventByRound = new Map(calendar.filter((event) => event.F1CalendarRoundId).map((event) => [Number(event.F1CalendarRoundId), event])); %>
             <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/central-calendar" class="setup-calendar-dates-form">
+              <% if (historicalSetup) { %><label class="checkbox-control setup-option-card"><input type="checkbox" name="hideCalendarTime" <%= (calendarDraft ? calendarDraft.hideCalendarTime : selectedSeason.hideCalendarTime) ? 'checked' : '' %>><span><strong>Nur Datum anzeigen – Uhrzeit ausblenden</strong><small>Die Renntermine bleiben tageweise bearbeitbar. Im öffentlichen Kalender wird keine Uhrzeit angezeigt.</small></span></label><% } %>
               <div class="table-wrap setup-calendar-table-wrap">
                 <table class="setup-calendar-table">
                   <thead>
@@ -570,16 +572,6 @@ const setupDriverRankFilter =
             >
 
             <label>
-              F1-Spiel
-              <select name="F1GameId">
-                <option value="">Kein Spiel ausgewählt</option>
-                <% setupF1Games.forEach((game) => { %>
-                  <option value="<%= game.id %>" <%= Number(selectedSeason.F1GameId) === Number(game.id) ? 'selected' : '' %>><%= game.name %></option>
-                <% }) %>
-              </select>
-            </label>
-
-            <label>
               Punktesystem
 
               <select
@@ -606,21 +598,6 @@ const setupDriverRankFilter =
                 <% }) %>
 
               </select>
-            </label>
-
-            <label class="checkbox-control setup-option-card">
-              <input
-                type="checkbox"
-                name="reservePointsForConstructors"
-                <%= selectedSeason.reservePointsForConstructors !== false
-                  ? 'checked'
-                  : ''
-                %>
-              >
-              <span>
-                <strong>Ersatzfahrer-Punkte in Team-WM berücksichtigen</strong>
-                <small>Aktiv: Ersatzfahrer sammeln Punkte für das eingesetzte Team. Deaktiviert: Ersatzfahrer erhalten ihre Fahrer-Punkte, diese werden jedoch nicht zur Team-WM addiert.</small>
-              </span>
             </label>
 
             <button class="button">
