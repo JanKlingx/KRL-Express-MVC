@@ -12637,3 +12637,26 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .historical-cell-dialog [data-historical-lineup-fields] label { display: grid; grid-template-columns: 75px minmax(0,1fr); }
 .historical-cell-dialog :is(input,select) { box-sizing: border-box; width: 100%; min-height: 44px; }
 .historical-cell-dialog input[type=checkbox] { width: 20px; min-height: 20px; }
+
+/* Historical-only editing: controls belong to their driver column and GP row. */
+.historical-editable-sheet .col-driver { width: 170px; }
+.historical-editable-sheet .sheet-driver { white-space: normal; overflow: visible; }
+.historical-column-tools { display: grid; gap: 8px; margin-top: 10px; text-align: left; }
+.historical-column-tools button { width: 100%; margin: 0; padding: 7px 6px; border: 1px solid #456069; border-radius: 6px; background: #17262c; color: #dceff1; font: 600 11px/1.4 Inter, sans-serif; white-space: normal; cursor: pointer; }
+.historical-column-tools .historical-column-add { border-color: var(--accent, #6ef2f2); color: var(--accent, #6ef2f2); }
+.historical-column-tools button:disabled { opacity: .45; cursor: default; }
+.historical-select-all { display: flex; align-items: center; gap: 6px; font: 500 11px/1.4 Inter, sans-serif; text-transform: none; letter-spacing: normal; }
+.historical-driver-actions { display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 6px; margin-top: 7px; }
+.historical-driver-actions .historical-inline-button { flex: 0 0 28px; width: 28px; height: 28px; padding: 0; margin: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 17px; line-height: 1; }
+.historical-editable-sheet input[type=checkbox] { flex: 0 0 17px; width: 17px; height: 17px; margin: 0; accent-color: var(--accent, #6ef2f2); }
+.historical-editable-sheet :focus-visible, .historical-statistics-edit:focus-visible { outline: 2px solid var(--accent, #6ef2f2); outline-offset: 3px; }
+.historical-statistics-help { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 0 0 18px; padding: 16px; border: 1px solid #34464e; border-radius: 10px; background: #12242c; }
+.historical-statistics-help p { flex: 1 1 320px; margin: 0; color: #bdcfd5; line-height: 1.6; }
+.historical-statistics-help [role=status] { flex-basis: 100%; font-size: .85rem; }
+.historical-statistics-edit { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 12px; border: 1px solid #527980; border-radius: 7px; background: #172d34; color: #dceff1; font: 600 .8rem/1.4 Inter, sans-serif; cursor: pointer; white-space: normal; }
+@media (max-width: 600px) {
+  .historical-editable-sheet .col-driver { width: 110px; }
+  .historical-column-tools button, .historical-select-all { font-size: 10px; }
+  .historical-editable-sheet .historical-cell-button { min-width: 0; }
+  .historical-editable-sheet .sheet-driver .standing-profile-link { display: block; overflow-wrap: anywhere; }
+}

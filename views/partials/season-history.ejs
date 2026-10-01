@@ -462,7 +462,7 @@ if (
 
       <table
         class="
-          season-sheet-table
+          season-sheet-table <%= editable ? "historical-editable-sheet" : "" %>
           <%= mode === 'reserve'
             ? 'season-sheet-table-reserve'
             : 'season-sheet-table-regular'
@@ -545,6 +545,13 @@ if (
               class="sheet-sticky sheet-driver"
             >
               FAHRER
+              <% if (editable) { %>
+                <div class="historical-column-tools">
+                  <button type="button" class="historical-column-add" data-historical-add-role="<%= mode %>">+ Fahrer hinzufügen</button>
+                  <label class="historical-select-all"><input type="checkbox" data-historical-select-all="<%= mode %>"> Alle auswählen</label>
+                  <button type="button" class="historical-column-remove" data-historical-remove-selected="<%= mode %>" disabled>Auswahl entfernen (0)</button>
+                </div>
+              <% } %>
             </th>
 
 
@@ -879,7 +886,6 @@ if (
     data-history-panel="regular"
     role="tabpanel"
   >
-    <% if (isAdmin && activeSeason?.status === 'historical') { %><button type="button" class="button button-small" data-historical-add-role="regular">+ Fahrer</button><% } %>
     <%
       renderSheet(
         selectedHistory.drivers,
@@ -900,7 +906,6 @@ if (
     role="tabpanel"
     hidden
   >
-    <% if (isAdmin && activeSeason?.status === 'historical') { %><button type="button" class="button button-small" data-historical-add-role="reserve">+ Ersatzfahrer</button><% } %>
 
     <%
     if (

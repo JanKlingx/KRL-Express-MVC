@@ -57,11 +57,11 @@ test('Public historical tables edit points, remove and restore rows, and keep fi
  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
  dom.window.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));const doc=dom.window.document;
  const regular=doc.querySelector('[data-history-driver="1"][data-history-role="regular"]');
- regular.querySelector('.historical-cell-button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.points.value='26';form.elements.position.value='1';form.elements.teamId.value='10';form.elements.fastestLap.checked=true;form.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
- assert.match(regular.querySelector('.historical-cell-button').textContent,/P1F/);assert.equal(form.elements.points.disabled,true);
+ regular.querySelector('.historical-cell-button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.points.value='26';form.elements.position.value='1';form.elements.teamId.value='10';assert.equal(form.elements.fastestLap,undefined);form.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
+ assert.match(regular.querySelector('.historical-cell-button').textContent,/P1/);assert.equal(form.elements.points.disabled,true);
  const reserve=doc.querySelector('[data-history-driver="1"][data-history-role="reserve"]');
  [...reserve.querySelectorAll('.sheet-driver button')].find(b=>b.textContent==='−').click();assert.equal(reserve.hidden,true);assert.equal(regular.hidden,false);
- const role=doc.querySelector('[data-historical-role]');role.value='reserve';role.dispatchEvent(new dom.window.Event('change'));doc.querySelector('[data-historical-add]').value='1';doc.querySelector('[data-historical-add-button]').click();assert.equal(doc.querySelectorAll('[data-history-driver="1"][data-history-role="reserve"]:not([hidden])').length,1);
+ doc.querySelector('[data-historical-add-role="reserve"]').click();doc.querySelector('[data-historical-add]').value='1';doc.querySelector('[data-historical-add-dialog] select[name=teamId]').value='10';doc.querySelector('[data-historical-add-button]').click();assert.equal(doc.querySelectorAll('[data-history-driver="1"][data-history-role="reserve"]:not([hidden])').length,1);
  [...regular.querySelectorAll('.sheet-driver button')].find(b=>b.textContent==='✎').click();const rowForm=doc.querySelector('[data-historical-row-dialog] form');rowForm.elements.retiredFromRound.value='2';rowForm.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
  assert.equal(regular.querySelector('[data-round="2"]').classList.contains('is-historical-retired'),true);
  assert.equal(regular.querySelector('[data-round="1"]').classList.contains('is-historical-retired'),false);
@@ -149,19 +149,19 @@ test('Empty season adds repeated driver rows and edits two-seat lineup and award
  const people=[...drivers,{id:3,name:'Unsafe </script><script>alert(1)</script>'}];
  const data={grid:{rows:[],lineup:[]},drivers:people,teams,races,revision:'test'};
  const selectedSeason={id:1,status:'historical'},selectedHistory={name:'S1',races:[{round:1,title:'R1'},{round:2,title:'R2',hasSprint:true}],drivers:[],reserveDrivers:[]};
- const html='<button data-historical-open>Aufstellung</button>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{name:'S1'}]},isAdmin:true,league:{}});
+ const html='<button data-historical-open>Aufstellung</button><button data-historical-statistics-open="1">Auszeichnungen bearbeiten</button>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{name:'S1'}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());
  const w=dom.window,doc=w.document;w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
  assert.equal(doc.querySelectorAll('script').length,2);
  const submit=form=>form.dispatchEvent(new w.Event('submit',{cancelable:true}));
- function add(role,driverId,teamId){doc.querySelector('[data-historical-role]').value=role;doc.querySelector('[data-historical-add]').value=driverId;doc.querySelector('[data-historical-add-button]').click();const f=doc.querySelector('[data-historical-row-dialog] form');f.elements.teamId.value=teamId;submit(f);}
+ function add(role,driverId,teamId){doc.querySelector(`[data-historical-add-role="${role}"]`).click();const f=doc.querySelector('[data-historical-add-dialog] form');f.elements.driverId.value=driverId;f.elements.teamId.value=teamId;submit(f);}
  add('regular',1,10);add('regular',1,20);add('reserve',2,10);
  const rows=[...doc.querySelectorAll('[data-history-role="regular"]:not([hidden])')];assert.equal(rows.length,2);
  assert.notEqual(rows[0].dataset.historyRow,rows[1].dataset.historyRow);
  rows[0].querySelector('[data-round="1"] button').click();let form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='1';submit(form);
  rows[1].querySelector('[data-round="2"][data-race-type="main"] button').click();form.elements.position.value='2';submit(form);
- doc.querySelector('[data-historical-stats-open]').click();form=doc.querySelector('[data-historical-stats-dialog] form');
+ doc.querySelector('[data-historical-statistics-open]').click();form=doc.querySelector('[data-historical-stats-dialog] form');
  for(const key of ['fastestLap','polePosition','driverOfTheDay'])form.elements[key].value=rows[0].dataset.historyRow;
  submit(form);assert.match(rows[0].querySelector('[data-round="1"]').textContent,/P1FPLD/);
  doc.querySelector('[data-historical-open]').click();form=doc.querySelector('[data-historical-lineup-dialog] form');const selects=form.querySelectorAll('select');assert.equal(selects.length,teams.length*2);
@@ -180,4 +180,50 @@ test('Expanded news can be collapsed from the top with synchronized accessibilit
  const doc=dom.window.document,bottom=doc.querySelector('[data-news-toggle]'),top=doc.querySelector('[data-news-top]');
  assert.equal(top.hidden,true);bottom.click();assert.equal(top.hidden,false);assert.equal(top.getAttribute('aria-expanded'),'true');
  top.click();assert.equal(top.hidden,true);assert.equal(bottom.getAttribute('aria-expanded'),'false');assert.equal(doc.getElementById('body').classList.contains('is-collapsed'),true);
+});
+
+test('Column controls keep selection synchronized across responsive tables and delete only selected stint rows',async t=>{
+ const ejs=require('ejs'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+ const rounds=Array.from({length:7},(_,i)=>({id:i+1,sortOrder:i+1,raceType:'main',entries:[]}));
+ const data={grid:{lineup:[{driverId:1,teamId:10}],rows:[
+   {rowId:'first',driverId:1,role:'regular',teamId:10,cells:{1:{position:1,teamId:10,fastestLap:true,polePosition:true,driverOfTheDay:true}}},
+   {rowId:'second',driverId:1,role:'regular',teamId:20,cells:{}},
+   {rowId:'reserve',driverId:2,role:'reserve',teamId:10,cells:{}}
+ ]},drivers,teams,races:rounds,revision:'test'};
+ const selectedSeason={id:1,status:'historical'},selectedHistory={name:'S1',races:rounds.map(r=>({round:r.sortOrder,title:'GP '+r.sortOrder})),drivers:[],reserveDrivers:[]};
+ const stats='<section id="rennstatistik"><button data-historical-statistics-open="1">Auszeichnungen bearbeiten</button><table><tr data-historical-statistics-round="1"><td data-historical-statistic="fastestLap"></td></tr></table><button data-historical-save-copy>Speichern</button><p data-historical-message-copy></p></section>';
+ const html=stats+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
+ const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());const w=dom.window,doc=w.document;
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};w.confirm=()=>true;
+ w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
+ assert.equal(doc.querySelector('[data-historical-role]'),null);
+ assert.equal(doc.querySelector('[data-historical-editor-body] [data-historical-add-role]'),null);
+ assert.equal(doc.querySelectorAll('th.sheet-driver [data-historical-add-role]').length,6);
+ assert.equal(doc.querySelector('[data-historical-dialog] [name=fastestLap]'),null);
+ assert.equal(doc.querySelector('[data-historical-stats-open]'),null);
+ const first=doc.querySelector('[data-history-row="first"]'),actions=first.querySelector('.historical-driver-actions');
+ assert.deepEqual([...actions.children].map(el=>el.tagName),['INPUT','BUTTON','BUTTON']);
+ first.querySelector('[data-round="1"] button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='2';form.dispatchEvent(new w.Event('submit',{cancelable:true}));
+ assert.match(first.querySelector('[data-round="1"]').textContent,/P2FPLD/);
+ assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'Alpha');
+ const selection=first.querySelector('[data-historical-select]');selection.click();
+ assert.equal(doc.querySelectorAll('[data-historical-select="first"]:checked').length,3);
+ assert.ok([...doc.querySelectorAll('[data-historical-select-all="regular"]')].every(el=>el.indeterminate));
+ assert.ok([...doc.querySelectorAll('[data-historical-remove-selected="regular"]')].every(b=>b.textContent==='Auswahl entfernen (1)'));
+ doc.querySelector('[data-historical-remove-selected="regular"]').click();
+ assert.ok([...doc.querySelectorAll('[data-history-row="first"]')].every(row=>row.hidden));
+ assert.ok([...doc.querySelectorAll('[data-history-row="second"]')].every(row=>!row.hidden));
+ assert.equal(doc.querySelector('[data-history-row="reserve"]').hidden,false);
+ assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'–');
+ doc.querySelector('[data-historical-undo]').click();
+ assert.equal(first.hidden,false);assert.equal(selection.checked,false);
+ assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'Alpha');
+ doc.querySelector('[data-historical-select-all="regular"]').click();doc.querySelector('[data-historical-remove-selected="regular"]').click();
+ let posted;w.fetch=async(url,options)=>{posted=JSON.parse(options.body);return {ok:false,json:async()=>({error:'Retry'})};};doc.querySelector('[data-historical-save-copy]').click();await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(posted.grid.rows.map(row=>row.rowId),['reserve']);assert.deepEqual(posted.grid.lineup,[{driverId:1,teamId:10}]);
+ assert.match(doc.querySelector('[data-historical-message-copy]').textContent,/Retry.*bleiben erhalten/);
+ doc.querySelector('[data-historical-undo]').click();first.querySelector('[data-round="1"] button').click();form.elements.status.value='DNA';form.elements.status.dispatchEvent(new w.Event('change'));form.dispatchEvent(new w.Event('submit',{cancelable:true}));
+ assert.equal(first.querySelector('[data-round="1"]').textContent,'DNA');assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'–');
+ const activeHtml=await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason:{id:1,status:'active'},selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
+ assert.doesNotMatch(activeHtml,/data-historical-add-role|data-historical-select-all|data-historical-remove-selected/);
 });
