@@ -1,5 +1,11 @@
 (() => {
- document.querySelectorAll('[data-news-toggle]').forEach(button=>{const body=document.getElementById(button.dataset.newsToggle);if(!body)return;button.hidden=false;body.classList.add('is-collapsed');button.setAttribute('aria-controls',body.id);button.addEventListener('click',()=>{const collapsed=body.classList.toggle('is-collapsed');button.textContent=collapsed?'Alles lesen':'Weniger anzeigen';button.setAttribute('aria-expanded',String(!collapsed));});});
+ document.querySelectorAll('[data-news-toggle]').forEach(button=>{
+   const body=document.getElementById(button.dataset.newsToggle);if(!body)return;
+   button.hidden=false;body.classList.add('is-collapsed');button.setAttribute('aria-controls',body.id);
+   const top=button.cloneNode(true);top.removeAttribute('data-news-toggle');top.textContent='News zuklappen ↑';top.hidden=true;top.dataset.newsTop='';body.before(top);
+   const toggle=()=>{const collapsed=body.classList.toggle('is-collapsed');button.textContent=collapsed?'Alles lesen':'News zuklappen ↑';[button,top].forEach(control=>control.setAttribute('aria-expanded',String(!collapsed)));top.hidden=collapsed;if(collapsed)body.closest('article')?.scrollIntoView({block:'start',behavior:'smooth'});};
+   button.addEventListener('click',toggle);top.addEventListener('click',toggle);
+ });
  document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{
   const text=button.dataset.copy;
   try{await navigator.clipboard.writeText(text);const prior=button.innerHTML;button.textContent='Kopiert ✓';setTimeout(()=>button.innerHTML=prior,1600);}

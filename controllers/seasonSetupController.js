@@ -307,7 +307,7 @@ async function loadData(query = {}) {
       selectedSeason &&
       calendar.length &&
       selectedSeason.PointsSchemeId &&
-      structure.allDrivers.length &&
+      (selectedSeason.status === "historical" || structure.allDrivers.length) &&
       structure.teams.length &&
       (selectedSeason.status === "historical" || structure.teams.some((team) => team.drivers.length)),
     ),
@@ -731,6 +731,7 @@ exports.assignDrivers = async (req, res) => {
   try {
     if (!season || !league)
       throw new Error("Saison oder Liga wurde nicht gefunden.");
+    if (season.status === 'historical') throw new Error('Fahrer bitte direkt im Saisonverlauf mit + Fahrer hinzufügen.');
     if (await seasonLineupIsProtected(season)) {
       throw new Error("Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.");
     }
@@ -1077,9 +1078,9 @@ exports.finish = async (req, res) => {
       }),
     ]);
 
-    if (!calendar || !season.PointsSchemeId || !drivers || !teams || (season.status !== "historical" && lineup !== drivers)) {
+    if (!calendar || !season.PointsSchemeId || !teams || (season.status !== "historical" && (!drivers || lineup !== drivers))) {
       throw new Error(
-        "Der Assistent ist noch nicht vollständig. Bitte alle acht Schritte abschließen.",
+        "Der Assistent ist noch nicht vollständig. Bitte alle Schritte abschließen.",
       );
     }
 

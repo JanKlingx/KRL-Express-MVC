@@ -12628,3 +12628,12 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .historical-cell-dialog [data-historical-lineup-fields] { display: grid; gap: .75rem; }
 .historical-editor .historical-toolbar > details { flex: 1 1 240px; padding: .75rem; border: 1px solid #34464e; border-radius: 8px; }
 .historical-editor .historical-toolbar summary { cursor: pointer; }
+
+/* Historical editor controls and the expanded news shortcut. */
+[data-news-top][hidden] { display: none; }
+[data-news-top] { margin: .75rem 0; align-self: flex-start; }
+[data-historical-add-role] { margin: .75rem 0; }
+.historical-cell-dialog [data-historical-lineup-fields] fieldset { display: grid; gap: .75rem; }
+.historical-cell-dialog [data-historical-lineup-fields] label { display: grid; grid-template-columns: 75px minmax(0,1fr); }
+.historical-cell-dialog :is(input,select) { box-sizing: border-box; width: 100%; min-height: 44px; }
+.historical-cell-dialog input[type=checkbox] { width: 20px; min-height: 20px; }
