@@ -25,7 +25,8 @@
   const dialog=get('dialog'),form=dialog.querySelector('form');
   function updateStatus(){
     const off=inactive(form.elements.status.value),regular=editing?.row.role==='regular';
-    get('points-field').hidden=regular;
+    get('points-field').hidden=regular||off;
+    get('position-field').hidden=off;
     form.elements.points.disabled=off||regular;
     form.elements.position.disabled=off;
     if(off){form.elements.points.value='';form.elements.position.value='';}
@@ -60,7 +61,7 @@
   get('cancel').addEventListener('click',()=>dialog.close());
   const rowDialog=get('row-dialog'),rowForm=rowDialog.querySelector('form');
   [...rounds,Math.max(0,...rounds)+1].forEach(round=>rowForm.elements.retiredFromRound.add(new Option(`Ab R${round}`,round)));
-  function openRow(row){editingRow=row;get('row-title').textContent=`${name(row.driverId)} · ${row.role==='regular'?'Stammfahrer':'Ersatzfahrer'}`;teamOptions(rowForm.elements.teamId,row.teamId);rowForm.elements.retiredFromRound.value=row.retiredFromRound||'';rowDialog.showModal();}
+  function openRow(row){editingRow=row;get('row-title').textContent=`${name(row.driverId)} · ${row.role==='regular'?'Stammfahrer':'Ersatzfahrer'}`;get('row-team').hidden=row.role==='reserve';get('row-team-help').hidden=row.role==='reserve';teamOptions(rowForm.elements.teamId,row.teamId);rowForm.elements.retiredFromRound.value=row.retiredFromRound||'';rowDialog.showModal();}
   rowForm.addEventListener('submit',event=>{event.preventDefault();editingRow.teamId=Number(rowForm.elements.teamId.value)||null;editingRow.retiredFromRound=Number(rowForm.elements.retiredFromRound.value)||null;mark();rowDialog.close();render();});
   get('row-cancel').addEventListener('click',()=>rowDialog.close());
   // One template per responsive table; new rows also work when a season has no participants yet.
@@ -96,7 +97,13 @@
           const cell=row.cells[race.id];let text='＋';
           if(cell){const persisted=race.entries.find(e=>Number(e.DriverId)===row.driverId);text=cell.status||(cell.points!=null?String(cell.points):persisted&&JSON.stringify(cell)===initialCells.get(`${row.rowId}:${race.id}`)?String(persisted.points):cell.position?`P${cell.position}`:'0');}
           const b=button(text,`${name(row.driverId)}, R${race.sortOrder} ${td.dataset.raceType==='sprint'?'Sprint':'GP'}: Ergebnis bearbeiten`,()=>openCell(row,race));b.classList.add('historical-cell-button');
-          if(cell){b.dataset.status=cell.status||'';if(cell.position)b.dataset.position=cell.position;for(const [field,label] of [['fastestLap','F'],['polePosition','PL'],['driverOfTheDay','D']])if(cell[field]){const badge=el('small',label);badge.className=`historical-award-${field}`;b.append(badge);}}
+          b.classList.add('sheet-result-tile');const value=el('b',text);value.className='sheet-result-value';b.replaceChildren(value);
+          const badges=el('div');badges.className='sheet-result-awards';const awardList=el('span');awardList.className='race-awards';badges.append(awardList);b.append(badges);
+          if(cell){b.dataset.status=cell.status||'';if(cell.position)b.dataset.position=cell.position;
+            if(cell.position>=1&&cell.position<=3)b.classList.add(`season-race-position-${cell.position}`);
+            b.classList.add(`is-${cell.status==='S'?'suspended':cell.status?cell.status.toLowerCase():'points'}`);
+            for(const [field,label,kind,title] of [['fastestLap','FL','fl','Schnellste Runde'],['polePosition','POLE','pole','Pole Position'],['driverOfTheDay','DotD','dotd','Driver of the Day']])if(cell[field]){const badge=el('em',label);badge.className=`race-award race-award-${kind}`;badge.title=title;awardList.append(badge);}
+          }
           td.classList.toggle('is-historical-retired',Boolean(row.retiredFromRound&&Number(race.sortOrder)>=row.retiredFromRound));td.replaceChildren(b);
         });
         tr.querySelectorAll('.sheet-total,.sheet-stat,.sheet-position').forEach((td,index)=>{td.textContent=dirty?'–':savedStats.get(row.rowId)?.[index]||'–';td.title=dirty?'Wird beim Speichern neu berechnet':'';});
@@ -124,20 +131,15 @@
     const ids=new Set(rows.map(row=>row.rowId));grid.rows=grid.rows.filter(row=>!ids.has(row.rowId));ids.forEach(id=>selectedRows.delete(id));mark();render();
   }));
   const addDialog=get('add-dialog'),addForm=addDialog.querySelector('form');
-  function driverOptions(){
-    const query=get('add-search').value.trim().toLocaleLowerCase('de-DE'),previous=get('add').value;
-    get('add').replaceChildren(new Option('Fahrer auswählen',''));
-    data.drivers.filter(d=>d.name.toLocaleLowerCase('de-DE').includes(query)).forEach(d=>get('add').add(new Option(d.name,d.id)));
-    get('add').value=[...get('add').options].some(option=>option.value===previous)?previous:'';
-  }
-  get('add-search').addEventListener('input',driverOptions);
+  get('add').replaceChildren(new Option('Fahrer auswählen',''));
+  data.drivers.forEach(d=>get('add').add(new Option(d.name,d.id)));
   document.querySelectorAll('[data-historical-add-role]').forEach(b=>b.addEventListener('click',()=>{
     addingRole=b.dataset.historicalAddRole;get('add-title').textContent=addingRole==='regular'?'Stammfahrer hinzufügen':'Ersatzfahrer hinzufügen';
-    addForm.reset();driverOptions();teamOptions(addForm.elements.teamId,null);addDialog.showModal();get('add-search').focus();
+    addForm.reset();get('add-team').hidden=addingRole==='reserve';addForm.elements.teamId.required=addingRole==='regular';teamOptions(addForm.elements.teamId,null);addDialog.showModal();get('add').focus();
   }));
   addForm.addEventListener('submit',event=>{
-    event.preventDefault();const driverId=Number(get('add').value),teamId=Number(addForm.elements.teamId.value);
-    if(!driverId||!teamId||!addingRole)return;
+    event.preventDefault();const driverId=Number(get('add').value),teamId=addingRole==='regular'?Number(addForm.elements.teamId.value):null;
+    if(!driverId||!addingRole||addingRole==='regular'&&!teamId)return;
     grid.rows.push({rowId:crypto.randomUUID(),driverId,role:addingRole,teamId,cells:{}});mark();render();addDialog.close();
   });
   get('add-cancel').addEventListener('click',()=>addDialog.close());

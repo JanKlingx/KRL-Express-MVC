@@ -490,7 +490,7 @@ if (
 
           <!-- TEAM NUR BEI STAMMFAHRERN -->
 
-          <% if (mode === 'regular' || activeSeason?.status === 'historical') { %>
+          <% if (mode === 'regular') { %>
 
             <col class="col-team">
 
@@ -557,7 +557,7 @@ if (
 
             <!-- TEAM -->
 
-            <% if (mode === 'regular' || activeSeason?.status === 'historical') { %>
+            <% if (mode === 'regular') { %>
 
               <th
                 class="sheet-sticky sheet-team"
@@ -725,7 +725,7 @@ if (
               <!-- TEAM -->
               <!-- ======================================= -->
 
-              <% if (mode === 'regular' || activeSeason?.status === 'historical') { %>
+              <% if (mode === 'regular') { %>
 
                 <td
                   class="sheet-sticky sheet-team"
@@ -775,7 +775,7 @@ if (
                 <td class="sheet-result <%= result?.retired ? 'is-historical-retired' : '' %>" data-race-type="<%= column.type %>" data-round="<%= column.round %>">
                   <div class="sheet-result-tile <%= podiumClass(result) %> is-<%= view.kind %>" title="<%= view.title || `${column.title || ''} · ${column.type === 'sprint' ? 'Sprint' : 'Grand Prix'}` %>">
                     <b class="sheet-result-value"><%= view.text %></b>
-                    <div class="sheet-result-awards"><%- include('race-awards', { result: awards, isMain: column.type === 'main', compact: activeSeason?.status === 'historical' }) %></div>
+                    <div class="sheet-result-awards"><%- include('race-awards', { result: awards, isMain: column.type === 'main' }) %></div>
                   </div>
                 </td>
               <% }) %>
@@ -941,7 +941,6 @@ if (
 
   </section>
 
-<% if (activeSeason?.status === 'historical') { %><p class="history-notice">PL = Pole Position · F = schnellste Runde · D = Driver of the Day</p><% } %>
 <%- include("race-result-legend") %>
 <% } else { %>
 

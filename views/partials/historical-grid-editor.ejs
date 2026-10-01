@@ -10,9 +10,8 @@
   </div>
   <dialog class="historical-cell-dialog" data-historical-add-dialog><form method="dialog">
     <h3 data-historical-add-title>Fahrer hinzufügen</h3>
-    <label>Fahrer suchen<input type="search" data-historical-add-search placeholder="Name eingeben …" autocomplete="off"></label>
     <label>Fahrer<select name="driverId" required data-historical-add></select></label>
-    <label>Team<select name="teamId" required></select></label>
+    <label data-historical-add-team>Team<select name="teamId" required></select></label>
     <p>Jeder Klick fügt eine eigene Zeile hinzu. Derselbe Fahrer kann mehrfach vorkommen, zum Beispiel für einen Teamwechsel.</p>
     <div class="historical-toolbar"><button type="submit" class="button" data-historical-add-button>Fahrer hinzufügen</button><button type="button" class="button button-ghost" data-historical-add-cancel>Abbrechen</button></div>
   </form></dialog>
@@ -20,14 +19,14 @@
     <h3 data-historical-title></h3>
     <label>Status<select name="status"><option value="">Gewertet</option><option>DNF</option><option>DSQ</option><option>DNS</option><option>DNA</option><option value="S">Rennsperre (S)</option></select></label>
     <label data-historical-points-field>Punkte inklusive aller Boni<input name="points" type="number" min="0" max="9999" step="0.01" inputmode="decimal" placeholder="Zum Beispiel 26"></label>
-    <label>Platzierung<input name="position" type="number" min="1" max="100" step="1" inputmode="numeric" placeholder="Zum Beispiel 1"></label>
+    <label data-historical-position-field>Platzierung<input name="position" type="number" min="1" max="100" step="1" inputmode="numeric" placeholder="Zum Beispiel 1"></label>
     <p>Stammfahrer: Platz eingeben, Punkte und Boni werden automatisch berechnet. Ersatzfahrer: Platz oder direkte Punkte inklusive Boni eingeben. DNA = nicht teilgenommen, DNF = ausgefallen, DSQ = disqualifiziert.</p>
-    <label>Team in diesem Rennen<select name="teamId"></select></label>
+    <label>Einsatzteam in diesem Rennen<select name="teamId"></select></label>
     <p data-historical-cell-error role="alert"></p><div class="historical-toolbar"><button class="button" type="submit">Übernehmen</button><button type="button" class="button button-ghost" data-historical-clear>Zelle leeren</button><button type="button" class="button button-ghost" data-historical-cancel>Abbrechen</button></div>
   </form></dialog>
   <dialog class="historical-cell-dialog" data-historical-row-dialog><form method="dialog">
-    <h3 data-historical-row-title></h3><label>Team dieser Wertungszeile<select name="teamId"></select></label>
-    <p>Gilt als Teamvorschlag für neue Ergebnisse. Bereits eingetragene Rennteams bleiben erhalten und lassen sich in der jeweiligen Zelle ändern.</p>
+    <h3 data-historical-row-title></h3><label data-historical-row-team>Team dieser Wertungszeile<select name="teamId"></select></label>
+    <p data-historical-row-team-help>Gilt als Teamvorschlag für neue Ergebnisse. Bereits eingetragene Rennteams bleiben erhalten und lassen sich in der jeweiligen Zelle ändern.</p>
     <label>Cockpit abgegeben ab<select name="retiredFromRound"><option value="">Bis Saisonende dabei</option></select></label>
     <p>Ab dieser Runde werden die Zellen grau markiert. Ergebnisse bleiben erhalten; DNA oder DNS trägst du selbst ein.</p>
     <div class="historical-toolbar"><button class="button" type="submit">Übernehmen</button><button class="button button-ghost" type="button" data-historical-row-cancel>Abbrechen</button></div>
@@ -38,8 +37,8 @@
   </form></dialog>
   <dialog class="historical-cell-dialog" data-historical-stats-dialog><form method="dialog">
     <h3>Statistik und Auszeichnungen</h3><label>Grand Prix<select name="raceId"></select></label>
-    <p>Wähle pro Auszeichnung einen Fahrer mit eingetragenem Ergebnis. Die Markierungen erscheinen im Saisonverlauf (PL, F, D) und in den GP-Ergebnissen (POLE, FL, DotD).</p>
-    <label>Pole Position (PL)<select name="polePosition"></select></label><label>Schnellste Runde (F)<select name="fastestLap"></select></label><label>Driver of the Day (D)<select name="driverOfTheDay"></select></label>
+    <p>Wähle pro Auszeichnung einen Fahrer mit eingetragenem Ergebnis. Die Markierungen erscheinen im Saisonverlauf (POLE, FL, DotD) und in den GP-Ergebnissen (POLE, FL, DotD).</p>
+    <label>Pole Position (POLE)<select name="polePosition"></select></label><label>Schnellste Runde (FL)<select name="fastestLap"></select></label><label>Driver of the Day (DotD)<select name="driverOfTheDay"></select></label>
     <p data-historical-stats-empty hidden>Für diesen Grand Prix ist noch kein geeigneter Fahrer eingetragen. Ergänze zuerst eine Platzierung, Punkte oder DNF im Saisonverlauf.</p>
     <p>Bei automatisch berechneten Punkten werden die Boni des Punktesystems ergänzt. Direkte Ersatzfahrer-Punkte enthalten bereits alle Boni.</p>
     <div class="historical-toolbar"><button type="submit" class="button">Auszeichnungen übernehmen</button><button type="button" class="button button-ghost" data-historical-stats-cancel>Abbrechen</button></div>
