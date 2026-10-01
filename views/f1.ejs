@@ -970,7 +970,14 @@
     </div>
 
 
-    <% if (isAdmin && selectedSeason?.status === 'historical') { %><button class="button button-ghost button-small" type="button" data-historical-statistics-open>Statistik bearbeiten: Pole, schnellste Runde, DotD</button><% } %>
+    <% const editHistoricalStats = isAdmin && selectedSeason?.status === 'historical' && typeof historicalEditor !== 'undefined' && historicalEditor; %>
+    <% if (editHistoricalStats) { %>
+      <div class="historical-statistics-help">
+        <p>Wähle beim jeweiligen Grand Prix „Auszeichnungen bearbeiten“, um Pole Position, schnellste Runde und Driver of the Day einzutragen.</p>
+        <button class="button button-small" type="button" data-historical-save-copy>Änderungen speichern</button>
+        <p data-historical-message-copy role="status" aria-live="polite">Auszeichnungen erscheinen auch im Saisonverlauf und in den GP-Ergebnissen.</p>
+      </div>
+    <% } %>
     <div class="f1-race-statistics__scroll">
 
       <table>
@@ -987,6 +994,7 @@
             <th>3. Platz</th>
             <th>Poleposition</th>
             <th>Schnellste Runde</th>
+            <% if (editHistoricalStats) { %><th>Auszeichnungen</th><% } %>
           </tr>
 
         </thead>
@@ -996,7 +1004,7 @@
 
           <% safeRaceStatistics.forEach((row) => { %>
 
-            <tr>
+            <tr data-historical-statistics-round="<%= row.round %>">
 
               <td data-label="Runde" class="race-statistics-round">
                 <% if (row.flagPath) { %><img class="race-statistics-watermark" src="<%= row.flagPath %>" alt="" aria-hidden="true"><% } %>
@@ -1016,7 +1024,7 @@
                 %>
               </td>
 
-              <td data-label="Driver of the Day">
+              <td data-label="Driver of the Day" data-historical-statistic="driverOfTheDay">
                 <%= row.driverOfTheDay || '–' %>
               </td>
 
@@ -1032,13 +1040,14 @@
                 <%= row.third || '–' %>
               </td>
 
-              <td data-label="Poleposition">
+              <td data-label="Poleposition" data-historical-statistic="polePosition">
                 <%= row.pole || '–' %>
               </td>
 
-              <td data-label="Schnellste Runde">
+              <td data-label="Schnellste Runde" data-historical-statistic="fastestLap">
                 <%= row.fastestLap || '–' %>
               </td>
+              <% if (editHistoricalStats) { %><td data-label="Auszeichnungen"><button type="button" class="historical-statistics-edit" data-historical-statistics-open="<%= row.round %>" aria-label="Auszeichnungen für Runde <%= row.round %> bearbeiten"><span aria-hidden="true">✎</span> Auszeichnungen bearbeiten</button></td><% } %>
 
             </tr>
 
@@ -1049,7 +1058,7 @@
 
             <tr>
 
-              <td colspan="9">
+              <td colspan="<%= editHistoricalStats ? 10 : 9 %>">
                 Noch keine Hauptrennenergebnisse vorhanden.
               </td>
 
