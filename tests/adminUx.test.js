@@ -114,6 +114,8 @@ test('Historische F1-Teams können im sechsten Schritt ausgewählt werden', asyn
   assert.match(html, /Mercedes W11/);
   assert.match(html, /gehört zu Mercedes/);
   assert.match(html, /value="historical:5"/);
+  assert.doesNotMatch(html, /data-setup-step="5"|data-step-link="5"|name="driverIds"/);
+  assert.match(html, /Sechs Schritte/);
 });
 
 test('Tabellen-Hub bündelt Pflege, Frontend und Downloads pro Saison', async () => {

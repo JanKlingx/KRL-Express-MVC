@@ -442,7 +442,7 @@ if (
     ) => {
       const groups = raceColumns.length > 6 ? [raceColumns, ...Array.from({ length: Math.ceil(raceColumns.length / 6) }, (_, i) => raceColumns.slice(i * 6, (i + 1) * 6))] : [raceColumns];
       const editable = isAdmin && activeSeason?.status === 'historical' && typeof historicalEditor !== 'undefined' && historicalEditor;
-      const sheetDrivers = editable ? [...drivers, ...historicalEditor.drivers.filter(d => !drivers.some(row => Number(row.id) === Number(d.id))).map(d => ({id:d.id,name:d.name,results:[],total:0,isPlaceholder:true}))] : drivers;
+      const sheetDrivers = editable && !drivers.length ? [{id:0,name:'',rowId:'template',results:[],total:0,isPlaceholder:true}] : drivers;
       groups.forEach((columns, groupIndex) => {
   %>
 
@@ -490,7 +490,7 @@ if (
 
           <!-- TEAM NUR BEI STAMMFAHRERN -->
 
-          <% if (mode === 'regular') { %>
+          <% if (mode === 'regular' || activeSeason?.status === 'historical') { %>
 
             <col class="col-team">
 
@@ -550,7 +550,7 @@ if (
 
             <!-- TEAM -->
 
-            <% if (mode === 'regular') { %>
+            <% if (mode === 'regular' || activeSeason?.status === 'historical') { %>
 
               <th
                 class="sheet-sticky sheet-team"
@@ -669,7 +669,7 @@ if (
           <% sheetDrivers.forEach((driver) => { %>
 
 
-            <tr <%= driver.isPlaceholder ? 'hidden' : '' %> data-history-driver="<%= driver.id %>" data-history-role="<%= mode %>"
+            <tr <%= driver.isPlaceholder ? 'hidden' : '' %> data-history-driver="<%= driver.id %>" data-history-role="<%= mode %>" data-history-row="<%= driver.rowId || '' %>"
               class="
                 <%= driver.isFormerDriver
                   ? 'is-former-driver'
@@ -718,7 +718,7 @@ if (
               <!-- TEAM -->
               <!-- ======================================= -->
 
-              <% if (mode === 'regular') { %>
+              <% if (mode === 'regular' || activeSeason?.status === 'historical') { %>
 
                 <td
                   class="sheet-sticky sheet-team"
@@ -768,7 +768,7 @@ if (
                 <td class="sheet-result <%= result?.retired ? 'is-historical-retired' : '' %>" data-race-type="<%= column.type %>" data-round="<%= column.round %>">
                   <div class="sheet-result-tile <%= podiumClass(result) %> is-<%= view.kind %>" title="<%= view.title || `${column.title || ''} · ${column.type === 'sprint' ? 'Sprint' : 'Grand Prix'}` %>">
                     <b class="sheet-result-value"><%= view.text %></b>
-                    <div class="sheet-result-awards"><%- include('race-awards', { result: awards, isMain: column.type === 'main' }) %></div>
+                    <div class="sheet-result-awards"><%- include('race-awards', { result: awards, isMain: column.type === 'main', compact: activeSeason?.status === 'historical' }) %></div>
                   </div>
                 </td>
               <% }) %>
@@ -879,7 +879,7 @@ if (
     data-history-panel="regular"
     role="tabpanel"
   >
-
+    <% if (isAdmin && activeSeason?.status === 'historical') { %><button type="button" class="button button-small" data-historical-add-role="regular">+ Fahrer</button><% } %>
     <%
       renderSheet(
         selectedHistory.drivers,
@@ -900,7 +900,7 @@ if (
     role="tabpanel"
     hidden
   >
-
+    <% if (isAdmin && activeSeason?.status === 'historical') { %><button type="button" class="button button-small" data-historical-add-role="reserve">+ Ersatzfahrer</button><% } %>
 
     <%
     if (
@@ -936,6 +936,7 @@ if (
 
   </section>
 
+<% if (activeSeason?.status === 'historical') { %><p class="history-notice">PL = Pole Position · F = schnellste Runde · D = Driver of the Day</p><% } %>
 <%- include("race-result-legend") %>
 <% } else { %>
 

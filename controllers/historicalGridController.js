@@ -12,17 +12,22 @@ async function loadGridData(season,raceValues=null) {
   const races=rawRaces.filter(row=>!require('../services/publicRaceWeekend').isTestDayResult(row,events,rawRaces));
   const teams=await Promise.all(teamValues.map(async value=>{const row=value.toJSON();const definition=await require('../services/f1Season').resolveTeamToken(`${row.sourceType}:${row.sourceId}`);return {...row,baseTeamId:row.sourceType==='current'?row.sourceId:definition?.BaseTeamId||null};}));
   const extraIds=[...new Set(races.flatMap(race=>(race.entries||[]).map(entry=>entry.DriverId)).filter(Boolean))];
-  const extra=extraIds.length?await models.Driver.findAll({where:{id:{[Op.in]:extraIds}}}):[];
-  const drivers=[...new Map([...members.map(member=>member.driver),...extra].filter(Boolean).map(driver=>[Number(driver.id),driver.toJSON()])).values()];
+  const availableDrivers=await models.Driver.findAll({order:[['name','ASC']]});
+  const drivers=[...new Map([...members.map(member=>member.driver),...availableDrivers].filter(Boolean).map(driver=>[Number(driver.id),driver.toJSON()])).values()];
   const legacyLineups=season.historicalGrid?[]:await models.F1RaceLineupEntry.findAll({where:{GrandPrixResultId:{[Op.in]:races.map(race=>race.id)}}});
-  const grid=season.historicalGrid?JSON.parse(JSON.stringify(season.historicalGrid)):gridService.initialGrid(drivers,teams,races,legacyLineups);
+  const existingDrivers=drivers.filter(driver=>members.some(member=>Number(member.driver?.id)===Number(driver.id))||extraIds.includes(driver.id));
+  const grid=season.historicalGrid?JSON.parse(JSON.stringify(season.historicalGrid)):gridService.initialGrid(existingDrivers,teams,races,legacyLineups);
+  grid.rows.forEach((row,index)=>{row.rowId ||= `${row.role}:${row.driverId}:${index}`;});
   for (const row of grid.rows) for (const [raceId,cell] of Object.entries(row.cells || {})) {
     if (cell.needsPosition) {
       const entry = races.find(race => Number(race.id) === Number(raceId))?.entries?.find(entry => Number(entry.DriverId) === Number(row.driverId));
       if (entry) { cell.points = Number(entry.points || 0); delete cell.needsPosition; }
     }
   }
-  if (!Array.isArray(grid.lineup)) grid.lineup = grid.rows.filter(row => row.role === 'regular' && row.teamId).map(row => ({driverId: row.driverId, teamId: row.teamId}));
+  if (!Array.isArray(grid.lineup)) {
+    const seen=new Set(), seats=new Map();
+    grid.lineup=grid.rows.filter(row=>row.role==='regular'&&row.teamId&&!seen.has(row.driverId)&&(seats.get(row.teamId)||0)<2&&(seen.add(row.driverId),seats.set(row.teamId,(seats.get(row.teamId)||0)+1))).map(row=>({driverId:row.driverId,teamId:row.teamId}));
+  }
   return {grid,drivers,teams,races,revision:gridService.revision(season)};
 }
 exports.loadGridData=loadGridData;

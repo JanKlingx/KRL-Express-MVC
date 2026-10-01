@@ -98,7 +98,7 @@ const setupDriverRankFilter =
         </h1>
 
         <p class="admin-intro">
-          <%= historicalSetup ? 'Sieben' : 'Acht' %> Schritte greifen auf Stammdaten zurück.
+          <%= historicalSetup ? 'Sechs' : 'Acht' %> Schritte greifen auf Stammdaten zurück.
           Die Saison wird erst im letzten Schritt veröffentlicht.
         </p>
       </div>
@@ -151,7 +151,7 @@ const setupDriverRankFilter =
         <strong>Punkte</strong>
       </a>
 
-      <a
+<% if (!historicalSetup) { %>      <a
         href="#setup-drivers" data-step-link="5" aria-disabled="<%= setupWizard.available < 5 %>"
         class="<%= setupStructure.allDrivers.length ? 'is-complete' : '' %>"
       >
@@ -159,11 +159,11 @@ const setupDriverRankFilter =
         <strong>Fahrer</strong>
       </a>
 
-      <a
+<% } %>      <a
         href="#setup-teams" data-step-link="6" aria-disabled="<%= setupWizard.available < 6 %>"
         class="<%= setupStructure.teams.length ? 'is-complete' : '' %>"
       >
-        <span>6</span>
+        <span><%= historicalSetup ? 5 : 6 %></span>
         <strong>Teams</strong>
       </a>
 
@@ -179,7 +179,7 @@ const setupDriverRankFilter =
         href="#setup-finish" data-step-link="8" aria-disabled="<%= setupWizard.available < 8 %>"
         class="<%= setupFinishReady ? 'is-complete' : '' %>"
       >
-        <span><%= historicalSetup ? 7 : 8 %></span>
+        <span><%= historicalSetup ? 6 : 8 %></span>
         <strong>Abschluss</strong>
       </a>
 
@@ -615,7 +615,7 @@ const setupDriverRankFilter =
 <!-- 05 FAHRER -->
 <!-- ================================================= -->
 
-<section
+<% if (!historicalSetup) { %><section
   id="setup-drivers" data-setup-step="5" <%= setupWizard.current !== 5 ? 'hidden' : '' %>
   class="setup-panel <%= setupLineupProtected ? 'is-season-locked' : '' %>"
 >
@@ -698,6 +698,7 @@ const setupDriverRankFilter =
 </section>
 
 
+<% } %>
       <!-- ================================================= -->
       <!-- 06 TEAMS -->
       <!-- ================================================= -->
@@ -708,7 +709,7 @@ const setupDriverRankFilter =
             >
 
         <div class="setup-panel-number">
-          06
+          <%= historicalSetup ? "05" : "06" %>
         </div>
 
         <div class="setup-panel-content">
@@ -1047,7 +1048,7 @@ const setupDriverRankFilter =
 >
 
   <div class="setup-panel-number">
-    <%= historicalSetup ? '07' : '08' %>
+    <%= historicalSetup ? '06' : '08' %>
   </div>
 
   <div class="setup-panel-content">
@@ -1098,7 +1099,7 @@ const setupDriverRankFilter =
       </article>
 
 
-      <article class="setup-final-card">
+<% if (!historicalSetup) { %>      <article class="setup-final-card">
         <span>Fahrer</span>
 
         <strong>
@@ -1111,7 +1112,7 @@ const setupDriverRankFilter =
       </article>
 
 
-      <article class="setup-final-card">
+<% } %>      <article class="setup-final-card">
         <span>Teams</span>
 
         <strong>
@@ -1222,7 +1223,7 @@ const setupDriverRankFilter =
 
       </div>
 
-    </div><% } else { %><p>Alle ausgewählten Fahrer werden in beiden Wertungen vorbereitet. Auf der Ligenseite kannst du Zeilen entfernen, Teams zuordnen und Ergebnisse eintragen.</p><% } %>
+    </div><% } else { %><p>Fahrer fügst du nach dem Abschluss direkt im Saisonverlauf mit „+ Fahrer“ hinzu. Dort ordnest du Teams zu und trägst Ergebnisse und Auszeichnungen ein.</p><% } %>
 
 
     <!-- =============================== -->
@@ -1240,7 +1241,7 @@ const setupDriverRankFilter =
           </strong>
 
           <p>
-            Kalender, Punktesystem, Fahrer und Teams <%= historicalSetup ? '' : 'sowie Line-up' %>
+            Kalender, Punktesystem und Teams <%= historicalSetup ? '' : 'sowie Fahrer und Line-up' %>
             sind vorhanden.
           </p>
 
