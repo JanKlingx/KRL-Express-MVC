@@ -24,41 +24,51 @@
   function teamOptions(select,value){select.replaceChildren(new Option('Team auswählen',''));data.teams.forEach(t=>select.add(new Option(t.name,t.id)));select.value=value||'';}
   const dialog=get('dialog'),form=dialog.querySelector('form');
   function updateStatus(){
-    const off=inactive(form.elements.status.value),regular=editing?.row.role==='regular';
-    get('points-field').hidden=regular||off;
+    const off=inactive(form.elements.status.value);
     get('position-field').hidden=off;
-    form.elements.points.disabled=off||regular;
     form.elements.position.disabled=off;
-    if(off){form.elements.points.value='';form.elements.position.value='';}
+    if(off)form.elements.position.value='';
+    const allowAwards=!off&&editing?.race.raceType!=='sprint';
+    get('awards').hidden=!allowAwards;
+    awards.forEach(field=>{form.elements[field].disabled=!allowAwards;if(!allowAwards)form.elements[field].checked=false;});
   }
   function openCell(row,race){
     editing={row,race};const cell=row.cells[race.id]||{};
     get('title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}`;
-    form.elements.status.value=cell.status||'';form.elements.position.value=cell.position||'';form.elements.points.value=cell.points??'';
+    form.elements.status.value=cell.status||'';form.elements.position.value=cell.position||'';
+    awards.forEach(field=>{form.elements[field].checked=Boolean(cell[field]);});
     teamOptions(form.elements.teamId,cell.teamId||row.teamId);
     get('cell-error').textContent='';updateStatus();dialog.showModal();
   }
   form.elements.status.addEventListener('change',updateStatus);
   form.addEventListener('submit',event=>{
     event.preventDefault();const status=form.elements.status.value,position=Number(form.elements.position.value)||null,teamId=Number(form.elements.teamId.value)||null;
-    const points=form.elements.points.disabled||form.elements.points.value===''?null:Number(form.elements.points.value);
+    const points=null;
     if(!status&&!position&&points===null){get('cell-error').textContent='Bitte eine Platzierung oder einen Status eintragen.';return;}
     if((position||points!==null||['DNF','DSQ'].includes(status))&&!teamId){get('cell-error').textContent='Bitte das Team dieses Rennens auswählen.';return;}
     const cell={status,position,points,teamId};
-    // Result edits retain statistics; an ineligible status clears its awards.
-    awards.forEach(field=>{cell[field]=editing.race.raceType!=='sprint'&&started(cell)&&Boolean(editing.row.cells[editing.race.id]?.[field]);});
+    // Both roles share the same awards and points calculation.
+    awards.forEach(field=>{cell[field]=editing.race.raceType!=='sprint'&&started(cell)&&form.elements[field].checked;});
     const others=grid.rows.filter(row=>row!==editing.row).map(row=>({row,cell:row.cells[editing.race.id]})).filter(item=>item.cell);
     const starts=started(cell)||status==='DSQ';
     let error='';
     if(starts&&others.some(item=>item.row.driverId===editing.row.driverId&&(started(item.cell)||item.cell.status==='DSQ')))error='Dieser Fahrer hat in einer anderen Zeile bereits ein Ergebnis für dieses Rennen.';
     else if(position&&others.some(item=>Number(item.cell.position)===position))error=`Platz ${position} ist bereits vergeben.`;
     else if(starts&&others.filter(item=>(item.cell.teamId||item.row.teamId)===teamId&&(started(item.cell)||item.cell.status==='DSQ')).length>=2)error='Für dieses Team sind bereits zwei Fahrer in diesem Rennen eingetragen.';
-    else if(awards.some(field=>cell[field]&&others.some(item=>item.cell[field])))error='Eine dieser Auszeichnungen ist bereits vergeben. Ändere sie im Bereich Rennstatistik.';
+    else if(awards.some(field=>cell[field]&&others.some(item=>item.cell[field])))error='Eine dieser Auszeichnungen ist bereits vergeben. Entferne sie zuerst in der Rennzelle des bisherigen Fahrers.';
     if(error){get('cell-error').textContent=error;return;}
     editing.row.cells[editing.race.id]=cell;mark();dialog.close();render();
   });
   get('clear').addEventListener('click',()=>{delete editing.row.cells[editing.race.id];mark();dialog.close();render();});
   get('cancel').addEventListener('click',()=>dialog.close());
+  const quickDialog=get('quick-dialog');let quickEditing=null;
+  function openQuick(row,race){quickEditing={row,race};get('quick-title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: Status`;quickDialog.showModal();}
+  root.querySelectorAll('[data-historical-quick-status]').forEach(b=>b.addEventListener('click',()=>{
+    const {row,race}=quickEditing,previous=row.cells[race.id];
+    row.cells[race.id]={status:b.dataset.historicalQuickStatus,position:null,points:null,teamId:previous?.teamId||row.teamId||null,fastestLap:false,polePosition:false,driverOfTheDay:false};
+    mark();quickDialog.close();render();
+  }));
+  get('quick-cancel').addEventListener('click',()=>quickDialog.close());
   const rowDialog=get('row-dialog'),rowForm=rowDialog.querySelector('form');
   [...rounds,Math.max(0,...rounds)+1].forEach(round=>rowForm.elements.retiredFromRound.add(new Option(`Ab R${round}`,round)));
   function openRow(row){editingRow=row;get('row-title').textContent=`${name(row.driverId)} · ${row.role==='regular'?'Stammfahrer':'Ersatzfahrer'}`;get('row-team').hidden=row.role==='reserve';get('row-team-help').hidden=row.role==='reserve';teamOptions(rowForm.elements.teamId,row.teamId);rowForm.elements.retiredFromRound.value=row.retiredFromRound||'';rowDialog.showModal();}
@@ -96,7 +106,9 @@
           const race=data.races.find(r=>Number(r.sortOrder)===Number(td.dataset.round)&&(r.raceType==='sprint'?'sprint':'main')===td.dataset.raceType);if(!race)return;
           const cell=row.cells[race.id];let text='＋';
           if(cell){const persisted=race.entries.find(e=>Number(e.DriverId)===row.driverId);text=cell.status||(cell.points!=null?String(cell.points):persisted&&JSON.stringify(cell)===initialCells.get(`${row.rowId}:${race.id}`)?String(persisted.points):cell.position?`P${cell.position}`:'0');}
-          const b=button(text,`${name(row.driverId)}, R${race.sortOrder} ${td.dataset.raceType==='sprint'?'Sprint':'GP'}: Ergebnis bearbeiten`,()=>openCell(row,race));b.classList.add('historical-cell-button');
+          const b=button(text,`${name(row.driverId)}, R${race.sortOrder} ${td.dataset.raceType==='sprint'?'Sprint':'GP'}: Ergebnis bearbeiten`,()=>openCell(row,race));b.classList.remove('historical-inline-button');b.classList.add('historical-cell-button');
+          b.addEventListener('contextmenu',event=>{event.preventDefault();openQuick(row,race);});
+          b.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10'){event.preventDefault();openQuick(row,race);}});
           b.classList.add('sheet-result-tile');const value=el('b',text);value.className='sheet-result-value';b.replaceChildren(value);
           const badges=el('div');badges.className='sheet-result-awards';const awardList=el('span');awardList.className='race-awards';badges.append(awardList);b.append(badges);
           if(cell){b.dataset.status=cell.status||'';if(cell.position)b.dataset.position=cell.position;
@@ -154,35 +166,25 @@
       }fields.append(fieldset);
     });lineupDialog.showModal();
   }));
-  lineupForm.addEventListener('submit',event=>{
+  lineupForm.addEventListener('submit',async event=>{
     event.preventDefault();const lineup=[...get('lineup-fields').querySelectorAll('select')].filter(s=>s.value).map(s=>({driverId:Number(s.value),teamId:Number(s.dataset.teamId)}));
     if(new Set(lineup.map(row=>row.driverId)).size!==lineup.length){get('lineup-error').textContent='Bitte jeden Fahrer nur einem Cockpit zuordnen.';return;}
-    grid.lineup=lineup;mark();lineupDialog.close();get('save').scrollIntoView({block:'center',behavior:'smooth'});
+    grid.lineup=lineup;mark();await saveGrid(get('lineup-error'),true);
   });
   get('lineup-cancel').addEventListener('click',()=>lineupDialog.close());
-  const statsDialog=get('stats-dialog'),statsForm=statsDialog.querySelector('form');
-  data.races.filter(r=>r.raceType!=='sprint').forEach(r=>statsForm.elements.raceId.add(new Option(`R${r.sortOrder} · ${r.title||'Grand Prix'}`,r.id)));
-  function statsOptions(){
-    const raceId=statsForm.elements.raceId.value,rows=grid.rows.filter(row=>started(row.cells[raceId]));
-    get('stats-empty').hidden=rows.length>0;
-    awards.forEach(field=>{const select=statsForm.elements[field];select.replaceChildren(new Option('Keine Auszeichnung',''));rows.forEach(row=>select.add(new Option(`${name(row.driverId)} · ${data.teams.find(t=>Number(t.id)===(row.cells[raceId].teamId||row.teamId))?.name||''}`,row.rowId)));select.value=rows.find(row=>row.cells[raceId][field])?.rowId||'';});
-  }
-  statsForm.elements.raceId.addEventListener('change',statsOptions);
-  document.querySelectorAll('[data-historical-statistics-open]').forEach(b=>b.addEventListener('click',()=>{const race=data.races.find(r=>r.raceType!=='sprint'&&Number(r.sortOrder)===Number(b.dataset.historicalStatisticsOpen));if(!race)return;statsForm.elements.raceId.value=race.id;statsOptions();statsDialog.showModal();}));
-  statsForm.addEventListener('submit',event=>{event.preventDefault();const id=statsForm.elements.raceId.value;grid.rows.forEach(row=>{if(!row.cells[id])return;awards.forEach(field=>{row.cells[id][field]=statsForm.elements[field].value===row.rowId;});if(row.role==='regular'&&row.cells[id].position)row.cells[id].points=null;});mark();statsDialog.close();render();});
   function renderStatistics(){
     document.querySelectorAll('[data-historical-statistics-round]').forEach(tr=>{
       const race=data.races.find(r=>r.raceType!=='sprint'&&Number(r.sortOrder)===Number(tr.dataset.historicalStatisticsRound));if(!race)return;
       awards.forEach(field=>{const td=tr.querySelector(`[data-historical-statistic="${field}"]`);if(td)td.textContent=grid.rows.filter(row=>row.cells[race.id]?.[field]).map(row=>name(row.driverId)).join(', ')||'–';});
     });
   }
-  get('stats-cancel').addEventListener('click',()=>statsDialog.close());
   get('undo').addEventListener('click',()=>{if(dirty&&!confirm('Alle ungespeicherten Änderungen verwerfen?'))return;Object.assign(grid,JSON.parse(original));selectedRows.clear();dirty=false;render();message('Änderungen verworfen.');});
-  saveButtons.forEach(b=>b.addEventListener('click',async()=>{
-    if(busy)return;busy=true;saveButtons.forEach(b=>{b.disabled=true;});message('Ergebnisse werden gespeichert …');
-    try{const response=await fetch(`/admin/historical-grid/${data.seasonId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid,revision:data.revision})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Speichern fehlgeschlagen.');dirty=false;location.assign(result.url);}
-    catch(error){message(error.message+' Deine Eingaben bleiben erhalten.');}
-    finally{busy=false;saveButtons.forEach(b=>{b.disabled=false;});}
-  }));
+  async function saveGrid(errorNode=null,fromLineup=false){
+    if(busy)return;busy=true;saveButtons.forEach(b=>{b.disabled=true;});lineupForm.querySelector('[type=submit]').disabled=true;message('Ergebnisse werden gespeichert …');if(errorNode)errorNode.textContent='Aufstellung wird gespeichert …';
+    try{const response=await fetch(`/admin/historical-grid/${data.seasonId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid,revision:data.revision})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Speichern fehlgeschlagen.');dirty=false;location.assign(fromLineup?result.url.replace(/#.*$/,'') : result.url);}
+    catch(error){const text=error.message+' Deine Eingaben bleiben erhalten.';message(text);if(errorNode)errorNode.textContent=text;}
+    finally{busy=false;saveButtons.forEach(b=>{b.disabled=false;});lineupForm.querySelector('[type=submit]').disabled=false;}
+  }
+  saveButtons.forEach(b=>b.addEventListener('click',()=>saveGrid()));
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});render();
 })();

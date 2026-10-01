@@ -46,7 +46,9 @@ function validateGrid(value,drivers,teams,races) {
       const fail=message=>{throw new Error(`${name} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: ${message}`);};
       const status=String(input.status||'').toUpperCase(),position=input.position==null||input.position===''?null:Number(input.position),assignedTeam=Number(input.teamId)||teamId;
       let points = input.points === null || input.points === undefined || input.points === '' ? null : Number(input.points);
-      if (role==='regular' && position) points=null;
+      // A recorded position always uses the season scheme, including reserve starts.
+      // Preserve legacy points-only imports until their placement is completed.
+      if (position) points=null;
       if (points !== null && (!Number.isFinite(points) || points < 0 || points > 9999 || Math.abs(points * 100 - Math.round(points * 100)) > 0.000001)) fail('Punkte müssen zwischen 0 und 9999 liegen (höchstens zwei Nachkommastellen).');
       if (['DNS','DNA','DSQ','S'].includes(status) && points) fail('Dieser Status darf keine Punkte erhalten.');
       if(!['','DNF','DSQ','DNS','DNA','S'].includes(status))fail('Unbekannter Status.');
