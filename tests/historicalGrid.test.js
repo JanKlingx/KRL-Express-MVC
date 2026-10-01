@@ -163,12 +163,12 @@ test('Empty season adds repeated driver rows and edits two-seat lineup and award
  rows[1].querySelector('[data-round="2"][data-race-type="main"] button').click();form.elements.position.value='2';submit(form);
  doc.querySelector('[data-historical-statistics-open]').click();form=doc.querySelector('[data-historical-stats-dialog] form');
  for(const key of ['fastestLap','polePosition','driverOfTheDay'])form.elements[key].value=rows[0].dataset.historyRow;
- submit(form);assert.match(rows[0].querySelector('[data-round="1"]').textContent,/P1FPLD/);
+ submit(form);assert.match(rows[0].querySelector('[data-round="1"]').textContent,/P1FLPOLEDotD/);
  doc.querySelector('[data-historical-open]').click();form=doc.querySelector('[data-historical-lineup-dialog] form');const selects=form.querySelectorAll('select');assert.equal(selects.length,teams.length*2);
  selects[0].value='1';selects[1].value='1';submit(form);assert.match(doc.querySelector('[data-historical-lineup-error]').textContent,/nur einem Cockpit/);
  selects[1].value='2';submit(form);
  let posted;w.fetch=async(url,options)=>{posted=JSON.parse(options.body);return {ok:false,json:async()=>({error:'Test'})};};doc.querySelector('[data-historical-save]').click();await new Promise(resolve=>setImmediate(resolve));
- assert.equal(posted.grid.rows.length,3);assert.equal(posted.grid.lineup.length,2);assert.equal(posted.grid.rows[0].cells[1].points,null);
+ assert.equal(posted.grid.rows.length,3);assert.equal(posted.grid.rows.find(row=>row.role==='reserve').teamId,null);assert.equal(doc.querySelector('[data-history-role="reserve"] .sheet-team'),null);assert.equal(doc.querySelector('[data-historical-add-search]'),null);assert.equal(doc.querySelector('[data-historical-add-team]').hidden,true);assert.equal(doc.querySelector('[data-historical-add-dialog] select[name=teamId]').required,false);assert.equal(posted.grid.lineup.length,2);assert.equal(posted.grid.rows[0].cells[1].points,null);
  assert.doesNotThrow(()=>validateGrid(posted.grid,people,teams,races));
 });
 
@@ -204,7 +204,7 @@ test('Column controls keep selection synchronized across responsive tables and d
  const first=doc.querySelector('[data-history-row="first"]'),actions=first.querySelector('.historical-driver-actions');
  assert.deepEqual([...actions.children].map(el=>el.tagName),['INPUT','BUTTON','BUTTON']);
  first.querySelector('[data-round="1"] button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='2';form.dispatchEvent(new w.Event('submit',{cancelable:true}));
- assert.match(first.querySelector('[data-round="1"]').textContent,/P2FPLD/);
+ assert.match(first.querySelector('[data-round="1"]').textContent,/P2FLPOLEDotD/);
  assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'Alpha');
  const selection=first.querySelector('[data-historical-select]');selection.click();
  assert.equal(doc.querySelectorAll('[data-historical-select="first"]:checked').length,3);
@@ -223,7 +223,69 @@ test('Column controls keep selection synchronized across responsive tables and d
  assert.deepEqual(posted.grid.rows.map(row=>row.rowId),['reserve']);assert.deepEqual(posted.grid.lineup,[{driverId:1,teamId:10}]);
  assert.match(doc.querySelector('[data-historical-message-copy]').textContent,/Retry.*bleiben erhalten/);
  doc.querySelector('[data-historical-undo]').click();first.querySelector('[data-round="1"] button').click();form.elements.status.value='DNA';form.elements.status.dispatchEvent(new w.Event('change'));form.dispatchEvent(new w.Event('submit',{cancelable:true}));
- assert.equal(first.querySelector('[data-round="1"]').textContent,'DNA');assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'–');
+ assert.equal(first.querySelector('[data-round="1"]').textContent,'DNA');assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'–');assert.equal(doc.querySelector('[data-historical-position-field]').hidden,true);form.elements.status.value='DNS';form.elements.status.dispatchEvent(new w.Event('change'));assert.equal(doc.querySelector('[data-historical-position-field]').hidden,true);form.elements.status.value='';form.elements.status.dispatchEvent(new w.Event('change'));assert.equal(doc.querySelector('[data-historical-position-field]').hidden,false);
  const activeHtml=await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason:{id:1,status:'active'},selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
  assert.doesNotMatch(activeHtml,/data-historical-add-role|data-historical-select-all|data-historical-remove-selected/);
+ const activeDom=new JSDOM(activeHtml);assert.equal(doc.querySelector('.race-result-legend').outerHTML,activeDom.window.document.querySelector('.race-result-legend').outerHTML);activeDom.window.close();
+});
+
+test('Historical WM starts at first non-DNA regular round and retains former regulars',async()=>{
+ const people=[...drivers,{id:3,name:'LuYaxx'},{id:4,name:'Future'}];
+ const sessions=[...races,{id:4,sortOrder:3,raceType:'main',entries:[]}];
+ const grid=validateGrid({lineup:[],rows:[
+  {driverId:1,role:'regular',teamId:10,cells:{1:cell(1),2:cell(null,10,'DNA'),4:cell(null,10,'DNA')}},
+  {driverId:2,role:'regular',teamId:10,cells:{1:cell(null,10,'DNS'),2:cell(null,10,'S')}},
+  {driverId:3,role:'regular',teamId:20,cells:{1:cell(null,20,'DNA'),2:cell(1,20),4:cell(null,20,'DNA')}},
+  {driverId:4,role:'regular',teamId:20,cells:{1:cell(null,20,'DNA')}},
+  {driverId:3,role:'reserve',teamId:null,cells:{1:cell(2,20)}}
+ ]},people,teams,sessions);
+ const entries=await projectGrid(grid,sessions,people,teams,points,{}),projected=sessions.map(r=>({...r,entries:entries.filter(e=>e.GrandPrixResultId===r.id)}));
+ const result=standingsForGrid(buildSeasonData({slug:'sonntag'},projected,people,lineupsForGrid(grid,projected),{status:'historical'}),grid,projected,people,teams);
+ assert.deepEqual(result.standingsHistory.find(r=>r.round===1).driverStandings.map(d=>d.id).sort(),[1,2]);
+ assert.deepEqual(result.standingsHistory.find(r=>r.round===2).driverStandings.map(d=>d.id).sort(),[1,2,3]);
+ assert.deepEqual(result.driverStandings.map(d=>d.id).sort(),[1,2,3]);
+ assert.equal(result.reserveStandings.find(d=>d.id===3).points,18);
+ const {isPublicGpEntry}=require('../services/historicalGrid');
+ assert.deepEqual(['','DNF','DSQ','DNA','DNS','S',' dns '].filter(status=>isPublicGpEntry({status})),['','DNF','DSQ']);
+});
+
+test('Historical save persists the same points, wins and awards read by driver careers and team profiles',async t=>{
+ const models=require('../models'),controller=require('../controllers/historicalGridController'),service=require('../services/historicalGrid');
+ const people=[...drivers,{id:3,name:'Reserve'}];
+ const season={id:1,leagueType:'f1',scopeSlug:'sonntag',status:'historical',updatedAt:'2026-01-01',historicalGrid:null,PointsSchemeId:1};
+ const sessions=races.map(r=>({...r,discipline:'f1',SeasonId:1,isHistorical:true}));
+ let persisted=[],savedGrid;
+ t.mock.method(models.Season,'findByPk',async()=>season);
+ t.mock.method(models.Driver,'findAll',async()=>people.map(d=>({...d,toJSON:()=>d})));
+ t.mock.method(models.SeasonDriver,'findAll',async()=>[]);
+ t.mock.method(models.SeasonTeam,'findAll',async()=>teams.map(team=>({...team,toJSON:()=>team})));
+ t.mock.method(models.Team,'findOne',async()=>({name:'Team',id:100}));
+ t.mock.method(models.GrandPrixResult,'findAll',async()=>sessions);
+ t.mock.method(models.F1RaceLineupEntry,'findAll',async()=>[]);
+ t.mock.method(models.PointsScheme,'findOne',async()=>({id:1,fastestLapEnabled:true,fastestLapPoints:1,polePositionEnabled:true,polePositionPoints:2}));
+ t.mock.method(models.PointAllocation,'findOne',async({where})=>({points:(where.raceType==='sprint'?{1:8,2:7}:{1:25,2:18})[where.position]}));
+ const transaction={LOCK:{UPDATE:'UPDATE'}};
+ t.mock.method(models.sequelize,'transaction',async callback=>callback(transaction));
+ t.mock.method(models.GrandPrixResultEntry,'destroy',async options=>{assert.equal(options.transaction,transaction);persisted=[];});
+ t.mock.method(models.GrandPrixResultEntry,'bulkCreate',async(rows,options)=>{assert.equal(options.transaction,transaction);persisted=rows;});
+ t.mock.method(models.GrandPrixResult,'update',async()=>{});t.mock.method(models.RaceEvent,'update',async()=>{});
+ season.update=async(values,options)=>{assert.equal(options.transaction,transaction);savedGrid=values.historicalGrid;};
+ const grid={lineup:[],rows:[
+  {driverId:1,role:'regular',teamId:20,cells:{1:cell(null,20,'DNA'),2:{...cell(1,20),fastestLap:true,polePosition:true,driverOfTheDay:true},3:cell(1,20)}},
+  {driverId:2,role:'regular',teamId:10,cells:{1:cell(1),2:cell(null,10,'DNS')}},
+  {driverId:3,role:'reserve',teamId:null,cells:{1:cell(2),2:cell(null,20,'DNF')}}
+ ]};
+ let payload,code=200;await controller.save({params:{seasonId:1},body:{grid,revision:service.revision(season)}},{status(c){code=c;return this;},json(v){payload=v;}});
+ assert.equal(code,200,JSON.stringify(payload));assert.equal(persisted.find(e=>e.DriverId===1&&e.GrandPrixResultId===2).points,28);
+ const withRace=persisted.map(entry=>({...entry,grandPrixResult:sessions.find(r=>r.id===entry.GrandPrixResultId)}));
+ t.mock.method(models.GrandPrixResultEntry,'findAll',async({where})=>withRace.filter(e=>e.DriverId===where.DriverId));
+ const career=await require('../services/driverStats').getDriverStatistics(1);
+ assert.deepEqual(career.f1,{points:36,starts:1,wins:1,podium1:1,podium2:0,podium3:0,poles:1,fastestLaps:1,driverOfTheDays:1,winRate:100});
+ const overall=require('../services/careerStatistics').buildCareerStatistics(people,withRace);assert.equal(overall.find(d=>d.id===1).seasons[0].points,36);assert.equal(overall.find(d=>d.id===1).seasons[0].driverOfTheDays,1);
+ const projected=sessions.map(r=>({...r,entries:persisted.filter(e=>e.GrandPrixResultId===r.id)}));
+ const totals=standingsForGrid(buildSeasonData({slug:'sonntag'},projected,people,lineupsForGrid(savedGrid,projected),season),savedGrid,projected,people,teams,season);
+ assert.equal(totals.teamStandings.find(t=>t.name==='Team A').points,43);assert.equal(totals.teamStandings.find(t=>t.name==='Team B').points,36);
+ t.mock.method(require('../controllers/f1Controller'),'loadLeagueData',async()=>({...totals,league:{},selectedSeason:season}));
+ let profile;await require('../controllers/statisticsController').team({query:{league:'sonntag',season:'1',team:'Team B'}},{render(view,data){profile=data;}});
+ assert.equal(profile.team.points,36);assert.equal(profile.rounds.find(r=>r.round===2).standing.points,36);
 });

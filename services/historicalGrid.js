@@ -104,7 +104,12 @@ function standingsForGrid(base,grid,races,drivers,teams,season={}) {
   // History keeps team stints separate; the championship ranks each person once.
   function combined(role,round=Infinity) {
     const all=new Map();
-    for(const row of rank(role,round)){const prior=all.get(row.id);if(!prior)all.set(row.id,{...row});else for(const field of ['total','wins','dns','starts','dnf'])prior[field]+=row[field];}
+    // DNA and empty cells precede a driver's membership in this championship.
+    // Once entered, the driver remains ranked even after a later cockpit release.
+    const eligible=new Set(grid.rows.filter(row=>row.role===role&&races.some(race=>{
+      const cell=row.cells[race.id];return Number(race.sortOrder)<=round&&cell&&cell.status!=='DNA'&&Boolean(cell.position||cell.points!=null||cell.status);
+    })).map(row=>row.driverId));
+    for(const row of rank(role,round).filter(row=>eligible.has(row.id))){const prior=all.get(row.id);if(!prior)all.set(row.id,{...row});else for(const field of ['total','wins','dns','starts','dnf'])prior[field]+=row[field];}
     return [...all.values()].sort((a,b)=>b.total-a.total||b.wins-a.wins||b.dns-a.dns||a.name.localeCompare(b.name,'de')).map((row,index,array)=>({...row,position:index+1,points:row.total,average:row.starts?row.total/row.starts:0,gap:index?array[0].total-row.total:0}));
   }
   const roles=new Map(lineupsForGrid(grid,races).map(entry=>[`${entry.GrandPrixResultId}:${entry.DriverId}`,entry.roleType]));
@@ -131,7 +136,8 @@ function standingsForGrid(base,grid,races,drivers,teams,season={}) {
   base.standingsHistory.forEach(weekend=>{weekend.driverStandings=combined('regular',Number(weekend.round));weekend.teamStandings=teamRanking(Number(weekend.round));});
   return base;
 }
-module.exports={initialGrid,validateGrid,projectGrid,standingsForGrid,revision};
+const isPublicGpEntry=entry=>!['DNA','DNS','S'].includes(String(entry.status||'').trim().toUpperCase());
+module.exports={initialGrid,validateGrid,projectGrid,standingsForGrid,revision,isPublicGpEntry};
 function lineupsForGrid(grid,races) {
   return races.flatMap(race=>(race.entries||[]).map(entry=>{
     const row=selectedRow(grid,race.id,entry.DriverId);

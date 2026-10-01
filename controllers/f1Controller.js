@@ -616,8 +616,11 @@ async function loadLeagueData(slug, requestedSeasonId) {
     accentColor: league.accentColor, seasonAccentColor: selectedSeason?.accentColor || league.accentColor,
   };
 
+  const historicalEditor = selectedSeason?.status === 'historical'
+    ? await require('./historicalGridController').loadGridData(selectedSeason, gpResults) : null;
+  const historicalLineups = historicalEditor ? require('../services/historicalGrid').lineupsForGrid(historicalEditor.grid, historicalEditor.races) : raceLineupEntries;
   const plainLineups =
-    raceLineupEntries.map(
+    historicalLineups.map(
       plain,
     );
 
@@ -762,6 +765,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
               race.entries || []
             )
               .map(plain)
+              .filter(entry => selectedSeason?.status !== 'historical' || require('../services/historicalGrid').isPublicGpEntry(entry))
               .map((entry) => {
                 const lineup =
                   lineupForEntry(
@@ -882,9 +886,6 @@ async function loadLeagueData(slug, requestedSeasonId) {
         };
       });
 
-  const historicalEditor = selectedSeason?.status === 'historical'
-    ? await require('./historicalGridController').loadGridData(selectedSeason, gpResults) : null;
-  const historicalLineups = historicalEditor ? require('../services/historicalGrid').lineupsForGrid(historicalEditor.grid, historicalEditor.races) : raceLineupEntries;
   const standingsData =
     buildSeasonData(
       leagueForSeason,

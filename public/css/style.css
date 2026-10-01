@@ -12660,3 +12660,4 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
   .historical-editable-sheet .historical-cell-button { min-width: 0; }
   .historical-editable-sheet .sheet-driver .standing-profile-link { display: block; overflow-wrap: anywhere; }
 }
+.historical-editable-sheet .historical-cell-button.sheet-result-tile { flex-direction: column; gap: 1px; }
