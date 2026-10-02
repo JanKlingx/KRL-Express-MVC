@@ -55,7 +55,7 @@ test('Public historical tables edit points, remove and restore rows, and keep fi
  const html=await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{name:'S1'}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost/f1/sonntag?season=1'});t.after(()=>dom.window.close());
  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
- dom.window.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));const doc=dom.window.document;
+ dom.window.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));dom.window.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));const doc=dom.window.document;
  const regular=doc.querySelector('[data-history-driver="1"][data-history-role="regular"]');
  regular.querySelector('.historical-cell-button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='1';form.elements.teamId.value='10';assert.equal(form.elements.fastestLap.type,'checkbox');form.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
  assert.match(regular.querySelector('.historical-cell-button').textContent,/P1/);assert.equal(form.elements.points,undefined);
@@ -152,8 +152,8 @@ test('Empty season adds repeated driver rows and edits two-seat lineup and award
  const html='<button data-historical-open>Aufstellung</button>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{name:'S1'}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());
  const w=dom.window,doc=w.document;w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
- w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
- assert.equal(doc.querySelectorAll('script').length,2);
+ w.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
+ assert.equal(doc.querySelectorAll('script').length,3);
  const submit=form=>form.dispatchEvent(new w.Event('submit',{cancelable:true}));
  function add(role,driverId,teamId){doc.querySelector(`[data-historical-add-role="${role}"]`).click();const f=doc.querySelector('[data-historical-add-dialog] form');f.elements.driverId.value=driverId;f.elements.teamId.value=teamId;submit(f);}
  add('regular',1,10);add('regular',1,20);add('reserve',2,10);
@@ -196,7 +196,7 @@ test('Column controls keep selection synchronized across responsive tables and d
  const html=stats+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());const w=dom.window,doc=w.document;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};w.confirm=()=>true;
- w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
+ w.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
  assert.equal(doc.querySelector('[data-historical-role]'),null);
  assert.equal(doc.querySelector('[data-historical-editor-body] [data-historical-add-role]'),null);
  assert.equal(doc.querySelectorAll('th.sheet-driver [data-historical-add-role]').length,6);
@@ -272,12 +272,12 @@ test('Historical save persists the same points, wins and awards read by driver c
  t.mock.method(models.GrandPrixResult,'update',async()=>{});t.mock.method(models.RaceEvent,'update',async()=>{});
  season.update=async(values,options)=>{assert.equal(options.transaction,transaction);savedGrid=values.historicalGrid;season.historicalGrid=savedGrid;};
  const grid={lineup:[{driverId:1,teamId:20},{driverId:2,teamId:10}],rows:[
-  {driverId:1,role:'regular',teamId:20,cells:{1:cell(null,20,'DNA'),2:{...cell(1,20),fastestLap:true,polePosition:true,driverOfTheDay:true},3:cell(1,20)}},
+  {driverId:1,role:'regular',teamId:20,startedFromRound:2,retiredFromRound:3,shadeRetired:false,cells:{1:cell(null,20,'DNA'),2:{...cell(1,20),fastestLap:true,polePosition:true,driverOfTheDay:true},3:cell(1,20)}},
   {driverId:2,role:'regular',teamId:10,cells:{1:cell(1),2:cell(null,10,'DNS')}},
   {driverId:3,role:'reserve',teamId:null,cells:{1:cell(2),2:cell(null,20,'DNF')}}
  ]};
  let payload,code=200;await controller.save({params:{seasonId:1},body:{grid,revision:service.revision(season)}},{status(c){code=c;return this;},json(v){payload=v;}});
- assert.equal(code,200,JSON.stringify(payload));assert.deepEqual((await controller.loadGridData(season)).grid.lineup,grid.lineup);assert.equal(persisted.find(e=>e.DriverId===1&&e.GrandPrixResultId===2).points,28);
+ assert.equal(code,200,JSON.stringify(payload));const reloaded=(await controller.loadGridData(season)).grid;assert.deepEqual(reloaded.lineup,grid.lineup);assert.equal(reloaded.rows[0].startedFromRound,2);assert.equal(reloaded.rows[0].retiredFromRound,3);assert.equal(reloaded.rows[0].shadeRetired,false);assert.equal(persisted.find(e=>e.DriverId===1&&e.GrandPrixResultId===2).points,28);
  const withRace=persisted.map(entry=>({...entry,grandPrixResult:sessions.find(r=>r.id===entry.GrandPrixResultId)}));
  t.mock.method(models.GrandPrixResultEntry,'findAll',async({where})=>withRace.filter(e=>e.DriverId===where.DriverId));
  const career=await require('../services/driverStats').getDriverStatistics(1);
@@ -313,7 +313,7 @@ test('Both tables edit awards in cells and quick statuses clear results; sprint 
  const html='<table><tr data-historical-statistics-round="1"><td data-historical-statistic="fastestLap"></td></tr></table>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());const w=dom.window,doc=w.document;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
- w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
+ w.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
  const form=doc.querySelector('[data-historical-dialog] form'),submit=()=>form.dispatchEvent(new w.Event('submit',{cancelable:true}));
  const raceButton=(role,round=1,type='main')=>doc.querySelector(`[data-history-row="${role}"] [data-round="${round}"][data-race-type="${type}"] button`);
  assert.equal(form.elements.points,undefined);assert.equal(doc.querySelector('[data-historical-stats-dialog]'),null);
@@ -343,4 +343,56 @@ test('Both tables edit awards in cells and quick statuses clear results; sprint 
   const container=doc.createElement('div');container.className='season-sheet-table';container.innerHTML=`<div class="sheet-result"><div class="sheet-result-tile is-${status}"><b class="sheet-result-value">X</b></div><button class="sheet-result-tile historical-cell-button is-${status}"><b class="sheet-result-value">X</b></button></div>`;doc.body.append(container);
   const [current,historical]=container.querySelectorAll('.sheet-result-tile');assert.equal(w.getComputedStyle(historical).backgroundColor,w.getComputedStyle(current).backgroundColor,status);assert.equal(w.getComputedStyle(historical).color,w.getComputedStyle(current).color,status);assert.equal(w.getComputedStyle(historical.firstChild).color,w.getComputedStyle(current.firstChild).color,status);
  }
+});
+
+test('Historical periods replace every out-of-range session with DNA and reconcile role transfers',async()=>{
+ const sessions=Array.from({length:6},(_,i)=>({id:i+1,sortOrder:Math.floor(i/2)+1,raceType:i%2?'sprint':'main',entries:[]}));
+ const allCells=Object.fromEntries(sessions.map(r=>[r.id,{...cell(1),fastestLap:r.raceType==='main',driverOfTheDay:r.raceType==='main'}]));
+ const grid=validateGrid({lineup:[],rows:[
+  {rowId:'regular',driverId:1,role:'regular',teamId:10,startedFromRound:2,retiredFromRound:3,shadeRetired:false,cells:allCells},
+  {rowId:'reserve',driverId:1,role:'reserve',teamId:null,startedFromRound:3,retiredFromRound:4,shadeRetired:false,cells:allCells}
+ ]},drivers,teams,sessions);
+ assert.equal(grid.rows[0].shadeRetired,false);assert.equal(grid.rows[1].shadeRetired,true);
+ for(const [row,ids] of [[grid.rows[0],[1,2,5,6]],[grid.rows[1],[1,2,3,4]]])for(const id of ids){
+  assert.equal(row.cells[id].status,'DNA');assert.equal(row.cells[id].position,null);assert.equal(row.cells[id].points,null);assert.equal(row.cells[id].fastestLap,false);assert.equal(row.cells[id].driverOfTheDay,false);
+ }
+ const entries=await projectGrid(grid,sessions,drivers,teams,points,{});assert.deepEqual(entries.map(e=>e.GrandPrixResultId),[3,4,5,6]);
+ const projected=sessions.map(r=>({...r,entries:entries.filter(e=>e.GrandPrixResultId===r.id)}));
+ const totals=standingsForGrid(buildSeasonData({slug:'sonntag'},projected,drivers,lineupsForGrid(grid,projected),{}),grid,projected,drivers,teams);
+ assert.equal(totals.driverStandings[0].points,34);assert.equal(totals.reserveStandings[0].points,34);assert.equal(totals.teamStandings[0].points,68);
+ assert.equal(totals.selectedHistory.drivers[0].results[2].main.retired,false);assert.equal(totals.selectedHistory.drivers[0].isFormerDriver,false);
+ const stats=require('../services/driverStats').summarizeDriverEntries(entries.map(e=>({...e,grandPrixResult:{...sessions.find(r=>r.id===e.GrandPrixResultId),discipline:'f1'}}))).f1;
+ assert.equal(stats.points,68);assert.equal(stats.wins,2);assert.equal(stats.fastestLaps,2);
+ const periods=require('../public/js/historical-periods');assert.equal(periods.shaded(grid.rows[1],4),true);
+ const widened=validateGrid({...grid,rows:[{...grid.rows[0],startedFromRound:1,retiredFromRound:null}]},drivers,teams,sessions);
+ assert.deepEqual(Object.keys(widened.rows[0].cells),['3','4']);
+ for(const fields of [{startedFromRound:3,retiredFromRound:3},{startedFromRound:4},{startedFromRound:-1},{retiredFromRound:5},{startedFromRound:'oops'}])assert.throws(()=>validateGrid({lineup:[],rows:[{...grid.rows[0],...fields}]},drivers,teams,sessions),/Einstieg|Runde/);
+});
+
+test('Period dialog uses inclusive reserve end, optional regular shading and reversible automatic DNA',async t=>{
+ const ejs=require('ejs'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+ const sessions=Array.from({length:6},(_,i)=>({id:i+1,sortOrder:Math.floor(i/2)+1,raceType:i%2?'sprint':'main',entries:[]}));
+ const data={grid:{lineup:[],rows:[{rowId:'regular',driverId:1,role:'regular',teamId:10,cells:{1:cell(1),5:cell(1)}},{rowId:'reserve',driverId:2,role:'reserve',teamId:null,cells:{}}]},drivers,teams,races:sessions,revision:'test'};
+ const selectedSeason={id:1,status:'historical'},selectedHistory={name:'S1',races:[1,2,3].map(round=>({round,title:'R'+round,hasSprint:true})),drivers:[],reserveDrivers:[]};
+ const html=await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
+ const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());const w=dom.window,doc=w.document;
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};w.confirm=()=>true;
+ w.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
+ const row=role=>doc.querySelector(`[data-history-row="${role}"]`),form=doc.querySelector('[data-historical-row-dialog] form');
+ const edit=role=>row(role).querySelector('.historical-driver-actions button').click();const submit=()=>form.dispatchEvent(new w.Event('submit',{cancelable:true}));
+ edit('regular');assert.equal(form.elements.shadeRetired.checked,true);form.elements.startedFromRound.value='2';form.elements.retiredFromRound.value='3';submit();
+ assert.equal(row('regular').querySelector('[data-round="1"] button').textContent,'DNA');assert.equal(row('regular').querySelector('[data-round="3"][data-race-type="sprint"] button').textContent,'DNA');
+ assert.equal(row('regular').querySelector('[data-round="1"]').classList.contains('is-historical-retired'),false);assert.equal(row('regular').querySelector('[data-round="3"]').classList.contains('is-historical-retired'),true);
+ edit('regular');form.elements.shadeRetired.checked=false;submit();assert.equal(row('regular').querySelector('[data-round="3"]').classList.contains('is-historical-retired'),false);assert.equal(row('regular').classList.contains('is-former-driver'),false);
+ row('regular').querySelector('[data-round="1"] button').click();assert.equal(doc.querySelector('[data-historical-row-dialog]').open,true);assert.match(doc.querySelector('[data-historical-row-error]').textContent,/außerhalb/);doc.querySelector('[data-historical-row-cancel]').click();
+ edit('reserve');assert.equal(doc.querySelector('[data-historical-shade-field]').hidden,true);assert.equal(doc.querySelector('[data-historical-end-label]').textContent,'Ersatzfahrer bis einschließlich');
+ form.elements.startedFromRound.value='2';form.elements.retiredFromRound.value='3';assert.equal(form.elements.retiredFromRound.selectedOptions[0].textContent,'Bis einschließlich R2');form.elements.shadeRetired.checked=false;submit();
+ assert.equal(row('reserve').querySelector('[data-round="1"] button').textContent,'DNA');assert.equal(row('reserve').querySelector('[data-round="2"] button').textContent,'＋');assert.equal(row('reserve').querySelector('[data-round="3"] button').textContent,'DNA');assert.equal(row('reserve').querySelector('[data-round="3"]').classList.contains('is-historical-retired'),true);
+ edit('reserve');form.elements.startedFromRound.value='3';submit();assert.match(doc.querySelector('[data-historical-row-error]').textContent,/Einstieg/);doc.querySelector('[data-historical-row-cancel]').click();
+ let posted;w.fetch=async(url,options)=>{posted=JSON.parse(options.body);return {ok:false,json:async()=>({error:'Test'})};};doc.querySelector('[data-historical-save]').click();await new Promise(resolve=>setImmediate(resolve));
+ const valid=validateGrid(posted.grid,drivers,teams,sessions);assert.equal(valid.rows[0].shadeRetired,false);assert.equal(valid.rows[1].shadeRetired,true);assert.equal(valid.rows[1].retiredFromRound,3);
+ const projected=sessions.map(r=>({...r,entries:[]})),publicData=standingsForGrid(buildSeasonData({slug:'sonntag'},projected,drivers,[],{}),valid,projected,drivers,teams);
+ const guestHtml=await ejs.renderFile('views/partials/season-history.ejs',{selectedSeason,selectedHistory:publicData.selectedHistory,history:{seasons:[{}]},isAdmin:false,league:{}});const guest=new JSDOM(guestHtml);t.after(()=>guest.window.close());
+ assert.equal(guest.window.document.querySelector('[data-history-role="regular"] [data-round="3"]').classList.contains('is-historical-retired'),false);assert.equal(guest.window.document.querySelector('[data-history-role="reserve"] [data-round="3"]').classList.contains('is-historical-retired'),true);
+ doc.querySelector('[data-historical-undo]').click();assert.equal(row('regular').querySelector('[data-round="1"][data-race-type="main"] button').textContent,'P1');assert.equal(row('reserve').querySelector('[data-round="3"] button').textContent,'＋');
 });

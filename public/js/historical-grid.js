@@ -3,6 +3,7 @@
   if (!root) return;
   const data = JSON.parse(document.getElementById('historical-editor-data').textContent);
   const grid = data.grid;
+  const periods=window.HistoricalPeriods;
   grid.rows.forEach((row,index)=>{row.rowId ||= `${row.role}:${row.driverId}:${index}`;});
   const original=JSON.stringify(grid);
   const savedStats=new Map();
@@ -33,6 +34,7 @@
     awards.forEach(field=>{form.elements[field].disabled=!allowAwards;if(!allowAwards)form.elements[field].checked=false;});
   }
   function openCell(row,race){
+    if(periods.outside(row,Number(race.sortOrder))){openRow(row);get('row-error').textContent='Diese Runde liegt außerhalb des Zeitraums. Passe zuerst den Einstieg oder das Ende an.';return;}
     editing={row,race};const cell=row.cells[race.id]||{};
     get('title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}`;
     form.elements.status.value=cell.status||'';form.elements.position.value=cell.position||'';
@@ -62,7 +64,7 @@
   get('clear').addEventListener('click',()=>{delete editing.row.cells[editing.race.id];mark();dialog.close();render();});
   get('cancel').addEventListener('click',()=>dialog.close());
   const quickDialog=get('quick-dialog');let quickEditing=null;
-  function openQuick(row,race){quickEditing={row,race};get('quick-title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: Status`;quickDialog.showModal();}
+  function openQuick(row,race){if(periods.outside(row,Number(race.sortOrder))){openCell(row,race);return;}quickEditing={row,race};get('quick-title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: Status`;quickDialog.showModal();}
   root.querySelectorAll('[data-historical-quick-status]').forEach(b=>b.addEventListener('click',()=>{
     const {row,race}=quickEditing,previous=row.cells[race.id];
     row.cells[race.id]={status:b.dataset.historicalQuickStatus,position:null,points:null,teamId:previous?.teamId||row.teamId||null,fastestLap:false,polePosition:false,driverOfTheDay:false};
@@ -70,9 +72,26 @@
   }));
   get('quick-cancel').addEventListener('click',()=>quickDialog.close());
   const rowDialog=get('row-dialog'),rowForm=rowDialog.querySelector('form');
-  [...rounds,Math.max(0,...rounds)+1].forEach(round=>rowForm.elements.retiredFromRound.add(new Option(`Ab R${round}`,round)));
-  function openRow(row){editingRow=row;get('row-title').textContent=`${name(row.driverId)} · ${row.role==='regular'?'Stammfahrer':'Ersatzfahrer'}`;get('row-team').hidden=row.role==='reserve';get('row-team-help').hidden=row.role==='reserve';teamOptions(rowForm.elements.teamId,row.teamId);rowForm.elements.retiredFromRound.value=row.retiredFromRound||'';rowDialog.showModal();}
-  rowForm.addEventListener('submit',event=>{event.preventDefault();editingRow.teamId=Number(rowForm.elements.teamId.value)||null;editingRow.retiredFromRound=Number(rowForm.elements.retiredFromRound.value)||null;mark();rowDialog.close();render();});
+  rounds.forEach(round=>rowForm.elements.startedFromRound.add(new Option(`Ab R${round}`,round)));
+  function openRow(row){
+    editingRow=row;const reserve=row.role==='reserve';
+    get('row-title').textContent=`${name(row.driverId)} · ${reserve?'Ersatzfahrer':'Stammfahrer'}`;
+    get('row-team').hidden=reserve;get('row-team-help').hidden=reserve;teamOptions(rowForm.elements.teamId,row.teamId);
+    get('start-label').textContent=reserve?'Ersatzfahrer ab':'Stammfahrer ab';
+    get('end-label').textContent=reserve?'Ersatzfahrer bis einschließlich':'Cockpit abgegeben ab';
+    const end=rowForm.elements.retiredFromRound;end.replaceChildren(new Option('Bis Saisonende dabei',''));
+    (reserve?rounds:[...rounds,Math.max(0,...rounds)+1]).forEach(round=>end.add(new Option(reserve?`Bis einschließlich R${round}`:`Ab R${round}`,reserve?round+1:round)));
+    end.value=row.retiredFromRound||'';rowForm.elements.startedFromRound.value=row.startedFromRound||'';
+    get('shade-field').hidden=reserve;rowForm.elements.shadeRetired.checked=reserve||row.shadeRetired!==false;
+    get('period-help').textContent=reserve?'Vor dem Einstieg und nach der letzten Einsatzrunde gilt DNA. Nach der letzten Einsatzrunde werden die Zellen immer grau hinterlegt.':'Vor dem Einstieg und ab der Cockpitabgabe gilt DNA. Die graue Hinterlegung ab Cockpitabgabe kannst du abschalten.';
+    get('row-error').textContent='';rowDialog.showModal();
+  }
+  rowForm.addEventListener('submit',event=>{
+    event.preventDefault();const startedFromRound=Number(rowForm.elements.startedFromRound.value)||null,retiredFromRound=Number(rowForm.elements.retiredFromRound.value)||null;
+    if(startedFromRound&&retiredFromRound&&startedFromRound>=retiredFromRound){get('row-error').textContent='Der Einstieg muss vor der Cockpitabgabe bzw. spätestens in der letzten Einsatzrunde liegen.';return;}
+    Object.assign(editingRow,{teamId:Number(rowForm.elements.teamId.value)||null,startedFromRound,retiredFromRound,shadeRetired:editingRow.role==='reserve'||rowForm.elements.shadeRetired.checked});
+    editingRow.cells=periods.apply(editingRow,data.races);mark();rowDialog.close();render();
+  });
   get('row-cancel').addEventListener('click',()=>rowDialog.close());
   // One template per responsive table; new rows also work when a season has no participants yet.
   const tables=[...document.querySelectorAll('.season-sheet-table')].map(table=>{
@@ -94,14 +113,14 @@
         const actions=el('div');actions.className='historical-driver-actions';
         const select=el('input');select.type='checkbox';select.dataset.historicalSelect=row.rowId;select.checked=selectedRows.has(row.rowId);select.setAttribute('aria-label',`${name(row.driverId)}: diese Zeile auswählen`);
         select.addEventListener('change',()=>{if(select.checked)selectedRows.add(row.rowId);else selectedRows.delete(row.rowId);syncSelection();});actions.append(select);
-        actions.append(button('✎',`Team und Cockpitabgabe von ${name(row.driverId)} bearbeiten`,()=>openRow(row)),button('−',`${name(row.driverId)} aus dieser Wertung entfernen`,()=>{
+        actions.append(button('✎',`Zeitraum und Team von ${name(row.driverId)} bearbeiten`,()=>openRow(row)),button('−',`${name(row.driverId)} aus dieser Wertung entfernen`,()=>{
           if(Object.keys(row.cells).length&&!confirm('Diese Zeile samt Ergebnissen entfernen? Erst Speichern übernimmt die Änderung.'))return;
           grid.rows.splice(grid.rows.indexOf(row),1);selectedRows.delete(row.rowId);mark();render();
         }));
         driverCell.append(actions);
         const team=data.teams.find(t=>Number(t.id)===row.teamId),teamCell=tr.querySelector('.sheet-team');
         if(teamCell){teamCell.replaceChildren();const b=button(team?team.name.slice(0,3):'＋',team?.name||'Team zuordnen',()=>openRow(row));if(team?.logoPath){const img=el('img');img.src=team.logoPath;img.alt=team.name;b.replaceChildren(img);}teamCell.append(b);}
-        tr.classList.toggle('is-former-driver',Boolean(row.retiredFromRound));
+        tr.classList.remove('is-former-driver');
         tr.querySelectorAll('.sheet-result').forEach(td=>{
           const race=data.races.find(r=>Number(r.sortOrder)===Number(td.dataset.round)&&(r.raceType==='sprint'?'sprint':'main')===td.dataset.raceType);if(!race)return;
           const cell=row.cells[race.id];let text='＋';
@@ -116,7 +135,7 @@
             b.classList.add(`is-${cell.status==='S'?'suspended':cell.status?cell.status.toLowerCase():'points'}`);
             for(const [field,label,kind,title] of [['fastestLap','FL','fl','Schnellste Runde'],['polePosition','POLE','pole','Pole Position'],['driverOfTheDay','DotD','dotd','Driver of the Day']])if(cell[field]){const badge=el('em',label);badge.className=`race-award race-award-${kind}`;badge.title=title;awardList.append(badge);}
           }
-          td.classList.toggle('is-historical-retired',Boolean(row.retiredFromRound&&Number(race.sortOrder)>=row.retiredFromRound));td.replaceChildren(b);
+          td.classList.toggle('is-historical-retired',periods.shaded(row,Number(race.sortOrder)));td.replaceChildren(b);
         });
         tr.querySelectorAll('.sheet-total,.sheet-stat,.sheet-position').forEach((td,index)=>{td.textContent=dirty?'–':savedStats.get(row.rowId)?.[index]||'–';td.title=dirty?'Wird beim Speichern neu berechnet':'';});
       });
