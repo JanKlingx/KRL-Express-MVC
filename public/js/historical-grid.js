@@ -34,7 +34,8 @@
     if(periods.outside(row,Number(race.sortOrder))){openRow(row);get('row-error').textContent='Diese Runde liegt außerhalb des Zeitraums. Passe zuerst den Einstieg oder das Ende an.';return;}
     editing={row,race};const cell=row.cells[race.id]||{};
     get('title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}`;
-    form.elements.status.value=cell.status||'';form.elements.position.value=cell.position||'';
+    // A normal click prepares result entry; cancelling keeps the existing absence status.
+    form.elements.status.value=['DNA','DNS'].includes(cell.status)?'':cell.status||'';form.elements.position.value=cell.position||'';
     teamOptions(form.elements.teamId,cell.teamId||row.teamId);
     get('cell-error').textContent='';updateStatus();dialog.showModal();
   }
@@ -167,7 +168,8 @@
   addForm.addEventListener('submit',event=>{
     event.preventDefault();const driverId=Number(get('add').value),teamId=addingRole==='regular'?Number(addForm.elements.teamId.value):null;
     if(!driverId||!addingRole||addingRole==='regular'&&!teamId)return;
-    grid.rows.push({rowId:crypto.randomUUID(),driverId,role:addingRole,teamId,cells:{}});mark();render();addDialog.close();
+    const cells=Object.fromEntries(data.races.map(race=>[race.id,{status:'DNS',position:null,points:null,teamId,fastestLap:false,polePosition:false,driverOfTheDay:false}]));
+    grid.rows.push({rowId:crypto.randomUUID(),driverId,role:addingRole,teamId,cells});mark();render();addDialog.close();
   });
   get('add-cancel').addEventListener('click',()=>addDialog.close());
   const lineupDialog=get('lineup-dialog'),lineupForm=lineupDialog.querySelector('form');
