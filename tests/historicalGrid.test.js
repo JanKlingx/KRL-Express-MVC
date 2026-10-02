@@ -157,6 +157,10 @@ test('Empty season adds repeated driver rows and edits two-seat lineup and award
  const submit=form=>form.dispatchEvent(new w.Event('submit',{cancelable:true}));
  function add(role,driverId,teamId){doc.querySelector(`[data-historical-add-role="${role}"]`).click();const f=doc.querySelector('[data-historical-add-dialog] form');f.elements.driverId.value=driverId;f.elements.teamId.value=teamId;submit(f);}
  add('regular',1,10);add('regular',1,20);add('reserve',2,10);
+ for(const row of doc.querySelectorAll('[data-history-driver]:not([hidden])'))for(const button of row.querySelectorAll('.historical-cell-button'))assert.equal(button.textContent,'DNS');
+ const reserveRow=doc.querySelector('[data-history-role="reserve"]:not([hidden])');reserveRow.querySelector('.historical-cell-button').click();
+ const defaultForm=doc.querySelector('[data-historical-dialog] form');assert.equal(defaultForm.elements.status.value,'');assert.equal(defaultForm.elements.position.disabled,false);assert.equal(doc.querySelector('[data-historical-position-field]').hidden,false);
+ assert.ok([...defaultForm.elements.status.options].every(option=>!['DNA','DNS'].includes(option.value)));doc.querySelector('[data-historical-cancel]').click();assert.equal(reserveRow.querySelector('.historical-cell-button').textContent,'DNS');
  const rows=[...doc.querySelectorAll('[data-history-role="regular"]:not([hidden])')];assert.equal(rows.length,2);
  assert.notEqual(rows[0].dataset.historyRow,rows[1].dataset.historyRow);
  rows[0].querySelector('[data-round="1"] button').click();let form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='1';submit(form);
@@ -170,7 +174,10 @@ test('Empty season adds repeated driver rows and edits two-seat lineup and award
  selects[1].value='2';submit(form);await new Promise(resolve=>setImmediate(resolve));
  assert.equal(calls,1);assert.equal(doc.querySelector('[data-historical-lineup-dialog]').open,true);assert.match(doc.querySelector('[data-historical-lineup-error]').textContent,/Test.*bleiben erhalten/);assert.equal(form.querySelector('[type=submit]').disabled,false);
  assert.equal(posted.grid.rows.length,3);assert.equal(posted.grid.rows.find(row=>row.role==='reserve').teamId,null);assert.equal(doc.querySelector('[data-history-role="reserve"] .sheet-team'),null);assert.equal(doc.querySelector('[data-historical-add-search]'),null);assert.equal(doc.querySelector('[data-historical-add-team]').hidden,true);assert.equal(doc.querySelector('[data-historical-add-dialog] select[name=teamId]').required,false);assert.equal(posted.grid.lineup.length,2);assert.equal(posted.grid.rows[0].cells[1].points,null);
- assert.doesNotThrow(()=>validateGrid(posted.grid,people,teams,races));
+ const reserveCells=posted.grid.rows.find(row=>row.role==='reserve').cells;
+ assert.deepEqual(Object.keys(reserveCells),races.map(r=>String(r.id)));assert.ok(Object.values(reserveCells).every(c=>c.status==='DNS'&&c.position===null&&c.points===null&&c.teamId===null));
+ const validated=validateGrid(posted.grid,people,teams,races);assert.equal(validated.rows[0].cells[3].status,'DNS');
+ const withPeriod=validateGrid({...posted.grid,rows:posted.grid.rows.map(row=>({...row,startedFromRound:2}))},people,teams,races);assert.equal(withPeriod.rows[2].cells[1].status,'DNA');assert.equal(withPeriod.rows[2].cells[3].status,'DNS');
 });
 
 test('Expanded news can be collapsed from the top with synchronized accessibility state',t=>{
@@ -223,8 +230,8 @@ test('Column controls keep selection synchronized across responsive tables and d
  let posted;w.fetch=async(url,options)=>{posted=JSON.parse(options.body);return {ok:false,json:async()=>({error:'Retry'})};};doc.querySelector('[data-historical-save-copy]').click();await new Promise(resolve=>setImmediate(resolve));
  assert.deepEqual(posted.grid.rows.map(row=>row.rowId),['reserve']);assert.deepEqual(posted.grid.lineup,[{driverId:1,teamId:10}]);
  assert.match(doc.querySelector('[data-historical-message-copy]').textContent,/Retry.*bleiben erhalten/);
- doc.querySelector('[data-historical-undo]').click();first.querySelector('[data-round="1"] button').click();form.elements.status.value='DNA';form.elements.status.dispatchEvent(new w.Event('change'));form.dispatchEvent(new w.Event('submit',{cancelable:true}));
- assert.equal(first.querySelector('[data-round="1"]').textContent,'DNA');assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'–');assert.equal(doc.querySelector('[data-historical-position-field]').hidden,true);form.elements.status.value='DNS';form.elements.status.dispatchEvent(new w.Event('change'));assert.equal(doc.querySelector('[data-historical-position-field]').hidden,true);form.elements.status.value='';form.elements.status.dispatchEvent(new w.Event('change'));assert.equal(doc.querySelector('[data-historical-position-field]').hidden,false);
+ doc.querySelector('[data-historical-undo]').click();first.querySelector('[data-round="1"] button').dispatchEvent(new w.MouseEvent('contextmenu',{cancelable:true}));doc.querySelector('[data-historical-quick-status="DNA"]').click();
+ assert.equal(first.querySelector('[data-round="1"]').textContent,'DNA');assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'–');first.querySelector('[data-round="1"] button').click();assert.equal(form.elements.status.value,'');assert.equal(doc.querySelector('[data-historical-position-field]').hidden,false);assert.ok([...form.elements.status.options].every(option=>!['DNA','DNS'].includes(option.value)));doc.querySelector('[data-historical-cancel]').click();assert.equal(first.querySelector('[data-round="1"]').textContent,'DNA');
  const activeHtml=await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason:{id:1,status:'active'},selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
  assert.doesNotMatch(activeHtml,/data-historical-add-role|data-historical-select-all|data-historical-remove-selected/);
  const activeDom=new JSDOM(activeHtml);assert.equal(doc.querySelector('.race-result-legend').outerHTML,activeDom.window.document.querySelector('.race-result-legend').outerHTML);activeDom.window.close();

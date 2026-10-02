@@ -1,7 +1,7 @@
 <div class="historical-editor" data-historical-editor>
   <div class="historical-editor-body">
     <h3>Historische Ergebnisse ergänzen</h3>
-    <p>Linksklick auf eine Rennzelle: Platzierung und Status eintragen. Auszeichnungen pflegst du im Bereich Rennstatistik. Die Punkte werden für Stamm- und Ersatzfahrer aus dem Saison-Punktesystem berechnet. Rechtsklick (oder Umschalt+F10): DNA, DNS oder Rennsperre schnell auswählen. Alle Angaben sind auch per Linksklick erreichbar. Über ✎ beim Namen bearbeitest du die Wertungszeile; mit − oder den Auswahlkästchen entfernst du Zeilen.</p>
+    <p>Linksklick auf eine Rennzelle: Platzierung und Status eintragen. Auszeichnungen pflegst du im Bereich Rennstatistik. Die Punkte werden für Stamm- und Ersatzfahrer aus dem Saison-Punktesystem berechnet. Rechtsklick (oder Umschalt+F10): DNA, DNS oder Rennsperre schnell auswählen. DNA und DNS wählst du über die schnelle Statusauswahl per Rechtsklick. Über ✎ beim Namen bearbeitest du die Wertungszeile; mit − oder den Auswahlkästchen entfernst du Zeilen.</p>
     <div class="historical-toolbar">
       <button type="button" class="button" data-historical-save>Änderungen speichern</button>
       <button type="button" class="button button-ghost" data-historical-undo>Änderungen verwerfen</button>
@@ -12,12 +12,12 @@
     <h3 data-historical-add-title>Fahrer hinzufügen</h3>
     <label>Fahrer<select name="driverId" required data-historical-add></select></label>
     <label data-historical-add-team>Team<select name="teamId" required></select></label>
-    <p>Jeder Klick fügt eine eigene Zeile hinzu. Derselbe Fahrer kann mehrfach vorkommen, zum Beispiel für einen Teamwechsel.</p>
+    <p>Jeder Klick fügt eine eigene Zeile hinzu. Alle Rennzellen sind zunächst DNS, auch Sprints. Derselbe Fahrer kann mehrfach vorkommen, zum Beispiel für einen Teamwechsel.</p>
     <div class="historical-toolbar"><button type="submit" class="button" data-historical-add-button>Fahrer hinzufügen</button><button type="button" class="button button-ghost" data-historical-add-cancel>Abbrechen</button></div>
   </form></dialog>
   <dialog class="historical-cell-dialog" data-historical-dialog><form method="dialog">
     <h3 data-historical-title></h3>
-    <label>Status<select name="status"><option value="">Gewertet</option><option>DNF</option><option>DSQ</option><option>DNS</option><option>DNA</option><option value="S">Rennsperre (S)</option></select></label>
+    <label>Status<select name="status"><option value="">Gewertet</option><option>DNF</option><option>DSQ</option><option value="S">Rennsperre (S)</option></select></label>
     <label data-historical-position-field>Platzierung<input name="position" type="number" min="1" max="100" step="1" inputmode="numeric" placeholder="Zum Beispiel 1"></label>
     <p>Platzierung eingeben – Punkte und Boni werden beim Speichern automatisch berechnet. Pole, schnellste Runde und Driver of the Day wählst du in der Rennstatistik aus.</p>
 
