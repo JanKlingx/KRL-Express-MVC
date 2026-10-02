@@ -57,7 +57,7 @@ test('Public historical tables edit points, remove and restore rows, and keep fi
  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
  dom.window.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));dom.window.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));const doc=dom.window.document;
  const regular=doc.querySelector('[data-history-driver="1"][data-history-role="regular"]');
- regular.querySelector('.historical-cell-button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='1';form.elements.teamId.value='10';assert.equal(form.elements.fastestLap.type,'checkbox');form.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
+ regular.querySelector('.historical-cell-button').click();const form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='1';form.elements.teamId.value='10';assert.equal(form.elements.fastestLap,undefined);form.dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
  assert.match(regular.querySelector('.historical-cell-button').textContent,/P1/);assert.equal(form.elements.points,undefined);
  const reserve=doc.querySelector('[data-history-driver="1"][data-history-role="reserve"]');
  [...reserve.querySelectorAll('.sheet-driver button')].find(b=>b.textContent==='−').click();assert.equal(reserve.hidden,true);assert.equal(regular.hidden,false);
@@ -149,7 +149,7 @@ test('Empty season adds repeated driver rows and edits two-seat lineup and award
  const people=[...drivers,{id:3,name:'Unsafe </script><script>alert(1)</script>'}];
  const data={grid:{rows:[],lineup:[]},drivers:people,teams,races,revision:'test'};
  const selectedSeason={id:1,status:'historical'},selectedHistory={name:'S1',races:[{round:1,title:'R1'},{round:2,title:'R2',hasSprint:true}],drivers:[],reserveDrivers:[]};
- const html='<button data-historical-open>Aufstellung</button>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{name:'S1'}]},isAdmin:true,league:{}});
+ const html='<button data-historical-statistics-open="1">Auszeichnungen</button><button data-historical-open>Aufstellung</button>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{name:'S1'}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());
  const w=dom.window,doc=w.document;w.HTMLElement.prototype.scrollIntoView=function(){};w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  w.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
@@ -161,9 +161,9 @@ test('Empty season adds repeated driver rows and edits two-seat lineup and award
  assert.notEqual(rows[0].dataset.historyRow,rows[1].dataset.historyRow);
  rows[0].querySelector('[data-round="1"] button').click();let form=doc.querySelector('[data-historical-dialog] form');form.elements.position.value='1';submit(form);
  rows[1].querySelector('[data-round="2"][data-race-type="main"] button').click();form.elements.position.value='2';submit(form);
- rows[0].querySelector('[data-round="1"] button').click();
- for(const key of ['fastestLap','polePosition','driverOfTheDay'])form.elements[key].checked=true;
- submit(form);assert.match(rows[0].querySelector('[data-round="1"]').textContent,/P1FLPOLEDotD/);
+ doc.querySelector('[data-historical-statistics-open]').click();form=doc.querySelector('[data-historical-stats-dialog] form');
+ for(const key of ['fastestLap','polePosition','driverOfTheDay'])form.elements[key].value=rows[0].dataset.historyRow;
+ w.fetch=async()=>({ok:false,json:async()=>({error:'Test'})});submit(form);await new Promise(resolve=>setImmediate(resolve));doc.querySelector('[data-historical-stats-cancel]').click();assert.match(rows[0].querySelector('[data-round="1"]').textContent,/P1FLPOLEDotD/);
  doc.querySelector('[data-historical-open]').click();form=doc.querySelector('[data-historical-lineup-dialog] form');const selects=form.querySelectorAll('select');assert.equal(selects.length,teams.length*2);
  selects[0].value='1';selects[1].value='1';submit(form);assert.match(doc.querySelector('[data-historical-lineup-error]').textContent,/nur einem Cockpit/);
  let posted,calls=0;w.fetch=async(url,options)=>{calls++;posted=JSON.parse(options.body);return {ok:false,json:async()=>({error:'Test'})};};
@@ -200,7 +200,7 @@ test('Column controls keep selection synchronized across responsive tables and d
  assert.equal(doc.querySelector('[data-historical-role]'),null);
  assert.equal(doc.querySelector('[data-historical-editor-body] [data-historical-add-role]'),null);
  assert.equal(doc.querySelectorAll('th.sheet-driver [data-historical-add-role]').length,6);
- assert.equal(doc.querySelector('[data-historical-dialog] [name=fastestLap]').type,'checkbox');assert.equal(doc.querySelector('[data-historical-stats-dialog]'),null);
+ assert.equal(doc.querySelector('[data-historical-dialog] [name=fastestLap]'),null);assert.ok(doc.querySelector('[data-historical-stats-dialog]'));
  assert.equal(doc.querySelector('[data-historical-stats-open]'),null);
  const first=doc.querySelector('[data-history-row="first"]'),actions=first.querySelector('.historical-driver-actions');
  assert.deepEqual([...actions.children].map(el=>el.tagName),['INPUT','BUTTON','BUTTON']);
@@ -306,21 +306,25 @@ test('Reserve positions override old manual totals and project awards into point
  assert.equal(totals.reserveStandings[0].points,36);assert.equal(totals.driverStandings.length,0);assert.equal(totals.teamStandings[0].points,36);
 });
 
-test('Both tables edit awards in cells and quick statuses clear results; sprint awards stay unavailable',async t=>{
+test('Statistics assign awards to both roles; cells retain them and quick statuses clear them',async t=>{
  const ejs=require('ejs'),fs=require('node:fs'),{JSDOM}=require('jsdom');
  const data={grid:{lineup:[],rows:[{rowId:'regular',driverId:1,role:'regular',teamId:10,cells:{}},{rowId:'reserve',driverId:2,role:'reserve',teamId:null,cells:{}}]},drivers,teams,races,revision:'test'};
  const selectedSeason={id:1,status:'historical'},selectedHistory={name:'S1',races:[{round:1,title:'R1'},{round:2,title:'R2',hasSprint:true}],drivers:[],reserveDrivers:[]};
- const html='<table><tr data-historical-statistics-round="1"><td data-historical-statistic="fastestLap"></td></tr></table>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
+ const html='<button data-historical-statistics-open="1">Auszeichnungen</button><table><tr data-historical-statistics-round="1"><td data-historical-statistic="fastestLap"></td></tr></table>'+await ejs.renderFile('views/partials/historical-grid-editor.ejs',{historicalEditor:data,selectedSeason})+await ejs.renderFile('views/partials/season-history.ejs',{historicalEditor:data,selectedSeason,selectedHistory,history:{seasons:[{}]},isAdmin:true,league:{}});
  const dom=new JSDOM(html,{runScripts:'outside-only',url:'http://localhost'});t.after(()=>dom.window.close());const w=dom.window,doc=w.document;
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  w.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
  const form=doc.querySelector('[data-historical-dialog] form'),submit=()=>form.dispatchEvent(new w.Event('submit',{cancelable:true}));
  const raceButton=(role,round=1,type='main')=>doc.querySelector(`[data-history-row="${role}"] [data-round="${round}"][data-race-type="${type}"] button`);
- assert.equal(form.elements.points,undefined);assert.equal(doc.querySelector('[data-historical-stats-dialog]'),null);
+ assert.equal(form.elements.points,undefined);assert.equal(form.elements.fastestLap,undefined);
+ const statsForm=doc.querySelector('[data-historical-stats-dialog] form');
+ w.fetch=async()=>({ok:false,json:async()=>({error:'Retry'})});
+ const saveStats=async()=>{statsForm.dispatchEvent(new w.Event('submit',{cancelable:true}));await new Promise(resolve=>setImmediate(resolve));assert.match(doc.querySelector('[data-historical-stats-error]').textContent,/Retry.*bleiben erhalten/);doc.querySelector('[data-historical-stats-cancel]').click();};
  for(const role of ['regular','reserve']){
   raceButton(role).click();form.elements.position.value='1';form.elements.teamId.value='10';
-  for(const field of ['polePosition','fastestLap','driverOfTheDay']){assert.equal(form.elements[field].disabled,false);form.elements[field].checked=true;}
-  submit();assert.match(raceButton(role).textContent,/P1FLPOLEDotD/);
+  submit();doc.querySelector('[data-historical-statistics-open]').click();
+  for(const field of ['polePosition','fastestLap','driverOfTheDay'])statsForm.elements[field].value=role;
+  await saveStats();assert.match(raceButton(role).textContent,/P1FLPOLEDotD/);
   assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,role==='regular'?'Alpha':'Beta');
   for(const status of ['DNA','DNS','S']){
    const event=new w.MouseEvent('contextmenu',{bubbles:true,cancelable:true});raceButton(role).dispatchEvent(event);assert.equal(event.defaultPrevented,true);
@@ -329,10 +333,10 @@ test('Both tables edit awards in cells and quick statuses clear results; sprint 
    assert.equal(raceButton(role).classList.contains('historical-inline-button'),false);assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'–');
   }
   raceButton(role).dispatchEvent(new w.KeyboardEvent('keydown',{key:'F10',shiftKey:true,cancelable:true}));assert.equal(doc.querySelector('[data-historical-quick-dialog]').open,true);doc.querySelector('[data-historical-quick-cancel]').click();assert.equal(raceButton(role).textContent,'S');
-  raceButton(role).click();assert.equal(doc.querySelector('[data-historical-position-field]').hidden,true);assert.equal(doc.querySelector('[data-historical-awards]').hidden,true);
-  form.elements.status.value='DNF';form.elements.status.dispatchEvent(new w.Event('change'));form.elements.teamId.value='10';form.elements.driverOfTheDay.checked=true;submit();assert.match(raceButton(role).textContent,/DNFDotD/);
+  raceButton(role).click();assert.equal(doc.querySelector('[data-historical-position-field]').hidden,true);assert.equal(doc.querySelector('[data-historical-awards]'),null);
+  form.elements.status.value='DNF';form.elements.status.dispatchEvent(new w.Event('change'));form.elements.teamId.value='10';submit();doc.querySelector('[data-historical-statistics-open]').click();statsForm.elements.driverOfTheDay.value=role;await saveStats();assert.match(raceButton(role).textContent,/DNFDotD/);
   raceButton(role).dispatchEvent(new w.MouseEvent('contextmenu',{cancelable:true}));doc.querySelector('[data-historical-quick-status="DNA"]').click();
-  raceButton(role,2,'sprint').click();assert.equal(doc.querySelector('[data-historical-awards]').hidden,true);assert.equal(form.elements.fastestLap.disabled,true);doc.querySelector('[data-historical-cancel]').click();
+  raceButton(role,2,'sprint').click();assert.equal(doc.querySelector('[data-historical-awards]'),null);assert.equal(form.elements.fastestLap,undefined);assert.deepEqual([...statsForm.elements.raceId.options].map(o=>o.value),['1','2']);doc.querySelector('[data-historical-cancel]').click();
  }
  let posted;w.fetch=async(url,options)=>{posted=JSON.parse(options.body);return {ok:false,json:async()=>({error:'Retry'})};};doc.querySelector('[data-historical-save]').click();await new Promise(resolve=>setImmediate(resolve));
  for(const row of posted.grid.rows){assert.equal(row.cells[1].points,null);assert.equal(row.cells[1].position,null);assert.equal(row.cells[1].fastestLap,false);assert.equal(row.cells[1].polePosition,false);assert.equal(row.cells[1].driverOfTheDay,false);}
@@ -395,4 +399,30 @@ test('Period dialog uses inclusive reserve end, optional regular shading and rev
  const guestHtml=await ejs.renderFile('views/partials/season-history.ejs',{selectedSeason,selectedHistory:publicData.selectedHistory,history:{seasons:[{}]},isAdmin:false,league:{}});const guest=new JSDOM(guestHtml);t.after(()=>guest.window.close());
  assert.equal(guest.window.document.querySelector('[data-history-role="regular"] [data-round="3"]').classList.contains('is-historical-retired'),false);assert.equal(guest.window.document.querySelector('[data-history-role="reserve"] [data-round="3"]').classList.contains('is-historical-retired'),true);
  doc.querySelector('[data-historical-undo]').click();assert.equal(row('regular').querySelector('[data-round="1"][data-race-type="main"] button').textContent,'P1');assert.equal(row('reserve').querySelector('[data-round="3"] button').textContent,'＋');
+});
+
+test('Historical FL uses the real season scheme: 26 + 1 = 27, no duplicate bonus, transfers and removal recalculate',async t=>{
+ const models=require('../models'),{pointsForPosition}=require('../services/championship');
+ let scheme={id:9,fastestLapEnabled:true,fastestLapPoints:1,polePositionEnabled:false,polePositionPoints:2};
+ t.mock.method(models.PointsScheme,'findOne',async({where})=>{assert.equal(where.id,9);return scheme;});
+ t.mock.method(models.PointAllocation,'findOne',async({where})=>({points:where.position===1?26:18}));
+ const grid={lineup:[],rows:[
+  {driverId:1,role:'regular',teamId:10,cells:{1:{...cell(1),polePosition:true,driverOfTheDay:true}}},
+  {driverId:2,role:'reserve',teamId:null,cells:{1:cell(2,20)}}
+ ]};
+ const calculate=()=>projectGrid(validateGrid(grid,drivers,teams,races),races,drivers,teams,pointsForPosition,{PointsSchemeId:9});
+ assert.equal((await calculate())[0].points,26);
+ grid.rows[0].cells[1].fastestLap=true;
+ let entries=await calculate();assert.equal(entries[0].points,27);
+ grid.rows[0].cells[1].points=27;assert.equal((await calculate())[0].points,27);
+ const projected=races.map(r=>({...r,entries:entries.filter(e=>e.GrandPrixResultId===r.id)}));
+ const valid=validateGrid(grid,drivers,teams,races),totals=standingsForGrid(buildSeasonData({slug:'sonntag'},projected,drivers,lineupsForGrid(valid,projected),{}),valid,projected,drivers,teams);
+ assert.equal(totals.selectedHistory.drivers[0].results[0].main.points,27);assert.equal(totals.driverStandings[0].points,27);assert.equal(totals.teamStandings.find(t=>t.name==='Team A').points,27);
+ const profile=require('../services/driverStats').summarizeDriverEntries(entries.filter(e=>e.DriverId===1).map(e=>({...e,grandPrixResult:{discipline:'f1',raceType:'main'}}))).f1;
+ assert.equal(profile.points,27);assert.equal(profile.poles,1);assert.equal(profile.fastestLaps,1);assert.equal(profile.driverOfTheDays,1);
+ grid.rows[0].cells[1].fastestLap=false;grid.rows[1].cells[1].fastestLap=true;
+ entries=await calculate();assert.deepEqual(entries.map(e=>e.points),[26,19]);
+ grid.rows[1].cells[1].fastestLap=false;assert.deepEqual((await calculate()).map(e=>e.points),[26,18]);
+ grid.rows[0].cells[1].fastestLap=true;scheme={...scheme,fastestLapEnabled:false};assert.equal((await calculate())[0].points,26);
+ scheme={...scheme,fastestLapEnabled:true,polePositionEnabled:true};assert.equal((await calculate())[0].points,29);
 });
