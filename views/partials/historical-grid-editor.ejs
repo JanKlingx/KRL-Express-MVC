@@ -41,8 +41,12 @@
   <dialog class="historical-cell-dialog" data-historical-row-dialog><form method="dialog">
     <h3 data-historical-row-title></h3><label data-historical-row-team>Team dieser Wertungszeile<select name="teamId"></select></label>
     <p data-historical-row-team-help>Gilt als Teamvorschlag für neue Ergebnisse. Bereits eingetragene Rennteams bleiben erhalten und lassen sich in der jeweiligen Zelle ändern.</p>
-    <label>Cockpit abgegeben ab<select name="retiredFromRound"><option value="">Bis Saisonende dabei</option></select></label>
-    <p>Ab dieser Runde werden die Zellen grau markiert. Ergebnisse bleiben erhalten; DNA oder DNS trägst du selbst ein.</p>
+    <label><span data-historical-start-label>Stammfahrer ab</span><select name="startedFromRound"><option value="">Saisonbeginn</option></select></label>
+    <label><span data-historical-end-label>Cockpit abgegeben ab</span><select name="retiredFromRound"><option value="">Bis Saisonende dabei</option></select></label>
+    <fieldset data-historical-shade-field><label><input type="checkbox" name="shadeRetired" checked> Rennen nach der Cockpitabgabe grau hinterlegen</label></fieldset>
+    <p data-historical-period-help></p>
+    <p>Rennen außerhalb des Zeitraums werden automatisch DNA. Vorhandene Platzierungen, Punkte und Auszeichnungen dort werden ersetzt, auch in Sprints. Wird der Zeitraum später erweitert, werden diese automatisch gesetzten DNA-Zellen wieder leer. Mit „Änderungen speichern“ sicherst du die Anpassung.</p>
+    <p data-historical-row-error role="alert"></p>
     <div class="historical-toolbar"><button class="button" type="submit">Übernehmen</button><button class="button button-ghost" type="button" data-historical-row-cancel>Abbrechen</button></div>
   </form></dialog>
   <dialog class="historical-cell-dialog" data-historical-lineup-dialog><form method="dialog">
@@ -52,4 +56,5 @@
 
 </div>
 <script type="application/json" id="historical-editor-data"><%- JSON.stringify({grid:historicalEditor.grid,drivers:historicalEditor.drivers.map(d=>({id:d.id,name:d.name})),teams:historicalEditor.teams.map(t=>({id:t.id,name:t.name,logoPath:t.logoPath})),races:historicalEditor.races.map(r=>({id:r.id,title:r.title,sortOrder:r.sortOrder,raceType:r.raceType,entries:(r.entries||[]).map(e=>({DriverId:e.DriverId,points:e.points}))})),revision:historicalEditor.revision,seasonId:selectedSeason.id}).replace(/</g,'\\u003c') %></script>
+<script src="/js/historical-periods.js" defer></script>
 <script src="/js/historical-grid.js" defer></script>

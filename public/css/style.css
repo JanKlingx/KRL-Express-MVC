@@ -12658,3 +12658,6 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 
 .historical-cell-button.sheet-result-tile { width: 100%; border: 0; font: inherit; cursor: pointer; }
 .historical-quick-actions { display: grid; gap: .75rem; }
+
+/* Period shading is limited to the historical cells after the last active round. */
+.sheet-result.is-historical-retired .sheet-result-tile { background: #454b4f; color: #c8cdd0; }

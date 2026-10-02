@@ -1,3 +1,4 @@
+const periods=require('../public/js/historical-periods');
 const {createHash}=require('node:crypto');
 const plain=value=>value?.toJSON?value.toJSON():value;
 const key=(row,index=0)=>String(row.rowId || `${row.role}:${row.driverId}:${index}`);
@@ -36,11 +37,15 @@ function validateGrid(value,drivers,teams,races) {
     const driverId=Number(row.driverId),role=row.role,teamId=Number(row.teamId)||null;
     if(!driverIds.has(driverId)||!['regular','reserve'].includes(role)||rowKeys.has(rowId)||rowId.length>100)throw new Error('Fahrer oder Wertungszeile ist ungültig oder doppelt.');
     rowKeys.add(rowId);if(teamId&&!teamIds.has(teamId))throw new Error('Bitte ein Team dieser Saison wählen.');
-    const retiredFromRound = Number(row.retiredFromRound) || null;
-    const lastRound = Math.max(0, ...races.map(race => Number(race.sortOrder)));
-    if (retiredFromRound !== null && (!Number.isInteger(retiredFromRound) || retiredFromRound < 1 || retiredFromRound > lastRound + 1)) throw new Error('Bitte eine gültige Runde für die Cockpitabgabe wählen.');
+    const boundary=value=>value==null||value===''?null:Number(value);
+    const retiredFromRound=boundary(row.retiredFromRound),startedFromRound=boundary(row.startedFromRound);
+    const lastRound=Math.max(0,...races.map(race=>Number(race.sortOrder)));
+    if(retiredFromRound!==null&&(!Number.isInteger(retiredFromRound)||retiredFromRound<1||retiredFromRound>lastRound+1))throw new Error('Bitte eine gültige letzte Runde bzw. Runde für die Cockpitabgabe wählen.');
+    if(startedFromRound!==null&&(!Number.isInteger(startedFromRound)||startedFromRound<1||startedFromRound>lastRound))throw new Error('Bitte eine gültige Einstiegsrunde wählen.');
+    if(startedFromRound!==null&&retiredFromRound!==null&&startedFromRound>=retiredFromRound)throw new Error('Der Einstieg muss vor der Cockpitabgabe bzw. spätestens in der letzten Einsatzrunde liegen.');
+    const shadeRetired=role==='reserve'||row.shadeRetired!==false;
     const cells={};
-    for(const [id,input] of Object.entries(row.cells||{})) {
+    for(const [id,input] of Object.entries(periods.apply({...row,startedFromRound,retiredFromRound},races))) {
       const race=raceMap.get(id);if(!race)throw new Error('Ein Rennen gehört nicht zu dieser Saison. Bitte neu laden.');
       const name=drivers.find(driver=>Number(driver.id)===driverId)?.name;
       const fail=message=>{throw new Error(`${name} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: ${message}`);};
@@ -66,9 +71,10 @@ function validateGrid(value,drivers,teams,races) {
         cell[award]=input[award]===true;
         if(cell[award]){if(race.raceType==='sprint'||!startsHere||['DSQ','DNS','DNA','S'].includes(status))fail('Auszeichnungen sind nur für einen gestarteten Fahrer im Hauptrennen möglich.');const token=`${id}:${award}`;if(awards.has(token))fail('Diese Auszeichnung ist bereits vergeben.');awards.add(token);}
       }
+      if(input.periodDna&&periods.outside({startedFromRound,retiredFromRound},Number(race.sortOrder)))cell.periodDna=true;
       cells[id]=cell;
     }
-    return {rowId,driverId,role,teamId,retiredFromRound,cells};
+    return {rowId,driverId,role,teamId,startedFromRound,retiredFromRound,shadeRetired,cells};
   })};
 }
 // All downstream sporting statistics read these normal GrandPrixResultEntry records.
@@ -91,7 +97,7 @@ async function projectGrid(grid,races,drivers,teams,pointsForPosition,season) {
 function standingsForGrid(base,grid,races,drivers,teams,season={}) {
   const raceById=new Map(races.map(race=>[String(race.id),race]));
   const getResult=(row,race)=>{
-    const retired=Boolean(row.retiredFromRound && Number(race?.sortOrder)>=row.retiredFromRound);
+    const retired=periods.shaded(row,Number(race?.sortOrder));
     const cell=row.cells[race?.id];if(!cell)return {retired,value:'–',points:0,unfilled:true};
     const entry=(race.entries||[]).find(entry=>Number(entry.DriverId)===row.driverId);
     const points=['DNA','DNS','DSQ','S'].includes(cell.status)||selectedRow(grid,race.id,row.driverId)!==row?0:Number(entry?.points||0);
@@ -100,7 +106,7 @@ function standingsForGrid(base,grid,races,drivers,teams,season={}) {
   const rank=(role,round=Infinity)=>grid.rows.filter(row=>row.role===role).map(row=>{
     const sessions=[...raceById.values()].filter(race=>Number(race.sortOrder)<=round).map(race=>({race,result:getResult(row,race)}));
     const team=teams.find(team=>Number(team.id)===row.teamId);
-    return {rowId:row.rowId,id:row.driverId,isFormerDriver:Boolean(row.retiredFromRound),name:drivers.find(driver=>Number(driver.id)===row.driverId)?.name||'',team:team?.name||'',teamLogoPath:team?.logoPath||'',total:sessions.reduce((n,s)=>n+s.result.points,0),wins:sessions.filter(s=>s.race.raceType!=='sprint'&&s.result.position===1).length,dns:sessions.filter(s=>s.result.status==='DNS').length,dnf:sessions.filter(s=>s.race.raceType!=='sprint'&&s.result.status==='DNF').length,starts:sessions.filter(s=>s.race.raceType!=='sprint'&&(s.result.position||s.result.points!=null&&!s.result.unfilled&&!['DNA','DNS','S'].includes(s.result.status)||['DNF','DSQ'].includes(s.result.status))).length,
+    return {rowId:row.rowId,id:row.driverId,isFormerDriver:false,name:drivers.find(driver=>Number(driver.id)===row.driverId)?.name||'',team:team?.name||'',teamLogoPath:team?.logoPath||'',total:sessions.reduce((n,s)=>n+s.result.points,0),wins:sessions.filter(s=>s.race.raceType!=='sprint'&&s.result.position===1).length,dns:sessions.filter(s=>s.result.status==='DNS').length,dnf:sessions.filter(s=>s.race.raceType!=='sprint'&&s.result.status==='DNF').length,starts:sessions.filter(s=>s.race.raceType!=='sprint'&&(s.result.position||s.result.points!=null&&!s.result.unfilled&&!['DNA','DNS','S'].includes(s.result.status)||['DNF','DSQ'].includes(s.result.status))).length,
       results:(base.selectedHistory?.races||[]).map(weekend=>{const weekendRaces=races.filter(race=>Number(race.sortOrder)===Number(weekend.round));const main=getResult(row,weekendRaces.find(r=>r.raceType!=='sprint'));const sprint=weekendRaces.some(r=>r.raceType==='sprint')?getResult(row,weekendRaces.find(r=>r.raceType==='sprint')):null;return {...main,main,sprint,hasSprint:Boolean(sprint),points:main.points+(sprint?.points||0)};})};
   }).sort((a,b)=>b.total-a.total||b.wins-a.wins||b.dns-a.dns||a.name.localeCompare(b.name,'de')).map((row,index,array)=>({...row,position:index+1,points:row.total,average:row.starts?row.total/row.starts:0,gap:index?array[0].total-row.total:0,startRate:races.filter(r=>r.raceType!=='sprint').length?row.starts/races.filter(r=>r.raceType!=='sprint').length*100:0,failureRate:row.starts?row.dnf/row.starts*100:0}));
   // History keeps team stints separate; the championship ranks each person once.
