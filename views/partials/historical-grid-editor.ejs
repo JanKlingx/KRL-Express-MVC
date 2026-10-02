@@ -1,7 +1,7 @@
 <div class="historical-editor" data-historical-editor>
   <div class="historical-editor-body">
     <h3>Historische Ergebnisse ergänzen</h3>
-    <p>Linksklick auf eine Rennzelle: Platzierung, DNF und Auszeichnungen eintragen. Die Punkte werden für Stamm- und Ersatzfahrer aus dem Saison-Punktesystem berechnet. Rechtsklick (oder Umschalt+F10): DNA, DNS oder Rennsperre schnell auswählen. Alle Angaben sind auch per Linksklick erreichbar. Über ✎ beim Namen bearbeitest du die Wertungszeile; mit − oder den Auswahlkästchen entfernst du Zeilen.</p>
+    <p>Linksklick auf eine Rennzelle: Platzierung und Status eintragen. Auszeichnungen pflegst du im Bereich Rennstatistik. Die Punkte werden für Stamm- und Ersatzfahrer aus dem Saison-Punktesystem berechnet. Rechtsklick (oder Umschalt+F10): DNA, DNS oder Rennsperre schnell auswählen. Alle Angaben sind auch per Linksklick erreichbar. Über ✎ beim Namen bearbeitest du die Wertungszeile; mit − oder den Auswahlkästchen entfernst du Zeilen.</p>
     <div class="historical-toolbar">
       <button type="button" class="button" data-historical-save>Änderungen speichern</button>
       <button type="button" class="button button-ghost" data-historical-undo>Änderungen verwerfen</button>
@@ -19,12 +19,8 @@
     <h3 data-historical-title></h3>
     <label>Status<select name="status"><option value="">Gewertet</option><option>DNF</option><option>DSQ</option><option>DNS</option><option>DNA</option><option value="S">Rennsperre (S)</option></select></label>
     <label data-historical-position-field>Platzierung<input name="position" type="number" min="1" max="100" step="1" inputmode="numeric" placeholder="Zum Beispiel 1"></label>
-    <p>Platzierung eingeben – Punkte und Boni werden beim Speichern automatisch berechnet. Die Rennstatistik und Fahrerprofile übernehmen die Ergebnisse und Auszeichnungen.</p>
-    <fieldset data-historical-awards><legend>Auszeichnungen im Hauptrennen</legend>
-      <label><input type="checkbox" name="polePosition"> Pole Position (POLE)</label>
-      <label><input type="checkbox" name="fastestLap"> Schnellste Runde (FL)</label>
-      <label><input type="checkbox" name="driverOfTheDay"> Driver of the Day (DotD)</label>
-    </fieldset>
+    <p>Platzierung eingeben – Punkte und Boni werden beim Speichern automatisch berechnet. Pole, schnellste Runde und Driver of the Day wählst du in der Rennstatistik aus.</p>
+
     <label>Einsatzteam in diesem Rennen<select name="teamId"></select></label>
     <p data-historical-cell-error role="alert"></p><div class="historical-toolbar"><button class="button" type="submit">Übernehmen</button><button type="button" class="button button-ghost" data-historical-clear>Zelle leeren</button><button type="button" class="button button-ghost" data-historical-cancel>Abbrechen</button></div>
   </form></dialog>
@@ -52,6 +48,19 @@
   <dialog class="historical-cell-dialog" data-historical-lineup-dialog><form method="dialog">
     <h3>Letzte Teamaufstellung</h3><p>Diese Zuordnung ist nur für „Teams & Fahrer“ oben. Sie verändert keine Ergebnisse oder Team-WM-Punkte. Beim Speichern werden auch noch offene Änderungen am Saisonverlauf gesichert.</p><div data-historical-lineup-fields></div><p data-historical-lineup-error role="alert"></p>
     <div class="historical-toolbar"><button class="button" type="submit">Aufstellung speichern</button><button class="button button-ghost" type="button" data-historical-lineup-cancel>Abbrechen</button></div>
+  </form></dialog>
+
+  <dialog class="historical-cell-dialog" data-historical-stats-dialog><form method="dialog">
+    <h3>Auszeichnungen bearbeiten</h3>
+    <label>Grand Prix<select name="raceId"></select></label>
+    <p>Wähle jeweils einen Stamm- oder Ersatzfahrer mit einem Ergebnis in diesem Hauptrennen. Die Auszeichnungen erscheinen im Saisonverlauf, in den GP-Ergebnissen und im Fahrerprofil.</p>
+    <label>Pole Position (POLE)<select name="polePosition"></select></label>
+    <label>Schnellste Runde (FL)<select name="fastestLap"></select></label>
+    <label>Driver of the Day (DotD)<select name="driverOfTheDay"></select></label>
+    <p data-historical-stats-empty hidden>Noch kein geeigneter Fahrer vorhanden. Trage zuerst eine Platzierung oder DNF im Saisonverlauf ein.</p>
+    <p>Beim Speichern werden die Punkte aus Platzierung und den aktivierten Boni des Saison-Punktesystems neu berechnet. Beispiel: 26 Platzierungspunkte + 1 FL-Punkt = 27 Punkte. Noch offene Änderungen am Saisonverlauf werden mitgespeichert.</p>
+    <p data-historical-stats-error role="alert"></p>
+    <div class="historical-toolbar"><button type="submit" class="button">Auszeichnungen speichern</button><button type="button" class="button button-ghost" data-historical-stats-cancel>Abbrechen</button></div>
   </form></dialog>
 
 </div>

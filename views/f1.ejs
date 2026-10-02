@@ -973,7 +973,7 @@
     <% const editHistoricalStats = isAdmin && selectedSeason?.status === 'historical' && typeof historicalEditor !== 'undefined' && historicalEditor; %>
     <% if (editHistoricalStats) { %>
       <div class="historical-statistics-help">
-        <p>Die Statistik wird aus den Rennzellen im Saisonverlauf berechnet. Dort trägst du Platzierung, Pole Position, schnellste Runde und Driver of the Day für Stamm- und Ersatzfahrer ein.</p>
+        <p>Wähle beim Grand Prix „Auszeichnungen bearbeiten“, um Pole Position, schnellste Runde und Driver of the Day für Stamm- und Ersatzfahrer zuzuordnen. Punkte und Fahrerstatistiken werden beim Speichern aktualisiert.</p>
         <button class="button button-small" type="button" data-historical-save-copy>Änderungen speichern</button>
         <p data-historical-message-copy role="status" aria-live="polite">Auszeichnungen erscheinen auch im Saisonverlauf und in den GP-Ergebnissen.</p>
       </div>
@@ -994,6 +994,7 @@
             <th>3. Platz</th>
             <th>Poleposition</th>
             <th>Schnellste Runde</th>
+            <% if (editHistoricalStats) { %><th>Bearbeiten</th><% } %>
           </tr>
 
         </thead>
@@ -1046,6 +1047,7 @@
               <td data-label="Schnellste Runde" data-historical-statistic="fastestLap">
                 <%= row.fastestLap || '–' %>
               </td>
+              <% if (editHistoricalStats) { %><td data-label="Bearbeiten"><button type="button" class="historical-statistics-edit" data-historical-statistics-open="<%= row.round %>" aria-label="Auszeichnungen für Runde <%= row.round %> bearbeiten">✎ Auszeichnungen bearbeiten</button></td><% } %>
 
             </tr>
 
@@ -1056,7 +1058,7 @@
 
             <tr>
 
-              <td colspan="9">
+              <td colspan="<%= editHistoricalStats ? 10 : 9 %>">
                 Noch keine Hauptrennenergebnisse vorhanden.
               </td>
 
