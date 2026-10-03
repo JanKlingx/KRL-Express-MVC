@@ -53,8 +53,8 @@ async function loadRosterTeams(league, race) {
             } else {
               const profile = await F1CarProfile.findByPk(seasonTeam.sourceId);
 
-              if (profile?.BaseTeamId) {
-                actualTeam = await Team.findByPk(profile.BaseTeamId);
+              if ((profile?.UnifiedTeamId || profile?.BaseTeamId)) {
+                actualTeam = await Team.findByPk((profile.UnifiedTeamId || profile.BaseTeamId));
               }
             }
 

@@ -86,7 +86,7 @@ test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', a
   assert.match(html, /RENNTERMINE FESTLEGEN/);
   assert.match(html, /PUNKTESYSTEM/);
   assert.match(html, /FAHRER AUSWÄHLEN/);
-  assert.match(html, /AKTUELLE ODER HISTORISCHE TEAMS/);
+  assert.match(html, /FORMEL-1-TEAMS/);
   assert.match(html, /LINE-UP ERSTELLEN/);
   assert.match(html, /ABSCHLUSS/);
   assert.doesNotMatch(html, /type="time"/);
@@ -99,21 +99,21 @@ test('F1-Saison-Assistent führt vollständig durch acht Stammdaten-Schritte', a
   assert.match(html, /Jeder ausgewählte Stammfahrer benötigt ein Cockpit/);
 });
 
-test('Historische F1-Teams können im sechsten Schritt ausgewählt werden', async () => {
+test('Gemeinsamer Teamkatalog steht auch historischen Saisons zur Verfügung', async () => {
   const league = { id: 1, name: 'KRL Freitagsliga', type: 'f1', slug: 'freitag', accentColor: '#00aaff', raceDay: 'Freitag', raceTime: '20:00', logoPath: null };
   const season = { id: 2, name: 'Saison 2020', status: 'historical', accentColor: '#00aaff', PointsSchemeId: 3, pointsScheme: { name: 'F1 2020' }, isPublished: false };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'admin', 'season-setup.ejs'), {
     ...layout, title: 'Saison-Assistent', leagues: [league], selectedLeague: league, discipline: 'f1',
     seasons: [season], selectedSeason: season, pointsSchemes: [{ id: 3, name: 'F1 2020' }], calendar: [],
-    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null }],
-    carProfiles: [{ id: 5, BaseTeamId: 4, name: 'Mercedes W11', seasonLabel: '2020', accentColor: '#00d2be', logoPath: null, baseTeam: { name: 'Mercedes' } }],
+    f1Teams: [{ id: 4, name: 'Mercedes', accentColor: '#00d2be', logoPath: null }, { id: 5, name: 'Mercedes W11', logoPath: null }],
+    carProfiles: [],
     defaultTime: '20:00', tracks: [], eligibleDrivers: [],
     structure: { allDrivers: [], teams: [], unassignedDrivers: [] }, finishReady: false
   });
-  assert.match(html, /Historische Teams/);
+  assert.match(html, /FORMEL-1-TEAMS/);
   assert.match(html, /Mercedes W11/);
-  assert.match(html, /gehört zu Mercedes/);
-  assert.match(html, /value="historical:5"/);
+  assert.doesNotMatch(html, /gehört zu Mercedes|Historische Teams/);
+  assert.match(html, /value="current:5"/);
   assert.doesNotMatch(html, /data-setup-step="5"|data-step-link="5"|name="driverIds"/);
   assert.match(html, /Sechs Schritte/);
 });
@@ -187,7 +187,11 @@ test('Stammdatenlisten bieten Mehrfachauswahl zum Löschen', async () => {
   assert.match(html, /Auswahl löschen/);
 });
 
-test('Mehrfachlöschen entfernt nur ausgewählte Stammdatensätze', async () => {
+test('Mehrfachlöschen entfernt nur ausgewählte Stammdatensätze', async (t) => {
+  t.mock.method(models.F1CarProfile, 'findAll', async () => []);
+  t.mock.method(models.Team, 'count', async () => 0);
+  t.mock.method(models.SeasonTeam, 'count', async () => 0);
+  t.mock.method(models.GrandPrixResultEntry, 'count', async () => 0);
   const originalFindAll = models.Team.findAll;
   const destroyed = [];
   models.Team.findAll = async () => [

@@ -301,7 +301,10 @@ router.post(
   "/season-progress/:discipline(lmu|wdl)/:raceId",
   asyncHandler(seriesEditorController.save),
 );
+router.all('/f1CarProfiles', (req,res)=>res.redirect(303,'/admin/teams'));
+router.all('/f1CarProfiles/*', (req,res)=>res.redirect(303,'/admin/teams'));
 router.get("/:resource", asyncHandler(adminController.list));
+router.post('/season-setup/:seasonId/team-logos', asyncHandler(seasonSetupController.saveTeamLogos));
 router.get("/:resource/new", asyncHandler(adminController.createForm));
 router.post(
   "/:resource",

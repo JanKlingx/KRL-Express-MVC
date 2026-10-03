@@ -32,7 +32,7 @@ Im Dashboard lassen sich folgende Inhalte anlegen, bearbeiten und löschen:
 - rangabhängige Fahrerstatistiken mit Punkten, gefahrenen Rennen, Siegen, Siegesquote sowie P1/P2/P3; Fahrerbilder, Startnummer und manuelle Reihenfolge entfallen
 - Länderstamm mit Kontinentfilter und verpflichtendem Flaggen-Upload sowie verknüpfte F1-Strecken; Land und Flagge werden im Saisonkalender automatisch übernommen
 - versionierte Punktesysteme für F1-Hauptrennen, F1-Sprints, LMU und WDL mit Schnellste-Runde-Bonus und Gültigkeitszeitraum
-- achtstufiger F1-Saisonassistent für Liga, Saisonfarbe, Kalender, Punktesystem, Fahrer, aktuelle/historische Teams, Line-up und Abschluss
+- achtstufiger F1-Saisonassistent für Liga, Saisonfarbe, Kalender, Punktesystem, Fahrer, Formel-1-Teams, Line-up und Abschluss
 - Saison- und Kalenderbearbeitung mit Drag-and-Drop-Reihenfolge, Testtag, Sprint und sichtbarer Terminänderung im Frontend
 - öffentliches Formel-1-Regelwerk mit Strafenkatalog sowie Race-Director Notes als PDF-Vorschau und Download-Archiv
 - dreistufiges F1-Rennwochenende mit Aufstellung, Anwesenheitskontrolle und tabellarischer Ergebniseingabe
@@ -146,3 +146,11 @@ Nach dem Aktualisieren `npm install` ausführen und den Server neu starten. Neue
 - Beim Serverstart werden bisherige F1-Rangflags mit den Stammplätzen aktiver Saisons abgeglichen. Unbelegte Stammflags werden zu F1 Ersatz; echte Stammplätze und Ehemalige bleiben entsprechend erhalten. Die Sichtbarkeit einer aktiven Saison beeinflusst ihren Stammrang nicht.
 - Neue Ersatzteilnahmen erhalten einen Zeitraum ab der ersten erfassten Runde je Saison/Liga: davor DNA, bei späterem Nichteinsatz DNS. Frühere Ergebnisse werden nicht verändert. Saisonaufstellung und Fahrerwechsel vergeben Stammränge; das manuelle Vergeben von F1-Rängen entfällt in der Fahrerpflege.
 - Den Server nach dem Pull neu starten, damit der Abgleich bestehender Ränge ausgeführt wird. Keine neue Datenbankspalte erforderlich.
+
+### Gemeinsame Formel-1-Teams und Saisonlogos
+
+Alle heutigen und früheren Teamnamen werden unter `/admin/teams` gepflegt. Eine Verknüpfung ist freiwillig: Kick Sauber kann eigenständig bleiben; bei Sauber lässt sich unter „Punkte zusätzlich sammeln bei“ beispielsweise Alfa Romeo wählen. Auch mehrstufige Zuordnungen sind möglich. Die Gesamtpunkte in den Stammdaten umfassen die eigenen Ergebnisse und alle zugeordneten Teams, ohne einzelne Ergebnisse mehrfach zu zählen. Selbstverweise und Kreise werden verhindert. Die Team-WM und Teamstatistik einer Saison behalten ihre bisherigen Saisonregeln und Teamnamen.
+
+Ein weiterer Logo-Upload ergänzt das Logoarchiv des Teams und wird zum Standard für neue Saisons. Im Teamformular lässt sich auch ein früheres Logo wieder als Standard auswählen. Im Saison-Assistenten unter „Formel-1-Teams“ wird das Saisonlogo gewählt. „Saisonlogos ändern“ bleibt auch nach Veröffentlichung nutzbar; Aufstellung, Fahrerwechsel und Ergebnisse werden dabei nicht verändert. Ohne neue Auswahl bleibt das gespeicherte Saisonlogo erhalten.
+
+Beim Start bzw. bei `npm run setup` ergänzt `ensureSchema` die benötigten Spalten und übernimmt bestehende historische Teamprofile automatisch in den gemeinsamen Katalog. Bisherige Punktezuordnungen und Logos bleiben erhalten; die Zuordnung lässt sich anschließend ändern oder entfernen. Alte Profile bleiben intern als Verweise erhalten, damit bestehende Saison-Team-IDs, Line-ups und historische Tabellen weiter funktionieren. Die wiederholbare Datenübernahme erfolgt in einer Transaktion. Alte Pflege-Links leiten zur gemeinsamen Teamverwaltung weiter.

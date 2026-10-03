@@ -52,7 +52,7 @@ const setupDriverRankFilter =
 
   const selectedTeamTokens = new Set(
     (setupStructure.teams || []).map(
-      (team) => `${team.sourceType}:${team.sourceId}`
+      (team) => team.catalogToken || `${team.sourceType}:${team.sourceId}`
     )
   );
 
@@ -719,7 +719,7 @@ const setupDriverRankFilter =
           </span>
 
           <h2>
-            AKTUELLE ODER HISTORISCHE TEAMS
+            FORMEL-1-TEAMS
           </h2>
 
           <form
@@ -729,107 +729,20 @@ const setupDriverRankFilter =
 
 
             <label class="setup-driver-search">Teams suchen<input type="search" data-team-search placeholder="Teamname eingeben …"></label><p data-team-search-empty hidden>Keine passenden Teams gefunden.</p><output class="setup-selection-count" data-selection-count="teamTokens" aria-live="polite"><%= selectedTeamTokens.size %> Teams ausgewählt</output>
-            <!-- AKTUELLE TEAMS -->
-
-            <div class="setup-team-source">
-
-              <h3>
-                Aktuelle Teams
-              </h3>
-
-              <div class="team-choice-grid">
-
-                <% f1Teams.forEach((team) => {
-
-                  const token = `current:${team.id}`;
-
-                %>
-
-                  <label class="team-choice-card">
-
-                    <input
-                      type="checkbox"
-                      name="teamTokens"
-                      value="<%= token %>"
-                      <%= selectedTeamTokens.has(token)
-                        ? 'checked'
-                        : ''
-                      %>
-                    >
-
-                    <% if (team.logoPath) { %>
-
-                      <img
-                        src="<%= team.logoPath %>"
-                        alt=""
-                      >
-
-                    <% } %>
-
-                    <strong>
-                      <%= team.name %>
-                    </strong>
-
-                  </label>
-
-                <% }) %>
-
-              </div>
-
+            <p>Alle Teams stammen aus der gemeinsamen <a href="/admin/teams">Formel-1-Team-Pflege</a>. Die optionale Punktezuordnung ändert nicht den Teamnamen in dieser Saison.</p>
+            <div class="team-choice-grid">
+              <% f1Teams.forEach(team=>{const token=`current:${team.id}`;const logos=Array.isArray(team.logoVariants)?team.logoVariants:[]; %>
+                <article class="team-choice-card">
+                  <label><input type="checkbox" name="teamTokens" value="<%= token %>" <%= selectedTeamTokens.has(token)?'checked':'' %>><strong><%= team.name %></strong></label>
+                  <% if(team.logoPath){ %><img src="<%= team.logoPath %>" alt=""><% }else{ %><span class="team-choice-logo-fallback" aria-hidden="true"><%= team.name.slice(0,2) %></span><% } %>
+                  <label>Logo für diese Saison<select name="teamLogos[<%= token %>]">
+                    <option value="">Gespeichertes Saisonlogo / Standardlogo</option>
+                    <% const choices=[...logos];if(team.logoPath&&!choices.some(logo=>logo.path===team.logoPath))choices.unshift({path:team.logoPath,label:'Standardlogo'});choices.forEach(logo=>{ %><option value="<%= logo.path %>"><%= logo.label %></option><% }) %>
+                    <option value="none">Kein Logo</option>
+                  </select></label>
+                </article>
+              <% }) %>
             </div>
-
-
-            <!-- HISTORISCHE TEAMS -->
-
-            <div class="setup-team-source">
-
-              <h3>
-                Historische Teams
-              </h3>
-
-              <div class="team-choice-grid">
-
-                <% carProfiles.forEach((team) => {
-
-                  const token = `historical:${team.id}`;
-
-                %>
-
-                  <label class="team-choice-card">
-
-                    <input
-                      type="checkbox"
-                      name="teamTokens"
-                      value="<%= token %>"
-                      <%= selectedTeamTokens.has(token)
-                        ? 'checked'
-                        : ''
-                      %>
-                    >
-
-                    <% if (team.logoPath) { %>
-
-                      <img
-                        src="<%= team.logoPath %>"
-                        alt=""
-                      >
-
-                    <% } %>
-
-                    <strong>
-                      <%= team.name %>
-                    </strong>
-
-                    <small>gehört zu <%= team.baseTeam?.name || '–' %></small>
-
-                  </label>
-
-                <% }) %>
-
-              </div>
-
-            </div>
-
 
             <button
               type="submit"
@@ -839,6 +752,22 @@ const setupDriverRankFilter =
             </button>
 
           </form>
+          <% if(setupStructure.teams.length){ %>
+            <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/team-logos" class="season-team-logos">
+              <h3>Saisonlogos ändern</h3><p>Auch nach Saisonbeginn möglich. Diese Auswahl gilt nur für diese Saison.</p>
+              <% setupStructure.teams.forEach(team=>{ %>
+                <label class="season-team-logo-row"><span><%= team.name %><% if(team.logoPath){ %><img class="upload-preview" src="<%= team.logoPath %>" alt="Aktuelles Saisonlogo"><% } %></span>
+                  <select name="teamLogos[<%= team.id %>]">
+                    <option value="">Gespeichertes Saisonlogo beibehalten</option>
+                    <% (team.logoOptions||[]).forEach(logo=>{ %><option value="<%= logo.path %>"><%= logo.label %></option><% }) %>
+                    <option value="default">Aktuelles Standardlogo übernehmen</option><option value="none">Kein Logo</option>
+                  </select>
+                </label>
+              <% }) %>
+              <button type="submit" class="button">Saisonlogos speichern</button>
+            </form>
+          <% } %>
+
 
         </div>
 
