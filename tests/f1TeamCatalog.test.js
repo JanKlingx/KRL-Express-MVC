@@ -218,7 +218,7 @@ test('Gemeinsame Teammaske zeigt optionale Zuordnung und mehrere auswählbare Lo
   });
   const dom = new JSDOM(html); const d = dom.window.document;
   assert.equal(d.querySelector('[name="AggregationTeamId"]').required, false);
-  assert.equal(d.querySelectorAll('[name="defaultLogo"]').length, 2);
+  assert.equal(d.querySelectorAll('[name="defaultLogo"]').length, 3);
   assert.equal(d.querySelector('[name="defaultLogo"]:checked').value, '/uploads/new.png');
   assert.match(d.body.textContent, /Alfa Romeo/); dom.window.close();
 });
@@ -239,7 +239,10 @@ test('Saisonmaske bietet Logoänderung bei geschütztem Line-up und wählt migri
   assert.equal(d.querySelector('#setup-teams').hidden, false);
   const logoForm = d.querySelector('form[action="/admin/season-setup/2/team-logos"]');
   assert.ok(logoForm); assert.equal(logoForm.closest('[inert]'), null);
-  assert.equal(logoForm.querySelectorAll('select option').length, 5);
+  assert.equal(logoForm.querySelectorAll('[type="radio"]').length, 3);
+  assert.equal(logoForm.querySelector('[type="radio"]:checked').value, '/uploads/old.png');
+  assert.equal(d.querySelector('[name="images"]').form.id, 'season-logo-upload-71');
+  assert.equal(logoForm.querySelector('[name="images"]').form === logoForm, false);
   assert.ok(d.querySelector('form[action="/admin/season-setup/2/teams"]').hasAttribute('inert'));
   dom.window.close();
 });

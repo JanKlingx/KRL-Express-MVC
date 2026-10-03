@@ -834,7 +834,10 @@ exports.saveTeamLogos=async(req,res)=>{
       season=await Season.findByPk(req.params.seasonId,{transaction,lock:transaction.LOCK.UPDATE});
       if(!season||season.leagueType!=='f1')throw new Error('Formel-1-Saison nicht gefunden.');
       const snapshots=await SeasonTeam.findAll({where:{SeasonId:season.id},transaction});
-      const selections=req.body.teamLogos||{};
+      const posted=req.body.teamLogos||{};
+      if(Array.isArray(posted))throw new Error('Bitte die Seite neu laden und die Saisonlogos erneut auswählen.');
+      // Prefix IDs in forms: Express otherwise compacts small numeric keys into array indices.
+      const selections=Object.fromEntries(Object.entries(posted).map(([key,value])=>[key.replace(/^t(?=\d+$)/,''),value]));
       if(Object.keys(selections).some(id=>!snapshots.some(team=>String(team.id)===id)))throw new Error('Ein Team gehört nicht zu dieser Saison.');
       for(const snapshot of snapshots){
         const selection=selections[snapshot.id];if(selection==null||selection==='')continue;

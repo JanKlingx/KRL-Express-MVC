@@ -25,3 +25,13 @@ exports.team = async (req, res) => {
   }).filter(row => row.standing);
   res.render('team-statistics', { title: `${teamName} · Teamstatistik`, league: data.league, season: data.selectedSeason, team, rounds });
 };
+
+exports.teams = async (req, res) => {
+  const { Team } = require('../models');
+  const [teams, entries] = await Promise.all([
+    Team.findAll({ where: { LeagueId: null, discipline: 'f1' }, attributes: ['id', 'name', 'logoPath', 'AggregationTeamId'], order: [['name', 'ASC']] }),
+    GrandPrixResultEntry.findAll({ include: [{ model: GrandPrixResult, as: 'grandPrixResult', required: true, where: { discipline: 'f1' },
+      include: [{ association: 'league' }, { association: 'seasonRecord' }, { association: 'calendarEvent' }] }] }),
+  ]);
+  res.render('team-career-statistics', { title: 'F1-Teamstatistiken', statistics: require('../services/teamCareerStatistics').buildTeamCareerStatistics(teams, entries) });
+};
