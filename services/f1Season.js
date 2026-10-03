@@ -317,7 +317,8 @@ async function resolveTeamToken(token) {
             team.accentColor,
 
           logoPath:
-            team.logoPath
+            team.logoPath,
+          logoVariants: require('./f1Teams').logosFor(team)
         }
       : null;
   }
@@ -337,11 +338,12 @@ async function resolveTeamToken(token) {
     );
 
 
-  if (!profile?.BaseTeamId) {
+  if (!profile) {
     return null;
   }
 
 
+  const canonical=profile.UnifiedTeamId ? await Team.findByPk(profile.UnifiedTeamId) : null;
   return {
     sourceType,
     sourceId,
@@ -353,10 +355,11 @@ async function resolveTeamToken(token) {
       profile.accentColor,
 
     logoPath:
-      profile.logoPath,
+      canonical?.logoPath || profile.logoPath,
+    logoVariants: require('./f1Teams').logosFor(canonical || profile),
 
     BaseTeamId:
-      profile.BaseTeamId
+      profile.UnifiedTeamId || profile.BaseTeamId
   };
 }
 

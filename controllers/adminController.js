@@ -185,11 +185,12 @@ exports.create = async (req, res, next) => {
       if (req.file) {
         uploadedPath = await saveImage(req.file);
         values[config.upload.field] = uploadedPath;
+        if(config.prepareUpload)await config.prepareUpload(values,uploadedPath,null,req.body);
       } else if (config.upload.required) {
         throw new Error(`${config.upload.label || 'Bild'} muss hochgeladen werden.`);
       }
     }
-    const entry = await config.model.create(values);
+    const entry = config.saveEntry ? await config.saveEntry(values,null) : await config.model.create(values);
     if (config.afterSave) await config.afterSave(entry, req.body);
     req.session.flash = { type: 'success', message: 'Eintrag wurde gespeichert.' };
     res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
@@ -220,9 +221,10 @@ exports.update = async (req, res, next) => {
     if (config.upload && req.file) {
       newPath = await saveImage(req.file);
       values[config.upload.field] = newPath;
+      if(config.prepareUpload)await config.prepareUpload(values,newPath,entry,req.body);
     }
     const oldPath = config.upload ? entry[config.upload.field] : null;
-    await entry.update(values);
+    if(config.saveEntry)await config.saveEntry(values,entry);else await entry.update(values);
     imageCommitted = true;
     if (config.afterSave) await config.afterSave(entry, req.body);
     if (newPath && oldPath) await deleteUpload(oldPath);

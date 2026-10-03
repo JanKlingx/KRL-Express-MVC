@@ -12661,3 +12661,14 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 
 /* Period shading is limited to the historical cells after the last active round. */
 .sheet-result.is-historical-retired .sheet-result-tile { background: #454b4f; color: #c8cdd0; }
+
+.team-logo-gallery { display: flex; flex-wrap: wrap; gap: 1rem; grid-column: 1 / -1; }
+.team-logo-gallery > p { flex-basis: 100%; }
+.team-logo-gallery label { display: flex; align-items: center; gap: .6rem; }
+.team-logo-gallery img { width: 64px; height: 48px; object-fit: contain; }
+.team-logo-gallery input[type=radio] { width: auto; }
+.season-team-logo-row { display: grid; grid-template-columns: minmax(120px,1fr) minmax(150px,2fr); align-items: center; gap: 1rem; margin: .75rem 0; }
+.team-choice-card > label { display: grid; justify-items: center; gap: .45rem; min-width: 0; }
+.team-choice-card > label select { width: 100%; min-width: 0; }
+.season-team-logo-row > span { display: flex; align-items: center; gap: .75rem; }
+.season-team-logo-row img { width: 64px; height: 48px; object-fit: contain; }

@@ -37,6 +37,11 @@ async function ensureSchema() {
   await addMissingColumn("seasons",historicalSeasonTable,"hide_calendar_time",{type:DataTypes.BOOLEAN,allowNull:false,defaultValue:false});
   await addMissingColumn("seasons",historicalSeasonTable,"historical_grid",{type:DataTypes.JSON,allowNull:true});
   const queryInterface = sequelize.getQueryInterface();
+  const teamCatalogTable=await queryInterface.describeTable('teams');
+  await addMissingColumn('teams',teamCatalogTable,'aggregation_team_id',{type:DataTypes.INTEGER,allowNull:true});
+  await addMissingColumn('teams',teamCatalogTable,'logo_variants',{type:DataTypes.JSON,allowNull:true});
+  const profileCatalogTable=await queryInterface.describeTable('f1_car_profiles');
+  await addMissingColumn('f1_car_profiles',profileCatalogTable,'unified_team_id',{type:DataTypes.INTEGER,allowNull:true});
   const settingsTable = await queryInterface.describeTable('community_settings');
   await addMissingColumn('community_settings', settingsTable, 'logo_path', {type:DataTypes.STRING,allowNull:true});
   await require('../models').Guide.findOrCreate({where:{slug:'teamspeak-whisper'},defaults:require('../data/teamspeak-guide.json')});
@@ -1139,6 +1144,8 @@ async function ensureSchema() {
     });
     if (team) await entry.update({ TeamId: team.id });
   }
+  await require('./f1Teams').migrateLegacyTeams();
+
 }
 
 module.exports = { ensureSchema };

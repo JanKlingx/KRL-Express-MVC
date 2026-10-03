@@ -47,7 +47,7 @@ async function actualTeamIdForSeasonTeam(seasonTeam, transaction) {
   if (!seasonTeam) return null;
   if (seasonTeam.sourceType === 'current') return Number(seasonTeam.sourceId) || null;
   const profile = await F1CarProfile.findByPk(seasonTeam.sourceId, { transaction });
-  return Number(profile?.BaseTeamId) || null;
+  return Number((profile?.UnifiedTeamId || profile?.BaseTeamId)) || null;
 }
 
 async function completedRoundForSeason(seasonId, transaction) {

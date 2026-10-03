@@ -147,6 +147,7 @@ const LmuCar = sequelize.define("LmuCar", {
 });
 
 const F1CarProfile = sequelize.define("F1CarProfile", {
+  UnifiedTeamId: { type: DataTypes.INTEGER, allowNull: true },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -188,6 +189,8 @@ const F1Track = sequelize.define(
 );
 
 const Team = sequelize.define("Team", {
+  AggregationTeamId: { type: DataTypes.INTEGER, allowNull: true },
+  logoVariants: { type: DataTypes.JSON, allowNull: true },
   name: {
     type: DataTypes.STRING,
     allowNull: false,

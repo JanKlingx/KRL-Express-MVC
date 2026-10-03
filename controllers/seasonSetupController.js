@@ -185,23 +185,7 @@ async function loadData(query = {}) {
       ],
     }),
 
-    F1CarProfile.findAll({
-      where: {
-        BaseTeamId: {
-          [Op.ne]: null,
-        },
-      },
-      include: [
-        {
-          association: "baseTeam",
-          required: true,
-        },
-      ],
-      order: [
-        ["name", "ASC"],
-        ["id", "ASC"],
-      ],
-    }),
+    F1CarProfile.findAll({order:[['name','ASC'],['id','ASC']]}),
 
     selectedSeason
       ? SeasonF1CarAssignment.findAll({
@@ -270,6 +254,13 @@ async function loadData(query = {}) {
   const reserveOnlyIds = new Set((structure.lineup || []).filter((row) => row.roleType === 'reserve' && !regularIds.has(Number(row.DriverId))).map((row) => Number(row.DriverId)));
   if (selectedSeason?.status !== "historical") structure.allDrivers = structure.allDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
   if (selectedSeason?.status !== "historical") structure.unassignedDrivers = structure.unassignedDrivers.filter((driver) => !reserveOnlyIds.has(Number(driver.id)));
+  for(const team of structure.teams){
+    const catalogId=team.sourceType==='current'?Number(team.sourceId):Number(carProfiles.find(p=>Number(p.id)===Number(team.sourceId))?.UnifiedTeamId);
+    team.catalogToken=catalogId?`current:${catalogId}`:`${team.sourceType}:${team.sourceId}`;
+    const definition=f1Teams.find(t=>Number(t.id)===catalogId);
+    team.logoOptions=require('../services/f1Teams').logosFor(definition||team);
+    if(team.logoPath&&!team.logoOptions.some(logo=>logo.path===team.logoPath))team.logoOptions.push({path:team.logoPath,label:'Gespeichertes Saisonlogo'});
+  }
   const lineupProtected = await seasonLineupIsProtected(selectedSeason);
 
   return {
@@ -804,23 +795,27 @@ exports.assignTeams = async (req, res) => {
     if (sources.length !== tokens.length)
       throw new Error("Mindestens ein ausgewähltes Team ist ungültig.");
     await sequelize.transaction(async (transaction) => {
-      await SeasonLineupEntry.update(
-        { SeasonTeamId: null, roleType: "reserve" },
-        { where: { SeasonId: season.id }, transaction },
-      );
-      await SeasonTeam.destroy({ where: { SeasonId: season.id }, transaction });
-      await SeasonTeam.bulkCreate(
-        sources.map((source, index) => ({
-          SeasonId: season.id,
-          sourceType: source.sourceType,
-          sourceId: source.sourceId,
-          name: source.name,
-          accentColor: source.accentColor || "#6ef2f2",
-          logoPath: source.logoPath || null,
-          sortOrder: index,
-        })),
-        { transaction },
-      );
+      const locked=await Season.findByPk(season.id,{transaction,lock:transaction.LOCK.UPDATE});
+      const existing=await SeasonTeam.findAll({where:{SeasonId:season.id},transaction});
+      const catalog=require('../services/f1Teams');
+      const old=await Promise.all(existing.map(async row=>({row,identity:await catalog.identityFor(row,transaction)})));
+      const retained=new Set();
+      const identities=sources.map(source=>source.sourceType==='current'?Number(source.sourceId):Number(source.BaseTeamId));
+      if(new Set(identities).size!==identities.length)throw new Error('Bitte jedes Formel-1-Team nur einmal auswählen.');
+      for(const [index,source] of sources.entries()){
+        const identity=source.sourceType==='current'?Number(source.sourceId):Number(source.BaseTeamId);
+        const prior=old.find(item=>item.identity===identity&&!retained.has(item.row.id))?.row;
+        const logoPath=catalog.chooseLogo(source,req.body.teamLogos?.[tokens[index]],prior?.logoPath);
+        if(prior){retained.add(prior.id);await prior.update({sortOrder:index,logoPath},{transaction});}
+        else await SeasonTeam.create({SeasonId:season.id,sourceType:source.sourceType,sourceId:source.sourceId,name:source.name,accentColor:source.accentColor||'#6ef2f2',logoPath,sortOrder:index},{transaction});
+      }
+      for(const row of existing.filter(row=>!retained.has(row.id))){
+        const grid=locked.historicalGrid;
+        const usedInGrid=(grid?.rows||[]).some(r=>Number(r.teamId)===Number(row.id)||Object.values(r.cells||{}).some(c=>Number(c.teamId)===Number(row.id)))||(grid?.lineup||[]).some(r=>Number(r.teamId)===Number(row.id));
+        if(usedInGrid||await SeasonLineupEntry.count({where:{SeasonTeamId:row.id},transaction})||await require('../models').SeasonDriverStint.count({where:{SeasonTeamId:row.id},transaction})||await GrandPrixResult.count({where:{SeasonId:season.id},include:[{association:'entries',where:{teamName:row.name},required:true}],transaction}))throw new Error(`„${row.name}“ wird bereits in dieser Saison verwendet. Die Teamzuordnung kann nicht entfernt werden; das Logo kannst du separat ändern.`);
+        await row.destroy({transaction});
+      }
+      locked.changed('updatedAt',true);await locked.save({transaction});
     });
     req.session.flash = {
       type: "success",
@@ -830,6 +825,30 @@ exports.assignTeams = async (req, res) => {
     req.session.flash = { type: "error", message: error.message };
   }
   res.redirect(setupRedirect({ league: league?.id, season: season?.id }));
+};
+
+exports.saveTeamLogos=async(req,res)=>{
+  let season;
+  try{
+    await sequelize.transaction(async transaction=>{
+      season=await Season.findByPk(req.params.seasonId,{transaction,lock:transaction.LOCK.UPDATE});
+      if(!season||season.leagueType!=='f1')throw new Error('Formel-1-Saison nicht gefunden.');
+      const snapshots=await SeasonTeam.findAll({where:{SeasonId:season.id},transaction});
+      const selections=req.body.teamLogos||{};
+      if(Object.keys(selections).some(id=>!snapshots.some(team=>String(team.id)===id)))throw new Error('Ein Team gehört nicht zu dieser Saison.');
+      for(const snapshot of snapshots){
+        const selection=selections[snapshot.id];if(selection==null||selection==='')continue;
+        const source=await resolveTeamToken(`${snapshot.sourceType}:${snapshot.sourceId}`);
+        if(!source)throw new Error('Team nicht gefunden.');
+        const logoPath=require('../services/f1Teams').chooseLogo(source,selection,snapshot.logoPath);
+        await snapshot.update({logoPath},{transaction});
+      }
+      season.changed('updatedAt',true);await season.save({transaction});
+    });
+    req.session.flash={type:'success',message:'Saisonlogos gespeichert. Aufstellung und Ergebnisse bleiben erhalten.'};
+  }catch(error){req.session.flash={type:'error',message:error.message};}
+  const league=season?await League.findOne({where:{slug:season.scopeSlug,type:'f1'}}):null;
+  res.redirect(setupRedirect({league:league?.id,season:season?.id,step:6})+'#setup-teams');
 };
 
 exports.assignLineup = async (req, res) => {

@@ -24,8 +24,10 @@ async function saveImage(file) {
 
 async function deleteUpload(imagePath) {
   if (!imagePath || !imagePath.startsWith('/uploads/')) return;
-  const { SeasonTeam } = require('../models');
-  if (await SeasonTeam.count({where:{logoPath:imagePath}})) return;
+  const { SeasonTeam, Team, F1CarProfile } = require('../models');
+  if (await SeasonTeam.count({where:{logoPath:imagePath}}) || await Team.count({where:{logoPath:imagePath}}) || await F1CarProfile.count({where:{logoPath:imagePath}})) return;
+  const teams=await Team.findAll({where:{discipline:'f1'},attributes:['logoVariants']});
+  if(teams.some(team=>Array.isArray(team.logoVariants)&&team.logoVariants.some(logo=>logo.path===imagePath)))return;
   const filename = path.basename(imagePath);
   if (!/^[0-9a-f-]+\.(?:png|jpe?g|webp)$/i.test(filename)) return;
   await fs.unlink(path.join(uploadDirectory, filename)).catch((error) => {

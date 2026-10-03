@@ -333,33 +333,21 @@ async function prepareCentralTeam(discipline, values, body, existingTeam) {
     );
 }
 
-const prepareF1Team = (values, body, existingTeam) =>
-  prepareCentralTeam("f1", values, body, existingTeam);
+async function prepareF1Team(values,body,existingTeam){
+  await prepareCentralTeam('f1',values,body,existingTeam);
+  const catalog=require('./f1Teams');
+  values.AggregationTeamId=await catalog.validateAggregation(existingTeam?.id,values.AggregationTeamId);
+  if(existingTeam&&body.defaultLogo!==undefined)values.logoPath=catalog.chooseLogo(existingTeam,body.defaultLogo,existingTeam.logoPath);
+}
 async function prepareLmuTeam(values, body, existingTeam) {
   await prepareCentralTeam("lmu", values, body, existingTeam);
   values.LmuCarId = null;
 }
 
 async function prepareF1TeamWithHistory(entry) {
-  const values = await prepareTeamForForm(entry, "f1");
-  if (!entry?.id) return values;
-  const profiles = await models.F1CarProfile.findAll({
-    where: { BaseTeamId: entry.id },
-    order: [
-      ["seasonLabel", "DESC"],
-      ["name", "ASC"],
-    ],
-  });
-  return {
-    ...values,
-    historicalProfilesText:
-      profiles
-        .map(
-          (profile) =>
-            `${profile.name}${profile.seasonLabel ? ` (${profile.seasonLabel})` : ""}`,
-        )
-        .join(", ") || "Keine",
-  };
+  if(!entry?.id)return entry;
+  const values=entry.toJSON?entry.toJSON():{...entry};
+  return {...values,logoVariants:require('./f1Teams').logosFor(values),...await require('./f1Teams').totalsFor(values)};
 }
 
 async function prepareTeamForForm(entry, discipline) {
@@ -394,6 +382,8 @@ async function syncF1Team(team) {
 }
 
 async function removeF1Team(team) {
+  const aliases=await models.F1CarProfile.findAll({where:{UnifiedTeamId:team.id},attributes:['id']});
+  if(aliases.length||await models.Team.count({where:{AggregationTeamId:team.id}})||await models.SeasonTeam.count({where:{[Op.or]:[{sourceType:'current',sourceId:team.id},{sourceType:'historical',sourceId:{[Op.in]:aliases.map(p=>p.id)}}]}})||await models.GrandPrixResultEntry.count({where:{TeamId:team.id}}))throw new Error('Dieses Team wird in einer Saison, einem Ergebnis, einer historischen Verknüpfung oder einer Punktezuordnung verwendet und kann nicht gelöscht werden.');
   return team;
 }
 
@@ -1349,38 +1339,22 @@ module.exports = {
     ],
   },
   teams: {
-    title: "Formel-1-Teams",
-    group: "Formel 1 Stammdaten",
-    description:
-      "Aktuelle Formel-1-Teams zentral pflegen. Zugeordnete historische Teamprofile werden direkt mit angezeigt.",
-    model: models.Team,
-    upload: { field: "logoPath", label: "Teamlogo" },
+    title: "Formel-1-Teams", group: "Formel 1 Stammdaten",
+    description: "Alle Formel-1-Teams gemeinsam pflegen. Die Punktezuordnung ist optional: Ohne Zuordnung bleibt das Team eigenständig. Saisonname und Saisonwertung bleiben unabhängig davon erhalten.",
+    model: models.Team, upload: { field: "logoPath", label: "Weiteres Teamlogo hochladen (wird Standardlogo)" }, teamLogoGallery: true,
+    prepareUpload(values,path,entry,body){values.logoVariants=require('./f1Teams').addLogo(entry,path,body.logoLabel);},
     getListWhere: async () => ({ LeagueId: null, discipline: "f1" }),
-    prepareValues: prepareF1Team,
-    prepareEntry: prepareF1TeamWithHistory,
-    afterSave: syncF1Team,
-    beforeRemove: removeF1Team,
-    nextHref: "/admin/f1CarProfiles",
-    nextLabel: "Historische Teams anlegen oder bearbeiten",
-    listFields: [
-      "name",
-      "accentColor",
-      "historicalProfilesText",
-      "totalPoints",
-    ],
+    prepareValues: prepareF1Team, prepareEntry: prepareF1TeamWithHistory,
+    saveEntry: (values,entry)=>require('./f1Teams').saveTeam(values,entry),
+    afterSave: syncF1Team, beforeRemove: removeF1Team,
+    nextHref: "/admin/season-setup", nextLabel: "Teams und Logos einer Saison auswählen",
+    listFields: ["name", "AggregationTeamId", "totalPoints"],
     fields: [
       text("name", "Teamname", true),
-      field("accentColor", "Teamfarbe", "color", true, {
-        help: "Färbt die Teamkarte in den F1-Ligaseiten. Der genaue Hex-Farbcode wird vom Farbwähler gespeichert.",
-      }),
-      text("historicalProfilesText", "Historische Teams", false, {
-        readonly: true,
-        persist: false,
-      }),
-      number("totalPoints", "Gesamte Punkte (automatisch)", false, {
-        readonly: true,
-        persist: false,
-      }),
+      field("accentColor", "Teamfarbe", "color", true),
+      relation("AggregationTeamId", "Punkte zusätzlich sammeln bei (optional)", models.Team, row=>row.name, false, {where:{LeagueId:null,discipline:'f1'},help:"Zum Beispiel Sauber → Alfa Romeo. Ohne Auswahl werden nur die eigenen Punkte gesammelt. Ketten sind möglich, Kreise nicht."}),
+      text("aggregationMembers", "Enthaltene Teams", false, {readonly:true,persist:false}),
+      number("totalPoints", "Gesamte Punkte inklusive zugeordneter Teams", false, {readonly:true,persist:false}),
     ],
   },
   drivers: {
@@ -1561,6 +1535,7 @@ module.exports = {
     ],
   },
   f1CarProfiles: {
+    hidden: true,
     title: "Historische Formel-1-Teams",
     group: "Formel 1 Stammdaten",
     description:

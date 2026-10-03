@@ -237,11 +237,11 @@ async function loadTeams(
 
 
             if (
-              profile?.BaseTeamId
+              (profile?.UnifiedTeamId || profile?.BaseTeamId)
             ) {
               actualTeam =
                 await Team.findByPk(
-                  profile.BaseTeamId,
+                  (profile.UnifiedTeamId || profile.BaseTeamId),
                 );
             }
           }
