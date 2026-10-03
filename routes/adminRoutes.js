@@ -301,6 +301,7 @@ router.post(
   "/season-progress/:discipline(lmu|wdl)/:raceId",
   asyncHandler(seriesEditorController.save),
 );
+router.post('/teams/:teamId/logos', require('../middleware/teamLogoUpload'), asyncHandler(require('../controllers/teamLogoController').upload));
 router.all('/f1CarProfiles', (req,res)=>res.redirect(303,'/admin/teams'));
 router.all('/f1CarProfiles/*', (req,res)=>res.redirect(303,'/admin/teams'));
 router.get("/:resource", asyncHandler(adminController.list));

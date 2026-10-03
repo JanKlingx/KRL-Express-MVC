@@ -338,6 +338,7 @@ async function prepareF1Team(values,body,existingTeam){
   const catalog=require('./f1Teams');
   values.AggregationTeamId=await catalog.validateAggregation(existingTeam?.id,values.AggregationTeamId);
   if(existingTeam&&body.defaultLogo!==undefined)values.logoPath=catalog.chooseLogo(existingTeam,body.defaultLogo,existingTeam.logoPath);
+  if(existingTeam&&body.logoLabels)values.logoVariants=catalog.logosFor(existingTeam).map(logo=>({...logo,label:String(body.logoLabels[logo.path]||logo.label||'Logo').trim().slice(0,100)}));
 }
 async function prepareLmuTeam(values, body, existingTeam) {
   await prepareCentralTeam("lmu", values, body, existingTeam);
@@ -1341,7 +1342,7 @@ module.exports = {
   teams: {
     title: "Formel-1-Teams", group: "Formel 1 Stammdaten",
     description: "Alle Formel-1-Teams gemeinsam pflegen. Die Punktezuordnung ist optional: Ohne Zuordnung bleibt das Team eigenständig. Saisonname und Saisonwertung bleiben unabhängig davon erhalten.",
-    model: models.Team, upload: { field: "logoPath", label: "Weiteres Teamlogo hochladen (wird Standardlogo)" }, teamLogoGallery: true,
+    model: models.Team, upload: { field: "logoPath", label: "Erstes Teamlogo hochladen" }, teamLogoGallery: true,
     prepareUpload(values,path,entry,body){values.logoVariants=require('./f1Teams').addLogo(entry,path,body.logoLabel);},
     getListWhere: async () => ({ LeagueId: null, discipline: "f1" }),
     prepareValues: prepareF1Team, prepareEntry: prepareF1TeamWithHistory,

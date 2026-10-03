@@ -42,14 +42,13 @@
         </label>
       <% }) %>
 
-      <% if(config.teamLogoGallery) { %>
-        <fieldset class="team-logo-gallery"><legend>Gespeicherte Logos</legend>
-          <p>Ein neues Logo ergänzt die Auswahl. Bereits gespeicherte Saisonlogos bleiben erhalten. Das Standardlogo gilt für neue Saisons; jede Saison kann ein anderes Logo verwenden.</p>
-          <% (entry?.logoVariants || []).forEach(logo=>{ %><label><input type="radio" name="defaultLogo" value="<%= logo.path %>" <%= logo.path===entry.logoPath?'checked':'' %>><img src="<%= logo.path %>" alt=""><span><%= logo.label %></span></label><% }) %>
-          <label>Bezeichnung für den nächsten Upload<input type="text" name="logoLabel" maxlength="100" placeholder="Zum Beispiel Logo 2024"></label>
-        </fieldset>
+      <% if(config.teamLogoGallery && entry?.id) { %>
+        <div id="team-logos" class="team-logo-settings">
+          <%- include('../partials/team-logo-picker', {picker: {name:'defaultLogo', legend:'Standardlogo für neue Saisons', logos:entry.logoVariants || [], value:entry.logoPath, labelsName:'logoLabels'}}) %>
+          <p class="form-hint">Wähle ein Bild als Standard und speichere unten. Bestehende Saisons behalten ihr eigenes Logo. Die Bezeichnungen kannst du direkt unter den Bildern ändern.</p>
+        </div>
       <% } %>
-      <% if (config.upload) { %>
+      <% if (config.upload && (!config.teamLogoGallery || !entry?.id)) { %>
         <label class="upload-field"><%= config.upload.label || 'Bild' %> <%= entry && entry.id ? (config.teamLogoGallery ? '(optional hinzufügen)' : '(optional ersetzen)') : (config.upload.required ? '*' : '(optional)') %>
           <span class="upload-dropzone" data-upload-dropzone><input type="file" name="image" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" <%= !entry?.id && config.upload.required ? 'required' : '' %>><strong>Bild hierher ziehen</strong><span data-upload-name>oder zum Auswählen klicken</span><img data-upload-local-preview alt="Neue Bildvorschau" hidden></span>
           <small>Upload vom Gerät: PNG, JPG oder WebP, maximal 10 MB. Externe Bild-URLs sind nicht möglich.</small>
@@ -62,6 +61,17 @@
         <a class="button button-ghost" href="<%= returnHref %>">Abbrechen</a>
       </div>
     </form>
+    <% if(config.teamLogoGallery && entry?.id) { %>
+      <form id="team-logo-upload" class="team-logo-upload" method="post" action="<%= adminBasePath %>/teams/<%= entry.id %>/logos" enctype="multipart/form-data" data-team-logo-upload>
+        <h2>Weitere Logos hinzufügen</h2>
+        <p>Wähle mehrere Bilder auf einmal. Die Logos werden ergänzt; dein Standardlogo und die Saisonlogos bleiben erhalten.</p>
+        <label class="team-logo-drop" data-team-logo-drop>Bilder auswählen oder hier ablegen<input type="file" name="images" multiple required accept="image/png,image/jpeg,image/webp" data-team-logo-files></label>
+        <small>Bis zu 12 Bilder · PNG, JPG oder WebP · maximal 10 MB je Bild. Nach dem Upload kannst du die Bezeichnungen ändern.</small>
+        <div class="team-logo-upload-previews" data-team-logo-previews aria-live="polite"></div>
+        <button type="submit" class="button">Ausgewählte Logos hochladen</button>
+      </form>
+      <script src="/js/team-logos.js" defer></script>
+    <% } %>
   </div>
 </section>
 <% if (resource === 'drivers') { %><script src="/js/driver-wizard.js" defer></script><% } %>

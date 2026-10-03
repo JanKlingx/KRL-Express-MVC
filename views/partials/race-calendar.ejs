@@ -1,5 +1,6 @@
 <% const dateOnly = typeof selectedSeason !== 'undefined' && selectedSeason?.status === 'historical' && selectedSeason.hideCalendarTime; %>
-<% const visibleCalendar = calendar.filter((race) => race.isPublished !== false || (typeof isAdmin !== 'undefined' && isAdmin)); %>
+<% const publicArchive = typeof selectedSeason !== 'undefined' && selectedSeason?.leagueType === 'f1' && selectedSeason.status === 'historical' && selectedSeason.isPublished === true; %>
+<% const visibleCalendar = calendar.filter((race) => race.isPublished !== false || publicArchive || (typeof isAdmin !== 'undefined' && isAdmin)); %>
 <% if (visibleCalendar.length) { %>
 
   <div class="race-calendar-grid">

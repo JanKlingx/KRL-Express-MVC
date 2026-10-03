@@ -731,15 +731,13 @@ const setupDriverRankFilter =
             <label class="setup-driver-search">Teams suchen<input type="search" data-team-search placeholder="Teamname eingeben …"></label><p data-team-search-empty hidden>Keine passenden Teams gefunden.</p><output class="setup-selection-count" data-selection-count="teamTokens" aria-live="polite"><%= selectedTeamTokens.size %> Teams ausgewählt</output>
             <p>Alle Teams stammen aus der gemeinsamen <a href="/admin/teams">Formel-1-Team-Pflege</a>. Die optionale Punktezuordnung ändert nicht den Teamnamen in dieser Saison.</p>
             <div class="team-choice-grid">
-              <% f1Teams.forEach(team=>{const token=`current:${team.id}`;const logos=Array.isArray(team.logoVariants)?team.logoVariants:[]; %>
+              <% f1Teams.forEach(team=>{const token=`current:${team.id}`;const saved=setupStructure.teams.find(row=>(row.catalogToken||`${row.sourceType}:${row.sourceId}`)===token);const logos=[...(team.logoVariants||[])];if(team.logoPath&&!logos.some(logo=>logo.path===team.logoPath))logos.unshift({path:team.logoPath,label:'Standardlogo'}); %>
                 <article class="team-choice-card">
                   <label><input type="checkbox" name="teamTokens" value="<%= token %>" <%= selectedTeamTokens.has(token)?'checked':'' %>><strong><%= team.name %></strong></label>
-                  <% if(team.logoPath){ %><img src="<%= team.logoPath %>" alt=""><% }else{ %><span class="team-choice-logo-fallback" aria-hidden="true"><%= team.name.slice(0,2) %></span><% } %>
-                  <label>Logo für diese Saison<select name="teamLogos[<%= token %>]">
-                    <option value="">Gespeichertes Saisonlogo / Standardlogo</option>
-                    <% const choices=[...logos];if(team.logoPath&&!choices.some(logo=>logo.path===team.logoPath))choices.unshift({path:team.logoPath,label:'Standardlogo'});choices.forEach(logo=>{ %><option value="<%= logo.path %>"><%= logo.label %></option><% }) %>
-                    <option value="none">Kein Logo</option>
-                  </select></label>
+                  <% const displayedLogo=saved?saved.logoPath:team.logoPath;if(displayedLogo){ %><img src="<%= displayedLogo %>" alt=""><% }else{ %><span class="team-choice-logo-fallback" aria-hidden="true"><%= team.name.slice(0,2) %></span><% } %>
+                  <% if(!saved){ %><details class="team-new-logo"><summary>Logo für diese Saison wählen</summary>
+                    <%- include('../partials/team-logo-picker', {picker:{name:`teamLogos[${token}]`,legend:`Saisonlogo für ${team.name}`,logos,value:team.logoPath}}) %>
+                  </details><% }else{ %><small>Logo unten unter „Saisonlogos“ ändern.</small><% } %>
                 </article>
               <% }) %>
             </div>
@@ -753,19 +751,25 @@ const setupDriverRankFilter =
 
           </form>
           <% if(setupStructure.teams.length){ %>
-            <form method="post" action="/admin/season-setup/<%= selectedSeason.id %>/team-logos" class="season-team-logos">
-              <h3>Saisonlogos ändern</h3><p>Auch nach Saisonbeginn möglich. Diese Auswahl gilt nur für diese Saison.</p>
-              <% setupStructure.teams.forEach(team=>{ %>
-                <label class="season-team-logo-row"><span><%= team.name %><% if(team.logoPath){ %><img class="upload-preview" src="<%= team.logoPath %>" alt="Aktuelles Saisonlogo"><% } %></span>
-                  <select name="teamLogos[<%= team.id %>]">
-                    <option value="">Gespeichertes Saisonlogo beibehalten</option>
-                    <% (team.logoOptions||[]).forEach(logo=>{ %><option value="<%= logo.path %>"><%= logo.label %></option><% }) %>
-                    <option value="default">Aktuelles Standardlogo übernehmen</option><option value="none">Kein Logo</option>
-                  </select>
-                </label>
+            <form id="season-logos" method="post" action="/admin/season-setup/<%= selectedSeason.id %>/team-logos" class="season-team-logos">
+              <h3>Saisonlogos</h3><p>Das markierte Bild wird in dieser Saison angezeigt. Wähle ein anderes Bild und speichere die Saisonlogos. Auch nach Saisonbeginn möglich.</p>
+              <% setupStructure.teams.forEach(team=>{ const catalogId=team.catalogToken?.startsWith('current:')?Number(team.catalogToken.split(':')[1]):(team.sourceType==='current'?team.sourceId:null); %>
+                <section class="season-logo-team">
+                  <div class="career-section-heading"><h4><%= team.name %></h4><% if(catalogId){ %><a href="/admin/teams/<%= catalogId %>/edit#team-logo-upload" target="_blank" rel="noopener">Weitere Logos hochladen ↗</a><% } %></div>
+                  <%- include('../partials/team-logo-picker', {picker:{name:`teamLogos[t${team.id}]`,legend:`Logo für ${team.name}`,logos:team.logoOptions||[{path:team.logoPath,label:'Gespeichertes Saisonlogo'}].filter(l=>l.path),value:team.logoPath}}) %>
+                  <% if(catalogId){ %><div class="season-logo-direct-upload">
+                    <label>Neues Bild für diese Saison<input type="file" name="images" required accept="image/png,image/jpeg,image/webp" form="season-logo-upload-<%= team.id %>"></label>
+                    <input type="hidden" name="seasonTeamId" value="<%= team.id %>" form="season-logo-upload-<%= team.id %>">
+                    <button class="button button-small" type="submit" form="season-logo-upload-<%= team.id %>">Hochladen und verwenden</button>
+                    <small>Speichert nur das Logo dieses Teams. Andere noch ungespeicherte Auswahlen bitte vorher speichern.</small>
+                  </div><% } %>
+                </section>
               <% }) %>
               <button type="submit" class="button">Saisonlogos speichern</button>
             </form>
+            <% setupStructure.teams.forEach(team=>{const catalogId=team.catalogToken?.startsWith('current:')?Number(team.catalogToken.split(':')[1]):(team.sourceType==='current'?team.sourceId:null);if(catalogId){ %>
+              <form id="season-logo-upload-<%= team.id %>" method="post" enctype="multipart/form-data" action="/admin/teams/<%= catalogId %>/logos"></form>
+            <% }}); %>
           <% } %>
 
 

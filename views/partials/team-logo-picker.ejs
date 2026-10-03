@@ -1,0 +1,15 @@
+<fieldset class="team-logo-picker">
+  <legend><%= picker.legend %></legend>
+  <div class="team-logo-options">
+    <% picker.logos.forEach(logo=>{ %>
+      <div class="team-logo-option">
+        <label class="team-logo-choice">
+          <input type="radio" name="<%= picker.name %>" value="<%= logo.path %>" <%= picker.value===logo.path?'checked':'' %>>
+          <img src="<%= logo.path %>" alt=""><strong><%= logo.label || 'Teamlogo' %></strong><span class="team-logo-selected">Ausgewählt</span>
+        </label>
+        <% if(picker.labelsName){ %><label class="team-logo-label">Bezeichnung<input type="text" name="<%= picker.labelsName %>[<%= logo.path %>]" value="<%= logo.label || 'Teamlogo' %>" maxlength="100" aria-label="Bezeichnung für <%= logo.label || 'Teamlogo' %>"></label><% } %>
+      </div>
+    <% }) %>
+    <label class="team-logo-choice team-logo-none"><input type="radio" name="<%= picker.name %>" value="none" <%= !picker.value?'checked':'' %>><span class="team-logo-placeholder" aria-hidden="true">—</span><strong>Kein Logo</strong><span class="team-logo-selected">Ausgewählt</span></label>
+  </div>
+</fieldset>

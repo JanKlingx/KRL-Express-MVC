@@ -1,0 +1,25 @@
+<%- include('partials/header', { title }) %>
+<section class="container career-statistics" data-career-statistics data-career-entity="team">
+  <%- include('partials/statistics-tabs', {statsTab:'teams'}) %>
+  <header class="career-hero"><span class="career-eyebrow">KRL · DIE ZAHLEN HINTER DEN RENNEN</span><h1>Die Geschichte<br>der F1-Teams.</h1><p>Entdecke die Erfolge von Mercedes, Ferrari und allen weiteren Formel-1-Teams.</p></header>
+  <div class="career-toolbar">
+    <label>Team suchen<input type="search" data-career-search placeholder="Teamname eingeben …" autocomplete="off"></label>
+    <input type="hidden" data-career-discipline value="f1">
+    <label>Liga<select data-career-league><option value="all">Alle Ligen</option></select></label>
+    <label>Saison<select data-career-season><option value="all">Alle Saisons</option></select></label>
+    <label>Sortieren nach<select data-career-metric><option value="points">Ergebnispunkte</option><option value="wins">Siege</option><option value="podium2">2. Plätze</option><option value="podium3">3. Plätze</option><option value="poles">Polepositions</option><option value="fastestLaps">Schnellste Runden</option><option value="driverOfTheDays">Driver of the Day</option><option value="starts">Fahrerstarts</option><option value="winRate">Siegesquote</option></select></label>
+    <button type="button" class="button button-ghost" data-career-reset>Zurücksetzen</button>
+  </div>
+  <label class="team-statistics-aggregation"><input type="checkbox" data-career-aggregate checked> Zugeordnete Teams einbeziehen <small>Zum Beispiel frühere Teamnamen. Unter jedem Team steht, welche Zuordnungen enthalten sind.</small></label>
+  <p class="career-note">Ergebnispunkte inklusive Sprint. Siege, Podestplätze, Pole, schnellste Runden und Driver of the Day stammen aus Hauptrennen. Fahrerstarts zählen die Einsätze der einzelnen Fahrer. Testtage und unveröffentlichte Saisons sind ausgeschlossen. Besondere Punkteübernahmen der Saison-Team-WM findest du weiterhin in der jeweiligen Saisonwertung.</p>
+  <section class="career-profile" data-career-profile aria-label="Teamprofil" hidden></section>
+  <div class="career-summary" data-career-summary></div>
+  <section class="career-comparison" aria-label="Teamvergleich"><div class="career-section-heading"><h2>Direkter Vergleich</h2><button type="button" class="button button-ghost button-small" data-career-clear>Auswahl leeren</button></div><p>Wähle bis zu drei Teams. Filter gelten auch für den Vergleich und die beste Saison.</p><div data-career-comparison></div></section>
+  <div class="career-section-heading"><h2>Die Teams</h2><span role="status" aria-live="polite" data-career-count></span></div>
+  <div class="career-drivers" data-career-drivers></div>
+  <noscript><p>Bitte JavaScript aktivieren, um Teams zu suchen und zu vergleichen.</p></noscript>
+</section>
+<script id="career-data" type="application/json"><%- JSON.stringify(statistics).replace(/</g, '\\u003c') %></script>
+<script id="career-scopes" type="application/json"><%- JSON.stringify([]).replace(/</g, '\\u003c') %></script>
+<script src="/js/career-statistics.js" defer></script>
+<%- include('partials/footer') %>
