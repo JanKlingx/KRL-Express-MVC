@@ -1449,6 +1449,10 @@ exports.show = async (
       );
   }
 
+  if (res.locals?.isAdmin && data.historicalEditor) {
+    data.historicalEditor.teamCatalog = await Team.findAll({where:{LeagueId:null,discipline:'f1'},attributes:['id','name','accentColor','logoPath'],order:[['name','ASC']]});
+  }
+
   res.render(
     "f1",
     {

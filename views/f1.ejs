@@ -197,7 +197,7 @@
 
   <% if (selectedSeason) { %>
 
-    <section class="section container">
+    <section class="section container" id="historical-teams">
 
       <div class="section-heading">
 
@@ -208,7 +208,7 @@
         <h2>
           TEAMS & FAHRER
         </h2>
-        <% if (isAdmin && selectedSeason?.status === 'historical') { %><button class="button button-ghost button-small" type="button" data-historical-open>Aufstellung bearbeiten</button><% } %>
+        <% if (isAdmin && selectedSeason?.status === 'historical') { %><button class="button button-ghost button-small" type="button" data-historical-open>Teams & Fahrer bearbeiten</button><% } %>
 
       </div>
 

@@ -190,7 +190,7 @@ test('Expanded news can be collapsed from the top with synchronized accessibilit
  top.click();assert.equal(top.hidden,true);assert.equal(bottom.getAttribute('aria-expanded'),'false');assert.equal(doc.getElementById('body').classList.contains('is-collapsed'),true);
 });
 
-test('Column controls keep selection synchronized across responsive tables and delete only selected stint rows',async t=>{
+test('Single-table controls delete only selected stint rows and preserve all rounds',async t=>{
  const ejs=require('ejs'),fs=require('node:fs'),{JSDOM}=require('jsdom');
  const rounds=Array.from({length:7},(_,i)=>({id:i+1,sortOrder:i+1,raceType:'main',entries:[]}));
  const data={grid:{lineup:[{driverId:1,teamId:10}],rows:[
@@ -206,7 +206,7 @@ test('Column controls keep selection synchronized across responsive tables and d
  w.eval(fs.readFileSync('public/js/historical-periods.js','utf8'));w.eval(fs.readFileSync('public/js/historical-grid.js','utf8'));
  assert.equal(doc.querySelector('[data-historical-role]'),null);
  assert.equal(doc.querySelector('[data-historical-editor-body] [data-historical-add-role]'),null);
- assert.equal(doc.querySelectorAll('th.sheet-driver [data-historical-add-role]').length,6);
+ assert.equal(doc.querySelectorAll('th.sheet-driver [data-historical-add-role]').length,2);
  assert.equal(doc.querySelector('[data-historical-dialog] [name=fastestLap]'),null);assert.ok(doc.querySelector('[data-historical-stats-dialog]'));
  assert.equal(doc.querySelector('[data-historical-stats-open]'),null);
  const first=doc.querySelector('[data-history-row="first"]'),actions=first.querySelector('.historical-driver-actions');
@@ -215,7 +215,7 @@ test('Column controls keep selection synchronized across responsive tables and d
  assert.match(first.querySelector('[data-round="1"]').textContent,/P2FLPOLEDotD/);
  assert.equal(doc.querySelector('[data-historical-statistic="fastestLap"]').textContent,'Alpha');
  const selection=first.querySelector('[data-historical-select]');selection.click();
- assert.equal(doc.querySelectorAll('[data-historical-select="first"]:checked').length,3);
+ assert.equal(doc.querySelectorAll('[data-historical-select="first"]:checked').length,1);
  assert.ok([...doc.querySelectorAll('[data-historical-select-all="regular"]')].every(el=>el.indeterminate));
  assert.ok([...doc.querySelectorAll('[data-historical-remove-selected="regular"]')].every(b=>b.textContent==='Auswahl entfernen (1)'));
  doc.querySelector('[data-historical-remove-selected="regular"]').click();

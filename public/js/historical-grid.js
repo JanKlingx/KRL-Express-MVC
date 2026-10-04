@@ -5,7 +5,8 @@
   const grid = data.grid;
   const periods=window.HistoricalPeriods;
   grid.rows.forEach((row,index)=>{row.rowId ||= `${row.role}:${row.driverId}:${index}`;});
-  const original=JSON.stringify(grid);
+  const original=JSON.stringify(grid),originalTeams=JSON.stringify(data.teams);
+  let teamChanges;
   const savedStats=new Map();
   const initialCells=new Map(grid.rows.flatMap(row=>Object.entries(row.cells).map(([id,cell])=>[`${row.rowId}:${id}`,JSON.stringify(cell)])));
   const get=name=>root.querySelector(`[data-historical-${name}]`);
@@ -90,7 +91,7 @@
     editingRow.cells=periods.apply(editingRow,data.races);mark();rowDialog.close();render();
   });
   get('row-cancel').addEventListener('click',()=>rowDialog.close());
-  // One template per responsive table; new rows also work when a season has no participants yet.
+  // One template per standings table; new rows also work when a season has no participants yet.
   const tables=[...document.querySelectorAll('.season-sheet-table')].map(table=>{
     const template=table.querySelector('[data-history-driver]');
     return template?{body:table.tBodies[0],role:template.dataset.historyRole,template:template.cloneNode(true)}:null;
@@ -173,20 +174,65 @@
   });
   get('add-cancel').addEventListener('click',()=>addDialog.close());
   const lineupDialog=get('lineup-dialog'),lineupForm=lineupDialog.querySelector('form');
-  document.querySelectorAll('[data-historical-open]').forEach(b=>b.addEventListener('click',()=>{
-    const fields=get('lineup-fields');fields.replaceChildren();get('lineup-error').textContent='';
-    data.teams.forEach(team=>{
-      const fieldset=el('fieldset'),legend=el('legend',team.name);fieldset.append(legend);
+  const catalog=data.teamCatalog||[];let draftTeams=[];
+  const newCells=teamId=>Object.fromEntries(data.races.map(race=>[race.id,{status:'DNS',position:null,points:null,teamId,fastestLap:false,polePosition:false,driverOfTheDay:false}]));
+  function drawLineup(){
+    const fields=get('lineup-fields');fields.replaceChildren();
+    draftTeams.forEach(team=>{
+      const fieldset=el('fieldset');fieldset.className='historical-lineup-card';
+      const legend=el('legend',team.name||'Neues Team');fieldset.append(legend);
+      if(catalog.length){
+        const preview=el('img');preview.className='historical-lineup-logo';preview.alt='';preview.hidden=!team.logoPath;if(team.logoPath)preview.src=team.logoPath;fieldset.append(preview);
+        const label=el('label','Formel-1-Team'),select=el('select');select.required=true;select.dataset.historicalTeamChoice=team.id;select.add(new Option('Team auswählen',''));
+        catalog.forEach(t=>select.add(new Option(t.name,t.id)));select.value=team.baseTeamId||'';
+        select.addEventListener('change',()=>{const source=catalog.find(t=>Number(t.id)===Number(select.value));if(!source){team.baseTeamId=null;return;}if(Number(team.baseTeamId)!==Number(source.id))Object.assign(team,{name:source.name,baseTeamId:Number(source.id),logoPath:source.logoPath||null});legend.textContent=team.name;preview.hidden=!team.logoPath;if(team.logoPath)preview.src=team.logoPath;});
+        label.append(select);fieldset.append(label);
+      }
       for(let seat=0;seat<2;seat++){
-        const label=el('label',`Fahrer ${seat+1}`),select=el('select');select.dataset.teamId=team.id;select.add(new Option('Freies Cockpit',''));data.drivers.forEach(d=>select.add(new Option(d.name,d.id)));
-        select.value=grid.lineup?.filter(row=>row.teamId===Number(team.id))[seat]?.driverId||'';label.append(select);fieldset.append(label);
-      }fields.append(fieldset);
-    });lineupDialog.showModal();
+        const label=el('label',`Cockpit ${seat+1}`),select=el('select');select.dataset.teamId=team.id;select.dataset.historicalSeat=seat;
+        select.add(new Option('Freies Cockpit',''));data.drivers.forEach(d=>select.add(new Option(d.name,d.id)));select.value=team.seats[seat]||'';
+        select.addEventListener('change',()=>{team.seats[seat]=Number(select.value)||null;});label.append(select);fieldset.append(label);
+      }
+      if(catalog.length){const remove=button('Team entfernen',`${team.name||'Neues Team'} entfernen`,()=>{
+        const used=grid.rows.some(row=>Number(row.teamId)===team.id||Object.values(row.cells||{}).some(cell=>Number(cell.teamId)===team.id));
+        if(used){get('lineup-error').textContent='Dieses Team hat Wertungszeilen. Wähle auf seiner Karte ein anderes Team; dadurch bleiben alle Ergebnisse erhalten.';return;}
+        draftTeams=draftTeams.filter(row=>row!==team);drawLineup();
+      });fieldset.append(remove);}
+      fields.append(fieldset);
+    });
+    get('team-add').hidden=!catalog.length;get('team-add').disabled=draftTeams.length>=11;
+  }
+  document.querySelectorAll('[data-historical-open]').forEach(b=>b.addEventListener('click',()=>{
+    get('lineup-error').textContent='';draftTeams=data.teams.map(team=>({...team,seats:[0,1].map(seat=>grid.lineup?.filter(row=>Number(row.teamId)===Number(team.id))[seat]?.driverId||null)}));
+    get('lineup-rows').checked=!grid.rows.length;drawLineup();lineupDialog.showModal();
   }));
+  get('team-add').addEventListener('click',()=>{
+    if(draftTeams.length>=11)return;
+    const id=Math.min(0,...draftTeams.map(team=>Number(team.id)))-1;
+    draftTeams.push({id,baseTeamId:null,name:'Neues Team',logoPath:null,seats:[null,null]});drawLineup();
+  });
+  get('lineup-import').addEventListener('click',()=>{
+    draftTeams.forEach(team=>{team.seats=[null,null];});const seen=new Set();let skipped=0;
+    const lastRound=Math.max(1,...rounds);
+    grid.rows.filter(row=>row.role==='regular'&&!periods.outside(row,lastRound)).sort((a,b)=>(b.startedFromRound||0)-(a.startedFromRound||0)).forEach(row=>{
+      if(seen.has(row.driverId))return;
+      const last=data.races.filter(race=>row.cells[race.id]&&!periods.outside(row,Number(race.sortOrder))).sort((a,b)=>b.sortOrder-a.sortOrder)[0];
+      const teamId=last?row.cells[last.id].teamId||row.teamId:row.teamId;
+      const team=draftTeams.find(team=>team.id===teamId),seat=team?.seats.findIndex(id=>!id);
+      if(!team||seat<0){skipped++;return;}team.seats[seat]=row.driverId;seen.add(row.driverId);
+    });drawLineup();get('lineup-error').textContent=`${seen.size} Fahrer übernommen.${skipped?` ${skipped} Zuordnungen bitte manuell prüfen.`:''} Bitte kontrollieren und speichern.`;
+  });
   lineupForm.addEventListener('submit',async event=>{
-    event.preventDefault();const lineup=[...get('lineup-fields').querySelectorAll('select')].filter(s=>s.value).map(s=>({driverId:Number(s.value),teamId:Number(s.dataset.teamId)}));
+    event.preventDefault();
+    // Read the fields at submit as well, so browser autofill is respected.
+    draftTeams.forEach(team=>{team.seats=[...get('lineup-fields').querySelectorAll('select[data-historical-seat]')].filter(s=>Number(s.dataset.teamId)===team.id).map(s=>Number(s.value)||null);});
+    const lineup=draftTeams.flatMap(team=>team.seats.filter(Boolean).map(driverId=>({driverId,teamId:team.id})));
     if(new Set(lineup.map(row=>row.driverId)).size!==lineup.length){get('lineup-error').textContent='Bitte jeden Fahrer nur einem Cockpit zuordnen.';return;}
-    grid.lineup=lineup;mark();await saveGrid(get('lineup-error'),true);
+    if(catalog.length&&(!draftTeams.length||draftTeams.some(t=>!t.baseTeamId)||new Set(draftTeams.map(t=>t.baseTeamId)).size!==draftTeams.length)){get('lineup-error').textContent='Bitte 1 bis 11 verschiedene Formel-1-Teams auswählen.';return;}
+    if(catalog.length)teamChanges=draftTeams.map(team=>({id:team.id,sourceId:team.baseTeamId}));
+    data.teams=draftTeams.map(({seats,...team})=>team);grid.lineup=lineup;
+    if(get('lineup-rows').checked)lineup.forEach(row=>{if(!grid.rows.some(r=>r.role==='regular'&&r.driverId===row.driverId))grid.rows.push({rowId:crypto.randomUUID(),driverId:row.driverId,role:'regular',teamId:row.teamId,cells:newCells(row.teamId)});});
+    mark();render();await saveGrid(get('lineup-error'),true);
   });
   get('lineup-cancel').addEventListener('click',()=>lineupDialog.close());
   const statsDialog=get('stats-dialog'),statsForm=statsDialog.querySelector('form');
@@ -231,11 +277,11 @@
       awards.forEach(field=>{const td=tr.querySelector(`[data-historical-statistic="${field}"]`);if(td)td.textContent=grid.rows.filter(row=>row.cells[race.id]?.[field]).map(row=>name(row.driverId)).join(', ')||'–';});
     });
   }
-  get('undo').addEventListener('click',()=>{if(dirty&&!confirm('Alle ungespeicherten Änderungen verwerfen?'))return;Object.assign(grid,JSON.parse(original));selectedRows.clear();dirty=false;render();message('Änderungen verworfen.');});
+  get('undo').addEventListener('click',()=>{if(dirty&&!confirm('Alle ungespeicherten Änderungen verwerfen?'))return;Object.assign(grid,JSON.parse(original));data.teams=JSON.parse(originalTeams);teamChanges=undefined;selectedRows.clear();dirty=false;render();message('Änderungen verworfen.');});
   async function saveGrid(errorNode=null,fromLineup=false,anchor=null){
     if(busy)return;busy=true;saveButtons.forEach(b=>{b.disabled=true;});lineupForm.querySelector('[type=submit]').disabled=true;statsForm.querySelector('[type=submit]').disabled=true;message('Ergebnisse werden gespeichert …');if(errorNode)errorNode.textContent='Änderungen werden gespeichert …';
-    try{const response=await fetch(`/admin/historical-grid/${data.seasonId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid,revision:data.revision})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Speichern fehlgeschlagen.');dirty=false;
-      const target=new URL(anchor?result.url.replace(/#.*$/,'')+'#'+anchor:fromLineup?result.url.replace(/#.*$/,''):result.url,location.href);
+    try{const response=await fetch(`/admin/historical-grid/${data.seasonId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid,revision:data.revision,teams:teamChanges})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Speichern fehlgeschlagen.');dirty=false;
+      const target=new URL(anchor?result.url.replace(/#.*$/,'')+'#'+anchor:fromLineup?result.url.replace(/#.*$/,'#historical-teams'):result.url,location.href);
       // A fragment-only navigation would leave the old totals on screen.
       if(target.pathname===location.pathname&&target.search===location.search){location.hash=target.hash;location.reload();}else location.assign(target.href);}
     catch(error){const text=error.message+' Deine Eingaben bleiben erhalten.';message(text);if(errorNode)errorNode.textContent=text;}

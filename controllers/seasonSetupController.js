@@ -261,7 +261,7 @@ async function loadData(query = {}) {
     team.logoOptions=require('../services/f1Teams').logosFor(definition||team);
     if(team.logoPath&&!team.logoOptions.some(logo=>logo.path===team.logoPath))team.logoOptions.push({path:team.logoPath,label:'Gespeichertes Saisonlogo'});
   }
-  const lineupProtected = await seasonLineupIsProtected(selectedSeason);
+  const lineupProtected = selectedSeason?.status !== "historical" && await seasonLineupIsProtected(selectedSeason);
 
   return {
     leagues,
@@ -781,7 +781,7 @@ exports.assignTeams = async (req, res) => {
   try {
     if (!season || !league)
       throw new Error("Saison oder Liga wurde nicht gefunden.");
-    if (await seasonLineupIsProtected(season)) {
+    if (season.status !== "historical" && await seasonLineupIsProtected(season)) {
       throw new Error("Stammfahrer einer laufenden Saison können nur über Fahrerwechsel geändert werden.");
     }
     const tokens = [
