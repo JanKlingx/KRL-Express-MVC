@@ -3,6 +3,7 @@ const { Op } = require("sequelize");
 
 const {
   League,
+  Team,
   TeamRoster,
   TeamRosterDriver,
   Season,
