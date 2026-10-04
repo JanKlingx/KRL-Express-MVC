@@ -440,23 +440,23 @@ if (
       drivers,
       mode
     ) => {
-      const groups = raceColumns.length > 6 ? [raceColumns, ...Array.from({ length: Math.ceil(raceColumns.length / 6) }, (_, i) => raceColumns.slice(i * 6, (i + 1) * 6))] : [raceColumns];
+      const columns = raceColumns;
       const editable = isAdmin && activeSeason?.status === 'historical' && typeof historicalEditor !== 'undefined' && historicalEditor;
       const sheetDrivers = editable && !drivers.length ? [{id:0,name:'',rowId:'template',results:[],total:0,isPlaceholder:true}] : drivers;
-      groups.forEach((columns, groupIndex) => {
   %>
 
 
+    <p class="season-sheet-scroll-hint">Alle Rennen bleiben vorhanden. Die Tabelle lässt sich seitlich verschieben; der Fahrername bleibt sichtbar.</p>
     <div
       class="
         season-sheet-wrap
-        <%= groups.length > 1 ? (groupIndex === 0 ? 'sheet-wide' : 'sheet-narrow') : '' %>
+        season-sheet-scroll
         <%= mode === 'reserve'
           ? 'season-sheet-wrap-reserve'
           : 'season-sheet-wrap-regular'
         %>
       "
-      data-season-rounds="<%= selectedHistory.races.length %>" style="--sheet-columns:<%= columns.length %>"
+      tabindex="0" role="region" aria-label="<%= mode === 'reserve' ? 'Ersatzfahrerwertung' : 'Stammfahrerwertung' %> – alle Rennen, seitlich scrollbar" data-season-rounds="<%= selectedHistory.races.length %>" style="--sheet-columns:<%= columns.length %>"
     >
 
 
@@ -874,7 +874,7 @@ if (
     </div>
 
 
-  <% }); }; %>
+  <% }; %>
 
 
   <!-- ================================================= -->

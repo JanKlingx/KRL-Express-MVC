@@ -729,6 +729,7 @@ const setupDriverRankFilter =
 
 
             <label class="setup-driver-search">Teams suchen<input type="search" data-team-search placeholder="Teamname eingeben …"></label><p data-team-search-empty hidden>Keine passenden Teams gefunden.</p><output class="setup-selection-count" data-selection-count="teamTokens" aria-live="polite"><%= selectedTeamTokens.size %> Teams ausgewählt</output>
+            <% if(historicalSetup){ %><p>Bestehende Teams austauschen und Fahrer zuordnen: <a href="/f1/<%= selectedLeague.slug %>?season=<%= selectedSeason.id %>#historical-teams">Teams & Fahrer auf der Ligaseite bearbeiten</a>. Verwendete Teams bitte dort ersetzen.</p><% } %>
             <p>Alle Teams stammen aus der gemeinsamen <a href="/admin/teams">Formel-1-Team-Pflege</a>. Die optionale Punktezuordnung ändert nicht den Teamnamen in dieser Saison.</p>
             <div class="team-choice-grid">
               <% f1Teams.forEach(team=>{const token=`current:${team.id}`;const saved=setupStructure.teams.find(row=>(row.catalogToken||`${row.sourceType}:${row.sourceId}`)===token);const logos=[...(team.logoVariants||[])];if(team.logoPath&&!logos.some(logo=>logo.path===team.logoPath))logos.unshift({path:team.logoPath,label:'Standardlogo'}); %>

@@ -36,11 +36,12 @@ test('DNS rangiert bei Punktgleichheit vor DNA in Stamm-, Reservewertung und WM-
   assert.equal(data.selectedHistory.reserveDrivers[0].name, 'Z DNS');
   assert.equal(data.driverStandings[0].driver.name, 'Z DNS');
 });
-test('Lange Saison erhält lückenlose schmale Blöcke mit höchstens sechs Ergebnisfeldern', async t => {
+test('Lange Saison zeigt alle Runden und Sprints einmal in einer scrollbaren Tabelle', async t => {
   const races = Array.from({ length: 8 }, (_, index) => ({ round: index + 1, title: 'GP', hasSprint: index === 3, isCompleted: true }));
   const html = await ejs.renderFile(path.join(root, 'views/partials/season-history.ejs'), { league: { slug: 'sonntag' }, history: { seasons: [{}] }, isAdmin: false, selectedHistory: { name: 'Saison', races, drivers: [{ position: 1, name: 'Lemi', total: 0, results: races.map(() => ({ main: { status: 'DNS' }, sprint: { status: 'DNS' } })) }] } });
   const dom = new JSDOM(html); t.after(() => dom.window.close()); const d = dom.window.document;
-  assert.equal(d.querySelector('.sheet-wide').querySelectorAll('td.sheet-result').length, 9);
-  const blocks = [...d.querySelectorAll('.sheet-narrow')]; assert.equal(blocks.length, 2);
-  assert.deepEqual(blocks.map(block => block.querySelectorAll('td.sheet-result').length), [6, 3]);
+  assert.equal(d.querySelector('.season-sheet-scroll').querySelectorAll('td.sheet-result').length, 9);
+  assert.equal(d.querySelectorAll('.season-sheet-table').length, 1);
+  assert.equal(d.querySelectorAll('.sheet-wide,.sheet-narrow').length, 0);
+  assert.deepEqual([...d.querySelectorAll('td.sheet-result')].map(cell => Number(cell.dataset.round)), [1, 2, 3, 4, 4, 5, 6, 7, 8]);
 });

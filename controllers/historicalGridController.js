@@ -37,22 +37,25 @@ exports.save=async(req,res)=>{
   try {
     if(!season.PointsSchemeId)throw new Error('Bitte zuerst im Saison-Assistenten ein Punktesystem auswählen.');
     const data=await loadGridData(season);
-    const grid=gridService.validateGrid(req.body.grid,data.drivers,data.teams,data.races);
     const pointCache=new Map();
     const calculatePoints=async(position,context)=>{
       const key=JSON.stringify([position,context.raceType,context.fastestLap,context.polePosition]);
       if(!pointCache.has(key))pointCache.set(key,await require('../services/championship').pointsForPosition(position,context));
       return pointCache.get(key);
     };
-    const entries=await gridService.projectGrid(grid,data.races,data.drivers,data.teams,calculatePoints,season);
     await models.sequelize.transaction(async transaction=>{
       const locked=await models.Season.findByPk(season.id,{transaction,lock:transaction.LOCK.UPDATE});
       if(locked.status!=='historical'||gridService.revision(locked)!==req.body.revision)throw new Error('Die Saison wurde zwischenzeitlich geändert. Bitte deine Eingaben sichern und die Seite neu laden.');
+      const prepared=req.body.teams===undefined ? {grid:req.body.grid,teams:data.teams} : await require('../services/historicalTeams').reconcile(locked,req.body.teams,req.body.grid,data.teams,transaction);
+      const grid=gridService.validateGrid(prepared.grid,data.drivers,prepared.teams,data.races);
+      const entries=await gridService.projectGrid(grid,data.races,data.drivers,prepared.teams,calculatePoints,locked);
       const ids=data.races.map(race=>race.id);
       await models.GrandPrixResultEntry.destroy({where:{GrandPrixResultId:{[Op.in]:ids}},transaction});
       if(entries.length)await models.GrandPrixResultEntry.bulkCreate(entries.map(({role,...entry})=>entry),{transaction});
       await models.GrandPrixResult.update({pointsMode:'database',isHistorical:true},{where:{id:{[Op.in]:ids}},transaction});
       for(const race of data.races.filter(race=>race.raceType!=='sprint'))await models.RaceEvent.update({isCompleted:entries.some(entry=>entry.GrandPrixResultId===race.id)},{where:{GrandPrixResultId:race.id,SeasonId:season.id},transaction});
+      // A team-only correction must also invalidate other open editors.
+      if(req.body.teams!==undefined)locked.changed('historicalGrid',true);
       await locked.update({historicalGrid:grid},{transaction});
     });
     res.json({url:`/f1/${encodeURIComponent(season.scopeSlug)}?season=${season.id}#season-history`});

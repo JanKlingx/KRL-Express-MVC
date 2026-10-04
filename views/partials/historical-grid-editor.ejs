@@ -46,8 +46,13 @@
     <div class="historical-toolbar"><button class="button" type="submit">Übernehmen</button><button class="button button-ghost" type="button" data-historical-row-cancel>Abbrechen</button></div>
   </form></dialog>
   <dialog class="historical-cell-dialog" data-historical-lineup-dialog><form method="dialog">
-    <h3>Letzte Teamaufstellung</h3><p>Diese Zuordnung ist nur für „Teams & Fahrer“ oben. Sie verändert keine Ergebnisse oder Team-WM-Punkte. Beim Speichern werden auch noch offene Änderungen am Saisonverlauf gesichert.</p><div data-historical-lineup-fields></div><p data-historical-lineup-error role="alert"></p>
-    <div class="historical-toolbar"><button class="button" type="submit">Aufstellung speichern</button><button class="button button-ghost" type="button" data-historical-lineup-cancel>Abbrechen</button></div>
+    <h3>Teams & Fahrer bearbeiten</h3>
+    <p>Wähle pro Team bis zu zwei Fahrer. Ein anderes Team auf derselben Karte übernimmt die bestehenden Rennzuordnungen dieser Saison. Platzierungen und Auszeichnungen bleiben erhalten. Neue Teams bekommen zunächst freie Cockpits.</p>
+    <div class="historical-toolbar"><button type="button" class="button button-ghost" data-historical-team-add>+ Team hinzufügen</button><button type="button" class="button button-ghost" data-historical-lineup-import>Fahrer aus Saisonverlauf übernehmen</button></div>
+    <div data-historical-lineup-fields class="historical-lineup-grid"></div>
+    <label><input type="checkbox" data-historical-lineup-rows> Neue Stammfahrer auch im Saisonverlauf anlegen (alle Rennen zunächst DNS)</label>
+    <p>Die Fahrerwahl oben ändert keine vorhandenen Rennteilnahmen. Beim Speichern werden auch offene Änderungen am Saisonverlauf übernommen.</p><p data-historical-lineup-error role="alert"></p>
+    <div class="historical-toolbar"><button class="button" type="submit">Teams & Fahrer speichern</button><button class="button button-ghost" type="button" data-historical-lineup-cancel>Abbrechen</button></div>
   </form></dialog>
 
   <dialog class="historical-cell-dialog" data-historical-stats-dialog><form method="dialog">
@@ -64,6 +69,6 @@
   </form></dialog>
 
 </div>
-<script type="application/json" id="historical-editor-data"><%- JSON.stringify({grid:historicalEditor.grid,drivers:historicalEditor.drivers.map(d=>({id:d.id,name:d.name})),teams:historicalEditor.teams.map(t=>({id:t.id,name:t.name,logoPath:t.logoPath})),races:historicalEditor.races.map(r=>({id:r.id,title:r.title,sortOrder:r.sortOrder,raceType:r.raceType,entries:(r.entries||[]).map(e=>({DriverId:e.DriverId,points:e.points}))})),revision:historicalEditor.revision,seasonId:selectedSeason.id}).replace(/</g,'\\u003c') %></script>
+<script type="application/json" id="historical-editor-data"><%- JSON.stringify({grid:historicalEditor.grid,drivers:historicalEditor.drivers.map(d=>({id:d.id,name:d.name})),teams:historicalEditor.teams.map(t=>({id:t.id,name:t.name,logoPath:t.logoPath,baseTeamId:t.baseTeamId||t.sourceId})),teamCatalog:historicalEditor.teamCatalog||[],races:historicalEditor.races.map(r=>({id:r.id,title:r.title,sortOrder:r.sortOrder,raceType:r.raceType,entries:(r.entries||[]).map(e=>({DriverId:e.DriverId,points:e.points}))})),revision:historicalEditor.revision,seasonId:selectedSeason.id}).replace(/</g,'\\u003c') %></script>
 <script src="/js/historical-periods.js" defer></script>
 <script src="/js/historical-grid.js" defer></script>
