@@ -176,3 +176,9 @@ Admins wählen bei jedem Fahrer im F1-Saisonverlauf den Hauptnamen oder einen hi
 Historische Ersatzfahrer dürfen im Ergebnisdialog **Ohne Team · Punkte nur für den Fahrer** wählen. Platzierungen, Punkte, Pole, FL und DotD bleiben dem Fahrer zugeordnet; kein Team erhält diese Punkte oder Auszeichnungen. Die GP-Ergebnisse verwenden an dieser Stelle das Liga-Logo. Eine später ausgewählte Teamzuordnung wird beim Speichern neu berechnet. Für Stammfahrer und die operative Ergebnispflege aktueller Saisons bleiben Teams verpflichtend.
 
 Nach dem Aktualisieren den Server neu starten. Die bestehende Schema-Ergänzung legt automatisch die optionale JSON-Spalte `seasons.driver_display_names` an. Vorhandene Saisons behalten zunächst ihre bisherigen Namen.
+
+### Aliase im Rennwochenende und Kalender-Sammelaktionen
+
+Der im Saisonverlauf gewählte Anzeigename erscheint auch beim Eintragen eines Rennwochenendes: in Aufstellung, Anwesenheit, Ersatzfahrerwahl und Ergebniseingabe. Gespeicherte Fahrer-IDs und Ergebnisse bleiben unverändert. Im Fahrerprofil der Statistik sind alle hinterlegten Aliase als Liste sichtbar; die Statistik-Suche findet diese Namen ebenfalls.
+
+Admins können im Rennkalender einer aktuellen oder historischen Saison über **Alle erledigt** bzw. **Alle offen** sämtliche Termine dieser Saison markieren. Die Aktion lässt sich mit dem jeweils anderen Button rückgängig machen und verändert keine Ergebnisse oder Punkte. Historische Alias-Auswahlfelder verwenden mehr Platz, einen sichtbaren Auswahlpfeil und größere Bedienflächen auf kleinen Bildschirmen.

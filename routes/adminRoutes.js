@@ -46,6 +46,7 @@ router.post('/season-setup/:seasonId/metadata', asyncHandler(seasonSetupControll
 router.post("/rulebook", asyncHandler(require("../controllers/rulebookController").save));
 router.get(["/f1RuleSections", "/f1RuleSections/new", "/f1RuleSections/:id/edit"], (req, res) => res.redirect("/formel-1/regelwerk?edit=1"));
 router.get("/", asyncHandler(adminController.dashboard));
+router.post('/calendar-seasons/:seasonId/completion', asyncHandler(require('../controllers/calendarEventController').setSeasonCompletion));
 router.post('/calendar-events/:eventId/completion', asyncHandler(require('../controllers/calendarEventController').setCompletion));
 router.get("/calendar-events/:eventId/edit", asyncHandler(require('../controllers/calendarEventController').edit));
 router.post("/calendar-events/:eventId", asyncHandler(require('../controllers/calendarEventController').update));

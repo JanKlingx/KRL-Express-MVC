@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { sequelize, RaceEvent, F1Track, GrandPrixResult, GrandPrixResultEntry, F1RaceLineupEntry } = require('../models');
+const { sequelize, Season, League, RaceEvent, F1Track, GrandPrixResult, GrandPrixResultEntry, F1RaceLineupEntry } = require('../models');
 const { localDateTime, parseBerlinDateTime } = require('../services/calendarTime');
 function returnHref(event) {
   return event.league.type === 'f1' ? `/f1/${encodeURIComponent(event.league.slug)}?season=${event.SeasonId}#f1-calendar` : `/lmu?season=${event.SeasonId}#lmu-calendar`;
@@ -79,4 +79,19 @@ exports.setCompletion = async (req, res, next) => {
   if (!event || !['f1', 'lmu'].includes(event.league?.type)) return next();
   req.session.flash = { type: 'success', message: event.isCompleted ? 'Termin als gefahren markiert.' : 'Termin ist wieder offen.' };
   return res.redirect(returnHref(event));
+};
+
+exports.setSeasonCompletion = async (req, res, next) => {
+  if (!['0', '1'].includes(req.body.completed)) return res.status(400).send('Ungültiger Kalenderstatus.');
+  let season, league;
+  await sequelize.transaction(async transaction => {
+    season = await Season.findByPk(req.params.seasonId, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!season || !['f1', 'lmu'].includes(season.leagueType) || !['active', 'historical'].includes(season.status)) return;
+    league = await League.findOne({ where: { slug: season.scopeSlug, type: season.leagueType }, transaction });
+    if (!league) return;
+    await RaceEvent.update({ isCompleted: req.body.completed === '1' }, { where: { SeasonId: season.id, LeagueId: league.id }, transaction });
+  });
+  if (!league) return next();
+  req.session.flash = { type: 'success', message: req.body.completed === '1' ? 'Alle Termine dieser Saison sind als erledigt markiert.' : 'Alle Termine dieser Saison sind wieder offen.' };
+  return res.redirect(returnHref({ league, SeasonId: season.id }));
 };

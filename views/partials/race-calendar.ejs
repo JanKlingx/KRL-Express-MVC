@@ -3,6 +3,13 @@
 <% const visibleCalendar = calendar.filter((race) => race.isPublished !== false || publicArchive || (typeof isAdmin !== 'undefined' && isAdmin)); %>
 <% if (visibleCalendar.length) { %>
 
+  <% if(typeof isAdmin!=='undefined' && isAdmin && typeof selectedSeason!=='undefined' && selectedSeason?.id && ['active','historical'].includes(selectedSeason.status) && ['f1','lmu'].includes(selectedSeason.leagueType) && visibleCalendar.some(race=>Number.isInteger(Number(race.id)))){ %>
+  <div class="calendar-bulk-actions">
+    <span>Alle Termine dieser Saison markieren:</span>
+    <form method="post" action="/admin/calendar-seasons/<%= selectedSeason.id %>/completion"><button class="button button-small" type="submit" name="completed" value="1">✓ Alle erledigt</button><button class="button button-small button-ghost" type="submit" name="completed" value="0">Alle offen</button></form>
+    <small>Ändert nur die Kalendermarkierung. Ergebnisse und Punkte bleiben erhalten.</small>
+  </div>
+  <% } %>
   <div class="race-calendar-grid">
 
     <% visibleCalendar.forEach((race, index) => {

@@ -38,11 +38,16 @@
     });
     return list;
   }
+  function aliasList(driver) {
+    const section=el('section',null,'career-aliases');section.append(el('h3','Aliase / frühere Namen'));
+    if(driver.aliases?.length){const list=el('ul');driver.aliases.forEach(alias=>list.append(el('li',alias)));section.append(list);}else section.append(el('p','Keine weiteren Aliase hinterlegt.','career-note'));
+    return section;
+  }
   function render() {
     const metric = get('metric').value;
     const all = drivers.map(driver => { const rows = filteredSeasons(driver); return { ...driver, rows, stats: total(rows) }; });
     const query = get('search').value.trim().toLocaleLowerCase('de');
-    const visible = all.filter(driver => (get('league').value === 'all' && get('season').value === 'all' || driver.rows.length) && driver.name.toLocaleLowerCase('de').includes(query)).sort((a, b) => b.stats[metric] - a.stats[metric] || a.name.localeCompare(b.name, 'de'));
+    const visible = all.filter(driver => (get('league').value === 'all' && get('season').value === 'all' || driver.rows.length) && [driver.name,...(driver.aliases||[])].some(name=>name.toLocaleLowerCase('de').includes(query))).sort((a, b) => b.stats[metric] - a.stats[metric] || a.name.localeCompare(b.name, 'de'));
     get('count').textContent = `${visible.length} ${plural} · ${selected.size}/3 im Vergleich`;
     get('summary').replaceChildren();
     const sourceIds = new Set(visible.flatMap(driver => [driver.id, ...(aggregate() ? driver.includedTeamIds || [] : [])]));
@@ -72,7 +77,7 @@
       } else card.append(el('p', 'Noch keine zugeordneten Ergebnisse für diese Auswahl.', 'career-note'));
       get('drivers').append(card);
     });
-    const profile=get('profile');if(profile){profile.replaceChildren();const driver=all.find(driver=>driver.id===focused);profile.hidden=!driver;if(driver){profile.append(el('span',isTeam?'FORMEL 1 · TEAMPROFIL':'FORMEL 1 · FAHRERPROFIL','eyebrow'),el('h2',driver.name),metrics(driver.stats,true));}}
+    const profile=get('profile');if(profile){profile.replaceChildren();const driver=all.find(driver=>driver.id===focused);profile.hidden=!driver;if(driver){profile.append(el('span',isTeam?'FORMEL 1 · TEAMPROFIL':'FORMEL 1 · FAHRERPROFIL','eyebrow'),el('h2',driver.name),metrics(driver.stats,true));if(!isTeam)profile.append(aliasList(driver));}}
     const comparison = get('comparison'); comparison.replaceChildren();
     const choices = all.filter(driver => selected.has(driver.id));
     if (!choices.length) { comparison.append(el('p', `Dein Vergleich beginnt mit einem ${entity}.`)); return; }
