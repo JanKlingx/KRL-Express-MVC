@@ -11,7 +11,7 @@
   const initialCells=new Map(grid.rows.flatMap(row=>Object.entries(row.cells).map(([id,cell])=>[`${row.rowId}:${id}`,JSON.stringify(cell)])));
   const get=name=>root.querySelector(`[data-historical-${name}]`);
   const el=(tag,text)=>{const node=document.createElement(tag);if(text!=null)node.textContent=text;return node;};
-  const name=id=>data.drivers.find(d=>Number(d.id)===Number(id))?.name||'Fahrer';
+  const name=id=>window.SeasonAliases?.name(id,data.drivers.find(d=>Number(d.id)===Number(id))?.name)||data.drivers.find(d=>Number(d.id)===Number(id))?.name||'Fahrer';
   const awards=['polePosition','fastestLap','driverOfTheDay'];
   const inactive=status=>['DSQ','DNS','DNA','S'].includes(status);
   const started=cell=>cell&&!inactive(cell.status)&&(cell.position||cell.points!=null||cell.status==='DNF');
@@ -37,7 +37,8 @@
     get('title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}`;
     // A normal click prepares result entry; cancelling keeps the existing absence status.
     form.elements.status.value=['DNA','DNS'].includes(cell.status)?'':cell.status||'';form.elements.position.value=cell.position||'';
-    teamOptions(form.elements.teamId,cell.teamId||row.teamId);
+    teamOptions(form.elements.teamId,cell.teamId===null?null:cell.teamId||row.teamId);
+    form.elements.teamId.options[0].textContent=row.role==='reserve'?'Ohne Team · Punkte nur für den Fahrer':'Team auswählen';
     get('cell-error').textContent='';updateStatus();dialog.showModal();
   }
   form.elements.status.addEventListener('change',updateStatus);
@@ -45,7 +46,7 @@
     event.preventDefault();const status=form.elements.status.value,position=Number(form.elements.position.value)||null,teamId=Number(form.elements.teamId.value)||null;
     const points=null;
     if(!status&&!position&&points===null){get('cell-error').textContent='Bitte eine Platzierung oder einen Status eintragen.';return;}
-    if((position||points!==null||['DNF','DSQ'].includes(status))&&!teamId){get('cell-error').textContent='Bitte das Team dieses Rennens auswählen.';return;}
+    if(editing.row.role!=='reserve'&&(position||points!==null||['DNF','DSQ'].includes(status))&&!teamId){get('cell-error').textContent='Bitte das Team dieses Rennens auswählen.';return;}
     const cell={status,position,points,teamId};
     // Result edits retain awards maintained in race statistics; inactive status clears them.
     awards.forEach(field=>{cell[field]=editing.race.raceType!=='sprint'&&started(cell)&&Boolean(editing.row.cells[editing.race.id]?.[field]);});
@@ -54,7 +55,7 @@
     let error='';
     if(starts&&others.some(item=>item.row.driverId===editing.row.driverId&&(started(item.cell)||item.cell.status==='DSQ')))error='Dieser Fahrer hat in einer anderen Zeile bereits ein Ergebnis für dieses Rennen.';
     else if(position&&others.some(item=>Number(item.cell.position)===position))error=`Platz ${position} ist bereits vergeben.`;
-    else if(starts&&others.filter(item=>(item.cell.teamId||item.row.teamId)===teamId&&(started(item.cell)||item.cell.status==='DSQ')).length>=2)error='Für dieses Team sind bereits zwei Fahrer in diesem Rennen eingetragen.';
+    else if(starts&&teamId&&others.filter(item=>(item.cell.teamId||item.row.teamId)===teamId&&(started(item.cell)||item.cell.status==='DSQ')).length>=2)error='Für dieses Team sind bereits zwei Fahrer in diesem Rennen eingetragen.';
     else if(awards.some(field=>cell[field]&&others.some(item=>item.cell[field])))error='Eine dieser Auszeichnungen ist bereits vergeben. Ändere die Zuordnung in der Rennstatistik.';
     if(error){get('cell-error').textContent=error;return;}
     editing.row.cells[editing.race.id]=cell;mark();dialog.close();render();
@@ -65,7 +66,7 @@
   function openQuick(row,race){if(periods.outside(row,Number(race.sortOrder))){openCell(row,race);return;}quickEditing={row,race};get('quick-title').textContent=`${name(row.driverId)} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: Status`;quickDialog.showModal();}
   root.querySelectorAll('[data-historical-quick-status]').forEach(b=>b.addEventListener('click',()=>{
     const {row,race}=quickEditing,previous=row.cells[race.id];
-    row.cells[race.id]={status:b.dataset.historicalQuickStatus,position:null,points:null,teamId:previous?.teamId||row.teamId||null,fastestLap:false,polePosition:false,driverOfTheDay:false};
+    row.cells[race.id]={status:b.dataset.historicalQuickStatus,position:null,points:null,teamId:previous?.teamId===null?null:previous?.teamId||row.teamId||null,fastestLap:false,polePosition:false,driverOfTheDay:false};
     mark();quickDialog.close();render();
   }));
   get('quick-cancel').addEventListener('click',()=>quickDialog.close());
@@ -108,6 +109,7 @@
         if(!savedStats.has(row.rowId))savedStats.set(row.rowId,[...tr.querySelectorAll('.sheet-total,.sheet-stat,.sheet-position')].map(td=>td.textContent));
         const driverCell=tr.querySelector('.sheet-driver');driverCell.replaceChildren();
         const link=el('a',name(row.driverId));link.href=`/krl-statistik?driver=${row.driverId}`;link.className='standing-profile-link';driverCell.append(link);
+        const aliasSelect=window.SeasonAliases?.createSelect(row.driverId);if(aliasSelect)driverCell.append(aliasSelect);
         const actions=el('div');actions.className='historical-driver-actions';
         const select=el('input');select.type='checkbox';select.dataset.historicalSelect=row.rowId;select.checked=selectedRows.has(row.rowId);select.setAttribute('aria-label',`${name(row.driverId)}: diese Zeile auswählen`);
         select.addEventListener('change',()=>{if(select.checked)selectedRows.add(row.rowId);else selectedRows.delete(row.rowId);syncSelection();});actions.append(select);
@@ -277,16 +279,17 @@
       awards.forEach(field=>{const td=tr.querySelector(`[data-historical-statistic="${field}"]`);if(td)td.textContent=grid.rows.filter(row=>row.cells[race.id]?.[field]).map(row=>name(row.driverId)).join(', ')||'–';});
     });
   }
-  get('undo').addEventListener('click',()=>{if(dirty&&!confirm('Alle ungespeicherten Änderungen verwerfen?'))return;Object.assign(grid,JSON.parse(original));data.teams=JSON.parse(originalTeams);teamChanges=undefined;selectedRows.clear();dirty=false;render();message('Änderungen verworfen.');});
+  get('undo').addEventListener('click',()=>{if(dirty&&!confirm('Alle ungespeicherten Änderungen verwerfen?'))return;window.SeasonAliases?.reset();Object.assign(grid,JSON.parse(original));data.teams=JSON.parse(originalTeams);teamChanges=undefined;selectedRows.clear();dirty=false;render();message('Änderungen verworfen.');});
   async function saveGrid(errorNode=null,fromLineup=false,anchor=null){
     if(busy)return;busy=true;saveButtons.forEach(b=>{b.disabled=true;});lineupForm.querySelector('[type=submit]').disabled=true;statsForm.querySelector('[type=submit]').disabled=true;message('Ergebnisse werden gespeichert …');if(errorNode)errorNode.textContent='Änderungen werden gespeichert …';
-    try{const response=await fetch(`/admin/historical-grid/${data.seasonId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid,revision:data.revision,teams:teamChanges})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Speichern fehlgeschlagen.');dirty=false;
+    try{const response=await fetch(`/admin/historical-grid/${data.seasonId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grid,revision:data.revision,teams:teamChanges,displayNames:window.SeasonAliases?.selection()})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Speichern fehlgeschlagen.');dirty=false;
       const target=new URL(anchor?result.url.replace(/#.*$/,'')+'#'+anchor:fromLineup?result.url.replace(/#.*$/,'#historical-teams'):result.url,location.href);
       // A fragment-only navigation would leave the old totals on screen.
       if(target.pathname===location.pathname&&target.search===location.search){location.hash=target.hash;location.reload();}else location.assign(target.href);}
     catch(error){const text=error.message+' Deine Eingaben bleiben erhalten.';message(text);if(errorNode)errorNode.textContent=text;}
     finally{busy=false;saveButtons.forEach(b=>{b.disabled=false;});lineupForm.querySelector('[type=submit]').disabled=false;statsForm.querySelector('[type=submit]').disabled=false;}
   }
+  document.addEventListener('season-alias-change',()=>{mark();render();});
   saveButtons.forEach(b=>b.addEventListener('click',()=>saveGrid()));
   window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});render();
 })();

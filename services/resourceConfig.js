@@ -133,6 +133,7 @@ const DRIVER_RANKS = [
 async function prepareDriver(values, body, existingDriver) {
   values.name = String(values.name || "").trim();
   if (!values.name) throw new Error("Bitte einen Fahrernamen eingeben.");
+  parseDriverAliases(body,values.name);
   if (body.driverWizard === "1") {
     applyDriverViews(values, body, existingDriver || {});
     const platform = await models.Platform.findByPk(Number(values.PlatformId));
@@ -226,7 +227,7 @@ const nationalityField = () =>
 const aliasesField = () =>
   textarea("aliasesText", "Aliase / frühere Namen", false, {
     persist: false,
-    help: "Mehrere Namen mit Komma oder jeweils in einer neuen Zeile trennen.",
+    help: "Namen mit + hinzufügen, mit dem Stift bearbeiten oder mit × entfernen.",
   });
 
 async function prepareDriverForForm(entry) {
@@ -247,7 +248,8 @@ async function prepareDriverForForm(entry) {
   return {
     ...values,
     f1SeasonRanks: stints.filter((stint) => stint.season).map((stint) => `${require('./f1DriverPolicy').seasonRankLabel(stint.season)} · R${stint.fromRound}${stint.toRound == null ? '–Saisonende' : `–R${stint.toRound}`}`),
-    aliasesText: aliases.map((alias) => alias.alias).join(", "),
+    aliasesText: entry.aliasesText ?? aliases.map((alias) => alias.alias).join(", "),
+    aliasesJson: entry.aliasesJson ?? JSON.stringify(aliases.map(alias=>alias.alias)),
     polesF1: stats.f1.poles,
     fastestLapsF1: stats.f1.fastestLaps,
     driverOfTheDaysF1: stats.f1.driverOfTheDays,
@@ -266,15 +268,16 @@ async function prepareDriverForForm(entry) {
   };
 }
 
+function parseDriverAliases(body,name) {
+  const submitted = body.aliasesJson === undefined ? String(body.aliasesText || '').split(/[,;\n]+/) : JSON.parse(body.aliasesJson);
+  if(!Array.isArray(submitted)||submitted.length>100||submitted.some(alias=>typeof alias!=='string'||alias.trim().length>255))throw new Error('Bitte höchstens 100 Aliase mit maximal 255 Zeichen eingeben.');
+  const seen=new Set();
+  const aliases=submitted.map(alias=>alias.trim()).filter(alias=>{const key=alias.toLocaleLowerCase('de');if(!alias||key===name.toLocaleLowerCase('de')||seen.has(key))return false;seen.add(key);return true;});
+  return aliases;
+}
+
 async function syncDriverAliases(driver, body) {
-  const aliases = [
-    ...new Set(
-      String(body.aliasesText || "")
-        .split(/[,;\n]+/)
-        .map((alias) => alias.trim())
-        .filter((alias) => alias && alias !== driver.name),
-    ),
-  ];
+  const aliases=parseDriverAliases(body,driver.name);
   await models.sequelize.transaction(async (transaction) => {
     await models.DriverAlias.destroy({
       where: { DriverId: driver.id },

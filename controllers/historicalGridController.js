@@ -12,7 +12,7 @@ async function loadGridData(season,raceValues=null) {
   const races=rawRaces.filter(row=>!require('../services/publicRaceWeekend').isTestDayResult(row,events,rawRaces));
   const teams=await Promise.all(teamValues.map(async value=>{const row=value.toJSON();const definition=await require('../services/f1Season').resolveTeamToken(`${row.sourceType}:${row.sourceId}`);return {...row,baseTeamId:row.sourceType==='current'?row.sourceId:definition?.BaseTeamId||null};}));
   const extraIds=[...new Set(races.flatMap(race=>(race.entries||[]).map(entry=>entry.DriverId)).filter(Boolean))];
-  const availableDrivers=await models.Driver.findAll({order:[['name','ASC']]});
+  const availableDrivers=await models.Driver.findAll({include:[{association:'aliases'}],order:[['name','ASC']]});
   const drivers=[...new Map([...members.map(member=>member.driver),...availableDrivers].filter(Boolean).map(driver=>[Number(driver.id),driver.toJSON()])).values()];
   const legacyLineups=season.historicalGrid?[]:await models.F1RaceLineupEntry.findAll({where:{GrandPrixResultId:{[Op.in]:races.map(race=>race.id)}}});
   const existingDrivers=drivers.filter(driver=>members.some(member=>Number(member.driver?.id)===Number(driver.id))||extraIds.includes(driver.id));
@@ -56,7 +56,9 @@ exports.save=async(req,res)=>{
       for(const race of data.races.filter(race=>race.raceType!=='sprint'))await models.RaceEvent.update({isCompleted:entries.some(entry=>entry.GrandPrixResultId===race.id)},{where:{GrandPrixResultId:race.id,SeasonId:season.id},transaction});
       // A team-only correction must also invalidate other open editors.
       if(req.body.teams!==undefined)locked.changed('historicalGrid',true);
-      await locked.update({historicalGrid:grid},{transaction});
+      const values={historicalGrid:grid};
+      if(req.body.displayNames!==undefined)values.driverDisplayNames=require('../services/seasonAliases').validate(req.body.displayNames,data.drivers,true);
+      await locked.update(values,{transaction});
     });
     res.json({url:`/f1/${encodeURIComponent(season.scopeSlug)}?season=${season.id}#season-history`});
   }catch(error){res.status(422).json({error:error.message});}

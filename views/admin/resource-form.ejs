@@ -22,6 +22,12 @@
         </fieldset>
       <% } %>
       <% config.fields.filter((field) => (!field.visibleWhen || field.visibleWhen(entry)) && !(resource === "drivers" && entry?.id && ["roleF1Friday", "roleF1Saturday", "roleF1Sunday", "roleFormerF1"].includes(field.name))).forEach((field) => { const value = entry ? (entry[field.name] ?? '') : ''; const inputId = `${resource}-${field.name}`; %>
+        <% if(field.name==='aliasesText'){ %><div class="field-aliases" data-alias-editor>
+          <span><%= field.label %></span>
+          <textarea name="aliasesText" aria-label="Aliase, ein Name je Zeile"><%= value %></textarea>
+          <% if(entry?.aliasesJson){ %><input type="hidden" disabled data-alias-json name="aliasesJson" value="<%= entry.aliasesJson %>"><% } %>
+          <small><%= field.help %></small>
+        </div><% }else{ %>
         <label for="<%= inputId %>" class="field-<%= field.type %>" <%- resource === 'drivers' ? `data-driver-view="${config.driverFieldView(field.name)}"` : '' %>>
           <span><%= field.label %><% if (field.required) { %><b aria-hidden="true"> *</b><% } %></span>
           <% if (field.type === 'textarea') { %>
@@ -40,6 +46,7 @@
           <% } %>
           <% if (field.help) { %><small><%= field.help %></small><% } %>
         </label>
+        <% } %>
       <% }) %>
 
       <% if(config.teamLogoGallery && entry?.id) { %>
@@ -75,4 +82,5 @@
   </div>
 </section>
 <% if (resource === 'drivers') { %><script src="/js/driver-wizard.js" defer></script><% } %>
+<script src="/js/alias-chips.js" defer></script>
 <%- include('../partials/footer') %>

@@ -7,7 +7,7 @@ function selectedRow(grid,raceId,driverId) {
   const rows=grid.rows.filter(row=>row.driverId===Number(driverId)&&row.cells[raceId]&&row.cells[raceId].status!=='DNA');
   return rows.find(row=>startsCell(row.cells[raceId])) || rows.find(row=>row.role==='regular') || rows[0];
 }
-const revision=season=>createHash('sha256').update(JSON.stringify([season.updatedAt,season.historicalGrid])).digest('hex');
+const revision=season=>createHash('sha256').update(JSON.stringify([season.updatedAt,season.historicalGrid,season.driverDisplayNames])).digest('hex');
 function initialGrid(drivers,teams,races=[],lineups=[]) {
   const rows=drivers.flatMap(driver=>['regular','reserve'].map(role=>({driverId:Number(driver.id),role,teamId:null,cells:{}})));
   for(const race of races)for(const entry of race.entries||[]) {
@@ -49,7 +49,7 @@ function validateGrid(value,drivers,teams,races) {
       const race=raceMap.get(id);if(!race)throw new Error('Ein Rennen gehört nicht zu dieser Saison. Bitte neu laden.');
       const name=drivers.find(driver=>Number(driver.id)===driverId)?.name;
       const fail=message=>{throw new Error(`${name} · R${race.sortOrder} ${race.raceType==='sprint'?'Sprint':'GP'}: ${message}`);};
-      const status=String(input.status||'').toUpperCase(),position=input.position==null||input.position===''?null:Number(input.position),assignedTeam=Number(input.teamId)||teamId;
+      const status=String(input.status||'').toUpperCase(),position=input.position==null||input.position===''?null:Number(input.position),assignedTeam=input.teamId===null?null:Number(input.teamId)||teamId;
       let points = input.points === null || input.points === undefined || input.points === '' ? null : Number(input.points);
       // A recorded position always uses the season scheme, including reserve starts.
       // Preserve legacy points-only imports until their placement is completed.
@@ -62,9 +62,9 @@ function validateGrid(value,drivers,teams,races) {
       if(!status&&!position&&points===null)continue;
       if(['DSQ','DNS','DNA','S'].includes(status)&&position)fail('Dieser Status darf keine Platzierung haben.');
       const startsHere=Boolean(position||points!==null&&!['DNA','DNS','S'].includes(status)||['DNF','DSQ'].includes(status));
-      if(startsHere&&!teamIds.has(assignedTeam))fail('Bitte das Team für dieses Ergebnis wählen.');
+      if(startsHere&&role!=='reserve'&&!teamIds.has(assignedTeam))fail('Bitte das Team für dieses Ergebnis wählen.');
       if(assignedTeam&&!teamIds.has(assignedTeam))fail('Das gewählte Team gehört nicht zur Saison.');
-      if(startsHere){const token=`${id}:${driverId}`;if(starts.has(token))fail('Ein Fahrer darf im selben Rennen nur in einer Wertung starten.');starts.add(token);const teamToken=`${id}:${assignedTeam}`;teamStarts.set(teamToken,(teamStarts.get(teamToken)||0)+1);if(teamStarts.get(teamToken)>2)fail('Für dieses Team sind bereits zwei Fahrer in diesem Rennen eingetragen.');}
+      if(startsHere){const token=`${id}:${driverId}`;if(starts.has(token))fail('Ein Fahrer darf im selben Rennen nur in einer Wertung starten.');starts.add(token);const teamToken=`${id}:${assignedTeam}`;teamStarts.set(teamToken,(teamStarts.get(teamToken)||0)+1);if(assignedTeam&&teamStarts.get(teamToken)>2)fail('Für dieses Team sind bereits zwei Fahrer in diesem Rennen eingetragen.');}
       if(position){const token=`${id}:${position}`;if(places.has(token))fail(`Platz ${position} ist bereits vergeben.`);places.add(token);}
       const cell={position,status,points,teamId:assignedTeam||null};
       for(const award of ['fastestLap','polePosition','driverOfTheDay']) {

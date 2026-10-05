@@ -253,6 +253,7 @@ router.post("/race-weekend/f1/:raceId/reset-attendance", asyncHandler(raceWeeken
 router.post("/race-weekend/f1/:raceId/reset-results", asyncHandler(raceWeekendController.resetResults));
 router.post("/race-weekend/f1/:raceId/reopen-lineup", asyncHandler(raceWeekendController.reopenLineup));
 router.post("/race-weekend/f1/:raceId/reserves/:driverId/remove", asyncHandler(raceWeekendController.removeReserve));
+router.post('/season-aliases/:seasonId', asyncHandler(require('../services/seasonAliases').save));
 router.post('/historical-grid/:seasonId', asyncHandler(require('../controllers/historicalGridController').save));
 router.get('/race-editor', (req,res)=>res.redirect('/admin/season-setup'));
 router.use('/race-editor/:raceId', asyncHandler(async(req,res,next)=>{
