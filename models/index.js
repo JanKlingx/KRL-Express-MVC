@@ -476,6 +476,7 @@ const F1Game = sequelize.define("F1Game", {
 });
 
 const Season = sequelize.define("Season", {
+  driverDisplayNames: {type:DataTypes.JSON,allowNull:true},
   hideCalendarTime: {type:DataTypes.BOOLEAN,allowNull:false,defaultValue:false},
   historicalGrid: {type:DataTypes.JSON,allowNull:true},
   name: {

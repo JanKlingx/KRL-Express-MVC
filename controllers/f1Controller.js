@@ -619,6 +619,8 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
   const historicalEditor = selectedSeason?.status === 'historical'
     ? await require('./historicalGridController').loadGridData(selectedSeason, gpResults) : null;
+  const aliases = await require('../services/seasonAliases').load(selectedSeason, [...drivers.map(d=>d.id), ...gpResults.flatMap(r=>(r.entries||[]).map(e=>e.DriverId)), ...(historicalEditor?.drivers||[]).map(d=>d.id)].filter(Boolean));
+  if(historicalEditor)historicalEditor.displayNames=aliases.selected;
   const historicalLineups = historicalEditor ? require('../services/historicalGrid').lineupsForGrid(historicalEditor.grid, historicalEditor.races) : raceLineupEntries;
   const plainLineups =
     historicalLineups.map(
@@ -776,6 +778,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
 
                 return {
                   ...entry,
+                  driverName: aliases.name(entry.DriverId,entry.driverName),
 
                   isReserve:
                     lineup
@@ -1390,6 +1393,8 @@ async function loadLeagueData(slug, requestedSeasonId) {
     },
   );
 
+  require('../services/seasonAliases').applyStandings(standingsData,aliases);
+  if(selectedSeason?.status==='historical')for(const team of teams)team.drivers=team.drivers.map(d=>({...plain(d),name:aliases.name(d.id,d.name,'lineup')}));
   const publicPenaltyLedger = {
     threshold:
       penaltyThreshold,
@@ -1421,6 +1426,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
     selectedSeason,
 
     publicPenaltyLedger,
+    seasonAliasData: selectedSeason ? {seasonId:selectedSeason.id,historical:selectedSeason.status==='historical',drivers:aliases.drivers,selected:aliases.selected} : null,
     historicalEditor,
     publicWeekends: buildPublicWeekends({ races: gpResults, entries: raceLineupEntries, teams, stints: seasonStructure.stints, calendar: activeCalendar }),
 

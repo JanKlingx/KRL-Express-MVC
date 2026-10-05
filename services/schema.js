@@ -36,6 +36,7 @@ async function ensureSchema() {
   const historicalSeasonTable=await sequelize.getQueryInterface().describeTable("seasons");
   await addMissingColumn("seasons",historicalSeasonTable,"hide_calendar_time",{type:DataTypes.BOOLEAN,allowNull:false,defaultValue:false});
   await addMissingColumn("seasons",historicalSeasonTable,"historical_grid",{type:DataTypes.JSON,allowNull:true});
+  await addMissingColumn("seasons",historicalSeasonTable,"driver_display_names",{type:DataTypes.JSON,allowNull:true});
   const queryInterface = sequelize.getQueryInterface();
   const teamCatalogTable=await queryInterface.describeTable('teams');
   await addMissingColumn('teams',teamCatalogTable,'aggregation_team_id',{type:DataTypes.INTEGER,allowNull:true});

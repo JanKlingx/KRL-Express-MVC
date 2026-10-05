@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('[data-driver-wizard]');
   if (!form) return;
   const actions = form.querySelector('.form-actions');
-  const labels = [...form.children].filter((node) => node.tagName === 'LABEL');
+  const labels = [...form.children].filter((node) => node.tagName === 'LABEL' || node.matches('[data-alias-editor]'));
   const titles = ['1 · Name und Identität', '2 · Sichten auswählen', '3 · Ränge', '4 · Weitere Angaben'];
   const groups = titles.map((title, index) => {
     if (index === 1) return form.querySelector('[data-driver-view-picker]');

@@ -1,4 +1,8 @@
 <%- include('partials/header', { title }) %>
+<% if(isAdmin && typeof seasonAliasData!=='undefined' && seasonAliasData){ %>
+<script type="application/json" id="season-alias-data"><%- JSON.stringify(seasonAliasData).replace(/</g,'\\u003c') %></script>
+<script src="/js/season-aliases.js" defer></script>
+<% } %>
 
 <%
   const findPublicTeam = (teamName) => {
@@ -208,7 +212,7 @@
         <h2>
           TEAMS & FAHRER
         </h2>
-        <% if (isAdmin && selectedSeason?.status === 'historical') { %><button class="button button-ghost button-small" type="button" data-historical-open>Teams & Fahrer bearbeiten</button><% } %>
+        <% if (isAdmin && selectedSeason?.status === 'historical') { %><button class="button button-ghost button-small" type="button" data-historical-open>Teams & Fahrer bearbeiten</button><button class="button button-small" type="button" data-historical-save-copy>Anzeigenamen speichern</button><small data-historical-message-copy role="status">Die Alias-Auswahl gilt nur für diese Saison.</small><% } %>
 
       </div>
 
@@ -250,7 +254,7 @@
 
               <% team.drivers.forEach((driver) => { %>
 
-                <li>
+                <li <%- isAdmin && selectedSeason?.status==='historical' ? `data-lineup-alias-driver="${Number(driver.id)}"` : '' %>>
                   <strong>
                     <%= driver.name %>
                   </strong>

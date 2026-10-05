@@ -1626,6 +1626,7 @@ function buildSeasonData(
               : `+${leaderPoints - driver.total}`,
 
           driver: {
+            id: driver.id,
             name:
               driver.name,
 

@@ -166,3 +166,13 @@ Auf der Ligaseite sind Rennkalender veröffentlichter historischer F1-Saisons au
 Auf der historischen Ligaseite öffnet „Teams & Fahrer bearbeiten“ eine Karte je Team mit zwei Cockpits. Teams lassen sich ergänzen oder ersetzen, Fahrer direkt auswählen und die Aufstellung aus dem Saisonverlauf übernehmen. Optional werden neue Stammfahrer zugleich mit DNS in allen Rennen im Saisonverlauf angelegt. Verwendete Teams werden auf ihrer Karte ersetzt; nur ungenutzte Teams können entfernt werden. Beim Ersetzen bleiben die Saison-Team-ID und Rennzuordnungen erhalten. Ergebnisse, Punkte und Auszeichnungen werden in derselben Transaktion dem korrigierten Team zugeordnet. Unveränderte Teams behalten ihr gewähltes Saisonlogo. Aktuelle Saisons behalten ihre bisherigen Bearbeitungssperren.
 
 Der Saisonverlauf verwendet auf allen Bildschirmgrößen genau eine vollständige Tabelle pro Wertung. Auf kleinen Bildschirmen kann seitlich bis zum letzten Rennen inklusive aller Sprints gescrollt werden; der Fahrername bleibt dabei sichtbar.
+
+### Anzeigenamen je Saison und historische Ersatzfahrer ohne Team
+
+In der Fahrerpflege werden Aliase als Namens-Chips verwaltet: Namen eingeben und mit **+ Hinzufügen** übernehmen, mit **✎** bearbeiten oder mit **×** entfernen. Enter fügt einen Namen hinzu; noch eingegebene Namen werden beim Speichern übernommen. Die bisherigen komma-/zeilengetrennten Daten bleiben lesbar.
+
+Admins wählen bei jedem Fahrer im F1-Saisonverlauf den Hauptnamen oder einen hinterlegten Alias. Die Auswahl gilt für diese Saison und erscheint auch in Fahrer-WM, GP-Ergebnissen und Rennstatistik. Die Fahrer-ID und sämtliche Punkte bleiben gleich. Bei aktuellen Saisons wird die Auswahl sofort gespeichert. In historischen Saisons wird sie mit **Änderungen speichern** bzw. **Anzeigenamen speichern** zusammen mit offenen Ergebniseingaben gesichert. Unter **Teams & Fahrer** ist dort zusätzlich ein davon unabhängiger Anzeigename wählbar. Wird ein gewählter Alias in der Fahrerpflege gelöscht oder umbenannt, erscheint bis zur neuen Auswahl wieder der Hauptname.
+
+Historische Ersatzfahrer dürfen im Ergebnisdialog **Ohne Team · Punkte nur für den Fahrer** wählen. Platzierungen, Punkte, Pole, FL und DotD bleiben dem Fahrer zugeordnet; kein Team erhält diese Punkte oder Auszeichnungen. Die GP-Ergebnisse verwenden an dieser Stelle das Liga-Logo. Eine später ausgewählte Teamzuordnung wird beim Speichern neu berechnet. Für Stammfahrer und die operative Ergebnispflege aktueller Saisons bleiben Teams verpflichtend.
+
+Nach dem Aktualisieren den Server neu starten. Die bestehende Schema-Ergänzung legt automatisch die optionale JSON-Spalte `seasons.driver_display_names` an. Vorhandene Saisons behalten zunächst ihre bisherigen Namen.

@@ -12750,3 +12750,12 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
  .nav-join{margin-left:auto;}
  .main-nav{top:100%;}
 }
+
+.season-alias-select { display:block; width:100%; max-width:180px; min-width:0; margin-top:.4rem; font:inherit; font-size:11px; padding:.3rem; color:#edf8ff; background:#16252e; border:1px solid #587080; border-radius:6px; }
+.field-aliases { display:grid; gap:.7rem; }
+.alias-chips { display:flex; flex-wrap:wrap; gap:.5rem; }
+.alias-chip { display:inline-flex; align-items:center; gap:.5rem; max-width:100%; padding:.35rem .7rem; border:1px solid #658f9f; border-radius:999px; background:#1d3540; }
+.alias-chip > span { overflow-wrap:anywhere; }
+.alias-chip button { flex-shrink:0; padding:.2rem .4rem; background:transparent; color:#eefaff; border:0; cursor:pointer; }
+.alias-chip-controls { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; }
+.alias-chip-controls input { flex:1 1 180px; min-width:0; }

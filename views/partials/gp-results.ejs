@@ -24,6 +24,7 @@
       || b.index - a.index)[0]?.index || 0;
 
   const findResultTeam = (entry) => {
+    if(typeof selectedSeason!=='undefined' && selectedSeason?.status==='historical' && !entry.TeamId && !entry.teamName) return {name:currentLeague?.name||'Liga',logoPath:currentLeague?.logoPath||null};
 
     const byName =
       availableTeams.find(
