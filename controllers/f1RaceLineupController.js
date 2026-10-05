@@ -524,7 +524,7 @@ exports.show = async (req, res) => {
 
     reserveStatuses: RESERVE_STATUSES,
 
-    ...planning,
+    ...await require('../services/seasonAliases').forDisplay(activeSeason,planning),
   });
 };
 

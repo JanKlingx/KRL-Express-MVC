@@ -987,6 +987,7 @@ exports.show =
         workflow: weekendProgress(data.entries),
 
         ...planning,
+        ...await require('../services/seasonAliases').forDisplay(data.season, {...data,...planning}),
 
         resultsHref:
           `/admin/current-season-progress` +

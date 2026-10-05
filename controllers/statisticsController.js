@@ -2,7 +2,7 @@ const { Driver, GrandPrixResult, GrandPrixResultEntry, Season, League } = requir
 const { buildCareerStatistics } = require('../services/careerStatistics');
 exports.show = async (req, res) => {
   const [drivers, entries] = await Promise.all([
-    Driver.findAll({ attributes: ['id', 'name', 'viewF1', 'roleFormerF1'], order: [['name', 'ASC']] }),
+    Driver.findAll({ attributes: ['id', 'name', 'viewF1', 'roleFormerF1'], include:[{association:'aliases',attributes:['alias','sortOrder']}], order: [['name', 'ASC']] }),
     GrandPrixResultEntry.findAll({ include: [{ model: GrandPrixResult, as: 'grandPrixResult', required: true, where: {discipline:'f1'},
       include: [{ association: 'league' }, { association: 'seasonRecord' }, { association: 'calendarEvent' }] }] })
   ]);

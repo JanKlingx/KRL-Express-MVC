@@ -1282,6 +1282,7 @@ async function showEditor(
       rows,
       statuses,
       availableDrivers,
+      ...await require('../services/seasonAliases').forDisplay(selectedSeason,{rows,availableDrivers}),
       historicalDriverIds,
       lineupManaged,
       attendanceManaged,

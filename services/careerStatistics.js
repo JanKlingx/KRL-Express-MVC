@@ -2,7 +2,7 @@ const { summarizeDriverEntries } = require('./driverStats');
 
 // Only expose sporting data, never the driver master record itself.
 function buildCareerStatistics(drivers, entries) {
-  const byDriver = new Map(drivers.map(driver => [Number(driver.id), { id: Number(driver.id), name: driver.name, seasons: [] }]));
+  const byDriver = new Map(drivers.map(driver => [Number(driver.id), { id: Number(driver.id), name: driver.name, aliases: [...new Set([...(driver.aliases||[])].sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0)).map(row=>row.alias).filter(alias=>alias&&alias!==driver.name))], seasons: [] }]));
   const grouped = new Map();
   for (const entry of entries) {
     const race = entry.grandPrixResult;

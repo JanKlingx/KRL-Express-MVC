@@ -56,3 +56,29 @@ exports.save = async (req, res) => {
   } catch (error) { res.status(422).json({ error: error.message }); }
 };
 module.exports = { ...exports, choices, validate, load, applyStandings };
+
+// Apply names only to view copies. Sporting IDs and persisted driver records stay intact.
+async function forDisplay(season, data) {
+  if (!season?.driverDisplayNames?.history || !Object.keys(season.driverDisplayNames.history).length) return data;
+  const driverKeys = new Set(['driver', 'drivers', 'reserves', 'availableDrivers', 'availableReplacements', 'replacementDriver', 'replacementFor', 'replacesDriver']);
+  const ids = new Set();
+  function copy(value, key = '', names = null) {
+    if (value == null || typeof value !== 'object' || value instanceof Date || value instanceof Set || value instanceof Map) return value;
+    if (Array.isArray(value)) return value.map(item => copy(item, key, names));
+    const plain = value.toJSON ? value.toJSON() : value;
+    const result = Object.fromEntries(Object.entries(plain).map(([field, item]) => [field, copy(item, field, names)]));
+    if (driverKeys.has(key) && plain.id && typeof plain.name === 'string') {
+      ids.add(Number(plain.id));
+      if (names) result.name = names.name(plain.id, plain.name);
+    }
+    if (plain.DriverId && typeof plain.driverName === 'string') {
+      ids.add(Number(plain.DriverId));
+      if (names) result.driverName = names.name(plain.DriverId, plain.driverName);
+    }
+    return result;
+  }
+  const display = copy(data);
+  const names = await load(season, [...ids]);
+  return copy(display, '', names);
+}
+module.exports.forDisplay = forDisplay;
