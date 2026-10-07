@@ -1,0 +1,13 @@
+<article class="admin-transaction" data-module="<%= key %>" data-search="<%= [config.title, config.description, config.group].join(' ') %>">
+  <a class="admin-card <%= config.href ? 'admin-card-featured' : '' %>" href="<%= config.href || `${adminBasePath}/${key}` %>">
+    <span><%= config.group || 'Verwaltung' %></span>
+    <h3><%= config.title %></h3>
+    <p><%= config.description %></p>
+    <small><%= config.href ? 'Öffnen und bearbeiten →' : `${counts[key] ?? 0} Einträge · Öffnen →` %></small>
+  </a>
+  <form class="admin-favorite-form" method="post" action="<%= adminBasePath %>/dashboard/favorites">
+    <input type="hidden" name="module" value="<%= key %>">
+    <input type="hidden" name="favorite" value="<%= favorite ? '0' : '1' %>">
+    <button class="admin-favorite-toggle" type="submit" data-favorite-toggle aria-pressed="<%= favorite ? 'true' : 'false' %>" aria-label="<%= config.title %>: <%= favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' %>" title="<%= favorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' %>"><span aria-hidden="true"><%= favorite ? '★' : '☆' %></span></button>
+  </form>
+</article>

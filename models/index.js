@@ -15,6 +15,7 @@ const commonSort = {
 };
 
 const User = sequelize.define("User", {
+  dashboardFavorites: { type: DataTypes.JSON, allowNull: true },
   email: {
     type: DataTypes.STRING,
     allowNull: false,

@@ -38,6 +38,8 @@ async function ensureSchema() {
   await addMissingColumn("seasons",historicalSeasonTable,"historical_grid",{type:DataTypes.JSON,allowNull:true});
   await addMissingColumn("seasons",historicalSeasonTable,"driver_display_names",{type:DataTypes.JSON,allowNull:true});
   const queryInterface = sequelize.getQueryInterface();
+  const usersTable = await queryInterface.describeTable("users");
+  await addMissingColumn("users", usersTable, "dashboard_favorites", { type: DataTypes.JSON, allowNull: true });
   const teamCatalogTable=await queryInterface.describeTable('teams');
   await addMissingColumn('teams',teamCatalogTable,'aggregation_team_id',{type:DataTypes.INTEGER,allowNull:true});
   await addMissingColumn('teams',teamCatalogTable,'logo_variants',{type:DataTypes.JSON,allowNull:true});

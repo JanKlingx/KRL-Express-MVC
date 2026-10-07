@@ -1,11 +1,11 @@
 const {
-  SiteStatistic, League, RaceEvent, KrlTeam, KrlIcon, Driver
+  SiteStatistic, League, RaceEvent, KrlTeam, KrlIcon, Driver, Platform
 } = require('../models');
 const { Op, col } = require('sequelize');
 
 exports.index = async (req, res) => {
   const teamEditing = Boolean(req.session?.userId && (!req.session.role || req.session.role === 'admin') && req.query.editTeam === '1');
-  const [statistics, krlTeams, krlIcons, leagues, nextRace] = await Promise.all([
+  const [statistics, krlTeams, krlIcons, leagues, nextRace, teamPlatforms] = await Promise.all([
     SiteStatistic.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] }),
     KrlTeam.findAll({ where: teamEditing ? {} : { isVisible: true }, include: [{ association: 'assignments', include: [{ association: 'driver' }] }], order: [[col('KrlTeam.sort_order'), 'ASC'], [col('KrlTeam.id'), 'ASC'], [col('assignments.sort_order'), 'ASC']] }),
     KrlIcon.findAll({ include: [{ association: 'driver' }], order: [[col('KrlIcon.sort_order'), 'ASC'], [col('KrlIcon.id'), 'ASC']] }),
@@ -14,8 +14,10 @@ exports.index = async (req, res) => {
       where: { startsAt: { [Op.gte]: new Date() }, isPublished: true },
       include: [{ model: League, as: 'league', where: { type: { [Op.in]: ['f1', 'lmu'] } } }],
       order: [['startsAt', 'ASC']]
-    })
+    }),
+    Platform.findAll({ attributes: ['name', 'logoPath'], order: [['sortOrder', 'ASC'], ['id', 'ASC']] })
   ]);
+  const teamPlatformLogos = require('../services/teamContacts').platformLogos(teamPlatforms);
   const community = await require('../controllers/communityController').load(req);
   const nextRaceView = nextRace && {
     ...nextRace.toJSON(),
@@ -24,7 +26,7 @@ exports.index = async (req, res) => {
     time: new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).format(nextRace.startsAt)
   };
   const teamDrivers = teamEditing ? await Driver.findAll({ attributes: ['id', 'name'], order: [['name', 'ASC'], ['id', 'ASC']] }) : [];
-  res.render('home', { title: 'Katzes Racing League', renderRichContent:require('../services/richContent').renderRichContent, ...community, statistics, krlTeams, krlIcons, leagues, teamEditing, teamDrivers, teamMemberDraft: req.session?.teamMemberDraft || null, teamGroupDraft: req.session?.teamGroupDraft || null, nextRace: nextRaceView });
+  res.render('home', { title: 'Katzes Racing League', renderRichContent:require('../services/richContent').renderRichContent, ...community, teamPlatformLogos, statistics, krlTeams, krlIcons, leagues, teamEditing, teamDrivers, teamMemberDraft: req.session?.teamMemberDraft || null, teamGroupDraft: req.session?.teamGroupDraft || null, nextRace: nextRaceView });
 };
 
 exports.endurance = (req, res) => res.render('placeholder', {

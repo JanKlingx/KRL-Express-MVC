@@ -217,39 +217,22 @@
       </div>
 
 
-      <div class="f1-team-grid">
+      <div class="f1-team-grid league-team-grid">
 
         <% teams.forEach((team) => { %>
 
           <article
-            class="f1-team-card"
+            class="f1-team-card league-team-card"
             style="--team-color:<%= team.accentColor || '#6ef2f2' %>"
             aria-label="<%= team.name %>"
           >
 
-            <div
-              class="f1-team-watermark"
-              aria-hidden="true"
-            >
-
-              <% if (team.logoPath) { %>
-
-                <img
-                  src="<%= team.logoPath %>"
-                  alt=""
-                >
-
-              <% } else { %>
-
-                <strong>
-                  <%= team.name %>
-                </strong>
-
-              <% } %>
-
-            </div>
-
-
+            <header class="league-team-heading">
+              <div class="league-team-logo">
+                <% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt="Logo <%= team.name %>" loading="lazy"><% } else { %><span class="roster-logo-fallback"><%= team.name.slice(0, 2).toUpperCase() %></span><% } %>
+              </div>
+              <h3><%= team.name %></h3>
+            </header>
             <ul aria-label="Fahrer von <%= team.name %>">
 
               <% team.drivers.forEach((driver) => { %>
