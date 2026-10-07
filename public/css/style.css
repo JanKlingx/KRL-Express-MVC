@@ -12792,3 +12792,49 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
  .calendar-bulk-actions form { width:100%; }
  .calendar-bulk-actions button { flex:1 1 140px; }
 }
+
+/* League roster cards: team identity above the drivers, like a starting-grid poster. */
+.league-team-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1rem; align-items:stretch; }
+.league-team-card.f1-team-card, .league-team-card.cockpit-card {
+  position:relative; isolation:isolate; display:flex; flex-direction:column; min-width:0; min-height:280px; gap:0;
+  padding:1.1rem .8rem; border:1px solid var(--team-color,var(--accent)); border-radius:14px 4px 14px 4px; overflow:hidden;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--team-color,var(--accent)) 12%,#050a0e),#060b10 65%);
+  box-shadow:inset 0 0 22px #0008,0 3px 14px #0004;
+}
+.league-team-card::before { content:""; position:absolute; top:7px; left:-10px; width:48px; height:5px; padding:0; background:var(--team-color,var(--accent)); transform:rotate(-45deg); pointer-events:none; }
+.league-team-card::after { content:""; position:absolute; bottom:10px; right:-11px; width:50px; height:5px; background:var(--team-color,var(--accent)); transform:rotate(-45deg); pointer-events:none; }
+.league-team-heading { text-align:center; }
+.league-team-card .league-team-logo { display:flex; align-items:center; justify-content:center; height:110px; margin:0 0 1rem; padding:.2rem; border:0; background:none; }
+.league-team-card .league-team-logo img { display:block; width:100%; height:100%; max-width:170px; object-fit:contain; opacity:1; }
+.league-team-card .league-team-heading h3 { margin:0; min-height:2.4em; display:flex; align-items:center; justify-content:center; font-family:var(--display); font-size:1.35rem; line-height:1.2; letter-spacing:.03em; color:#f4f7f8; overflow-wrap:anywhere; text-transform:uppercase; }
+.league-team-card ul { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:.8rem 0; width:100%; margin:1rem 0 0; padding:1rem 0 .35rem; list-style:none; border-top:1px solid color-mix(in srgb,var(--team-color,var(--accent)) 40%,transparent); text-align:center; }
+.league-team-card li { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; min-width:0; min-height:0; gap:.5rem; padding:0 .45rem; border:0; }
+.league-team-card li:nth-child(even) { border-left:1px solid #ffffff38; }
+.league-team-card li strong { width:100%; font-family:var(--display); font-size:1.12rem; line-height:1.25; color:var(--team-color,var(--accent)); text-align:center; text-transform:uppercase; white-space:normal; overflow:visible; overflow-wrap:anywhere; }
+.league-team-card .lmu-driver-with-car img { width:32px; height:24px; object-fit:contain; }
+.league-team-card li:only-child { grid-column:1/-1; }
+.league-team-card [data-lineup-alias-driver] .season-alias-select { max-width:100%; font-size:12px; }
+.team-contact-logo { width:24px; height:24px; flex:0 0 24px; object-fit:contain; }
+.person-card .profile-copy { display:flex; align-items:center; justify-content:center; gap:.5rem; max-width:100%; }
+.team-contact-value { min-width:0; overflow-wrap:anywhere; }
+@media(max-width:1100px){ .league-team-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:700px){ .league-team-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .league-team-card.f1-team-card,.league-team-card.cockpit-card { padding:1rem .6rem; } }
+@media(max-width:420px){ .league-team-grid { grid-template-columns:minmax(0,1fr); } .league-team-card .league-team-logo { height:120px; } }
+
+/* Searchable transactions with account-specific favorites. */
+[data-admin-dashboard] [hidden] { display:none !important; }
+.admin-search-panel { margin:0 0 2rem; padding:1.2rem; background:#11202b; border:1px solid #36505f; border-radius:12px; }
+.admin-search-panel label { display:block; font-weight:700; margin-bottom:.6rem; }
+.admin-search-row { display:flex; gap:.6rem; }
+.admin-search-row input { min-width:0; flex:1; padding:.85rem 1rem; color:#fff; background:#080f17; border:1px solid #638092; border-radius:8px; font:inherit; }
+.admin-search-panel p { color:#bad0dc; margin:.7rem 0 0; }
+.admin-favorites { border-bottom:1px solid #36505f; padding-bottom:1.5rem; }
+.admin-transaction { position:relative; min-width:0; }
+.admin-transaction .admin-card { height:100%; box-sizing:border-box; padding-top:3.2rem; }
+.admin-favorite-form { position:absolute; top:.6rem; right:.6rem; margin:0; }
+.admin-favorite-toggle { display:grid; place-items:center; width:40px; height:40px; padding:0; border:1px solid #506477; border-radius:9px; background:#101d29; color:#cad9e2; cursor:pointer; font-size:1.7rem; }
+.admin-favorite-toggle[aria-pressed="true"] { color:#ffd86b; border-color:#b29447; background:#302814; }
+.admin-favorite-toggle:hover { border-color:#ffd86b; color:#ffd86b; }
+.admin-favorite-toggle:focus-visible,.admin-search-row input:focus-visible { outline:2px solid var(--accent,#6ef2f2); outline-offset:3px; }
+.admin-favorite-toggle:disabled { opacity:.5; cursor:wait; }
+@media(max-width:600px){ .admin-search-row { flex-direction:column; } .admin-search-row input { font-size:16px; } }

@@ -182,3 +182,13 @@ Nach dem Aktualisieren den Server neu starten. Die bestehende Schema-Ergänzung 
 Der im Saisonverlauf gewählte Anzeigename erscheint auch beim Eintragen eines Rennwochenendes: in Aufstellung, Anwesenheit, Ersatzfahrerwahl und Ergebniseingabe. Gespeicherte Fahrer-IDs und Ergebnisse bleiben unverändert. Im Fahrerprofil der Statistik sind alle hinterlegten Aliase als Liste sichtbar; die Statistik-Suche findet diese Namen ebenfalls.
 
 Admins können im Rennkalender einer aktuellen oder historischen Saison über **Alle erledigt** bzw. **Alle offen** sämtliche Termine dieser Saison markieren. Die Aktion lässt sich mit dem jeweils anderen Button rückgängig machen und verändert keine Ergebnisse oder Punkte. Historische Alias-Auswahlfelder verwenden mehr Platz, einen sichtbaren Auswahlpfeil und größere Bedienflächen auf kleinen Bildschirmen.
+
+### Teamkontakte, Teamkarten und persönliche Admin-Favoriten
+
+Unter „Unser Team“ lassen sich Steam-Freundescodes als Ziffernfolge einfügen; Leerzeichen werden entfernt, führende Nullen und lange Codes bleiben erhalten. EA-Namen und Steam-Codes sind weiterhin per Klick kopierbar. Die daneben angezeigten Logos stammen aus der Plattformpflege (Steam bzw. EA/EA App); ohne passendes Logo erscheint der Plattformname.
+
+F1- und LMU-Teamkarten auf den Ligaseiten zeigen das vollständige Teamlogo und den Teamnamen oben sowie die Fahrer darunter. Teamfarben, saisonbezogene Logos, historische Anzeigenamen und persönliche LMU-Autologos bleiben erhalten.
+
+Im Admin-Dashboard findet die Suche Funktionen über Titel, Beschreibung und Bereich. Transaktionen sind in Formel 1, LMU, WDL und Allgemein gegliedert. Der Stern oben rechts fügt eine Transaktion den Favoriten oben hinzu oder entfernt sie wieder. Favoriten werden pro Admin-Konto gespeichert und stehen nach einem erneuten Login auch auf anderen Geräten bereit.
+
+Nach dem Aktualisieren den Server neu starten. Die bestehende Schema-Ergänzung legt automatisch die optionale JSON-Spalte `users.dashboard_favorites` an. Es werden keine Renndaten verändert.

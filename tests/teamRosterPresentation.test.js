@@ -43,7 +43,7 @@ test('Teamaufstellung zeigt mehr als zwei Fahrer und weist auf die Mindestzahl h
   assert.match(html, /ME/);
 });
 
-test('Öffentliche F1-Teamkarte verwendet Teamfarbe, Logo-Wasserzeichen und linke Fahrernamen', async () => {
+test('Öffentliche F1-Teamkarte zeigt Logo und Teamname über beiden Fahrern', async () => {
   const season = { id: 1, name: 'Saison 13', status: 'active', category: null };
   const html = await ejs.renderFile(path.join(__dirname, '..', 'views', 'f1.ejs'), {
     ...layout, isAdmin: false, title: 'Freitagsliga', seasons: [season], selectedSeason: season,
@@ -51,22 +51,20 @@ test('Öffentliche F1-Teamkarte verwendet Teamfarbe, Logo-Wasserzeichen und link
     teams: [{ id: 2, name: 'Racing Bulls', accentColor: '#3671c6', car: 'Mercedes', logoPath: '/uploads/racing-bulls.png', drivers: [{ name: 'Fahrer A', platform: 'PC' }, { name: 'Fahrer B', platform: 'PC' }] }],
     calendar: [{ title: 'Belgien GP', circuit: 'Spa', startsAt: new Date('2026-08-20T18:00:00Z'), isTestDay: true }], driverStandings: [], teamStandings: [], gpResults: [], history: { seasons: [], warning: null }, selectedHistory: null
   });
-  assert.match(html, /class="league-hero-logo" src="\/uploads\/freitag.png"/);
-  assert.match(html, /class="race-calendar-card race-calendar-test"/);
-  assert.match(html, /class="race-calendar-watermark" src="\/uploads\/freitag.png"/);
-  assert.match(html, />TESTTAG</);
-  assert.match(html, /class="f1-team-grid"/);
-  assert.match(html, /class="f1-team-card" style="--team-color:#3671c6"/);
-  assert.match(html, /class="f1-team-watermark" aria-hidden="true"/);
-  assert.match(html, /src="\/uploads\/racing-bulls\.png" alt=""/);
-  assert.match(html, /aria-label="Fahrer von Racing Bulls"/);
-  assert.match(html, /Fahrer A/);
-  assert.match(html, /Fahrer B/);
-  assert.doesNotMatch(html, /f1-driver-dot/);
-  assert.doesNotMatch(html, /data-png-export|standings-png-download/);
-  assert.doesNotMatch(html, /Mercedes/);
-  assert.doesNotMatch(html, /Fahrer 1:/);
-  assert.doesNotMatch(html, /· PC/);
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM(html); const d = dom.window.document;
+  const card = d.querySelector('.league-team-card');
+  assert.equal(card.style.getPropertyValue('--team-color'), '#3671c6');
+  assert.equal(card.querySelector('.league-team-logo img').getAttribute('src'), '/uploads/racing-bulls.png');
+  assert.equal(card.querySelector('h3').textContent, 'Racing Bulls');
+  assert.deepEqual([...card.querySelectorAll('li strong')].map(node => node.textContent.trim()), ['Fahrer A', 'Fahrer B']);
+  assert.equal(card.firstElementChild.className, 'league-team-heading');
+  assert.ok(card.querySelector('[aria-label="Fahrer von Racing Bulls"]'));
+  assert.equal(card.querySelector('.f1-team-watermark'), null);
+  assert.doesNotMatch(card.textContent, /Mercedes|Fahrer 1:|· PC/);
+  assert.ok(d.querySelector('.race-calendar-test'));
+  assert.equal(d.querySelector('.league-hero-logo').getAttribute('src'), '/uploads/freitag.png');
+  dom.window.close();
 });
 
 test('Historische Saison verwendet Fahrersuche statt Teilnahme-Checkbox', async () => {

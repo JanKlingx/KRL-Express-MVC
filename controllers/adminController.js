@@ -80,46 +80,41 @@ async function destroyEntry(config, entry) {
 exports.dashboard = async (req, res) => {
   const modules = Object.entries(resourceConfig).filter(([, config]) => !config.hidden);
   const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count({ where: config.getListWhere ? await config.getListWhere() : {} })])));
-  const groups = modules.reduce((result, [key, config]) => {
-    const group = config.group || 'Weitere Inhalte';
-    const existing = result.find((entry) => entry.name === group);
-    if (existing) existing.modules.push([key, config]);
-    else result.push({ name: group, modules: [[key, config]] });
-    return result;
-  }, []);
-  const progressModules = [
-    ['teamGroups', { group: 'Unser-Team-Stammdaten', href: '/?editTeam=1#team', title: 'Unser Team bearbeiten', description: 'Gruppen auf der Startseite hinzufügen, bearbeiten und löschen.' }],
-    ['f1Calendars', { group: 'Formel 1 Stammdaten', href: '/admin/f1-calendars', title: 'Zentrale F1-Rennkalender', description: 'Runden, Strecken, Sprint und Testtage einmal für Freitag, Samstag und Sonntag pflegen.' }],
-    ['f1Games', { group: 'Formel 1 Stammdaten', href: '/admin/f1-games', title: 'F1-Spiele', description: 'Spielname, Logo, Aktivstatus und Reihenfolge zentral für alle F1-Saisons pflegen.' }],
-    ['seasonManager', { group: 'Formel 1 Operativer Bereich', href: '/admin/season-manager', title: 'Saison bearbeiten / löschen', description: 'F1-Liga wählen, Saison bearbeiten, im Frontend ausblenden oder vollständig löschen.' }],
-    ['tableHub', { group: 'Frontend', href: '/admin/table-hub', title: 'Tabellen-Hub', description: 'Alle Saisonverläufe, WM-Tabellen, GP-Results und Downloads zentral erreichen.' }],
-    ['f1Setup', { group: 'Formel 1 Operativer Bereich', href: '/admin/season-setup', title: 'Saison erstellen', description: 'Acht Schritte: Liga, Saison, Kalender, Punkte, Fahrer, Teams, Line-up und Abschluss.' }],
-    ['f1Rules', { group: 'Formel 1 Stammdaten', href: '/formel-1/regelwerk?edit=1', title: 'Regelwerk & Strafenkatalog', description: 'Strukturierte Regeln für die Freitags-, Samstags- und Sonntagsliga.' }],
-    ['f1Notes', { group: 'Formel 1 Stammdaten', href: '/admin/race-director-notes', title: 'Race-Director Notes', description: 'PDFs hochladen, neueste Ausgabe hervorheben und das Archiv verwalten.' }],
-    ['lmuRosters', { group: 'LMU Stammdaten', href: '/admin/team-rosters/lmu', title: 'LMU-Fahrerfeld', description: 'Teams auswählen; die zugeordneten LMU-Fahrer erscheinen klar pro Team.' }],
-    ['f1Weekend', { group: 'Formel 1 Operativer Bereich', href: '/admin/race-weekend/f1', title: 'Rennwochenende Formel 1', description: 'Schritt für Schritt: Aufstellung, Anwesenheit/Strafen und Ergebnisse.' }],
-    ['f1DriverChange', { group: 'Formel 1 Operativer Bereich', href: '/admin/season-driver-change', title: 'Fahrerwechsel', description: 'Stammfahrerwechsel und Beförderungen historisch korrekt ab einer Runde durchführen.' }],
-    ['wdlWeekend', { group: 'Operative Prozesse · WDL', href: '/admin/race-weekend/wdl', title: 'Rennwochenende WDL', description: 'Ligen kontrollieren, Anwesenheit dokumentieren und Ergebnisse eintragen.' }],
-    ['lmuWeekend', { group: 'Operative Prozesse · LMU', href: '/admin/race-weekend/lmu', title: 'Rennwochenende LMU', description: 'Schritt für Schritt mit LMU-Fahrern, Autos und Ergebnissen.' }],
-    ['lmuSeasonProgress', { group: 'Operative Prozesse · LMU', href: '/admin/season-progress/lmu', title: 'Saisonverlauf LMU', description: 'Rennen und Ergebnisse tabellarisch und saisonbezogen pflegen.' }],
-    ['penaltyLedger', { group: 'Formel 1 Operativer Bereich', href: '/admin/penalty-ledger', title: 'Formel 1 Strafkartei', description: 'Alle drei Ligen, Strafpunkte, Jahresablauf und rennbezogene Sperren.' }]
-  ];
-  progressModules.forEach(([key, config]) => {
-    const group = groups.find((entry) => entry.name === config.group);
-    if (group) group.modules.unshift([key, config]);
-    else groups.push({ name: config.group, modules: [[key, config]] });
-  });
-  const groupOrder = ['Frontend', 'Unser-Team-Stammdaten', 'KRL Icons', 'Liga-Stammdaten', 'Stammdaten', 'Formel 1 Stammdaten', 'Formel 1 Operativer Bereich', 'LMU Stammdaten', 'Rennleitungsstammdaten', 'Operative Prozesse · WDL', 'Operative Prozesse · LMU', 'Startseite', 'Teams'];
-  groups.sort((left, right) => groupOrder.indexOf(left.name) - groupOrder.indexOf(right.name));
+  const dashboard = require('../services/adminDashboard');
+  const user = await require('../models').User.findByPk(req.session.userId, { attributes: ['dashboardFavorites'] });
+  const groups = dashboard.groups();
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',
     groups,
+    favorites: dashboard.favorites(user?.dashboardFavorites),
     counts,
     adminBasePath: getBasePath(req),
     dashboardTitle: 'ADMIN-DASHBOARD',
     dashboardEyebrow: 'KRL & WDL VERWALTUNG',
     dashboardDescription: 'Ein Login für alle Bereiche. Saisonverlauf, GP-Results und WM-Wertungen greifen auf dieselben Renndaten zu.'
   });
+};
+
+// Apply one idempotent toggle under a row lock so concurrent tabs keep other favorites.
+exports.setDashboardFavorite = async (req, res) => {
+  const dashboard = require('../services/adminDashboard');
+  const key = req.body.module;
+  if (!dashboard.modules().some(([id]) => id === key) || !['0', '1'].includes(req.body.favorite)) {
+    return res.status(400).json({ error: 'Diese Transaktion ist nicht verfügbar.' });
+  }
+  const { User, sequelize } = require('../models');
+  let selected;
+  await sequelize.transaction(async transaction => {
+    const user = await User.findByPk(req.session.userId, { transaction, lock: transaction.LOCK.UPDATE });
+    if (!user) return;
+    const set = new Set(dashboard.favorites(user.dashboardFavorites));
+    if (req.body.favorite === '1') set.add(key); else set.delete(key);
+    selected = [...set];
+    await user.update({ dashboardFavorites: selected }, { transaction });
+  });
+  if (!selected) return res.status(403).json({ error: 'Bitte erneut anmelden.' });
+  if (req.get('Accept')?.includes('application/json')) return res.json({ favorites: selected });
+  res.redirect(getBasePath(req) + '#favorites');
 };
 
 exports.list = async (req, res, next) => {

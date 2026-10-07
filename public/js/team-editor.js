@@ -22,6 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
     refresh(true); button.focus();
   });
   editor.querySelectorAll('.team-member-form').forEach((form) => {
+    const steam = form.querySelector('[data-steam-code]');
+    steam?.addEventListener('input', () => {
+      steam.value = steam.value.normalize('NFKC').replace(/\s/g, '');
+      steam.setCustomValidity(!steam.value || /^[0-9]{1,20}$/.test(steam.value) ? '' : 'Bitte den Steam-Freundescode mit 1 bis 20 Ziffern eingeben.');
+    });
     const search = form.querySelector('[data-member-search]');
     const select = form.querySelector('[data-member-select]');
     const options = select ? [...select.options].map((option) => option.cloneNode(true)) : [];
