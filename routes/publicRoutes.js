@@ -79,6 +79,9 @@ router.get(
  * =====================================================
  */
 
+router.get('/lmu/regelwerk', asyncHandler(require('../controllers/lmuContentController').rules));
+router.get('/lmu/race-director-notes', asyncHandler(require('../controllers/lmuContentController').documents));
+
 router.get(
   "/lmu/download/wm.csv",
   asyncHandler(lmuController.downloadStandings),

@@ -12838,3 +12838,29 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .admin-favorite-toggle:focus-visible,.admin-search-row input:focus-visible { outline:2px solid var(--accent,#6ef2f2); outline-offset:3px; }
 .admin-favorite-toggle:disabled { opacity:.5; cursor:wait; }
 @media(max-width:600px){ .admin-search-row { flex-direction:column; } .admin-search-row input { font-size:16px; } }
+
+/* Keep team identity centered and every driver name on a single line. */
+.league-team-card .league-team-heading { width:100%; display:grid; grid-template-rows:126px minmax(3.25rem,auto); justify-items:center; align-items:center; }
+.league-team-card .league-team-logo { width:100%; height:110px; margin:0; }
+.league-team-card .league-team-heading h3 { width:100%; min-height:0; margin:0; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+.league-team-card li strong { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; font-size:1rem; }
+.league-team-card ul { grid-template-columns:minmax(0,1fr); }
+.league-team-card li:nth-child(even) { border-left:0; }
+.league-team-card li + li { border-top:1px solid #ffffff24; padding-top:.6rem; }
+
+.lmu-picker { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin:1.5rem 0; }
+.lmu-picker label,.lmu-calendar-round label,.lmu-workflow-step label { display:grid; gap:.45rem; }
+.lmu-picker input,.lmu-picker select,.lmu-workflow-step select,.lmu-workflow-step input[type=number],.lmu-danger input,.lmu-danger select { padding:.65rem; background:#101b24; color:#fff; border:1px solid #567180; border-radius:6px; max-width:100%; }
+.lmu-calendar-round { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; padding:1rem; margin:.7rem 0; border:1px solid #567180; border-radius:9px; }
+.lmu-calendar-round>strong { grid-column:1/-1; }
+.lmu-workflow-step { margin:2rem 0; padding:1.5rem; border:1px solid #36515f; border-radius:12px; background:#0d1922; }
+.lmu-workflow-step fieldset { border:0; padding:0; min-width:0; }
+.lmu-workflow-step small { display:block; color:#9fb2bd; }
+.lmu-workflow-step input[type=number] { width:80px; }
+.lmu-workflow-step .lineup-team-card label { padding:.7rem 0; }
+.lmu-reserves,.lmu-danger { margin:1.5rem 0; padding:1rem; border:1px solid #567180; border-radius:8px; }
+.lmu-danger { border-color:#b65a5a; }.lmu-penalty-limit { background:#682d27; }
+.lmu-game-preview { width:150px; height:100px; object-fit:contain; }
+.lmu-team-options { display:flex; flex-wrap:wrap; gap:1rem; margin:1rem 0; }
+[data-lmu-setup] [hidden],.lmu-workflow-step [hidden] { display:none !important; }
+@media(max-width:700px){.lmu-calendar-round{grid-template-columns:minmax(0,1fr)}.lmu-workflow-step{padding:.8rem}.lmu-picker>label{flex:1 1 100%}}

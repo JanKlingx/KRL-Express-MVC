@@ -192,3 +192,24 @@ F1- und LMU-Teamkarten auf den Ligaseiten zeigen das vollständige Teamlogo und 
 Im Admin-Dashboard findet die Suche Funktionen über Titel, Beschreibung und Bereich. Transaktionen sind in Formel 1, LMU, WDL und Allgemein gegliedert. Der Stern oben rechts fügt eine Transaktion den Favoriten oben hinzu oder entfernt sie wieder. Favoriten werden pro Admin-Konto gespeichert und stehen nach einem erneuten Login auch auf anderen Geräten bereit.
 
 Nach dem Aktualisieren den Server neu starten. Die bestehende Schema-Ergänzung legt automatisch die optionale JSON-Spalte `users.dashboard_favorites` an. Es werden keine Renndaten verändert.
+
+
+### LMU-Saisonverwaltung und Fahrer-Durchschnitte
+
+Im Admin-Dashboard stehen eigene LMU-Transaktionen bereit:
+
+1. **LMU-Spiel** mit Logo, **Zentrale LMU-Rennkalender** und ein LMU-Punktesystem anlegen. Kalender sind wiederverwendbare Vorlagen; bestehende Saisons behalten ihre eigenen Termine.
+2. **LMU-Saison erstellen**: Liga, Status, Veröffentlichung, Spiel, Kalender, Punktesystem, Teams und Fahrer wählen. Pro Team sind höchstens drei Stammplätze möglich; Fahrer ohne Team sind Ersatzfahrer.
+3. **LMU-Saison bearbeiten / löschen** verwaltet auch archivierte Saisons. Über „Saisontermine bearbeiten“ lassen sich Datum, Strecke und Titel ändern. Bestehende Runden mit Aufstellungen, Ergebnissen oder Fahrerwechseln werden gegen Löschen/Umnummerieren geschützt; weitere Rennen können am Ende ergänzt werden. Testtage erzeugen keine Wertungsrennen.
+4. **LMU-Fahrerwechsel** vergibt oder beendet einen Stammplatz ab einer gewählten, noch nicht abgeschlossenen Runde. Cockpitabgabe führt in den Ersatzpool; „LMU verlassen“ führt zum ehemaligen LMU-Fahrer. Bereits gespeicherte Ergebnisse bleiben erhalten. Künftige Aufstellungen müssen nach einem Wechsel neu bestätigt werden.
+5. **Rennwochenende LMU** führt durch Aufstellung, tatsächliche Anwesenheit und Ergebnisse. Ersatzfahrer übernehmen einen abgemeldeten oder freien Platz. Rennsperren blockieren Plätze. Punkte sowie FL-/Pole-Boni stammen aus dem Saison-Punktesystem; die Auszeichnungen zählen im Fahrerprofil. Doppelte Plätze/Auszeichnungen und veraltete Formulare werden abgewiesen.
+6. **LMU-Strafkartei**, **LMU-Regelwerk & Strafenkatalog** und **LMU Race-Director Notes** sind unabhängig von F1. Die Strafkartei führt Strafpunkte mit Jahresablauf und ausdrücklich eingetragene Rennsperren; das Limit ist ein Hinweis, keine automatische Sperre.
+7. **Fahrern LMU-Autos zuordnen** ersetzt die Autoauswahl in der Fahrerpflege. Dort kann bei einem neuen LMU-Fahrer anschließend direkt die Saisonzuordnung geöffnet werden. Teams und Autos behalten ihre Stammdaten; Team-/Fahrzeugfarbe und die gesonderte WM-Grafikfarbe werden dort gepflegt.
+
+Die LMU-Ligaseite verwendet die gemeinsamen F1-Komponenten für Teamkarten, WM-Verlauf, GP-Ergebnisse, Kalender und Saisonverlauf. Veröffentlichte Archive sind auch ausgeloggt sichtbar. Ersatzfahrer-Punkte für die Team-WM richten sich nach der Saisonoption. Die alten LMU-Fahrerfeld-/Saisonverlauf-Einstiege leiten zum neuen Ablauf weiter.
+
+Die Fahrerstatistik bietet Formel 1 und LMU als getrennte Filter sowie **Ø Endposition** und **Ø Punkte pro Hauptstart**. Endpositionen berücksichtigen klassifizierte Zielankünfte ohne DNF/DSQ. Der Punktedurchschnitt umfasst Hauptstarts einschließlich DNF/DSQ, aber keine DNS/DNA/Rennsperren oder Sprintpunkte. Testtage sind ausgeschlossen; ohne passende Ergebnisse erscheint ein Gedankenstrich. Saisonübergreifende Durchschnitte werden aus Summen und Anzahlen gewichtet berechnet.
+
+**Aktualisierung:** Server nach dem Übernehmen neu starten. `sequelize.sync()` und die additive Schema-Ergänzung legen die LMU-Stammdatentabellen und neuen Spalten an. Beim ersten Öffnen von LMU-Fahrerwechsel oder Rennwochenende wird eine alte Saison einmalig in Saison-Teams und Fahrerzeiträume übernommen: vergangene Runden aus gespeicherten Ergebnissen/Aufstellungen, künftige Plätze einer aktiven Saison aus dem bisherigen Fahrerfeld. Ergebnis-IDs und Punktwerte werden dabei nicht neu geschrieben. Ein Wechsel des Punktesystems berechnet nur automatisch gewertete Hauptrennen neu; historische manuelle Punkte bleiben erhalten.
+
+**Verifikation:** `node --test --test-isolation=none tests/lmuWorkflows.test.js` prüft die neuen Abläufe, Berechnungen, Migration und EJS-/Browser-DOM-Interaktionen ohne Datenbank. `tests/app.test.js` benötigt zusätzlich eine laufende Testdatenbank mit den vorgesehenen Beispieldaten und `SESSION_SECRET`.

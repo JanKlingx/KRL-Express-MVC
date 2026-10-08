@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const { sequelize, Season, League, RaceEvent, F1Track, GrandPrixResult, GrandPrixResultEntry, F1RaceLineupEntry } = require('../models');
 const { localDateTime, parseBerlinDateTime } = require('../services/calendarTime');
 function returnHref(event) {
-  return event.league.type === 'f1' ? `/f1/${encodeURIComponent(event.league.slug)}?season=${event.SeasonId}#f1-calendar` : `/lmu?season=${event.SeasonId}#lmu-calendar`;
+  return event.league.type === 'f1' ? `/f1/${encodeURIComponent(event.league.slug)}?season=${event.SeasonId}#f1-calendar` : `/lmu?league=${encodeURIComponent(event.league.slug)}&season=${event.SeasonId}#lmu-calendar`;
 }
 async function loadEvent(id, transaction) {
   return RaceEvent.findByPk(id, { include: [{ association: 'league' }, { association: 'seasonRecord' }], transaction, ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}) });

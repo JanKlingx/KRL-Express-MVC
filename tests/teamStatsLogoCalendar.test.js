@@ -94,7 +94,7 @@ test('Veröffentlichter historischer F1-Kalender ist für Gäste sichtbar; aktiv
     assert.match(html, /Archiv GP/); assert.doesNotMatch(html, /Uhr/);
     if (!isAdmin) assert.doesNotMatch(html, /calendar-edit-pencil|calendar-completion-action/);
   }
-  for (const selectedSeason of [{ ...data.selectedSeason, isPublished: false }, { ...data.selectedSeason, status: 'active' }, { ...data.selectedSeason, leagueType: 'lmu' }, null]) {
+  for (const selectedSeason of [{ ...data.selectedSeason, isPublished: false }, { ...data.selectedSeason, status: 'active' }, null]) {
     const html = await ejs.renderFile('views/partials/race-calendar.ejs', { ...data, selectedSeason });
     assert.match(html, /Keine Termine/); assert.doesNotMatch(html, /Archiv GP/);
   }

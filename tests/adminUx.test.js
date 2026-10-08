@@ -57,7 +57,8 @@ test('Bildfelder unterstützen Drag-and-drop ohne externe URL', async () => {
 
 test('LMU-Stammdaten enthalten Anzeigename, persönliches Auto, Zusatz und Pole-Bonus', () => {
   assert.ok(resourceConfig.drivers.fields.some((field) => field.name === 'lmuDisplayName'));
-  assert.equal(resourceConfig.drivers.fields.find((field) => field.name === 'LmuCarId').relation.model, models.LmuCar);
+  assert.equal(resourceConfig.drivers.fields.some((field) => field.name === 'LmuCarId'), false);
+  assert.ok(require('../services/adminDashboard').modules().some(([key]) => key === 'lmuCarAssignments'));
   assert.ok(resourceConfig.lmuCars.fields.some((field) => field.name === 'additionalInfo'));
   assert.equal(resourceConfig.lmuCars.fields.some((field) => field.name === 'sortOrder'), false);
   assert.ok(resourceConfig.pointsSchemes.fields.some((field) => field.name === 'polePositionEnabled'));
@@ -215,7 +216,7 @@ test('LMU-Autos sind eigene Stammdaten und werden nur LMU-Fahrern zugeordnet', (
   assert.equal(resourceConfig.lmuCars.model, models.LmuCar);
   assert.equal(resourceConfig.lmuTeams.fields.some((field) => field.name === 'LmuCarId'), false);
   const driverCar = resourceConfig.drivers.fields.find((field) => field.name === 'LmuCarId');
-  assert.equal(driverCar.relation.model, models.LmuCar);
+  assert.equal(driverCar, undefined);
   assert.equal(models.Driver.rawAttributes.LmuCarId.field, 'lmu_car_id');
 });
 
