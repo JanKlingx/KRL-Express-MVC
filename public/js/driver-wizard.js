@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const views = [...form.querySelectorAll('[name="driverViews"]:checked')].map((input) => input.value);
     labels.forEach((label) => {
       const view = label.dataset.driverView;
-      const enabled = !view || view === 'common' || views.includes(view) || (view === 'f1' && views.includes('formerF1') && !label.querySelector('[name^="role"]'));
+      const enabled = !view || view === 'common' || views.includes(view) || (view === 'f1' && views.includes('formerF1') && !label.querySelector('[name^="role"]')) || (view === 'lmu' && views.includes('formerLmu') && !label.querySelector('[name^="role"]'));
       label.hidden = !enabled;
       label.querySelectorAll('input, select, textarea').forEach((input) => { input.disabled = !enabled; });
     });

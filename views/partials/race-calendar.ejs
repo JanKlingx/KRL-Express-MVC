@@ -1,5 +1,5 @@
 <% const dateOnly = typeof selectedSeason !== 'undefined' && selectedSeason?.status === 'historical' && selectedSeason.hideCalendarTime; %>
-<% const publicArchive = typeof selectedSeason !== 'undefined' && selectedSeason?.leagueType === 'f1' && selectedSeason.status === 'historical' && selectedSeason.isPublished === true; %>
+<% const publicArchive = typeof selectedSeason !== 'undefined' && ['f1','lmu'].includes(selectedSeason?.leagueType) && selectedSeason.status === 'historical' && selectedSeason.isPublished === true; %>
 <% const visibleCalendar = calendar.filter((race) => race.isPublished !== false || publicArchive || (typeof isAdmin !== 'undefined' && isAdmin)); %>
 <% if (visibleCalendar.length) { %>
 
@@ -58,7 +58,7 @@
         style="--calendar-accent:<%= league.accentColor || '#6ef2f2' %>"
       >
 
-        <% if (typeof isAdmin !== 'undefined' && isAdmin && Number.isInteger(Number(race.id))) { %><a class="calendar-edit-pencil" href="/admin/calendar-events/<%= race.id %>/edit" aria-label="<%= race.title %> bearbeiten" title="Termin bearbeiten">✎</a><% } %>
+        <% if (typeof isAdmin !== 'undefined' && isAdmin && Number.isInteger(Number(race.id))) { %><a class="calendar-edit-pencil" href="<%= league.type==='lmu' ? '/admin/lmu-season-calendar?season='+selectedSeason.id : '/admin/calendar-events/'+race.id+'/edit' %>" aria-label="<%= race.title %> bearbeiten" title="Termin bearbeiten">✎</a><% } %>
         <% if (typeof isAdmin !== 'undefined' && isAdmin && Number.isInteger(Number(race.id))) { %>
           <form class="calendar-completion-action" method="post" action="/admin/calendar-events/<%= race.id %>/completion">
             <input type="hidden" name="completed" value="<%= race.isCompleted ? '0' : '1' %>">

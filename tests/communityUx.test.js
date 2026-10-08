@@ -12,10 +12,10 @@ test('Social settings only accept fixed Instagram post URLs and Discord IDs',()=
  assert.equal(settings({instagramPost:'https://www.instagram.com/reel/Abc_123/'}).instagramPost,'https://www.instagram.com/reel/Abc_123/');
  assert.throws(()=>settings({instagramPost:'https://evil.test/p/abc'}));assert.throws(()=>settings({discordServerId:'123<script>'}));
 });
-test('F1 career data excludes LMU and exposes second and third podiums',()=>{
+test('Career data separates F1 and LMU and exposes second and third podiums',()=>{
  const {buildCareerStatistics}=require('../services/careerStatistics');const race={discipline:'f1',raceType:'main',LeagueId:1,SeasonId:1};
  const rows=buildCareerStatistics([{id:1,name:'A'}],[{DriverId:1,position:2,points:18,grandPrixResult:race},{DriverId:1,position:3,points:15,grandPrixResult:race},{DriverId:1,position:1,points:100,grandPrixResult:{...race,discipline:'lmu'}}]);
- assert.equal(rows[0].seasons.length,1);assert.equal(rows[0].seasons[0].points,33);assert.equal(rows[0].seasons[0].podium2,1);assert.equal(rows[0].seasons[0].podium3,1);
+ assert.equal(rows[0].seasons.length,2);assert.equal(rows[0].seasons[0].points,33);assert.equal(rows[0].seasons[0].podium2,1);assert.equal(rows[0].seasons[0].podium3,1);
 });
 test('Vacant cockpits sit inside their team and offer only registered available reserves',async()=>{
  const team={id:1,seasonTeamId:1,name:'Ferrari',logoPath:''};

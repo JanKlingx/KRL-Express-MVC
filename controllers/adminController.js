@@ -188,7 +188,7 @@ exports.create = async (req, res, next) => {
     const entry = config.saveEntry ? await config.saveEntry(values,null) : await config.model.create(values);
     if (config.afterSave) await config.afterSave(entry, req.body);
     req.session.flash = { type: 'success', message: 'Eintrag wurde gespeichert.' };
-    res.redirect(config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
+    res.redirect(req.params.resource==='drivers' && req.body.assignLmuSeason==='on' && entry.viewLmu ? `/admin/lmu-driver-change?driver=${entry.id}` : config.returnHref || `${getBasePath(req)}/${req.params.resource}`);
   } catch (error) {
     if (uploadedPath) await deleteUpload(uploadedPath);
     return renderForm(req, res, config, req.body, error, 400);

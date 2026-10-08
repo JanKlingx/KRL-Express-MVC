@@ -1,0 +1,30 @@
+<%- include('partials/header', { title }) %>
+<% const isEditing = typeof editing !== 'undefined' && editing; const visibleSections = sections.filter((section) => isAdmin || section.isPublished); %>
+<section class="league-hero rules-hero"><div class="container"><h1>LMU <span>REGELWERK</span></h1></div></section>
+<section class="section container">
+<% if (isAdmin && !isEditing) { %><a class="button" href="/lmu/regelwerk?edit=1">✎ Regelwerk & Strafenkatalog bearbeiten</a><% } %>
+<% if (isEditing && isAdmin) { %>
+  <%- include('partials/rulebook-editor', { sections, rulebookVersion, draftSections, rulebookAction: '/admin/lmu-rulebook' }) %>
+<% } else { %>
+  <div class="rulebook-layout"><nav aria-label="Regelwerk-Inhalt"><strong>INHALT</strong>
+  <% [['rule','Regelwerk','regelwerk'],['penalty','Strafenkatalog','strafenkatalog']].forEach(([type,label,anchor]) => { %>
+    <a href="#<%= anchor %>"><strong><%= label %></strong></a>
+    <% visibleSections.filter((s) => s.sectionType === type).forEach((s) => { %><a href="#abschnitt-<%= s.id %>"><%= s.title %></a><% }) %>
+  <% }) %>
+  </nav><main>
+  <% [['rule','Regelwerk','regelwerk'],['penalty','Strafenkatalog','strafenkatalog']].forEach(([type,label,anchor]) => { %>
+    <div id="<%= anchor %>" class="section-heading left"><h2><%= label %></h2></div>
+    <% const group = visibleSections.filter((s) => s.sectionType === type); if (!group.length) { %><p class="empty-state">Dieser Bereich wird aktuell vorbereitet.</p><% } %>
+    <% group.forEach((section) => { const heading = [2,3,4].includes(Number(section.headingLevel)) ? Number(section.headingLevel) : 2; %>
+      <article id="abschnitt-<%= section.id %>" class="rulebook-section <%= type === 'penalty' ? 'penalty' : '' %>">
+        <% if (!section.isPublished && isAdmin) { %><small>Entwurf · nicht öffentlich</small><% } %>
+        <% if (heading === 3) { %><h3><%= section.title %></h3><% } else if (heading === 4) { %><h4><%= section.title %></h4><% } else { %><h2><%= section.title %></h2><% } %>
+        <p><%= section.content %></p>
+        <% if (isAdmin) { %><a class="admin-inline-action" aria-label="Abschnitt bearbeiten" href="/lmu/regelwerk?edit=1">✎</a><% } %>
+      </article>
+    <% }) %>
+  <% }) %>
+  </main></div>
+<% } %>
+</section>
+<%- include('partials/footer') %>

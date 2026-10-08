@@ -132,6 +132,7 @@ const League = sequelize.define("League", {
 });
 
 const LmuCar = sequelize.define("LmuCar", {
+  accentColor: { type: DataTypes.STRING, allowNull: false, defaultValue: "#6ef2f2", validate: { is: /^#[0-9a-f]{6}$/i } },
   manufacturer: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -190,6 +191,7 @@ const F1Track = sequelize.define(
 );
 
 const Team = sequelize.define("Team", {
+  standingsColor: { type: DataTypes.STRING, allowNull: true, validate: { is: /^#[0-9a-f]{6}$/i } },
   AggregationTeamId: { type: DataTypes.INTEGER, allowNull: true },
   logoVariants: { type: DataTypes.JSON, allowNull: true },
   name: {
@@ -263,6 +265,7 @@ const Platform = sequelize.define("Platform", {
 
 const Driver = sequelize.define("Driver", {
   viewF1: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  viewFormerLmu: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   viewLmu: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   viewFormerF1: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   name: {
@@ -476,7 +479,10 @@ const F1Game = sequelize.define("F1Game", {
   ...commonSort,
 });
 
+const { LmuGame, LmuCalendar, LmuRuleSection, LmuRaceDirectorDocument } = require('./lmu')(sequelize, DataTypes, commonSort);
+
 const Season = sequelize.define("Season", {
+  lmuManaged: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   driverDisplayNames: {type:DataTypes.JSON,allowNull:true},
   hideCalendarTime: {type:DataTypes.BOOLEAN,allowNull:false,defaultValue:false},
   historicalGrid: {type:DataTypes.JSON,allowNull:true},
@@ -2716,7 +2722,11 @@ KrlIcon.belongsTo(Driver, {
 Driver.belongsTo(Platform, { as: "platformRecord", foreignKey: "PlatformId", onDelete: "RESTRICT" });
 Platform.hasMany(Driver, { as: "drivers", foreignKey: "PlatformId", onDelete: "RESTRICT" });
 
+Season.belongsTo(LmuGame, { as: 'lmuGame', foreignKey: 'LmuGameId' });
+Season.belongsTo(LmuCalendar, { as: 'lmuCalendar', foreignKey: 'LmuCalendarId' });
+
 module.exports = {
+  LmuGame, LmuCalendar, LmuRuleSection, LmuRaceDirectorDocument,
   NavigationLayout,
   NewsPost, CommunitySetting, Guide,
   Platform,

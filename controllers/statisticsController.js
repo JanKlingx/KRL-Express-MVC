@@ -1,15 +1,16 @@
+const { Op } = require('sequelize');
 const { Driver, GrandPrixResult, GrandPrixResultEntry, Season, League } = require('../models');
 const { buildCareerStatistics } = require('../services/careerStatistics');
 exports.show = async (req, res) => {
   const [drivers, entries] = await Promise.all([
-    Driver.findAll({ attributes: ['id', 'name', 'viewF1', 'roleFormerF1'], include:[{association:'aliases',attributes:['alias','sortOrder']}], order: [['name', 'ASC']] }),
-    GrandPrixResultEntry.findAll({ include: [{ model: GrandPrixResult, as: 'grandPrixResult', required: true, where: {discipline:'f1'},
+    Driver.findAll({ attributes: ['id', 'name', 'viewF1', 'roleFormerF1', 'viewLmu', 'roleFormerLmu'], include:[{association:'aliases',attributes:['alias','sortOrder']}], order: [['name', 'ASC']] }),
+    GrandPrixResultEntry.findAll({ include: [{ model: GrandPrixResult, as: 'grandPrixResult', required: true, where: {discipline:{[Op.in]:['f1','lmu']}},
       include: [{ association: 'league' }, { association: 'seasonRecord' }, { association: 'calendarEvent' }] }] })
   ]);
-  const scopes = await Season.findAll({where:{leagueType:'f1'},attributes:['name','scopeSlug']});
-  const leagues = await League.findAll({where:{type:'f1'},attributes:['name','slug']});
-  const scopeCatalog=scopes.map(season=>({season:season.name,league:leagues.find(league=>league.slug===season.scopeSlug)?.name||season.scopeSlug}));
-  res.render('statistics', { title: 'KRL F1-Statistik', scopeCatalog, statistics: buildCareerStatistics(drivers.filter(driver=>driver.viewF1 || driver.roleFormerF1 || entries.some(entry=>Number(entry.DriverId)===Number(driver.id))), entries) });
+  const scopes = await Season.findAll({where:{leagueType:{[Op.in]:['f1','lmu']},...(req.session?.userId?{}:{isPublished:true})},attributes:['name','scopeSlug','leagueType']});
+  const leagues = await League.findAll({where:{type:{[Op.in]:['f1','lmu']}},attributes:['name','slug']});
+  const scopeCatalog=scopes.map(season=>({discipline:season.leagueType,season:season.name,league:leagues.find(league=>league.slug===season.scopeSlug)?.name||season.scopeSlug}));
+  res.render('statistics', { title: 'KRL Fahrerstatistik', scopeCatalog, statistics: buildCareerStatistics(drivers.filter(driver=>driver.viewF1 || driver.roleFormerF1 || driver.viewLmu || driver.roleFormerLmu || entries.some(entry=>Number(entry.DriverId)===Number(driver.id))), entries.filter(entry=>req.session?.userId||entry.grandPrixResult?.seasonRecord?.isPublished!==false)) });
 };
 
 // Reuse the championship calculation so carryovers and reserve rules stay identical.

@@ -80,7 +80,7 @@ function validateRegularStintSet(stints, maximumTeamSeats = 2) {
       counts.set(teamId, (counts.get(teamId) || 0) + 1);
     });
     if ([...counts.values()].some((count) => count > maximumTeamSeats)) {
-      throw new Error('Ein Saisonteam darf pro Runde höchstens zwei aktive Stammfahrer besitzen.');
+      throw new Error(`Ein Saisonteam darf pro Runde höchstens ${maximumTeamSeats === 2 ? 'zwei' : maximumTeamSeats} aktive Stammfahrer besitzen.`);
     }
   }
 }

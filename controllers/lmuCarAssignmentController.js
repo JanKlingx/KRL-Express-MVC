@@ -3,7 +3,7 @@ const { sequelize, Driver, LmuCar } = require('../models');
 async function loadData() {
   const [drivers, cars] = await Promise.all([
     Driver.findAll({
-      where: { roleLmuRegular: true },
+      where: require('../services/lmuSeason').lmuWhere,
       include: [{ association: 'lmuCar', required: false }],
       order: [['lmuDisplayName', 'ASC'], ['name', 'ASC'], ['id', 'ASC']]
     }),
@@ -23,13 +23,14 @@ exports.save = async (req, res) => {
   try {
     await sequelize.transaction(async (transaction) => {
       await Promise.all(drivers.map((driver) => {
-        const rawCarId = input[String(driver.id)]?.LmuCarId;
+        if (!Object.prototype.hasOwnProperty.call(input, 'd'+driver.id)) return;
+        const rawCarId = input['d'+driver.id]?.LmuCarId;
         const carId = rawCarId ? Number(rawCarId) : null;
         if (carId && !carIds.has(carId)) throw new Error('Mindestens ein ausgewähltes LMU-Auto existiert nicht mehr.');
         return driver.update({ LmuCarId: carId }, { transaction });
       }));
     });
-    req.session.flash = { type: 'success', message: 'Die persönlichen LMU-Autos der Stammfahrer wurden gespeichert.' };
+    req.session.flash = { type: 'success', message: 'Die persönlichen LMU-Autos der LMU-Fahrer wurden gespeichert.' };
   } catch (error) {
     req.session.flash = { type: 'error', message: error.message };
   }

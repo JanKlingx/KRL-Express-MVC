@@ -1,9 +1,11 @@
 const VIEW_FIELDS = {
   f1: ['roleF1Friday', 'roleF1Saturday', 'roleF1Sunday', 'roleF1Reserve'],
-  lmu: ['roleLmuRegular', 'roleLmuReserve', 'roleFormerLmu', 'lmuDisplayName', 'LmuCarId'],
+  lmu: ['roleLmuRegular', 'roleLmuReserve', 'lmuDisplayName'],
+  formerLmu: ['roleFormerLmu'],
   formerF1: ['roleFormerF1']
 };
 function driverFieldView(name) {
+  if (name === 'roleFormerLmu') return 'formerLmu';
   if (VIEW_FIELDS.lmu.includes(name) || /Lmu$/.test(name)) return 'lmu';
   if (name === 'roleFormerF1') return 'formerF1';
   if (VIEW_FIELDS.f1.includes(name) || /F1$/.test(name)) return 'f1';
@@ -11,7 +13,7 @@ function driverFieldView(name) {
 }
 function inferredViews(driver = {}) {
   return Object.keys(VIEW_FIELDS).filter((view) =>
-    driver[{ f1: 'viewF1', lmu: 'viewLmu', formerF1: 'viewFormerF1' }[view]] ||
+    driver[{ f1: 'viewF1', lmu: 'viewLmu', formerF1: 'viewFormerF1', formerLmu: 'viewFormerLmu' }[view]] ||
     VIEW_FIELDS[view].some((field) => Boolean(driver[field]))
   );
 }
@@ -21,7 +23,7 @@ function applyDriverViews(values, body, existing = {}) {
     throw new Error('Bitte mindestens eine gültige Sicht auswählen.');
   }
   for (const [view, fields] of Object.entries(VIEW_FIELDS)) {
-    const flag = { f1: 'viewF1', lmu: 'viewLmu', formerF1: 'viewFormerF1' }[view];
+    const flag = { f1: 'viewF1', lmu: 'viewLmu', formerF1: 'viewFormerF1', formerLmu: 'viewFormerLmu' }[view];
     values[flag] = Boolean(existing[flag] || views.includes(view));
     if (!views.includes(view)) {
       for (const field of fields) values[field] = existing[field] ?? (field.startsWith('role') ? false : null);

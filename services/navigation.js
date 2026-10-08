@@ -1,5 +1,6 @@
 const { NavigationLayout, League, CommunitySetting, sequelize } = require('../models');
 const fixedPages = [
+  ['/lmu/regelwerk','LMU-Regelwerk'], ['/lmu/race-director-notes','LMU Race-Director Notes'],
   ['/anleitungen','Anleitungen'], ['/#news','News'], ['/#social','Social Media'], ['/formel-1/strafkartei', 'Strafkartei'], ['/formel-1/regelwerk', 'Regelwerk'],
  ['/formel-1/race-director-notes', 'Race-Director Notes'], ['/krl-statistik', 'KRL-Statistik'], ['/krl-statistik/teams', 'F1-Teamstatistiken'],
  ['/krl-icons', 'KRL Icons'], ['/#team', 'Unser Team']

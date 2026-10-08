@@ -288,7 +288,7 @@ test('Historical save persists the same points, wins and awards read by driver c
  const withRace=persisted.map(entry=>({...entry,grandPrixResult:sessions.find(r=>r.id===entry.GrandPrixResultId)}));
  t.mock.method(models.GrandPrixResultEntry,'findAll',async({where})=>withRace.filter(e=>e.DriverId===where.DriverId));
  const career=await require('../services/driverStats').getDriverStatistics(1);
- assert.deepEqual(career.f1,{points:36,starts:1,wins:1,podium1:1,podium2:0,podium3:0,poles:1,fastestLaps:1,driverOfTheDays:1,winRate:100});
+ assert.deepEqual(career.f1,{points:36,starts:1,wins:1,podium1:1,podium2:0,podium3:0,poles:1,fastestLaps:1,driverOfTheDays:1,winRate:100,classifiedFinishes:1,positionSum:1,mainRacePoints:28,averagePosition:1,averagePoints:28});
  const overall=require('../services/careerStatistics').buildCareerStatistics(people,withRace);assert.equal(overall.find(d=>d.id===1).seasons[0].points,36);assert.equal(overall.find(d=>d.id===1).seasons[0].driverOfTheDays,1);
  const projected=sessions.map(r=>({...r,entries:persisted.filter(e=>e.GrandPrixResultId===r.id)}));
  const totals=standingsForGrid(buildSeasonData({slug:'sonntag'},projected,people,lineupsForGrid(savedGrid,projected),season),savedGrid,projected,people,teams,season);

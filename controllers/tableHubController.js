@@ -13,9 +13,9 @@ function linksFor(league, season) {
     ]
   };
   if (league.type === 'lmu') return {
-    editor: `/admin/season-progress/lmu?season=${season.id}`,
-    frontend: `/lmu${seasonQuery}`,
-    downloads: [['Fahrer-WM', `/lmu/download/wm.csv${seasonQuery}`], ['Results', `/lmu/download/results.csv${seasonQuery}`]]
+    editor: `/admin/race-weekend/lmu?season=${season.id}`,
+    frontend: `/ligen/${league.slug}${seasonQuery}`,
+    downloads: [['Fahrer-WM', `/lmu/download/wm.csv${seasonQuery}&league=${encodeURIComponent(league.slug)}`], ['Results', `/lmu/download/results.csv${seasonQuery}&league=${encodeURIComponent(league.slug)}`]]
   };
   return {
     editor: `/admin/season-progress/wdl?season=${season.id}`,

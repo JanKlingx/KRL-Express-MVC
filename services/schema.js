@@ -41,8 +41,16 @@ async function ensureSchema() {
   const usersTable = await queryInterface.describeTable("users");
   await addMissingColumn("users", usersTable, "dashboard_favorites", { type: DataTypes.JSON, allowNull: true });
   const teamCatalogTable=await queryInterface.describeTable('teams');
+  await addMissingColumn('teams', teamCatalogTable, 'standings_color', { type: DataTypes.STRING, allowNull: true });
   await addMissingColumn('teams',teamCatalogTable,'aggregation_team_id',{type:DataTypes.INTEGER,allowNull:true});
   await addMissingColumn('teams',teamCatalogTable,'logo_variants',{type:DataTypes.JSON,allowNull:true});
+  await addMissingColumn('seasons', historicalSeasonTable, 'lmu_managed', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
+  await addMissingColumn('seasons', historicalSeasonTable, 'lmu_game_id', { type: DataTypes.INTEGER, allowNull: true });
+  await addMissingColumn('seasons', historicalSeasonTable, 'lmu_calendar_id', { type: DataTypes.INTEGER, allowNull: true });
+  const lmuCarColorTable = await queryInterface.describeTable('lmu_cars');
+  await addMissingColumn('lmu_cars', lmuCarColorTable, 'accent_color', { type: DataTypes.STRING, allowNull: false, defaultValue: '#6ef2f2' });
+  const lmuDriverTable = await queryInterface.describeTable('drivers');
+  await addMissingColumn('drivers', lmuDriverTable, 'view_former_lmu', { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false });
   const profileCatalogTable=await queryInterface.describeTable('f1_car_profiles');
   await addMissingColumn('f1_car_profiles',profileCatalogTable,'unified_team_id',{type:DataTypes.INTEGER,allowNull:true});
   const settingsTable = await queryInterface.describeTable('community_settings');
@@ -1104,7 +1112,8 @@ async function ensureSchema() {
     await Driver.update({ PlatformId: platform.id }, { where: { platform: name, PlatformId: null } });
   }
   await Driver.update({ viewF1: true }, { where: { [Op.or]: [{ roleF1Friday: true }, { roleF1Saturday: true }, { roleF1Sunday: true }, { roleF1Reserve: true }] } });
-  await Driver.update({ viewLmu: true }, { where: { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }, { roleFormerLmu: true }] } });
+  await Driver.update({ viewLmu: true }, { where: { [Op.or]: [{ roleLmuRegular: true }, { roleLmuReserve: true }] } });
+  await Driver.update({ viewFormerLmu: true, viewLmu: false }, { where: { roleFormerLmu: true, roleLmuRegular: false, roleLmuReserve: false } });
   await Driver.update({ viewFormerF1: true }, { where: { roleFormerF1: true } });
   await require('./f1DriverPolicy').reconcileF1Ranks();
 
@@ -1120,7 +1129,7 @@ async function ensureSchema() {
       },
     });
   const lmuLeague = leagues.find((league) => league.type === "lmu");
-  if (lmuLeague)
+  if (lmuLeague && !await Season.count({ where: { leagueType: "lmu", scopeSlug: lmuLeague.slug, lmuManaged: true } }))
     await Driver.update(
       { roleLmuRegular: true },
       {
@@ -1128,6 +1137,7 @@ async function ensureSchema() {
           LeagueId: lmuLeague.id,
           roleLmuRegular: false,
           roleLmuReserve: false,
+          roleFormerLmu: false,
         },
       },
     );

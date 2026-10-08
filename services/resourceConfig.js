@@ -163,6 +163,11 @@ async function prepareDriver(values, body, existingDriver) {
     if (values.viewF1) { values.roleF1Reserve = true; values.f1Role = 'reserve'; }
     else if (values.viewFormerF1) values.roleFormerF1 = true;
   }
+  // LMU ranks derive from season cockpits; the driver form never overwrites a car assignment.
+  delete values.LmuCarId;
+  if(existingDriver?.id) { for(const key of ['roleLmuRegular','roleLmuReserve','roleFormerLmu']) values[key]=Boolean(existingDriver[key]); }
+  else { values.roleLmuRegular=false; values.roleLmuReserve=Boolean(values.viewLmu); values.roleFormerLmu=Boolean(values.viewFormerLmu&&!values.viewLmu); }
+  if(existingDriver?.id && values.viewLmu && !existingDriver.viewLmu && !existingDriver.roleLmuRegular && !existingDriver.roleLmuReserve) { values.roleLmuReserve=true; values.roleFormerLmu=false; }
   if (values.TeamId) {
     const team = await models.Team.findByPk(values.TeamId);
     if (!team || team.LeagueId !== Number(values.LeagueId))
@@ -247,12 +252,19 @@ async function prepareDriverForForm(entry) {
   ]);
   return {
     ...values,
-    f1SeasonRanks: stints.filter((stint) => stint.season).map((stint) => `${require('./f1DriverPolicy').seasonRankLabel(stint.season)} · R${stint.fromRound}${stint.toRound == null ? '–Saisonende' : `–R${stint.toRound}`}`),
+    f1SeasonRanks: stints.filter((stint) => stint.season?.leagueType === 'f1').map((stint) => `${require('./f1DriverPolicy').seasonRankLabel(stint.season)} · R${stint.fromRound}${stint.toRound == null ? '–Saisonende' : `–R${stint.toRound}`}`),
     aliasesText: entry.aliasesText ?? aliases.map((alias) => alias.alias).join(", "),
     aliasesJson: entry.aliasesJson ?? JSON.stringify(aliases.map(alias=>alias.alias)),
     polesF1: stats.f1.poles,
     fastestLapsF1: stats.f1.fastestLaps,
     driverOfTheDaysF1: stats.f1.driverOfTheDays,
+    averagePositionF1: stats.f1.averagePosition,
+    averagePointsF1: stats.f1.averagePoints,
+    averagePositionLmu: stats.lmu.averagePosition,
+    averagePointsLmu: stats.lmu.averagePoints,
+    polesLmu: stats.lmu.poles,
+    fastestLapsLmu: stats.lmu.fastestLaps,
+    driverOfTheDaysLmu: stats.lmu.driverOfTheDays,
     pointsF1: stats.f1.points,
     winsF1: stats.f1.wins,
     winRateF1: stats.f1.winRate,
@@ -346,6 +358,8 @@ async function prepareF1Team(values,body,existingTeam){
 async function prepareLmuTeam(values, body, existingTeam) {
   await prepareCentralTeam("lmu", values, body, existingTeam);
   values.LmuCarId = null;
+  values.accentColor = require('./lmuSeason').color(values.accentColor);
+  values.standingsColor = require('./lmuSeason').color(values.standingsColor);
 }
 
 async function prepareF1TeamWithHistory(entry) {
@@ -1401,20 +1415,11 @@ module.exports = {
           entry?.roleLmuReserve ||
           entry?.roleFormerLmu,
       }),
-      checkbox("roleLmuRegular", "Rang: LMU Stammfahrer"),
-      checkbox("roleLmuReserve", "Rang: LMU Ersatzfahrer"),
-      checkbox("roleFormerLmu", "Rang: Ehemaliger LMU-Fahrer"),
       text("lmuDisplayName", "LMU-Anzeigename", false, {
         placeholder: "z. B. Paul Schober | alaric01",
         help: "Wird in der LMU-Fahrereinteilung und den LMU-Tabellen angezeigt.",
       }),
-      relation(
-        "LmuCarId",
-        "Persönliches LMU-Auto / Marke",
-        models.LmuCar,
-        (row) => `${row.manufacturer} · ${row.name}`,
-        false,
-      ),
+      ...[['averagePositionF1','Ø Endposition F1'],['averagePointsF1','Ø Punkte pro Hauptstart F1'],['averagePositionLmu','Ø Endposition LMU'],['averagePointsLmu','Ø Punkte pro Hauptstart LMU'],['polesLmu','Polepositions LMU'],['fastestLapsLmu','Schnellste Runden LMU'],['driverOfTheDaysLmu','Driver of the Day LMU']].map(([key,label])=>number(key,label,false,{readonly:true,persist:false})),
       ...[["polesF1", "Polepositions F1"], ["fastestLapsF1", "Schnellste Runden F1"], ["driverOfTheDaysF1", "Driver of the Day F1"]].map(([key, label]) => number(key, label, false, { readonly: true, persist: false, visibleWhen: hasF1Rank })),
       number("pointsF1", "F1-Punkte", false, {
         readonly: true,
@@ -1500,16 +1505,19 @@ module.exports = {
     title: "LMU-Teams",
     group: "LMU Stammdaten",
     description:
-      "1. Team anlegen, 2. im LMU-Fahrerfeld Stammfahrer hinzufügen, fertig. Fahrzeuge werden ausschließlich direkt den Fahrern zugeordnet.",
+      "Teams und Farben pflegen; Stammplätze werden saisonbezogen über LMU-Fahrerwechsel vergeben.",
     model: models.Team,
     getListWhere: async () => ({ LeagueId: null, discipline: "lmu" }),
     prepareValues: prepareLmuTeam,
     prepareEntry: (entry) => prepareTeamForForm(entry, "lmu"),
-    nextHref: "/admin/team-rosters/lmu",
-    nextLabel: "Schritt 2: Fahrer zum Team hinzufügen",
+    upload: { field: "logoPath", label: "Teamlogo" },
+    nextHref: "/admin/lmu-driver-change",
+    nextLabel: "Stammplätze über Fahrerwechsel vergeben",
     listFields: ["name", "totalPoints"],
     fields: [
       text("name", "Teamname", true),
+      field("accentColor", "Teamfarbe / GP-Ergebnisse", "color", true),
+      field("standingsColor", "Farbe für die WM-Grafik", "color", true),
       number("totalPoints", "Gesamte Punkte (automatisch)", false, {
         readonly: true,
         persist: false,
@@ -1524,10 +1532,12 @@ module.exports = {
     model: models.LmuCar,
     upload: { field: "logoPath", label: "Marken-/Fahrzeuglogo" },
     beforeRemove: removeLmuCar,
-    nextHref: "/admin/drivers?rank=lmu-regular",
-    nextLabel: "Danach ausschließlich in der Fahrer-Pflege zuordnen",
+    prepareValues: async values => { values.accentColor = require('./lmuSeason').color(values.accentColor); },
+    nextHref: "/admin/lmu-car-assignments",
+    nextLabel: "Danach Fahrern LMU-Autos zuordnen",
     listFields: ["manufacturer", "name", "vehicleClass", "additionalInfo"],
     fields: [
+      field("accentColor", "Marken-/Fahrzeugfarbe", "color", true),
       text("manufacturer", "Marke", true, { placeholder: "Porsche" }),
       text("name", "Auto / Modell", true, { placeholder: "963" }),
       text("vehicleClass", "Klasse", false, {
