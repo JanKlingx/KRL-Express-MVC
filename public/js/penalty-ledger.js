@@ -873,7 +873,7 @@
 
       const response =
         await fetch(
-          "/admin/penalty-ledger",
+          document.querySelector("[data-ledger-url]")?.dataset.ledgerUrl || "/admin/penalty-ledger",
           {
             method:
               "POST",

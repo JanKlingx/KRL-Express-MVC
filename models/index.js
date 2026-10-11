@@ -15,6 +15,7 @@ const commonSort = {
 };
 
 const User = sequelize.define("User", {
+  dashboardLayout: { type: DataTypes.JSON, allowNull: true },
   dashboardFavorites: { type: DataTypes.JSON, allowNull: true },
   email: {
     type: DataTypes.STRING,
@@ -479,7 +480,7 @@ const F1Game = sequelize.define("F1Game", {
   ...commonSort,
 });
 
-const { LmuGame, LmuCalendar, LmuRuleSection, LmuRaceDirectorDocument } = require('./lmu')(sequelize, DataTypes, commonSort);
+const { LmuTrack, LmuGame, LmuCalendar, LmuRuleSection, LmuRaceDirectorDocument } = require('./lmu')(sequelize, DataTypes, commonSort);
 
 const Season = sequelize.define("Season", {
   lmuManaged: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
@@ -2722,11 +2723,14 @@ KrlIcon.belongsTo(Driver, {
 Driver.belongsTo(Platform, { as: "platformRecord", foreignKey: "PlatformId", onDelete: "RESTRICT" });
 Platform.hasMany(Driver, { as: "drivers", foreignKey: "PlatformId", onDelete: "RESTRICT" });
 
+LmuTrack.belongsTo(Country, { as: 'countryRecord', foreignKey: 'CountryId' });
+Country.hasMany(LmuTrack, { as: 'lmuTracks', foreignKey: 'CountryId' });
+RaceEvent.belongsTo(LmuTrack, { as: 'lmuTrack', foreignKey: 'LmuTrackId' });
 Season.belongsTo(LmuGame, { as: 'lmuGame', foreignKey: 'LmuGameId' });
 Season.belongsTo(LmuCalendar, { as: 'lmuCalendar', foreignKey: 'LmuCalendarId' });
 
 module.exports = {
-  LmuGame, LmuCalendar, LmuRuleSection, LmuRaceDirectorDocument,
+  LmuTrack, LmuGame, LmuCalendar, LmuRuleSection, LmuRaceDirectorDocument,
   NavigationLayout,
   NewsPost, CommunitySetting, Guide,
   Platform,

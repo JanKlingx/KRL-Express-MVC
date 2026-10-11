@@ -1,6 +1,6 @@
 <%- include('../partials/header', { title }) %>
 <% const selectedFavorites = typeof favorites !== 'undefined' ? favorites : []; const allModules = groups.flatMap(group => group.modules); %>
-<section class="admin-shell" data-admin-dashboard>
+<section class="admin-shell" data-admin-dashboard data-layout-url="<%= adminBasePath %>/dashboard/layout">
   <div class="container">
     <div class="admin-heading">
       <div><span class="eyebrow"><%= dashboardEyebrow %></span><h1><%= dashboardTitle %></h1><p class="admin-intro"><%= dashboardDescription %></p></div>
@@ -17,14 +17,21 @@
       <p data-favorites-empty <%= selectedFavorites.length ? 'hidden' : '' %>>Klicke auf den Stern einer Transaktion, um sie hier anzuheften. Deine Auswahl wird in deinem Konto gespeichert.</p>
       <div class="admin-grid" data-favorites-grid><% allModules.filter(([key]) => selectedFavorites.includes(key)).forEach(([key, config]) => { %><%- include('../partials/admin-transaction', { key, config, counts, adminBasePath, favorite: true }) %><% }) %></div>
     </section>
+    <% if(adminBasePath==='/admin'){ %>
+    <div class="dashboard-organizer" data-dashboard-organizer hidden>
+      <form data-category-create><label>Neue Kategorie<input name="name" maxlength="60" required placeholder="z. B. Rennvorbereitung"></label><button class="button button-small">+ Kategorie erstellen</button></form>
+      <p>Transaktionen am Griff in eine Kategorie ziehen. Alternativ hier auswählen und verschieben:</p>
+      <form data-category-move><label>Transaktion<select name="module"><% allModules.forEach(([key,config])=>{ %><option value="<%= key %>"><%= config.title %></option><% }); %></select></label><label>Zielkategorie<select name="category" data-category-options></select></label><button class="button button-small">Verschieben</button></form>
+      <p data-layout-status role="status" aria-live="polite"></p>
+    </div><% } %>
     <% groups.forEach((group, index) => { %>
-      <section class="admin-group" data-dashboard-category aria-labelledby="group-<%= index %>">
-        <div class="admin-group-heading"><h2 id="group-<%= index %>"><%= group.name %></h2><span data-category-count><%= group.modules.length %> Bereiche</span></div>
+      <details class="admin-group" data-dashboard-category data-category-id="<%= group.id||index %>" <%= group.collapsed?'':'open' %>>
+        <summary class="admin-group-heading"><h2 id="group-<%= index %>"><%= group.name %></h2><span data-category-count><%= group.modules.length %> Bereiche</span></summary><% if(adminBasePath==='/admin'){ %><div class="category-tools"><button type="button" class="button button-small button-ghost" data-category-rename>Kategorie umbenennen</button><% if(group.id?.startsWith('cat_')){ %><button type="button" class="button button-small button-ghost" data-category-delete>Kategorie entfernen</button><% } %></div><% } %>
         <div class="admin-grid"><% group.modules.forEach(([key, config]) => { %><%- include('../partials/admin-transaction', { key, config, counts, adminBasePath, favorite: selectedFavorites.includes(key) }) %><% }) %></div>
-      </section>
+      </details>
     <% }) %>
     <p class="empty-state" data-search-empty hidden>Keine passende Funktion gefunden. Probiere einen anderen Suchbegriff.</p>
   </div>
 </section>
-<script src="/js/admin-dashboard.js" defer></script>
+<script src="/js/admin-dashboard.js" defer></script><% if(adminBasePath==='/admin'){ %><script src="/js/dashboard-layout.js" defer></script><% } %>
 <%- include('../partials/footer') %>

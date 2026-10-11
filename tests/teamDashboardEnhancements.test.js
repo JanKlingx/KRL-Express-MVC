@@ -94,7 +94,7 @@ test('Dashboard sucht über Kategorien, synchronisiert Sterne und behält Favori
 test('Dashboard lädt nur die Favoriten des angemeldeten Kontos und erhält alle Transaktionslinks', async t => {
   const config = require('../services/resourceConfig');
   for (const model of new Set(Object.values(config).filter(c => !c.hidden).map(c => c.model))) t.mock.method(model, 'count', async () => 0);
-  t.mock.method(models.User, 'findByPk', async (id, options) => { assert.equal(id, 12); assert.deepEqual(options.attributes, ['dashboardFavorites']); return { dashboardFavorites: ['f1Weekend'] }; });
+  t.mock.method(models.User, 'findByPk', async (id, options) => { assert.equal(id, 12); assert.deepEqual(options.attributes, ['dashboardFavorites', 'dashboardLayout']); return { dashboardFavorites: ['f1Weekend'] }; });
   let data; await require('../controllers/adminController').dashboard({ session: { userId: 12 } }, { render(view, values) { data = values; } });
   assert.deepEqual(data.favorites, ['f1Weekend']); assert.equal(data.groups.length, 4);
   const html = await ejs.renderFile('views/admin/dashboard.ejs', { ...layout, ...data });
@@ -117,12 +117,12 @@ test('Neue Favoritenspalte wird nur bei Bedarf angelegt', async t => {
   let existing = false; const stop = new Error('Ende des untersuchten Schemaabschnitts');
   t.mock.method(qi, 'describeTable', async name => {
     if (name === 'seasons') return { hide_calendar_time: {}, historical_grid: {}, driver_display_names: {} };
-    if (name === 'users') return existing ? { dashboard_favorites: {} } : {};
+    if (name === 'users') return existing ? { dashboard_favorites: {}, dashboard_layout: {} } : {};
     throw stop;
   });
   t.mock.method(qi, 'addColumn', async (table, name, definition) => { added.push({ table, name, definition }); });
   const { ensureSchema } = require('../services/schema');
   await assert.rejects(ensureSchema(), error => error === stop); existing = true;
   await assert.rejects(ensureSchema(), error => error === stop);
-  assert.equal(added.length, 1); assert.equal(added[0].table, 'users'); assert.equal(added[0].name, 'dashboard_favorites'); assert.equal(added[0].definition.allowNull, true);
+  assert.equal(added.length, 2); assert.equal(added[1].name, 'dashboard_layout'); assert.equal(added[0].table, 'users'); assert.equal(added[0].name, 'dashboard_favorites'); assert.equal(added[0].definition.allowNull, true);
 });

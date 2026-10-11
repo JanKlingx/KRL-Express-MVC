@@ -13,15 +13,27 @@ const {
 } = require("../models");
 
 const {
-  loadSeasonStructure,
+  loadSeasonStructure: loadF1SeasonStructure,
 } = require("../services/f1Season");
 
 const {
-  regularRoleField,
-  reserveRoleField,
+  regularRoleField: f1RegularRoleField,
+  reserveRoleField: f1ReserveRoleField,
 } = require("../services/raceLineup");
 
 
+// F1 and LMU share the same cell editing, colors and points calculation.
+function createController(discipline = 'f1') {
+  if (!['f1', 'lmu'].includes(discipline)) throw new Error('Unbekannte Disziplin.');
+  const exports = {};
+  const isLmu = discipline === 'lmu';
+  const series = isLmu ? 'LMU' : 'F1';
+  const ledgerBasePath = isLmu ? '/admin/lmu-penalty-ledger' : '/admin/penalty-ledger';
+  const adapter = isLmu ? require('../services/lmuPenaltyLedger') : null;
+  const loadSeasonStructure = isLmu ? adapter.loadStructure : loadF1SeasonStructure;
+  const regularRoleField = isLmu ? () => 'roleLmuRegular' : f1RegularRoleField;
+  const reserveRoleField = isLmu ? () => 'roleLmuReserve' : f1ReserveRoleField;
+  const leagueScope = isLmu ? {} : { slug: { [Op.in]: ['freitag', 'samstag', 'sonntag'] } };
 /*
  * =====================================================
  * HILFSFUNKTIONEN
@@ -183,6 +195,7 @@ async function loadRounds(
   league,
   activeSeason,
 ) {
+  if (isLmu) return adapter.loadRounds(league, activeSeason);
   if (!activeSeason) {
     return [];
   }
@@ -330,8 +343,8 @@ async function loadRounds(
 function centralCalendarRounds(calendar) {
   return (calendar?.rounds || [])
     .filter((round) => !round.isTestDay)
-    .map((round) => ({
-      roundNumber: Number(round.roundNumber || round.sortOrder),
+    .map((round, index) => ({
+      roundNumber: isLmu ? index + 1 : Number(round.roundNumber || round.sortOrder),
       title:
         round.track?.countryRecord?.name ||
         round.track?.country ||
@@ -350,6 +363,7 @@ function centralCalendarRounds(calendar) {
 }
 
 async function loadCentralCalendars() {
+  if (isLmu) return adapter.loadCalendars();
   return F1Calendar.findAll({
     include: [{
       association: "rounds",
@@ -686,7 +700,7 @@ async function buildLeagueLedger(
     await Season.findOne({
       where: {
         leagueType:
-          "f1",
+          discipline,
 
         scopeSlug:
           league.slug,
@@ -756,7 +770,7 @@ async function buildLeagueLedger(
     ]);
 
   const requestedId = Number(requestedCalendarId || 0);
-  const seasonCalendarId = Number(activeSeason?.F1CalendarId || 0);
+  const seasonCalendarId = Number(activeSeason?.[isLmu ? 'LmuCalendarId' : 'F1CalendarId'] || 0);
   const selectedCalendar =
     calendars.find((calendar) => Number(calendar.id) === requestedId) ||
     calendars.find((calendar) => Number(calendar.id) === seasonCalendarId) ||
@@ -770,7 +784,7 @@ async function buildLeagueLedger(
   if (requestedId && !calendars.some((calendar) => Number(calendar.id) === requestedId)) {
     calendarWarning = "Der angeforderte Rennkalender wurde nicht gefunden. Es wird die Standardauswahl angezeigt.";
   } else if (!selectedCalendar && activeSeason) {
-    calendarWarning = "Es wurde noch kein zentraler F1-Rennkalender angelegt; der Saisonkalender wird angezeigt.";
+    calendarWarning = `Es wurde noch kein zentraler ${series}-Rennkalender angelegt; der Saisonkalender wird angezeigt.`;
   }
 
 
@@ -788,9 +802,8 @@ async function buildLeagueLedger(
 
   const drivers =
     await Driver.findAll({
-      where: {
-        [regularField]:
-          true,
+      where: isLmu ? { id: { [Op.in]: structure.teams.flatMap(team => team.drivers.map(driver => driver.id)) } } : {
+        [regularField]: true,
       },
 
       order: [
@@ -1015,7 +1028,7 @@ async function buildGlobalLedgers(
 
   const masterLedger = activeLedgers[0] || null;
   const seasonCalendarIds = [...new Set(activeLedgers
-    .map((ledger) => Number(ledger.activeSeason?.F1CalendarId || 0))
+    .map((ledger) => Number(ledger.activeSeason?.[isLmu ? 'LmuCalendarId' : 'F1CalendarId'] || 0))
     .filter(Boolean))];
   const calendars = await loadCentralCalendars();
   const requestedId = Number(requestedCalendarId || 0);
@@ -1029,14 +1042,14 @@ async function buildGlobalLedgers(
   if (requestedId && !calendars.some((calendar) => Number(calendar.id) === requestedId)) {
     calendarWarning = "Der angeforderte Rennkalender wurde nicht gefunden. Es wird die Standardauswahl angezeigt.";
   } else if (!requestedId && seasonCalendarIds.length > 1) {
-    calendarWarning = "Die aktiven F1-Saisons verwenden unterschiedliche Kalender. Bitte den gewünschten Rennkalender auswählen.";
+    calendarWarning = `Die aktiven ${series}-Saisons verwenden unterschiedliche Kalender. Bitte den gewünschten Rennkalender auswählen.`;
   }
 
   const sourceRounds = selectedCalendar
     ? centralCalendarRounds(selectedCalendar)
     : (masterLedger?.rounds || []);
   if (!selectedCalendar && activeLedgers.length) {
-    calendarWarning = "Es wurde noch kein zentraler F1-Rennkalender angelegt; als Übergang wird die erste aktive Liga verwendet.";
+    calendarWarning = `Es wurde noch kein zentraler ${series}-Rennkalender angelegt; als Übergang wird die erste aktive Liga verwendet.`;
   }
 
   const columns = sourceRounds.map((round) => ({
@@ -1045,11 +1058,11 @@ async function buildGlobalLedgers(
     LeagueId: Number(masterLedger?.league?.id || 0),
     SeasonId: Number(masterLedger?.activeSeason?.id || 0),
     leagueSlug: null,
-    leagueName: selectedCalendar?.name || "Gemeinsamer F1-Kalender",
+    leagueName: selectedCalendar?.name || `Gemeinsamer ${series}-Kalender`,
     leagueColor: "#6ef2f2",
   }));
   const columnGroups = columns.length ? [{
-    league: { name: selectedCalendar?.name || "Gemeinsamer F1-Kalender", accentColor: "#6ef2f2" },
+    league: { name: selectedCalendar?.name || `Gemeinsamer ${series}-Kalender`, accentColor: "#6ef2f2" },
     activeSeason: masterLedger?.activeSeason || null,
     threshold: masterLedger?.threshold || 12,
     columns,
@@ -1408,15 +1421,9 @@ exports.show = async (
     await League.findAll({
       where: {
         type:
-          "f1",
+          discipline,
 
-        slug: {
-          [Op.in]: [
-            "freitag",
-            "samstag",
-            "sonntag",
-          ],
-        },
+        ...leagueScope,
       },
 
       order: [
@@ -1461,7 +1468,10 @@ exports.show = async (
     "admin/penalty-ledger",
     {
       title:
-        "Formel 1 Strafkartei",
+        isLmu ? 'LMU Strafkartei' : 'Formel 1 Strafkartei',
+      ledgerBasePath,
+      disciplineLabel: isLmu ? 'LMU' : 'FORMEL 1',
+      series,
 
       ledgers,
 
@@ -1549,22 +1559,16 @@ exports.updateSettings = async (
             leagueId,
 
           type:
-            "f1",
+            discipline,
 
-          slug: {
-            [Op.in]: [
-              "freitag",
-              "samstag",
-              "sonntag",
-            ],
-          },
+          ...leagueScope,
         },
       });
 
 
     if (!league) {
       throw new Error(
-        "Die F1-Liga wurde nicht gefunden.",
+        `Die ${series}-Liga wurde nicht gefunden.`,
       );
     }
 
@@ -1645,7 +1649,7 @@ exports.updateSettings = async (
 
 
     return res.redirect(
-      `/admin/penalty-ledger#liga-${league.id}`,
+      `${ledgerBasePath}#liga-${league.id}`,
     );
   } catch (error) {
     if (
@@ -1747,7 +1751,7 @@ exports.create = async (
               leagueId,
 
             type:
-              "f1",
+              discipline,
           },
         }),
 
@@ -1757,7 +1761,7 @@ exports.create = async (
               seasonId,
 
             leagueType:
-              "f1",
+              discipline,
 
             status:
               "active",
@@ -1768,7 +1772,7 @@ exports.create = async (
           driverId,
         ),
 
-        RaceEvent.findOne({
+        isLmu ? adapter.findRaceEvent(leagueId, seasonId, roundNumber) : RaceEvent.findOne({
           where: {
             LeagueId:
               leagueId,
@@ -1814,6 +1818,7 @@ exports.create = async (
     }
 
 
+    if (isLmu && !(driver.viewLmu || driver.roleLmuRegular || driver.roleLmuReserve || driver.roleFormerLmu || driver.viewFormerLmu)) throw new Error('Bitte einen LMU-Fahrer auswählen.');
     if (!raceEvent) {
       throw new Error(
         "Diese Rennrunde existiert nicht im aktuellen Rennkalender.",
@@ -2051,7 +2056,7 @@ exports.create = async (
             await Season.findAll({
               where: {
                 leagueType:
-                  "f1",
+                  discipline,
 
                 status:
                   "active",
@@ -2198,7 +2203,7 @@ exports.create = async (
 
 
     return res.redirect(
-      `/admin/penalty-ledger#liga-${league.id}`,
+      `${ledgerBasePath}#liga-${league.id}`,
     );
   } catch (error) {
     if (
@@ -2247,6 +2252,8 @@ exports.remove = async (
 
 
   if (entry) {
+    const league = await League.findOne({where: {id: entry.LeagueId, type: discipline}});
+    if (!league) throw new Error('Dieser Eintrag gehört zu einer anderen Disziplin.');
     await entry.destroy();
   }
 
@@ -2261,7 +2268,7 @@ exports.remove = async (
 
 
   res.redirect(
-    `/admin/penalty-ledger${
+    `${ledgerBasePath}${
       leagueId
         ? `#liga-${leagueId}`
         : ""
@@ -2276,8 +2283,13 @@ exports.remove = async (
  * =====================================================
  */
 
-module.exports.buildLeagueLedger =
+exports.buildLeagueLedger =
   buildLeagueLedger;
 
-module.exports.buildGlobalLedgers =
+exports.buildGlobalLedgers =
   buildGlobalLedgers;
+
+  return exports;
+}
+module.exports = createController();
+module.exports.forDiscipline = createController;

@@ -79,6 +79,7 @@ router.get(
  * =====================================================
  */
 
+router.get('/lmu/strafkartei', asyncHandler(require('../controllers/lmuPenaltyLedgerController').publicShow));
 router.get('/lmu/regelwerk', asyncHandler(require('../controllers/lmuContentController').rules));
 router.get('/lmu/race-director-notes', asyncHandler(require('../controllers/lmuContentController').documents));
 
