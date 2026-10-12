@@ -1,8 +1,8 @@
 (() => {
   const root = document.querySelector('[data-admin-dashboard]');
   if (!root) return;
-  const categories = [...root.querySelectorAll('[data-dashboard-category]')];
-  const cards = categories.flatMap(section => [...section.querySelectorAll('[data-module]')]);
+  const categories = () => [...root.querySelectorAll('[data-dashboard-category]')];
+  const cards = categories().flatMap(section => [...section.querySelectorAll('[data-module]')]);
   const favoritesGrid = root.querySelector('[data-favorites-grid]');
   const search = root.querySelector('[data-dashboard-search]');
   const status = root.querySelector('[data-favorite-status]');
@@ -13,9 +13,10 @@
     const terms = normalize(search.value.trim()).split(/\s+/).filter(Boolean);
     root.querySelectorAll('[data-module]').forEach(card => { card.hidden = !terms.every(term => normalize(card.dataset.search).includes(term)); });
     let total = 0;
-    categories.forEach(section => {
+    categories().forEach(section => {
       const count = [...section.querySelectorAll('[data-module]')].filter(card => !card.hidden).length;
-      section.hidden = !count;
+      section.hidden = terms.length > 0 && !count;
+      if(terms.length) section.open = true; else if(section.dataset.collapsed) section.open = section.dataset.collapsed!=='true';
       section.querySelector('[data-category-count]').textContent = `${count} Bereiche`;
       total += count;
     });
@@ -72,6 +73,7 @@
   });
   root.querySelector('[data-dashboard-search-panel]').hidden = false;
   search.addEventListener('input', filter);
+  root.addEventListener('layoutchange', filter);
   root.querySelector('[data-search-clear]').addEventListener('click', () => { search.value = ''; filter(); search.focus(); });
   refresh();
 })();

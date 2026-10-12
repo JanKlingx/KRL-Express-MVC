@@ -6,14 +6,14 @@ const { REGULAR_STATUSES, RESERVE_STATUSES } = require('./raceLineup');
 const regularStatuses=new Set(REGULAR_STATUSES.map(r=>r.value)),reserveStatuses=new Set(RESERVE_STATUSES.map(r=>r.value));
 const include=[{association:'driver',include:[{association:'lmuCar'}]},{association:'team'},{association:'replacementFor'}];
 async function penalties(leagueId, race, transaction) {
-  const rows=await m.PenaltyEntry.findAll({where:{LeagueId:leagueId},transaction});
-  const setting=await m.F1PenaltySetting.findOne({where:{LeagueId:leagueId},transaction});
-  const date=race.raceDate||require('./raceWeekend').berlinDate();const totals=new Map(),banned=new Set();
+  const rows=await m.PenaltyEntry.findAll({where:{LeagueId:leagueId,SeasonId:race.SeasonId},transaction});
+  const totals=new Map(),banned=new Set();
   for(const row of rows){
-    if(row.isRaceBan){if(Number(row.SeasonId)===Number(race.SeasonId)&&Number(row.roundNumber)===Number(race.sortOrder))banned.add(Number(row.DriverId));continue;}
-    if(row.awardedOn&&row.awardedOn<=date&&(!row.expiresOn||row.expiresOn>=date))totals.set(Number(row.DriverId),(totals.get(Number(row.DriverId))||0)+Number(row.points));
+    if(row.isRaceBan){if(Number(row.roundNumber)===Number(race.sortOrder))banned.add(Number(row.DriverId));continue;}
+    totals.set(Number(row.DriverId),(totals.get(Number(row.DriverId))||0)+Number(row.points));
   }
-  return {rows,totals,banned,limit:setting?.pointsLimit||12};
+  for(const [driverId,points] of totals)if(points>=12)banned.add(driverId);
+  return {rows,totals,banned,limit:12};
 }
 async function load(raceId, transaction, lock=false) {
   if(lock){const record=await m.GrandPrixResult.findByPk(raceId,{transaction});if(record?.discipline!=='lmu')throw new Error('LMU-Rennen nicht gefunden.');await s.seasonById(record.SeasonId,transaction,true);}

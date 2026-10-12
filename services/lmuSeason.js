@@ -15,7 +15,7 @@ function roundsFrom(body) {
     if (!title || !circuit || title.length > 255 || circuit.length > 255) throw new Error(`Termin ${i + 1}: Titel und Strecke sind erforderlich (max. 255 Zeichen).`);
     const startsAt = parseBerlinDateTime(row.startsAt);
     if (!startsAt || Number.isNaN(new Date(startsAt).getTime())) throw new Error(`Termin ${i + 1}: Datum und Uhrzeit prüfen.`);
-    return { title, circuit, startsAt: new Date(startsAt).toISOString(), isTestDay: row.isTestDay === 'on' || row.isTestDay === true, sortOrder: i + 1 };
+    return { title, circuit, LmuTrackId: Number(row.LmuTrackId) || null, startsAt: new Date(startsAt).toISOString(), isTestDay: row.isTestDay === 'on' || row.isTestDay === true, sortOrder: i + 1 };
   });
 }
 function points(scheme, entry, testDay = false) {
@@ -137,8 +137,22 @@ async function createSeason(body) {
     if (!calendar?.rounds?.length || !game || !scheme || scheme.discipline !== 'lmu') throw new Error('Kalender, LMU-Spiel und LMU-Punktesystem sind erforderlich.');
     const ids = [...new Set([].concat(body.teamIds || []).map(Number))];
     if (!ids.length || ids.some(id=>!teams.some(t=>t.id===id))) throw new Error('Bitte mindestens ein gültiges LMU-Team auswählen.');
-    const assignments = Object.entries(body.assignments || {}).map(([key,value])=>({DriverId:Number(key.replace(/^d/,'')),TeamId:Number(value.TeamId)||null}));
-    if (assignments.some(a=>!drivers.some(d=>d.id===a.DriverId) || a.TeamId && !ids.includes(a.TeamId))) throw new Error('Die Fahrer-/Teamzuordnung passt nicht zu dieser Saison.');
+    const selectedIds = body.driverSelection === 'explicit' ? [...new Set([].concat(body.driverIds || []).map(Number))] : Object.keys(body.assignments || {}).map(key => Number(key.replace(/^d/, '')));
+    if (!selectedIds.length || selectedIds.some(id => !drivers.some(d => d.id === id))) throw new Error('Bitte mindestens einen gültigen LMU-Fahrer auswählen.');
+    const assignments = selectedIds.map(DriverId => ({ DriverId, TeamId: body.cockpits ? null : Number(body.assignments?.['d' + DriverId]?.TeamId) || null }));
+    const occupied = new Set();
+    for (const [key, slots] of Object.entries(body.cockpits || {})) {
+      const TeamId = Number(key.replace(/^t/, ''));
+      const chosen = Object.values(slots).filter(Boolean).map(Number);
+      if (chosen.length && !ids.includes(TeamId)) throw new Error('Das Team wurde in Schritt 6 nicht ausgewählt.');
+      if (chosen.length > 3) throw new Error('Pro LMU-Team sind maximal drei Stammfahrer möglich.');
+      for (const DriverId of chosen) {
+        const assignment = assignments.find(row => row.DriverId === DriverId);
+        if (!assignment || occupied.has(DriverId)) throw new Error('Ein Fahrer ist mehrfach zugeordnet oder wurde in Schritt 5 nicht ausgewählt.');
+        occupied.add(DriverId); assignment.TeamId = TeamId;
+      }
+    }
+    if (assignments.some(a => a.TeamId && !ids.includes(a.TeamId))) throw new Error('Die Fahrer-/Teamzuordnung passt nicht zu dieser Saison.');
     for (const id of ids) if (assignments.filter(a=>a.TeamId===id).length>3) throw new Error('Pro LMU-Team sind maximal drei Stammfahrer möglich.');
     const status = body.status === 'historical' ? 'historical' : 'active';
     const season = await m.Season.create({ name, scopeSlug:league.slug,leagueType:'lmu',status,isPublished:body.isPublished==='on',lmuManaged:true,calendarMode:'manual',LmuCalendarId:calendar.id,LmuGameId:game.id,gameName:game.name,PointsSchemeId:scheme.id,accentColor:color(body.accentColor),reservePointsForConstructors:body.reservePointsForConstructors==='on' },{transaction});

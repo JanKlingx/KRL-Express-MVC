@@ -1574,6 +1574,13 @@ module.exports = {
       field("accentColor", "Fahrzeugfarbe", "color", true),
     ],
   },
+  lmuTracks: {
+    title: 'LMU-Strecken', group: 'LMU Stammdaten', model: models.LmuTrack,
+    description: 'LMU-Strecken mit Land und Flagge pflegen und im zentralen Rennkalender auswählen.',
+    prepareValues: require('./lmuTracks').prepare, beforeRemove: require('./lmuTracks').beforeRemove,
+    listFields: ['CountryId', 'name'],
+    fields: [relation('CountryId', 'Land', models.Country, row => row.name, true), text('name', 'Strecke', true)],
+  },
   f1Tracks: {
     title: "F1-Strecken",
     group: "Formel 1 Stammdaten",

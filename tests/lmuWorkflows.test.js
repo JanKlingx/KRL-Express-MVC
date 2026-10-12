@@ -38,7 +38,7 @@ function database(t, overrides = {}) {
   mock(t, 'F1RaceLineupEntry', 'findAll', async () => data.entries);
   mock(t, 'GrandPrixResultEntry', 'findAll', async () => data.results);
   mock(t, 'PointsScheme', 'findByPk', async () => scheme);
-  mock(t, 'PenaltyEntry', 'findAll', async () => []);
+  mock(t, 'PenaltyEntry', 'findAll', async () => []); mock(t, 'PenaltyEntry', 'count', async () => 0);
   mock(t, 'F1PenaltySetting', 'findOne', async () => null);
   return data;
 }
@@ -107,14 +107,14 @@ test('LMU-Ergebnisspeicherung ersetzt genau ein Rennen und markiert nur seinen K
   assert.deepEqual(calls[0][1].where, { GrandPrixResultId: 50 }); assert.equal(calls[1][1][0].points, 26); assert.equal(calls[2][1].isCompleted, true); assert.equal(calls[2][2].where.SeasonId, 12);
   assert.ok(calls.every(c => c.at(-1).transaction === tx));
 });
-test('LMU-Strafkartei berücksichtigt Jahresablauf, Saison und genaue Sperrrunde', async t => {
-  database(t); mock(t, 'PenaltyEntry', 'findAll', async () => [
+test('LMU-Strafkartei zählt wie F1 die aktuelle Saison und die genaue Sperrrunde', async t => {
+  database(t); mock(t, 'PenaltyEntry', 'findAll', async options => { assert.deepEqual(options.where,{LeagueId:7,SeasonId:12}); return [
     { DriverId: 1, points: 3, awardedOn: '2026-01-01', expiresOn: '2027-01-01' },
     { DriverId: 1, points: 9, awardedOn: '2024-01-01', expiresOn: '2025-01-01' },
-    { DriverId: 2, isRaceBan: true, SeasonId: 99, roundNumber: 1 },
+    { DriverId: 2, isRaceBan: true, SeasonId: 12, roundNumber: 2 },
     { DriverId: 1, isRaceBan: true, SeasonId: 12, roundNumber: 1 }
-  ]);
-  const data = await w.penalties(7, race); assert.equal(data.totals.get(1), 3); assert.deepEqual([...data.banned], [1]);
+  ]; });
+  const data = await w.penalties(7, race); assert.equal(data.totals.get(1), 12); assert.deepEqual([...data.banned], [1]);
 });
 test('LMU-Aufstellung, Punkte und Team-WM nutzen die gemeinsame Saisonberechnung', () => {
   const reserveEntry = { ...entry, id: 9, DriverId: 2, driver: reserve, roleType: 'reserve', ReplacementForDriverId: 1 };
@@ -133,7 +133,7 @@ test('LMU-Saisonkalender lässt gespeicherte Rennen nicht entfernen oder umnumme
   const events = [{ id: 40, SeasonId: 12, GrandPrixResultId: 50, title: 'Spa', circuit: 'Spa', sortOrder: 1, startsAt: '2026-10-01T18:00Z', isTestDay: false }];
   mock(t, 'RaceEvent', 'findAll', async () => events);
   mock(t, 'GrandPrixResult', 'findAll', async () => [{ ...race, entries: [{ DriverId: 1 }], lineupEntries: [] }]);
-  await assert.rejects(calendar.save(12, { version: calendar.version(events), rounds: { r0: { title: 'Neu', circuit: 'Neu', startsAt: '2026-11-01T20:00' } } }), /Runden erhalten/);
+  await assert.rejects(calendar.save(12, { version: calendar.version(events), rounds: { r0: { title: 'Neu', circuit: 'Spa', startsAt: '2026-11-01T20:00' } } }), /Runden erhalten/);
 });
 test('LMU-Saisonkalender ändert Datum ohne Ergebnis- oder Punkteüberschreibung', async t => {
   database(t); mock(t, 'League', 'findOne', async () => league);
@@ -175,7 +175,7 @@ test('LMU-Altsaison übernimmt gespeicherte Perioden ohne Ergebnisänderung und 
 test('Neue LMU-Adminseiten rendern mit gefüllten Daten; Kalender hinzufügen bewahrt Testtag-Wert', async t => {
   database(t); const details = await w.load(50);
   const common = { title: 'LMU', isAdmin: true, currentPath: '/admin', flash: null, leagues: [league], league, seasons: [season], season, calendars: [{ id: 1, name: 'Kalender', rounds: [] }], games: [{ id: 2, name: 'LMU' }], schemes: [scheme], teams: [team], drivers: [driver, reserve], rounds: [race], stints: [stint], nextRound: 1, draft: null, selected: null, details, races: [race], regularStatuses: require('../services/raceLineup').REGULAR_STATUSES, reserveStatuses: require('../services/raceLineup').RESERVE_STATUSES, entries: [], setting: null, documents: [], events: [], version: 'test', localDateTime: require('../services/calendarTime').localDateTime };
-  for (const name of ['lmu-games','lmu-calendars','lmu-season-setup','lmu-seasons','lmu-driver-change','lmu-weekend','lmu-penalties','lmu-race-director-documents','lmu-season-calendar','lmu-car-assignments']) {
+  for (const name of ['lmu-games','lmu-calendars','lmu-season-setup','lmu-seasons','lmu-driver-change','lmu-weekend','lmu-race-director-documents','lmu-season-calendar','lmu-car-assignments']) {
     const html = await ejs.renderFile(path.join(root, 'views/admin', name+'.ejs'), { ...common, ...(name==='lmu-season-setup'?{draft:{}}:{}), cars: [] });
     assert.match(html, /<form/);
   }
@@ -257,10 +257,10 @@ test('LMU-Farbpflicht und getrennte Autozuordnung verändern die F1-Felder nicht
   for(const name of ['LmuCalendar','LmuGame','LmuRuleSection','LmuRaceDirectorDocument'])assert.ok(m[name]);
 });
 test('LMU-Schema ergänzt neue Spalten einmalig und bewahrt bestehende Daten', async t => {
-  const qi=m.sequelize.getQueryInterface();const columns={seasons:{hide_calendar_time:{},historical_grid:{},driver_display_names:{}},users:{dashboard_favorites:{}},teams:{aggregation_team_id:{},logo_variants:{}},lmu_cars:{},drivers:{},f1_car_profiles:{unified_team_id:{}},community_settings:{logo_path:{}}};
+  const qi=m.sequelize.getQueryInterface();const columns={race_events:{},seasons:{hide_calendar_time:{},historical_grid:{},driver_display_names:{}},users:{dashboard_favorites:{}},teams:{aggregation_team_id:{},logo_variants:{}},lmu_cars:{},drivers:{},f1_car_profiles:{unified_team_id:{}},community_settings:{logo_path:{}}};
   const added=[],stop=new Error('Schemaabschnitt geprüft');t.mock.method(qi,'describeTable',async table=>columns[table]);
   t.mock.method(qi,'addColumn',async(table,name,definition)=>{assert.equal(columns[table][name],undefined);columns[table][name]={};added.push({table,name,definition});});
   mock(t,'Guide','findOrCreate',async()=>{throw stop;});
   const {ensureSchema}=require('../services/schema');await assert.rejects(ensureSchema(),error=>error===stop);const count=added.length;await assert.rejects(ensureSchema(),error=>error===stop);assert.equal(added.length,count);
-  for(const name of ['lmu_managed','lmu_game_id','lmu_calendar_id','view_former_lmu','standings_color','accent_color'])assert.ok(added.some(row=>row.name===name),name);
+  for(const name of ['lmu_managed','lmu_game_id','lmu_calendar_id','view_former_lmu','standings_color','accent_color','lmu_track_id','dashboard_layout'])assert.ok(added.some(row=>row.name===name),name);
 });

@@ -81,8 +81,8 @@ exports.dashboard = async (req, res) => {
   const modules = Object.entries(resourceConfig).filter(([, config]) => !config.hidden);
   const counts = Object.fromEntries(await Promise.all(modules.map(async ([key, config]) => [key, await config.model.count({ where: config.getListWhere ? await config.getListWhere() : {} })])));
   const dashboard = require('../services/adminDashboard');
-  const user = await require('../models').User.findByPk(req.session.userId, { attributes: ['dashboardFavorites'] });
-  const groups = dashboard.groups();
+  const user = await require('../models').User.findByPk(req.session.userId, { attributes: ['dashboardFavorites', 'dashboardLayout'] });
+  const groups = dashboard.groups(user?.dashboardLayout);
   res.render('admin/dashboard', {
     title: 'Admin-Dashboard',
     groups,

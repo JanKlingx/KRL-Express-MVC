@@ -1,3 +1,4 @@
+<% const base = typeof ledgerBasePath === "string" ? ledgerBasePath : "/admin/penalty-ledger"; const label = typeof disciplineLabel === "string" ? disciplineLabel : "FORMEL 1"; const shortLabel = typeof series === "string" ? series : "F1"; %>
 <%- include('../partials/header', { title }) %>
 
 <%
@@ -589,14 +590,14 @@
   }
 </style>
 
-<section class="admin-shell">
+<section class="admin-shell" data-ledger-url="<%= base %>">
   <div class="container">
 
     <div class="admin-heading penalty-ledger-head">
       <div>
         <a class="back-link" href="/admin">← Dashboard</a>
-        <span class="form-kicker">RENNLEITUNG · FORMEL 1</span>
-        <h1>FORMEL 1 STRAFKARTEI</h1>
+        <span class="form-kicker">RENNLEITUNG · <%= label %></span>
+        <h1><%= label %> STRAFKARTEI</h1>
         <p class="admin-intro">
           Stammfahrer je Liga sowie Ersatzfahrer und ehemalige Fahrer
           ligenübergreifend verwalten.
@@ -653,7 +654,7 @@
 
             <form
               method="post"
-              action="/admin/penalty-ledger/settings"
+              action="<%= base %>/settings"
               class="penalty-public-form"
             >
               <input
@@ -682,7 +683,7 @@
           </div>
         </header>
 
-        <form method="get" action="/admin/penalty-ledger" class="penalty-calendar-picker">
+        <form method="get" action="<%= base %>" class="penalty-calendar-picker">
           <% safeLedgers.forEach((otherLedger) => {
             if (otherLedger.league.slug !== league.slug && otherLedger.selectedCalendar?.id) { %>
               <input type="hidden" name="calendar_<%= otherLedger.league.slug %>" value="<%= otherLedger.selectedCalendar.id %>">
@@ -879,12 +880,12 @@
       </header>
 
       <div class="penalty-info">
-        Alle aktuellen F1-Ersatzfahrer werden hier
+        Alle aktuellen <%= shortLabel %>-Ersatzfahrer werden hier
         <strong>einmal gemeinsam</strong> geführt.
         Strafpunkte bleiben ihrer Liga und Rennrunde zugeordnet.
       </div>
 
-      <form method="get" action="/admin/penalty-ledger" class="penalty-calendar-picker">
+      <form method="get" action="<%= base %>" class="penalty-calendar-picker">
         <% safeLedgers.forEach((ledger) => { if (ledger.selectedCalendar?.id) { %><input type="hidden" name="calendar_<%= ledger.league.slug %>" value="<%= ledger.selectedCalendar.id %>"><% } }) %>
         <label>Rennkalender für die gemeinsame Rundenansicht
           <select name="calendar">
@@ -900,7 +901,7 @@
 
       <section class="penalty-group">
         <% if (!reserveColumnGroups.length) { %>
-          <div class="empty-state">Keine aktiven F1-Saisons vorhanden.</div>
+          <div class="empty-state">Keine aktiven <%= shortLabel %>-Saisons vorhanden.</div>
         <% } else if (!reserveRows.length) { %>
           <div class="empty-state">Keine Ersatzfahrer vorhanden.</div>
         <% } else { %>
@@ -1044,7 +1045,7 @@
         verschwindet seine Zeile automatisch.
       </div>
 
-      <form method="get" action="/admin/penalty-ledger" class="penalty-calendar-picker">
+      <form method="get" action="<%= base %>" class="penalty-calendar-picker">
         <% safeLedgers.forEach((ledger) => { if (ledger.selectedCalendar?.id) { %><input type="hidden" name="calendar_<%= ledger.league.slug %>" value="<%= ledger.selectedCalendar.id %>"><% } }) %>
         <label>Rennkalender für die gemeinsame Rundenansicht
           <select name="calendar">
@@ -1060,7 +1061,7 @@
 
       <section class="penalty-group">
         <% if (!formerColumnGroups.length) { %>
-          <div class="empty-state">Keine aktiven F1-Saisons vorhanden.</div>
+          <div class="empty-state">Keine aktiven <%= shortLabel %>-Saisons vorhanden.</div>
         <% } else if (!formerRows.length) { %>
           <div class="empty-state">
             Keine ehemaligen Fahrer mit Reststrafen.

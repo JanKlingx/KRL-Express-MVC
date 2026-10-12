@@ -12864,3 +12864,30 @@ section.f1-race-statistics { min-width: 0; background: transparent; }
 .lmu-team-options { display:flex; flex-wrap:wrap; gap:1rem; margin:1rem 0; }
 [data-lmu-setup] [hidden],.lmu-workflow-step [hidden] { display:none !important; }
 @media(max-width:700px){.lmu-calendar-round{grid-template-columns:minmax(0,1fr)}.lmu-workflow-step{padding:.8rem}.lmu-picker>label{flex:1 1 100%}}
+
+/* Personal dashboard organization: usable with mouse, keyboard and touch. */
+details[data-dashboard-category] > summary { cursor:pointer; list-style:revert; padding:1rem 0; }
+.dashboard-organizer { padding:1.2rem; border:1px solid #ffffff25; border-radius:12px; margin:1.5rem 0; }
+.dashboard-organizer form { display:flex; flex-wrap:wrap; gap:1rem; align-items:end; }
+.dashboard-organizer label { display:grid; gap:.4rem; flex:1 1 200px; }
+.dashboard-organizer input,.dashboard-organizer select { width:100%; min-height:42px; background:#111c24; color:#fff; border:1px solid #53616e; border-radius:6px; padding:.5rem; }
+.category-tools { display:flex; gap:.6rem; margin-bottom:1rem; }
+.dashboard-drag-handle { position:absolute; top:.55rem; right:3.2rem; width:36px; height:36px; border:1px solid #ffffff45; border-radius:8px; background:#101c27; color:#fff; cursor:grab; font-size:1.6rem; z-index:2; }
+.admin-favorites .dashboard-drag-handle { display:none; }
+[data-dashboard-category].is-drop-target { outline:2px dashed var(--accent,#6ef2f2); outline-offset:5px; }
+[data-dashboard-category] .admin-grid:empty::after { content:'Transaktionen hier ablegen'; display:block; padding:1rem; color:#a8b5c0; }
+.lmu-season-wizard > fieldset[hidden],.lmu-season-wizard [hidden] { display:none!important; }
+.lmu-season-wizard .setup-driver-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.6rem; }
+.lmu-season-wizard .setup-driver-options label,.lmu-season-wizard .lmu-team-options label { display:flex; gap:.7rem; align-items:center; padding:.8rem; border:1px solid #ffffff25; border-radius:8px; }
+.setup-steps button[aria-current="step"] { background:var(--accent,#6ef2f2); color:#071219; }
+.lmu-season-wizard .lineup-team-card label { display:grid; gap:.3rem; margin:.8rem 0; }
+.lmu-season-wizard { display:block; }
+.lmu-season-wizard .setup-panel { grid-template-columns:minmax(0,1fr); gap:1rem; min-width:0; padding:1.2rem; }
+.lmu-season-wizard .setup-panel > legend { padding:0 .5rem; color:var(--cyan); font-weight:700; }
+.lmu-season-wizard .lineup-team-grid { grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); }
+.lmu-season-wizard .lineup-team-card { min-width:0; }
+.season-setup-shell .setup-steps button[data-lmu-step-link] { white-space:normal; min-width:0; padding:.8rem .4rem; }
+details[data-dashboard-category] > summary::before { content:'›'; font-size:1.6rem; transition:transform .15s; }
+details[data-dashboard-category][open] > summary::before { transform:rotate(90deg); }
+details[data-dashboard-category] > summary h2 { flex:1; }
+.category-tools { flex-wrap:wrap; }

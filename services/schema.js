@@ -40,6 +40,9 @@ async function ensureSchema() {
   const queryInterface = sequelize.getQueryInterface();
   const usersTable = await queryInterface.describeTable("users");
   await addMissingColumn("users", usersTable, "dashboard_favorites", { type: DataTypes.JSON, allowNull: true });
+  await addMissingColumn('users', usersTable, 'dashboard_layout', { type: DataTypes.JSON, allowNull: true });
+  const lmuRaceEventColumns = await queryInterface.describeTable('race_events');
+  await addMissingColumn('race_events', lmuRaceEventColumns, 'lmu_track_id', { type: DataTypes.INTEGER, allowNull: true });
   const teamCatalogTable=await queryInterface.describeTable('teams');
   await addMissingColumn('teams', teamCatalogTable, 'standings_color', { type: DataTypes.STRING, allowNull: true });
   await addMissingColumn('teams',teamCatalogTable,'aggregation_team_id',{type:DataTypes.INTEGER,allowNull:true});
