@@ -822,6 +822,7 @@ async function loadLeagueData(slug, requestedSeasonId) {
         );
 
         return {
+          ...require('../services/raceStatistics').awardColumns(ordered),
           round:
             race.sortOrder,
 

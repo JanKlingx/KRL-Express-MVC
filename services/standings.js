@@ -437,7 +437,7 @@ function buildSeasonData(
     return stintsFor(driver.id, "regular").find((stint) => {
       if (Number(main.sortOrder) >= Number(stint.fromRound)) return null;
       const team = plain(stint.seasonTeam);
-      const sameTeam = team?.sourceType === 'current'
+      const sameTeam = ['current','lmu'].includes(team?.sourceType)
         ? Number(mainEntry.TeamId) === Number(team.sourceId) && Number(entry.TeamId) === Number(team.sourceId)
         : team?.sourceType === 'historical' && Number(mainEntry.TeamId) > 0 && Number(entry.TeamId) === Number(mainEntry.TeamId);
       // Historical team names may differ from their base team. The saved carry-over

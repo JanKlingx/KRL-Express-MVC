@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   leagueSelect?.addEventListener('change', () => {
     const query = new URLSearchParams();
     if (leagueSelect.value) query.set('league', leagueSelect.value);
-    window.location.assign(`/admin/season-driver-change${query.size ? `?${query}` : ''}`);
+    window.location.assign(`${contextForm.getAttribute('action') || '/admin/season-driver-change'}${query.size ? `?${query}` : ''}`);
   });
 
   const form = document.querySelector('[data-driver-change-form]');
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     [...team.options].forEach((option, index) => {
       if (!index) return;
       const occupied = active.filter((driverOption) => driverOption.dataset.teamId === option.value).length;
-      const free = Math.max(0, 2 - occupied);
+      const free = Math.max(0, Number(form.dataset.seats || 2) - occupied);
       option.disabled = mode === 'fill' ? free < 1 : mode === 'release' ? occupied < 1 : true;
       option.hidden = option.disabled;
       option.textContent = mode === 'fill'

@@ -12882,8 +12882,7 @@ details[data-dashboard-category] > summary { cursor:pointer; list-style:revert; 
 .setup-steps button[aria-current="step"] { background:var(--accent,#6ef2f2); color:#071219; }
 .lmu-season-wizard .lineup-team-card label { display:grid; gap:.3rem; margin:.8rem 0; }
 .lmu-season-wizard { display:block; }
-.lmu-season-wizard .setup-panel { grid-template-columns:minmax(0,1fr); gap:1rem; min-width:0; padding:1.2rem; }
-.lmu-season-wizard .setup-panel > legend { padding:0 .5rem; color:var(--cyan); font-weight:700; }
+.lmu-season-wizard .setup-panel { grid-template-columns:82px minmax(0,1fr); gap:0; min-width:0; padding:0; }
 .lmu-season-wizard .lineup-team-grid { grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); }
 .lmu-season-wizard .lineup-team-card { min-width:0; }
 .season-setup-shell .setup-steps button[data-lmu-step-link] { white-space:normal; min-width:0; padding:.8rem .4rem; }
@@ -12891,3 +12890,10 @@ details[data-dashboard-category] > summary::before { content:'›'; font-size:1.
 details[data-dashboard-category][open] > summary::before { transform:rotate(90deg); }
 details[data-dashboard-category] > summary h2 { flex:1; }
 .category-tools { flex-wrap:wrap; }
+/* LMU uses the same numbered setup panels as Formula 1. */
+.lmu-season-wizard .setup-form > .table-wrap,.lmu-season-wizard .setup-form > .lineup-team-grid,.lmu-season-wizard .setup-form > .setup-driver-options,.lmu-season-wizard .setup-form > .lmu-team-options,.lmu-season-wizard .setup-form > p { grid-column:1/-1; }
+@media(max-width:900px){.lmu-season-wizard .setup-panel{grid-template-columns:minmax(0,1fr)}}
+/* Paired columns remain together and scroll horizontally on narrow screens. */
+.f1-race-statistics .race-statistics-pairs { min-width:1800px; }
+.f1-race-statistics .race-statistics-pairs th,.f1-race-statistics .race-statistics-pairs td { white-space:nowrap; }
+.f1-race-statistics .race-statistic-team { border-right:1px solid var(--line); color:var(--muted); }

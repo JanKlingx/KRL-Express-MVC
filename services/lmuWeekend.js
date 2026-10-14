@@ -28,7 +28,12 @@ async function load(raceId, transaction, lock=false) {
     m.PointsScheme.findByPk(race.seasonRecord.PointsSchemeId,{include:[{association:'allocations'}],transaction}),penalties(race.LeagueId,race,transaction)
   ]);
   const regulars=stints.filter(stint=>stint.roleType==='regular'&&isRoundInStint(stint,race.sortOrder)).map(stint=>({stint,driver:drivers.find(d=>d.id===stint.DriverId),team:teams.find(t=>t.id===stint.SeasonTeamId)})).filter(row=>row.driver&&row.team);
-  const reserves=drivers.filter(d=>!regulars.some(r=>r.driver.id===d.id)&&(race.seasonRecord.status==='historical'||!d.roleFormerLmu));
+  const reserves=drivers.filter(d=>{
+    if(regulars.some(r=>r.driver.id===d.id))return false;
+    const latest=stints.filter(st=>st.DriverId===d.id&&st.fromRound<=race.sortOrder).sort((a,b)=>b.fromRound-a.fromRound)[0];
+    if(latest?.endReason==='left'&&latest.toRound<race.sortOrder)return false;
+    return race.seasonRecord.status==='historical'||!d.roleFormerLmu||latest?.roleType==='reserve'&&isRoundInStint(latest,race.sortOrder);
+  });
   const vacancy=[];for(const team of teams){const used=regulars.filter(row=>row.team.id===team.id).length;for(let slot=used+1;slot<=3;slot++)vacancy.push({key:`${team.id}:${slot}`,team,label:`${team.name} · freier Platz ${slot}`});}
   return {race,season:race.seasonRecord,league:race.league,teams,regulars,reserves,vacancy,entries,results,scheme,penalty,version:s.revision({updatedAt:JSON.stringify([race.updatedAt,race.seasonRecord.updatedAt,stints.map(s.plain)])},entries,results)};
 }
@@ -36,10 +41,12 @@ function verify(data,version){if(data.version!==version)throw new Error('Das Ren
 async function saveLineup(id,body){
  return m.sequelize.transaction(async transaction=>{
   const data=await load(id,transaction,true);verify(data,body.version);if(data.results.length)throw new Error('Bitte zuerst die Ergebnisse zurücksetzen.');
+  if(body.formMode==='f1'&&data.entries.some(e=>e.attendanceStatus))throw new Error('Bitte zuerst die Aufstellung zur Bearbeitung öffnen.');
+  if(body.formMode==='f1')body=require('./lmuWeekendForm').lineupBody(data,body);
   const records=[],used=new Set(),seats=new Set();
   for(const row of data.regulars){const input=body.regular?.[`d${row.driver.id}`]||{};const status=data.penalty.banned.has(row.driver.id)?'rennsperre':input.status||'anwesend';if(!regularStatuses.has(status))throw new Error('Ungültiger Stammfahrerstatus.');
     records.push({DriverId:row.driver.id,TeamId:row.team.sourceId,SeasonTeamId:row.team.id,roleType:'regular',status});used.add(row.driver.id);
-    if(status==='anwesend'||status==='unsicher'||status==='rennsperre')seats.add(`d${row.driver.id}`);
+    if(status==='anwesend'||body.formMode!=='f1'&&(status==='unsicher'||status==='rennsperre'))seats.add(`d${row.driver.id}`);
   }
   for(const [key,input]of Object.entries(body.reserves||{})){
     if(input.selected!=='on')continue;const driver=data.reserves.find(d=>d.id===Number(key.replace(/^d/,'')));if(!driver||used.has(driver.id))throw new Error('Ungültiger oder mehrfach ausgewählter Ersatzfahrer.');used.add(driver.id);
@@ -58,7 +65,13 @@ async function saveLineup(id,body){
 }
 async function saveAttendance(id,body){
  return m.sequelize.transaction(async transaction=>{
-  const data=await load(id,transaction,true);verify(data,body.version);if(data.results.length)throw new Error('Bitte zuerst die Ergebnisse zurücksetzen.');if(!data.entries.length)throw new Error('Bitte zuerst die Aufstellung speichern.');
+  const data=await load(id,transaction,true);verify(data,body.version);if(data.results.length&&body.formMode!=='f1')throw new Error('Bitte zuerst die Ergebnisse zurücksetzen.');if(!data.entries.length)throw new Error('Bitte zuerst die Aufstellung speichern.');
+  if(body.formMode==='f1'){
+    const changes=require('./lmuWeekendForm').attendanceValues(data,body);
+    if(data.results.length)await m.GrandPrixResultEntry.destroy({where:{GrandPrixResultId:id},transaction});
+    for(const {entry,values}of changes)await entry.update(values,{transaction});
+    await m.RaceEvent.update({isCompleted:false},{where:{GrandPrixResultId:id,SeasonId:data.season.id},transaction});return;
+  }
   const occupied=new Set();
   for(const entry of data.entries){const input=body.attendance?.[`d${entry.DriverId}`]||{};const banned=entry.status==='rennsperre'||data.penalty.banned.has(entry.DriverId);let attendance=banned?'abgemeldet':input.status;
     if(!['anwesend','zu_spaet_vorbesprechung','abgemeldet','unabgemeldet','zu_spaet_abgemeldet'].includes(attendance))throw new Error('Bitte die tatsächliche Anwesenheit für jeden Fahrer bestätigen.');
@@ -84,5 +97,5 @@ function resultRows(data,body){
  return rows;
 }
 async function saveResults(id,body){return m.sequelize.transaction(async transaction=>{const data=await load(id,transaction,true);verify(data,body.version);const rows=resultRows(data,body);await m.GrandPrixResultEntry.destroy({where:{GrandPrixResultId:id},transaction});await m.GrandPrixResultEntry.bulkCreate(rows,{transaction});await m.RaceEvent.update({isCompleted:true},{where:{GrandPrixResultId:id,SeasonId:data.season.id},transaction});await s.syncRanks(transaction);});}
-async function reset(id,body){return m.sequelize.transaction(async transaction=>{const data=await load(id,transaction,true);verify(data,body.version);const step=s.number(body.step,'Schritt');if(step>3)throw new Error('Ungültiger Schritt.');await m.GrandPrixResultEntry.destroy({where:{GrandPrixResultId:id},transaction});if(step===1)await m.F1RaceLineupEntry.destroy({where:{GrandPrixResultId:id},transaction});else if(step===2)await m.F1RaceLineupEntry.update({attendanceStatus:null,includeInResults:false},{where:{GrandPrixResultId:id},transaction});await m.RaceEvent.update({isCompleted:false},{where:{GrandPrixResultId:id},transaction});await s.syncRanks(transaction);});}
+async function reset(id,body){return m.sequelize.transaction(async transaction=>{const data=await load(id,transaction,true);verify(data,body.version);const step=s.number(body.step,'Schritt');if(step>3)throw new Error('Ungültiger Schritt.');await m.GrandPrixResultEntry.destroy({where:{GrandPrixResultId:id},transaction});if(step===1)await m.F1RaceLineupEntry.destroy({where:{GrandPrixResultId:id},transaction});else if(step===2)await m.F1RaceLineupEntry.update({attendanceStatus:null,includeInResults:false,uncertainPresent:null,respondedInTime:null},{where:{GrandPrixResultId:id},transaction});await m.RaceEvent.update({isCompleted:false},{where:{GrandPrixResultId:id},transaction});await s.syncRanks(transaction);});}
 module.exports={load,penalties,saveLineup,saveAttendance,saveResults,resultRows,reset};

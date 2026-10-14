@@ -276,7 +276,7 @@
   function renderStatistics(){
     document.querySelectorAll('[data-historical-statistics-round]').forEach(tr=>{
       const race=data.races.find(r=>r.raceType!=='sprint'&&Number(r.sortOrder)===Number(tr.dataset.historicalStatisticsRound));if(!race)return;
-      awards.forEach(field=>{const td=tr.querySelector(`[data-historical-statistic="${field}"]`);if(td)td.textContent=grid.rows.filter(row=>row.cells[race.id]?.[field]).map(row=>name(row.driverId)).join(', ')||'–';});
+      awards.forEach(field=>{const td=tr.querySelector(`[data-historical-statistic="${field}"]`);if(td)td.textContent=grid.rows.filter(row=>row.cells[race.id]?.[field]).map(row=>name(row.driverId)).join(', ')||'–';const teamCell=tr.querySelector(`[data-historical-statistic-team="${field}"]`);if(teamCell)teamCell.textContent=grid.rows.filter(row=>row.role==='regular'&&row.cells[race.id]?.[field]).map(row=>data.teams.find(t=>Number(t.id)===Number(row.cells[race.id].teamId||row.teamId))?.name||'').join(', ');});
     });
   }
   get('undo').addEventListener('click',()=>{if(dirty&&!confirm('Alle ungespeicherten Änderungen verwerfen?'))return;window.SeasonAliases?.reset();Object.assign(grid,JSON.parse(original));data.teams=JSON.parse(originalTeams);teamChanges=undefined;selectedRows.clear();dirty=false;render();message('Änderungen verworfen.');});

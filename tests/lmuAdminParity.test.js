@@ -127,7 +127,7 @@ test('Öffentliche LMU-Strafkartei respektiert Sichtbarkeit auch in globalen Tab
 
 test('LMU-Saisonassistent führt durch acht Schritte, speichert Entwürfe und begrenzt das Line-up auf ausgewählte Fahrer',async t=>{
   const drivers=[regular,reserve,{id:4,name:'Nicht gewählt',viewLmu:true}];
-  const html=await ejs.renderFile('views/admin/lmu-season-setup.ejs',{...layout,leagues:[league],league,calendars:[{id:3,name:'Kalender',rounds:[{sortOrder:1,isTestDay:true,circuit:'Spa'},{sortOrder:2,circuit:'Spa'}]}],games:[{id:5,name:'LMU'}],schemes:[{id:6,name:'Punkte'}],teams:[{id:8,name:'Team',accentColor:'#abcdef'}],drivers,draft:{name:'S7',LeagueId:7,LmuGameId:5,LmuCalendarId:3,PointsSchemeId:6,driverIds:['1','2'],teamIds:['8'],cockpits:{t8:{s0:'1'}},step:1}});
+  const html=await ejs.renderFile('views/admin/lmu-season-setup.ejs',{...layout,leagues:[league],league,calendars:[{id:3,name:'Kalender',rounds:[{sortOrder:1,isTestDay:true,circuit:'Spa',startsAt:'2026-10-01T18:00Z'},{sortOrder:2,circuit:'Spa',startsAt:'2026-10-11T18:00Z'}]}],games:[{id:5,name:'LMU'}],schemes:[{id:6,name:'Punkte'}],teams:[{id:8,name:'Team',accentColor:'#abcdef'}],drivers,draft:{name:'S7',LeagueId:7,LmuGameId:5,LmuCalendarId:3,PointsSchemeId:6,driverIds:['1','2'],teamIds:['8'],cockpits:{t8:{s0:'1'}},step:1}});
   const dom=new JSDOM(html,{url:'http://localhost/admin/lmu-season-setup',runScripts:'outside-only'});t.after(()=>dom.window.close());const w=dom.window,d=w.document;let sent,offline=false;
   w.fetch=async(url,options)=>{assert.equal(url,'/admin/lmu-season-setup/draft');if(offline)throw new Error('Offline');sent=new URLSearchParams(options.body);return {ok:true,headers:{get:()=> 'application/json'}};};
   w.eval(fs.readFileSync('public/js/lmu-season-wizard.js','utf8'));
@@ -145,7 +145,7 @@ test('LMU-Saisonentwurf ist pro Sitzung gespeichert und erzeugt noch keine Saiso
 function setupDatabase(t) {
   const saved={drivers:[],stints:[],events:[]};
   t.mock.method(m.sequelize,'transaction',async fn=>fn(tx));mock(t,'League','findByPk',async()=>record(league));mock(t,'Season','findOne',async()=>null);mock(t,'Season','findAll',async()=>[]);
-  mock(t,'LmuCalendar','findByPk',async()=>({id:3,rounds:[{isTestDay:true,sortOrder:1,LmuTrackId:8},{sortOrder:2,LmuTrackId:8,startsAt:'2026-10-11T18:00:00Z'}]}));mock(t,'LmuGame','findByPk',async()=>({id:5,name:'LMU'}));mock(t,'PointsScheme','findByPk',async()=>({id:6,discipline:'lmu'}));
+  mock(t,'LmuCalendar','findByPk',async()=>({id:3,rounds:[{isTestDay:true,sortOrder:1,LmuTrackId:8,startsAt:'2026-10-01T18:00:00Z'},{sortOrder:2,LmuTrackId:8,startsAt:'2026-10-11T18:00:00Z'}]}));mock(t,'LmuGame','findByPk',async()=>({id:5,name:'LMU'}));mock(t,'PointsScheme','findByPk',async()=>({id:6,discipline:'lmu'}));
   mock(t,'Team','findAll',async()=>[{id:8,name:'Team',accentColor:'#abcdef'},{id:9,name:'Andere'}]);mock(t,'Driver','findAll',async()=>[regular,reserve,{id:3,name:'Dritter'},{id:4,name:'Vierter'}].map(record));
   mock(t,'Season','create',async values=>record({...season,...values}));mock(t,'SeasonTeam','create',async values=>record({id:20,...values}));
   mock(t,'SeasonDriver','create',async values=>{saved.drivers.push(values.DriverId);});mock(t,'SeasonLineupEntry','create',async()=>{});mock(t,'SeasonDriverStint','create',async values=>saved.stints.push(values));

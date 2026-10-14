@@ -6,8 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function syncTest(scope) {
     const test = scope.querySelector('[data-test-toggle]').checked;
     const sprint = scope.querySelector('[data-sprint-toggle]');
-    sprint.disabled = test;
-    if (test) sprint.checked = false;
+    if(sprint){ sprint.disabled = test; if (test) sprint.checked = false; }
     scope.querySelector('[data-round-number-field]')?.toggleAttribute('hidden', test);
     scope.querySelector('[data-test-label]')?.toggleAttribute('hidden', !test);
     scope.classList.toggle('is-test', test);

@@ -16,14 +16,14 @@
     });
     const seats = [...form.querySelectorAll('[data-cockpit-driver]')].filter(select => !select.disabled && select.value);
     form.querySelector('[data-reserve-summary]').textContent = (drivers.length - new Set(seats.map(s => s.value)).size) + ' Ersatzfahrer ohne Stammcockpit';
-    form.querySelectorAll('[data-calendar-preview]').forEach(preview => preview.hidden = preview.dataset.calendarPreview !== form.elements.LmuCalendarId.value);
+    form.querySelectorAll('[data-calendar-preview]').forEach(preview => { preview.hidden = preview.dataset.calendarPreview !== form.elements.LmuCalendarId.value; preview.querySelectorAll('input').forEach(input=>input.disabled=preview.hidden); });
     const review = form.querySelector('[data-setup-review]'); review.replaceChildren();
     for (const [label, value] of [['Liga', form.elements.LeagueId.selectedOptions[0]?.textContent], ['Saison', form.elements.name.value], ['Kalender', form.elements.LmuCalendarId.selectedOptions[0]?.textContent], ['Punktesystem', form.elements.PointsSchemeId.selectedOptions[0]?.textContent], ['Fahrer', drivers.length], ['Teams', teams.length], ['Stammfahrer', seats.length], ['Ersatzfahrer', drivers.length - new Set(seats.map(s => s.value)).size]]) {
       const p = document.createElement('p'); p.textContent = label + ': ' + (value ?? '–'); review.append(p);
     }
   }
   function show() {
-    steps.forEach((step, i) => step.hidden = i !== current); links.forEach((link, i) => link.setAttribute('aria-current', i === current ? 'step' : 'false'));
+    steps.forEach((step, i) => step.hidden = i !== current); links.forEach((link, i) => (link.setAttribute('aria-current', i === current ? 'step' : 'false'),link.classList.toggle('is-complete',i<current)));
     back.hidden = current === 0; next.hidden = current === 7; submit.hidden = current !== 7; choices();
   }
   function valid(index) {
@@ -46,7 +46,7 @@
       current = target; show(); status.textContent = 'Entwurf gespeichert.';
     } catch (error) { status.textContent = error.message; } finally { busy = false; }
   }
-  next.addEventListener('click', () => navigate(current + 1)); back.addEventListener('click', () => navigate(current - 1)); links.forEach((link,i) => link.addEventListener('click', () => navigate(i)));
+  next.addEventListener('click', () => navigate(current + 1)); back.addEventListener('click', () => navigate(current - 1)); links.forEach((link,i) => link.addEventListener('click', event => {event.preventDefault();navigate(i);}));
   form.addEventListener('change', choices);
   form.addEventListener('invalid', event => { current = steps.findIndex(step => step.contains(event.target)); show(); }, true);
   form.addEventListener('submit', event => { choices(); for (let i=0;i<8;i++) if (!valid(i)) { event.preventDefault(); break; } });

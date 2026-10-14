@@ -165,7 +165,7 @@ async function createSeason(body) {
       await m.SeasonDriverStint.create({SeasonId:season.id,DriverId:assignment.DriverId,SeasonTeamId,roleType,fromRound:1},{transaction});
     }
     let round=0;
-    for (const item of calendar.rounds) {
+    for (const {id:templateRoundId,...item} of require('./lmuCalendar').seasonRounds(calendar,body,league)) {
       const race = item.isTestDay ? null : await m.GrandPrixResult.create({SeasonId:season.id,LeagueId:league.id,discipline:'lmu',raceType:'main',title:item.title,circuit:item.circuit,raceDate:require('./raceWeekend').berlinDate(new Date(item.startsAt)),season:season.name,sortOrder:++round,pointsMode:'database',isHistorical:status==='historical'},{transaction});
       await m.RaceEvent.create({...item,SeasonId:season.id,LeagueId:league.id,GrandPrixResultId:race?.id||null,isPublished:status==='active'&&season.isPublished},{transaction});
     }
@@ -182,8 +182,8 @@ async function activate(season, league, transaction) {
   await m.GrandPrixResult.update({isHistorical:season.status==='historical',season:season.name},{where:{SeasonId:season.id,discipline:'lmu'},transaction});
   await m.RaceEvent.update({isPublished:season.status==='active'&&season.isPublished},{where:{SeasonId:season.id,LeagueId:league.id},transaction});
 }
-async function changeDriver(seasonId, body) {
-  return m.sequelize.transaction(async transaction=>{
+async function changeDriver(seasonId, body, providedTransaction) {
+  const execute = async transaction=>{
     const season=await seasonById(seasonId,transaction,true),round=number(body.fromRound,'Ab Runde');
     if (round < await nextRound(season.id,transaction)) throw new Error('Der Wechsel muss nach dem letzten gespeicherten Rennen liegen.');
     const race=await m.GrandPrixResult.findOne({where:{SeasonId:season.id,discipline:'lmu',sortOrder:round},transaction});
@@ -200,14 +200,18 @@ async function changeDriver(seasonId, body) {
     for(const stint of driverStints){if(stint.fromRound===round)await stint.destroy({transaction});else await stint.update({toRound:round-1,endReason:body.retire==='on'?'left':team?'team_change':'demoted'},{transaction});}
     if(body.retire!=='on')await m.SeasonDriverStint.create(candidate,{transaction});
     await m.SeasonDriver.findOrCreate({where:{SeasonId:season.id,DriverId:driver.id},transaction});
+    if(body.retire==='on')await m.SeasonLineupEntry.destroy({where:{SeasonId:season.id,DriverId:driver.id},transaction});
+    else {
     const [lineup]=await m.SeasonLineupEntry.findOrCreate({where:{SeasonId:season.id,DriverId:driver.id},defaults:{roleType,SeasonTeamId:team?.id||null},transaction});
     await lineup.update({roleType,SeasonTeamId:team?.id||null},{transaction});
+    }
     if(body.retire==='on'&&season.status==='active'&&round===await nextRound(season.id,transaction))await driver.update({viewLmu:false,viewFormerLmu:true,roleFormerLmu:true,roleLmuRegular:false,roleLmuReserve:false},{transaction});
     const future=await m.GrandPrixResult.findAll({where:{SeasonId:season.id,discipline:'lmu',sortOrder:{[Op.gte]:round}},include:[{association:'entries'}],transaction});
     if(future.some(r=>r.entries.length))throw new Error('Nach diesem Wechsel liegen bereits Ergebnisse vor.');
     // Future plans are invalidated as a whole so replacement chains cannot reference a released cockpit.
     await m.F1RaceLineupEntry.destroy({where:{GrandPrixResultId:{[Op.in]:future.map(r=>r.id)}},transaction});
     await syncRanks(transaction);
-  });
+  };
+  return providedTransaction ? execute(providedTransaction) : m.sequelize.transaction(execute);
 }
 module.exports={plain,lmuWhere,number,color,roundsFrom,points,revision,seasonById,nextRound,syncRanks,ensureStructure,createSeason,activate,changeDriver};

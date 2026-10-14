@@ -55,7 +55,7 @@ function buildPublicWeekends({ races = [], entries = [], teams = [], stints = []
       const groups = allTeams.map((team) => ({ id: team.id, sourceType: team.sourceType, sourceId: team.sourceId, name: team.name, logoPath: team.logoPath, regulars: [], reserves: [] }));
       function groupFor(entry) {
         let group = groups.find((team) => entry.SeasonTeamId && Number(team.id) === Number(entry.SeasonTeamId));
-        group ||= groups.find((team) => entry.TeamId && (team.sourceType === 'current' ? Number(team.sourceId) === Number(entry.TeamId) : !team.sourceType && Number(team.id) === Number(entry.TeamId)));
+        group ||= groups.find((team) => entry.TeamId && (['current','lmu'].includes(team.sourceType) ? Number(team.sourceId) === Number(entry.TeamId) : !team.sourceType && Number(team.id) === Number(entry.TeamId)));
         group ||= groups.find((team) => entry.team?.name && key(team.name) === key(entry.team.name));
         if (!group) {
           const team = plain(entry.team) || {};
