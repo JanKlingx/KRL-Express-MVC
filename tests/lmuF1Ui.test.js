@@ -61,13 +61,13 @@ test('LMU-Kalender übernimmt F1-Ansicht: Reihenfolge, Testtag, keine Titel/Term
 });
 test('Kalendervorlagen speichern stabile IDs und Testtage; veraltete Struktur wird abgewiesen',async t=>{
  const saved=record({id:3,name:'Kalender',isActive:true,rounds:[{id:1,sortOrder:1,LmuTrackId:8,circuit:'Spa'},{id:2,sortOrder:2,circuit:'Alte Strecke'}]});
- t.mock.method(m.sequelize,'transaction',async fn=>fn(tx));mock(t,'LmuCalendar','findByPk',async()=>saved);mock(t,'LmuTrack','findByPk',async()=>({id:8,name:'Spa',country:'Belgien'}));
+ t.mock.method(m.sequelize,'transaction',async fn=>fn(tx));mock(t,'LmuCalendar','findByPk',async()=>saved);mock(t,'LmuTrack','findByPk',async()=>({id:8,name:'Spa',country:'Belgien',displayName:'Spa-Francorchamps',layout:'Classic'}));
  const old=calendar.version(saved);
  await calendar.edit(3,{version:old,roundIds:['2','1'],rounds:{r2:{isTestDay:'on'},r1:{LmuTrackId:'8'}}},'structure');
  assert.deepEqual(saved.rounds.map(r=>[r.id,r.roundNumber,r.circuit]),[[2,null,'Alte Strecke'],[1,1,'Spa']]);
  await assert.rejects(calendar.edit(3,{version:old},'add'),/inzwischen/);
  await assert.rejects(calendar.edit(3,{version:calendar.version(saved),roundIds:['1','1']},'structure'),/Kalendereinträge/);
- await calendar.edit(3,{version:calendar.version(saved),LmuTrackId:8},'add');assert.equal(saved.rounds.at(-1).id,3);
+ await calendar.edit(3,{version:calendar.version(saved),LmuTrackId:8},'add');assert.equal(saved.rounds.at(-1).id,3);assert.equal(saved.rounds.at(-1).title,'Spa-Francorchamps');assert.equal(saved.rounds.at(-1).layout,'Classic');assert.equal(saved.rounds.at(-1).circuit,'Spa');
  await calendar.edit(3,{version:calendar.version(saved),roundId:1},'delete');assert.deepEqual(saved.rounds.map(r=>r.roundNumber),[null,1]);
 });
 test('Saisontermine verwenden Ligauhrzeit/Berlin, Kalenderstruktur bleibt unverändert',()=>{

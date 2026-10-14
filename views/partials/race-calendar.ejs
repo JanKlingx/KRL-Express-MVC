@@ -225,11 +225,13 @@
 
 
             <h3>
-              <%= race.isTestDay ? (race.track?.countryRecord?.name || race.track?.country || String(race.title || '').replace(/^testtag\s*[·:–-]?\s*/i, '')) : race.title %>
+              <%= league.type === 'lmu' && race.track?.displayName ? race.track.displayName : (race.isTestDay ? (race.track?.countryRecord?.name || race.track?.country || String(race.title || '').replace(/^testtag\s*[·:–-]?\s*/i, '')) : race.title) %>
             </h3>
 
           </div>
-
+          <% if (league.type === 'lmu' && race.track) { %>
+            <p class="race-calendar-track"><%= race.track.name %> · <strong><%= race.track.layout || 'Default' %></strong></p>
+          <% } %>
 
          
 

@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes, commonSort) => {
-  const LmuTrack = sequelize.define('LmuTrack', { name: { type: DataTypes.STRING, allowNull: false }, country: DataTypes.STRING, ...commonSort });
+  const LmuTrack = sequelize.define('LmuTrack', { name: { type: DataTypes.STRING, allowNull: false }, country: DataTypes.STRING, displayName: DataTypes.STRING, layout: { type: DataTypes.STRING, defaultValue: 'Default' }, ...commonSort });
   const LmuGame = sequelize.define('LmuGame', { name: { type: DataTypes.STRING, allowNull: false, unique: true }, logoPath: DataTypes.STRING, isActive: { type: DataTypes.BOOLEAN, defaultValue: true }, ...commonSort });
   const LmuCalendar = sequelize.define('LmuCalendar', { name: { type: DataTypes.STRING, allowNull: false, unique: true }, rounds: { type: DataTypes.JSON, allowNull: false }, isActive: { type: DataTypes.BOOLEAN, defaultValue: true }, ...commonSort });
   const LmuRuleSection = sequelize.define('LmuRuleSection', { headingLevel: { type: DataTypes.INTEGER, defaultValue: 2 }, title: { type: DataTypes.STRING, allowNull: false }, content: { type: DataTypes.TEXT, allowNull: false }, sectionType: { type: DataTypes.STRING, defaultValue: 'rule' }, isPublished: { type: DataTypes.BOOLEAN, defaultValue: true }, ...commonSort });

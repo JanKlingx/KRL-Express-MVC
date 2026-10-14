@@ -359,7 +359,7 @@ async function prepareLmuTeam(values, body, existingTeam) {
   await prepareCentralTeam("lmu", values, body, existingTeam);
   values.LmuCarId = null;
   values.accentColor = require('./lmuSeason').color(values.accentColor);
-  values.standingsColor = require('./lmuSeason').color(values.standingsColor);
+  values.standingsColor = values.accentColor;
 }
 
 async function prepareF1TeamWithHistory(entry) {
@@ -1516,8 +1516,7 @@ module.exports = {
     listFields: ["name", "totalPoints"],
     fields: [
       text("name", "Teamname", true),
-      field("accentColor", "Teamfarbe / GP-Ergebnisse", "color", true),
-      field("standingsColor", "Farbe für die WM-Grafik", "color", true),
+      field("accentColor", "Teamfarbe", "color", true),
       number("totalPoints", "Gesamte Punkte (automatisch)", false, {
         readonly: true,
         persist: false,
@@ -1578,8 +1577,13 @@ module.exports = {
     title: 'LMU-Strecken', group: 'LMU Stammdaten', model: models.LmuTrack,
     description: 'LMU-Strecken mit Land und Flagge pflegen und im zentralen Rennkalender auswählen.',
     prepareValues: require('./lmuTracks').prepare, beforeRemove: require('./lmuTracks').beforeRemove,
-    listFields: ['CountryId', 'name'],
-    fields: [relation('CountryId', 'Land', models.Country, row => row.name, true), text('name', 'Strecke', true)],
+    listFields: ['CountryId', 'name', 'displayName', 'layout'],
+    fields: [
+      relation('CountryId', 'Land', models.Country, row => row.name, true),
+      text('name', 'Strecke', true, { placeholder: 'Circuit de la Sarthe' }),
+      text('displayName', 'Anzeigename', false, { placeholder: 'Le Mans (leer = Streckenname)' }),
+      text('layout', 'Layout / Variante', false, { placeholder: 'Default, Outer, Classic …' }),
+    ],
   },
   f1Tracks: {
     title: "F1-Strecken",

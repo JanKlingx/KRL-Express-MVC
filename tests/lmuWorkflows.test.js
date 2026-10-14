@@ -197,7 +197,7 @@ test('LMU-Gastseite zeigt historischen Kalender, Spiel-Logo, vollständigen Verl
   mock(t, 'F1RaceLineupEntry', 'findAll', async ({include}) => { for(const row of include)assert.ok(m.F1RaceLineupEntry.associations[row.association],row.association);return [entry]; });
   mock(t, 'Team', 'findAll', async () => [{...team,id:30,standingsColor:'#fedcba'}]);
   const data = await require('../controllers/lmuController').loadData(12,'lmu',false);
-  assert.equal(data.gpResults[0].entries.length,1);assert.equal(data.teams[0].standingsColor,'#fedcba');
+  assert.equal(data.gpResults[0].entries.length,1);assert.equal(data.teams[0].standingsColor,team.accentColor);
   const html=await ejs.renderFile(path.join(root,'views/lmu.ejs'),{...data,title:'LMU',isAdmin:false,currentPath:'/lmu',flash:null});
   const dom=new JSDOM(html);t.after(()=>dom.window.close());const d=dom.window.document;
   assert.equal(d.querySelectorAll('.race-calendar-card').length,1);assert.ok(d.querySelector('img[src="/uploads/lmu.png"]'));assert.match(d.querySelector('#season-history').textContent,/LMU Alias/);assert.ok(d.querySelector('#f1-standings-history'));assert.ok(d.querySelector('.league-team-card'));
@@ -252,15 +252,55 @@ test('LMU-Farbpflicht und getrennte Autozuordnung verändern die F1-Felder nicht
   assert.equal(config.drivers.fields.some(f=>f.name==='LmuCarId'),false);
   assert.ok(config.lmuCars.fields.find(f=>f.name==='accentColor')?.required);
   assert.ok(config.lmuTeams.fields.find(f=>f.name==='accentColor')?.required);
-  assert.ok(config.lmuTeams.fields.find(f=>f.name==='standingsColor')?.required);
+  assert.equal(config.lmuTeams.fields.some(f=>f.name==='standingsColor'),false);
   assert.throws(()=>s.color('red'),/Farbe/);
   for(const name of ['LmuCalendar','LmuGame','LmuRuleSection','LmuRaceDirectorDocument'])assert.ok(m[name]);
 });
 test('LMU-Schema ergänzt neue Spalten einmalig und bewahrt bestehende Daten', async t => {
-  const qi=m.sequelize.getQueryInterface();const columns={race_events:{},seasons:{hide_calendar_time:{},historical_grid:{},driver_display_names:{}},users:{dashboard_favorites:{}},teams:{aggregation_team_id:{},logo_variants:{}},lmu_cars:{},drivers:{},f1_car_profiles:{unified_team_id:{}},community_settings:{logo_path:{}}};
+  const qi=m.sequelize.getQueryInterface();const columns={lmu_tracks:{},race_events:{},seasons:{hide_calendar_time:{},historical_grid:{},driver_display_names:{}},users:{dashboard_favorites:{}},teams:{aggregation_team_id:{},logo_variants:{}},lmu_cars:{},drivers:{},f1_car_profiles:{unified_team_id:{}},community_settings:{logo_path:{}}};
   const added=[],stop=new Error('Schemaabschnitt geprüft');t.mock.method(qi,'describeTable',async table=>columns[table]);
   t.mock.method(qi,'addColumn',async(table,name,definition)=>{assert.equal(columns[table][name],undefined);columns[table][name]={};added.push({table,name,definition});});
   mock(t,'Guide','findOrCreate',async()=>{throw stop;});
   const {ensureSchema}=require('../services/schema');await assert.rejects(ensureSchema(),error=>error===stop);const count=added.length;await assert.rejects(ensureSchema(),error=>error===stop);assert.equal(added.length,count);
-  for(const name of ['lmu_managed','lmu_game_id','lmu_calendar_id','view_former_lmu','standings_color','accent_color','lmu_track_id','dashboard_layout'])assert.ok(added.some(row=>row.name===name),name);
+  for(const name of ['display_name','layout','lmu_managed','lmu_game_id','lmu_calendar_id','view_former_lmu','standings_color','accent_color','lmu_track_id','dashboard_layout'])assert.ok(added.some(row=>row.name===name),name);
+});
+
+test('LMU-Strecken speichern Anzeigename und freies Layout mit sicheren Standardwerten', async t => {
+  const tracks = require('../services/lmuTracks');
+  mock(t, 'Country', 'findByPk', async () => ({ name: 'Frankreich' }));
+  const values = { CountryId: 1, name: ' Circuit de la Sarthe ', displayName: ' Le Mans ', layout: ' Classic ' };
+  await tracks.prepare(values);
+  assert.deepEqual(values, { CountryId: 1, country: 'Frankreich', name: 'Circuit de la Sarthe', displayName: 'Le Mans', layout: 'Classic' });
+  const legacy = { CountryId: 1, name: 'Spa' };
+  await tracks.prepare(legacy);
+  assert.equal(legacy.layout, 'Default'); assert.equal(legacy.displayName, '');
+  await assert.rejects(tracks.prepare({ ...values, layout: 'x'.repeat(256) }), /255/);
+  await assert.rejects(tracks.prepare({ ...values, displayName: 'x'.repeat(256) }), /255/);
+  mock(t, 'LmuTrack', 'findByPk', async () => ({ id: 1, ...values }));
+  const rounds = await tracks.resolveRounds([{ LmuTrackId: 1, startsAt: '2026-10-11T20:00' }]);
+  assert.equal(rounds[0].title, 'Le Mans'); assert.equal(rounds[0].circuit, 'Circuit de la Sarthe');
+});
+
+test('LMU-Team speichern verwendet für WM und Ergebnisse dieselbe Farbe', async t => {
+  mock(t, 'Team', 'findOne', async () => null);
+  const values = { name: 'Team', accentColor: '#123456', standingsColor: '#abcdef' };
+  await require('../services/resourceConfig').lmuTeams.prepareValues(values, {}, null);
+  assert.equal(values.standingsColor, values.accentColor);
+});
+
+test('LMU-Ligaseite ordnet Abschnitte und Navigation und zeigt Strecke mit Anzeigename und Layout', async t => {
+  const track = { name: 'Circuit de la Sarthe', displayName: 'Le Mans', layout: 'Outer', countryRecord: { name: 'Frankreich' } };
+  const html = await ejs.renderFile(path.join(root, 'views/lmu.ejs'), {
+    title: 'LMU', league, selectedSeason: season, seasons: [season], isAdmin: false,
+    teamRosters: [], teams: [], gpResults: [],
+    calendar: [{ id: 1, title: 'Frankreich', track, startsAt: '2026-10-11T18:00Z', sortOrder: 1 }]
+  });
+  const dom = new JSDOM(html); t.after(() => dom.window.close());
+  const d = dom.window.document;
+  const expected = ['lmu-lineup', 'lmu-grid', 'lmu-calendar', 'f1-standings-history', 'rennstatistik', 'lmu-gp-results', 'season-history'];
+  assert.deepEqual([...d.querySelectorAll('.league-page section[id]')].map(el => el.id), expected);
+  assert.deepEqual([...d.querySelectorAll('.league-section-nav a')].map(el => el.hash.slice(1)), expected);
+  assert.equal(d.querySelector('.race-calendar-title h3').textContent.trim(), 'Le Mans');
+  assert.equal(d.querySelectorAll('.race-calendar-track').length, 1);
+  assert.match(d.querySelector('.race-calendar-track').textContent, /Circuit de la Sarthe · Outer/);
 });
