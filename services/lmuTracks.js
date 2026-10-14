@@ -4,6 +4,9 @@ async function prepare(values) {
   if (!country) throw new Error('Bitte ein Land aus dem Länderstamm auswählen.');
   values.name = String(values.name || '').trim();
   if (!values.name || values.name.length > 255) throw new Error('Bitte einen Streckennamen mit höchstens 255 Zeichen eingeben.');
+  values.displayName = String(values.displayName || '').trim();
+  values.layout = String(values.layout || '').trim() || 'Default';
+  if (values.displayName.length > 255 || values.layout.length > 255) throw new Error('Anzeigename und Layout dürfen höchstens 255 Zeichen enthalten.');
   values.country = country.name;
 }
 async function resolveRounds(input, transaction, legacy = []) {
@@ -13,7 +16,7 @@ async function resolveRounds(input, transaction, legacy = []) {
       const track = await m.LmuTrack.findByPk(Number(row.LmuTrackId), { transaction });
       if (!track) throw new Error('Eine ausgewählte LMU-Strecke existiert nicht mehr.');
       row.circuit = track.name;
-      row.title = String(row.title || '').trim() || track.name;
+      row.title = String(row.title || '').trim() || track.displayName || track.name;
     } else if (!legacy.some(old => old.circuit === row.circuit)) {
       throw new Error('Bitte für jeden neuen Termin eine LMU-Strecke auswählen.');
     }

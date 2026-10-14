@@ -11,7 +11,7 @@ async function track(id, transaction) {
   if (!item) throw new Error('Bitte eine Strecke aus dem LMU-Streckenstamm auswählen.');
   return item;
 }
-function values(item,isTestDay) { return {LmuTrackId:item.id,circuit:item.name,title:item.countryRecord?.name || item.country || item.name,isTestDay}; }
+function values(item,isTestDay) { return {LmuTrackId:item.id,circuit:item.name,title:item.displayName || item.name,layout:item.layout || 'Default',isTestDay}; }
 async function edit(id,body,operation) {
   return m.sequelize.transaction(async transaction => {
     const calendar=await m.LmuCalendar.findByPk(id,{transaction,lock:transaction.LOCK.UPDATE});

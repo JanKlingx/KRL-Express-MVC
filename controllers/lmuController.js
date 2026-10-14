@@ -20,7 +20,7 @@ async function loadData(requestedSeasonId,slug='lmu',canEdit=false){
  const lastRound=Math.max(1,...gpResults.filter(r=>r.entries.length).map(r=>Number(r.sortOrder)));
  const nextRound=selectedSeason?.status==='historical'?lastRound:Math.max(1,...gpResults.filter(r=>r.entries.length).map(r=>Number(r.sortOrder)+1));
  const regulars=stints.filter(s=>s.roleType==='regular');
- const teams=selectedSeason?.lmuManaged?seasonTeams.map(t=>({...plain(t),id:t.sourceId,standingsColor:catalog.find(c=>c.id===t.sourceId)?.standingsColor||t.accentColor,drivers:regulars.filter(s=>s.SeasonTeamId===t.id&&isRoundInStint(s,nextRound)).map(s=>display(s.driver))})):rosters.map(r=>({...plain(r.team),drivers:r.assignments.filter(a=>a.roleName!=='Ersatzfahrer'&&a.driver).map(a=>display(a.driver))}));
+ const teams=selectedSeason?.lmuManaged?seasonTeams.map(t=>({...plain(t),id:t.sourceId,standingsColor:t.accentColor,drivers:regulars.filter(s=>s.SeasonTeamId===t.id&&isRoundInStint(s,nextRound)).map(s=>display(s.driver))})):rosters.map(r=>({...plain(r.team),standingsColor:r.team.accentColor,drivers:r.assignments.filter(a=>a.roleName!=='Ersatzfahrer'&&a.driver).map(a=>display(a.driver))}));
  const driverMap=new Map();
  for(const stint of regulars)if(stint.driver)driverMap.set(stint.DriverId,{...display(stint.driver),team:plain(stint.seasonTeam)});
  if(!selectedSeason?.lmuManaged)for(const roster of rosters)for(const a of roster.assignments)if(a.driver&&a.roleName!=='Ersatzfahrer')driverMap.set(a.DriverId,{...display(a.driver),team:plain(roster.team)});

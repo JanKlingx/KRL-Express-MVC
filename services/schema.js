@@ -41,6 +41,9 @@ async function ensureSchema() {
   const usersTable = await queryInterface.describeTable("users");
   await addMissingColumn("users", usersTable, "dashboard_favorites", { type: DataTypes.JSON, allowNull: true });
   await addMissingColumn('users', usersTable, 'dashboard_layout', { type: DataTypes.JSON, allowNull: true });
+  const lmuTrackTable = await queryInterface.describeTable('lmu_tracks');
+  await addMissingColumn('lmu_tracks', lmuTrackTable, 'display_name', { type: DataTypes.STRING, allowNull: true });
+  await addMissingColumn('lmu_tracks', lmuTrackTable, 'layout', { type: DataTypes.STRING, allowNull: true, defaultValue: 'Default' });
   const lmuRaceEventColumns = await queryInterface.describeTable('race_events');
   await addMissingColumn('race_events', lmuRaceEventColumns, 'lmu_track_id', { type: DataTypes.INTEGER, allowNull: true });
   const teamCatalogTable=await queryInterface.describeTable('teams');
