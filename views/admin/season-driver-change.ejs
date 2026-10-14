@@ -1,3 +1,4 @@
+<% const changeBase=typeof driverChangeBase==='undefined'?'/admin/season-driver-change':driverChangeBase; const changeLmu=typeof driverChangeSeries!=='undefined'&&driverChangeSeries==='LMU'; const driverSeries=changeLmu?'LMU':'Formel-1'; %>
 <%- include('../partials/header', { title }) %>
 <%
   const safeEligible = typeof eligibleMemberships === 'undefined' ? (memberships || []) : eligibleMemberships;
@@ -12,18 +13,18 @@
   <div class="admin-heading">
     <div>
       <a class="back-link" href="/admin">← Dashboard</a>
-      <span class="form-kicker">FORMEL 1 · SAISONHISTORIE</span>
+      <span class="form-kicker"><%= changeLmu?'LMU':'FORMEL 1' %> · SAISONHISTORIE</span>
       <h1>FAHRERWECHSEL</h1>
       <p class="admin-intro">Cockpit oder Ersatzfahrerstatus ab einer noch nicht gefahrenen Runde ändern. Vergangene Ergebnisse und Punkte bleiben unverändert.</p>
     </div>
-    <a class="button button-ghost" href="/admin/season-setup">Saison-Line-up ansehen</a>
+    <a class="button button-ghost" href="<%= changeLmu?'/admin/lmu-season-setup':'/admin/season-setup' %>">Saison-Line-up ansehen</a>
   </div>
 
   <section class="setup-panel">
     <div class="setup-panel-number">01</div>
     <div class="setup-panel-content">
       <span>KONTEXT</span><h2>LIGA UND SAISON</h2>
-      <form method="get" action="/admin/season-driver-change" class="setup-form driver-change-context">
+      <form method="get" action="<%= changeBase %>" class="setup-form driver-change-context">
         <label>Liga
           <select name="league" required><option value="">Liga auswählen …</option><% leagues.forEach((item) => { %><option value="<%= item.id %>" <%= Number(selectedLeague?.id) === Number(item.id) ? 'selected' : '' %>><%= item.name %></option><% }) %></select>
         </label>
@@ -45,7 +46,7 @@
         <% if (!safeRounds.some((row) => row.round > completedRound)) { %>
           <div class="change-conflict"><strong>KEINE OFFENE RUNDE</strong><span>In dieser Saison gibt es keine zukünftige Runde mehr.</span></div>
         <% } else { %>
-          <form method="get" action="/admin/season-driver-change" class="setup-form driver-change-form" data-driver-change-form>
+          <form method="get" action="<%= changeBase %>" class="setup-form driver-change-form" data-driver-change-form data-seats="<%= changeLmu?3:2 %>">
             <input type="hidden" name="league" value="<%= selectedLeague.id %>"><input type="hidden" name="season" value="<%= selectedSeason.id %>"><input type="hidden" name="check" value="1">
             <label>1. Gültig ab
               <select name="round" data-change-round required><option value="">Runde auswählen …</option><% safeRounds.filter((row) => row.round > completedRound).forEach((row) => { %><option value="<%= row.round %>" <%= safePreview && Number(safeSelectedRound) === Number(row.round) ? 'selected' : '' %>>R<%= row.round %> · <%= row.title %></option><% }) %></select>
@@ -69,8 +70,8 @@
             <fieldset class="driver-change-reserve-choice" data-reserve-choice hidden>
               <legend>5. Bleibt der Fahrer Ersatzfahrer?</legend>
               <label><input type="radio" name="staysReserve" value="1" <%= safePreview?.staysReserve ? 'checked' : '' %>> Ja</label>
-              <label><input type="radio" name="staysReserve" value="0" <%= safePreview && !safePreview.staysReserve ? 'checked' : '' %>> Nein, ehemaliger Formel-1-Fahrer</label>
-              <p>Der zentrale Rang „F1 Ersatz“ gilt ligaübergreifend. Einsätze werden je Saison und Rennen ausgewählt.</p>
+              <label><input type="radio" name="staysReserve" value="0" <%= safePreview && !safePreview.staysReserve ? 'checked' : '' %>> Nein, ehemaliger <%= driverSeries %>-Fahrer</label>
+              <p>Der zentrale Rang „<%= changeLmu?'LMU Ersatz':'F1 Ersatz' %>“ gilt ligaübergreifend. Einsätze werden je Saison und Rennen ausgewählt.</p>
             </fieldset>
             <button class="button" type="submit" data-review-button hidden>TRANSAKTION PRÜFEN</button>
           </form>
@@ -82,11 +83,11 @@
     <% if (safePreview?.operation === 'retireReserve') { %>
       <section class="setup-panel"><div class="setup-panel-number">03</div><div class="setup-panel-content">
         <h2>ERSATZFAHRER-AUSSTIEG PRÜFEN</h2>
-        <p><strong><%= safePreview.driver.name %></strong> hört als Ersatzfahrer ab <%= safePreview.retirement.date %> auf. Ohne weiteren aktiven Stammplatz erhält er automatisch den Rang „Ehemaliger Formel-1-Fahrer“.</p>
+        <p><strong><%= safePreview.driver.name %></strong> hört als Ersatzfahrer ab <%= safePreview.retirement.date %> auf. Ohne weiteren aktiven Stammplatz erhält er automatisch den Rang „Ehemaliger <%= driverSeries %>-Fahrer“.</p>
         <ul><% safePreview.retirement.scopes.forEach((scope) => { %><li><%= scope.season.name %> · <%= scope.season.scopeSlug %>: Reservewertung ab R<%= scope.round %> DNA.</li><% }) %></ul>
         <p>Vergangene Ergebnisse bleiben erhalten. Der Fahrer kann anschließend nicht mehr als Ersatzfahrer ausgewählt werden.</p>
-        <form method="post" action="/admin/season-driver-change">
-          <input type="hidden" name="operation" value="retireReserve"><input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><input type="hidden" name="ReserveDriverId" value="<%= safePreview.driver.id %>"><input type="hidden" name="effectiveRound" value="<%= safePreview.effectiveRound %>"><input type="hidden" name="retirementVersion" value="<%= safePreview.retirement.version %>">
+        <form method="post" action="<%= changeBase %>">
+          <input type="hidden" name="changeVersion" value="<%= safePreview.version||'' %>"><input type="hidden" name="operation" value="retireReserve"><input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><input type="hidden" name="ReserveDriverId" value="<%= safePreview.driver.id %>"><input type="hidden" name="effectiveRound" value="<%= safePreview.effectiveRound %>"><input type="hidden" name="retirementVersion" value="<%= safePreview.retirement.version %>">
           <button class="button" type="submit">ERSATZFAHRER-AUSSTIEG SPEICHERN</button>
         </form>
       </div></section>
@@ -96,12 +97,12 @@
         <div class="setup-panel-number">03</div>
         <div class="setup-panel-content">
           <span>GEPRÜFTE ZUSAMMENFASSUNG</span><h2><%= safePreview.team.name %></h2>
-          <div class="driver-change-preview"><% if (safePreview.operation === 'fill') { %><strong><%= newName %> besetzt ab R<%= safePreview.effectiveRound %> ein freies Stammcockpit.</strong><small>Passender Stammfahrer-Rang: <%= selectedLeague.name %>. Frühere Runden bleiben DNA, außer den unten ausdrücklich anerkannten Ersatzeinsätzen im selben Team.</small><% } else { %><strong><%= oldName %> gibt das Cockpit nach R<%= safePreview.effectiveRound - 1 %> ab.</strong><small><%= safePreview.staysReserve ? 'Danach: F1 Ersatz.' : 'Ohne weitere aktive Stammplätze: Ehemaliger Formel-1-Fahrer. Ein bestehender Ersatzstatus endet ligaübergreifend.' %> Alle späteren Runden der Stammfahrerwertung werden DNA.</small><% } %></div>
+          <div class="driver-change-preview"><% if (safePreview.operation === 'fill') { %><strong><%= newName %> besetzt ab R<%= safePreview.effectiveRound %> ein freies Stammcockpit.</strong><small>Passender Stammfahrer-Rang: <%= selectedLeague.name %>. Frühere Runden bleiben DNA, außer den unten ausdrücklich anerkannten Ersatzeinsätzen im selben Team.</small><% } else { %><strong><%= oldName %> gibt das Cockpit nach R<%= safePreview.effectiveRound - 1 %> ab.</strong><small><%= safePreview.staysReserve ? (changeLmu?'Danach: LMU Ersatz.':'Danach: F1 Ersatz.') : `Ohne weitere aktive Stammplätze: Ehemaliger ${driverSeries}-Fahrer. Ein bestehender Ersatzstatus endet ligaübergreifend.` %> Alle späteren Runden der Stammfahrerwertung werden DNA.</small><% } %></div>
           <% if (safePreview.retirement) { %><ul><% safePreview.retirement.scopes.forEach((scope) => { %><li><%= scope.season.name %> · <%= scope.season.scopeSlug %>: zusätzlich Reservewertung ab R<%= scope.round %> DNA.</li><% }) %></ul><% } %>
-          <form method="post" action="/admin/season-driver-change" class="setup-form">
-            <input type="hidden" name="retirementVersion" value="<%= safePreview.retirement?.version || '' %>">
+          <form method="post" action="<%= changeBase %>" class="setup-form">
+            <input type="hidden" name="changeVersion" value="<%= safePreview.version||'' %>"><input type="hidden" name="retirementVersion" value="<%= safePreview.retirement?.version || '' %>">
             <input type="hidden" name="LeagueId" value="<%= selectedLeague.id %>"><input type="hidden" name="SeasonId" value="<%= selectedSeason.id %>"><input type="hidden" name="SeasonTeamId" value="<%= safePreview.team.id %>"><input type="hidden" name="operation" value="<%= safePreview.operation %>"><input type="hidden" name="effectiveRound" value="<%= safePreview.effectiveRound %>"><input type="hidden" name="OldDriverId" value="<%= safePreview.oldStint?.DriverId || '' %>"><input type="hidden" name="NewDriverId" value="<%= safePreview.membership?.DriverId || '' %>"><input type="hidden" name="staysReserve" value="<%= safePreview.staysReserve ? '1' : '0' %>"><% safePreview.reserveLeagueSlugs.forEach((slug) => { %><input type="hidden" name="reserveLeagues" value="<%= slug %>"><% }) %>
-            <% if (safePreview.carryHistory.length) { %><div class="driver-change-carry-list"><header><strong>VORHERIGE ERSATZEINSÄTZE FÜR <%= safePreview.team.name.toUpperCase() %></strong><span>Ausgewählte Rennen erscheinen rückwirkend mit GP- und Sprintpunkten in der Stammfahrerwertung. Die anerkannten Punkte zählen auch für dieses Team in der Konstrukteurs-WM – ohne doppelte Wertung.</span></header><table><thead><tr><th>Anrechnen</th><th>Runde</th><th>Grand Prix</th><th>GP</th><th>Sprint</th><th>Gesamt</th></tr></thead><tbody><% safePreview.carryHistory.forEach((race) => { %><tr><td><input type="checkbox" name="carryResultIds" value="<%= race.GrandPrixResultId %>" aria-label="R<%= race.round %> anerkennen"></td><td>R<%= race.round %></td><td><%= race.title %></td><td><%= race.mainPoints %></td><td><%= race.sprintPoints %></td><td><strong><%= race.totalPoints %></strong></td></tr><% }) %></tbody></table></div><% } else if (safePreview.operation === 'fill') { %><p>Für diesen Fahrer liegen vor R<%= safePreview.effectiveRound %> keine anrechenbaren Ersatzeinsätze in diesem Team vor.</p><% } %>
+            <% if (safePreview.carryHistory.length) { %><div class="driver-change-carry-list"><header><strong>VORHERIGE ERSATZEINSÄTZE FÜR <%= safePreview.team.name.toUpperCase() %></strong><span>Ausgewählte Rennen erscheinen rückwirkend mit <%= changeLmu?'Rennpunkten':'GP- und Sprintpunkten' %> in der Stammfahrerwertung. Die anerkannten Punkte zählen auch für dieses Team in der Konstrukteurs-WM – ohne doppelte Wertung.</span></header><table><thead><tr><th>Anrechnen</th><th>Runde</th><th>Grand Prix</th><th>GP</th><% if(!changeLmu){ %><th>Sprint</th><% } %><th>Gesamt</th></tr></thead><tbody><% safePreview.carryHistory.forEach((race) => { %><tr><td><input type="checkbox" name="carryResultIds" value="<%= race.GrandPrixResultId %>" aria-label="R<%= race.round %> anerkennen"></td><td>R<%= race.round %></td><td><%= race.title %></td><td><%= race.mainPoints %></td><% if(!changeLmu){ %><td><%= race.sprintPoints %></td><% } %><td><strong><%= race.totalPoints %></strong></td></tr><% }) %></tbody></table></div><% } else if (safePreview.operation === 'fill') { %><p>Für diesen Fahrer liegen vor R<%= safePreview.effectiveRound %> keine anrechenbaren Ersatzeinsätze in diesem Team vor.</p><% } %>
             <button class="button" type="submit"><%= safePreview.operation === 'release' ? 'COCKPIT ABGEBEN' : 'STAMMCOCKPIT BESETZEN' %></button>
           </form>
         </div>

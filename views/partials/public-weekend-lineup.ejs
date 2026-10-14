@@ -1,5 +1,5 @@
-<% const board = typeof publicWeekends !== 'undefined' ? publicWeekends : { snapshots: [], currentIndex: 0 }; %>
-<section class="section container public-weekend" id="f1-lineup" data-public-weekends>
+<% const seats=typeof cockpitCount==='undefined'?2:cockpitCount; const board = typeof publicWeekends !== 'undefined' ? publicWeekends : { snapshots: [], currentIndex: 0 }; %>
+<section class="section container public-weekend" id="<%= typeof lineupSectionId==='undefined'?'f1-lineup':lineupSectionId %>" data-public-weekends>
   <div class="section-heading"><span>AUFSTELLUNG UND ANWESENHEIT</span><h2>FAHREREINTEILUNG</h2></div>
   <% if (!board.snapshots.length) { %><p class="empty-state">Noch keine Rennwochenenden vorhanden.</p><% } else { %>
     <div class="public-weekend-nav">
@@ -19,14 +19,14 @@
           <% if (!weekend.reserves.length) { %><p>Noch keine Ersatzfahrer angemeldet.</p><% } %>
         </div>
         <h4>TEAMS UND COCKPITS</h4>
-        <table class="public-lineup-table"><thead><tr><th scope="col">Team</th><th scope="col">Stammfahrer 1</th><th scope="col">Stammfahrer 2</th><th scope="col">Ersatzfahrer 1</th><th scope="col">Ersatzfahrer 2</th></tr></thead><tbody>
+        <table class="public-lineup-table"><thead><tr><th scope="col">Team</th><% ['Stammfahrer','Ersatzfahrer'].forEach(label=>{for(let i=1;i<=seats;i++){ %><th scope="col"><%= label %> <%= i %></th><% }}); %></tr></thead><tbody>
           <% weekend.teams.forEach((team) => { %>
             <tr>
               <th scope="row" data-label="Team"><% if (team.logoPath) { %><img src="<%= team.logoPath %>" alt="<%= team.name %>" title="<%= team.name %>"><% } else { %><span><%= team.name %></span><% } %></th>
-              <% [team.regulars.slice(0, 1), team.regulars.slice(1)].forEach((drivers, slot) => { %>
+              <% Array.from({length:seats},(_,slot)=>team.regulars.filter((_,i)=>i%seats===slot)).forEach((drivers, slot) => { %>
                 <td data-label="Stammfahrer <%= slot + 1 %>"><% drivers.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>" title="<%= driver.statusLabel || driver.status %><%= driver.replacesName ? ` · für ${driver.replacesName}` : '' %>"><strong><%= driver.name %></strong></div><% }); %><% if (!drivers.length) { %><span>Freies Cockpit</span><% } %></td>
               <% }) %>
-              <% [team.reserves.filter((_, i) => i % 2 === 0), team.reserves.filter((_, i) => i % 2 === 1)].forEach((reserves, slot) => { %><td data-label="Ersatzfahrer <%= slot + 1 %>"><% reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>" title="<%= driver.statusLabel || driver.status %><%= driver.replacesName ? ` · für ${driver.replacesName}` : '' %>"><strong><%= driver.name %></strong></div><% }) %><% if (!reserves.length) { %>–<% } %></td><% }) %>
+              <% Array.from({length:seats},(_,slot)=>team.reserves.filter((_,i)=>i%seats===slot)).forEach((reserves, slot) => { %><td data-label="Ersatzfahrer <%= slot + 1 %>"><% reserves.forEach((driver) => { %><div class="public-driver-status" data-status="<%= driver.status %>" title="<%= driver.statusLabel || driver.status %><%= driver.replacesName ? ` · für ${driver.replacesName}` : '' %>"><strong><%= driver.name %></strong></div><% }) %><% if (!reserves.length) { %>–<% } %></td><% }) %>
             </tr>
           <% }) %>
         </tbody></table>
